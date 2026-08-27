@@ -1,7 +1,10 @@
 # ============================================================
 # auto-move-issues.yml
 # Automatiza el movimiento de tarjetas en GitHub Projects v2
-# adaptado para MargenX (Equipo de 4 personas).
+#
+# FLUJO DE ESTADOS:
+#   BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE
+#                             ↑____QA rechaza______|
 # ============================================================
 
 name: Auto Move Issues - Project Board
@@ -34,14 +37,14 @@ permissions:
 
 jobs:
   # ============================================================
-  # JOB 1: BACKLOG → READY (Al asignar issue)
+  # JOB 1: BACKLOG → TO DO (Al asignar issue)
   # ============================================================
-  move_to_ready:
-    name: "Issue asignada → READY"
+  move_to_to_do:
+    name: "Issue asignada → TO DO"
     if: github.event_name == 'issues' && github.event.action == 'assigned'
     runs-on: ubuntu-latest
     steps:
-      - name: Mover issue a columna Ready
+      - name: Mover issue a columna To Do
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           ORGANIZATION: ${{ vars.ORGANIZATION }}
@@ -70,8 +73,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          READY_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Ready") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          TO_DO_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "to do" or (.name | ascii_downcase) == "ready") | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -97,13 +100,13 @@ jobs:
             -f project="$PROJECT_ID" \
             -f item="$ITEM_ID" \
             -f field="$STATUS_FIELD_ID" \
-            -f option="$READY_OPTION_ID" \
+            -f option="$TO_DO_OPTION_ID" \
             --silent
 
-          echo "✅ Issue #${{ github.event.issue.number }} movida a READY"
+          echo "✅ Issue #${{ github.event.issue.number }} movida a TO DO"
 
   # ============================================================
-  # JOB 2: READY → BACKLOG (Al desasignar)
+  # JOB 2: TO DO → BACKLOG (Al desasignar)
   # ============================================================
   move_to_backlog_unassigned:
     name: "Issue desasignada → BACKLOG"
@@ -139,8 +142,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Backlog") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "backlog") | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -172,7 +175,7 @@ jobs:
           echo "📋 Issue #${{ github.event.issue.number }} devuelta a BACKLOG"
 
   # ============================================================
-  # JOB 3: READY → IN PROGRESS (Al crear branch con número de issue)
+  # JOB 3: TO DO → IN PROGRESS (Al crear branch)
   # ============================================================
   move_to_in_progress:
     name: "Branch creada → IN PROGRESS"
@@ -237,8 +240,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "in progress") | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -270,7 +273,7 @@ jobs:
           echo "🔄 Issue #${{ steps.extract_issue.outputs.ISSUE_NUMBER }} movida a IN PROGRESS"
 
   # ============================================================
-  # JOB 4: IN PROGRESS → IN REVIEW (Al abrir PR a develop)
+  # JOB 4: IN PROGRESS → IN REVIEW (Al abrir PR)
   # ============================================================
   move_to_in_review:
     name: "PR abierto → IN REVIEW"
@@ -311,8 +314,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          IN_REVIEW_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Review") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_REVIEW_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "in review") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -381,13 +384,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: |
-          gh api /repos/${{ github.repository }}/labels \
-            -f name="needs-qa" -f color="fbca04" \
-            -f description="Pendiente de revisión QA" 2>/dev/null || true
-
-          gh pr edit ${{ github.event.pull_request.number }} \
-            --add-label "needs-qa" \
-            --repo ${{ github.repository }}
+          gh api /repos/${{ github.repository }}/labels -f name="needs-qa" -f color="fbca04" 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-qa" --repo ${{ github.repository }}
 
   # ============================================================
   # JOB 5: REVISIÓN DE QA (QA Approved o In Progress)
@@ -451,8 +449,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "QA Approved") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "qa approved") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -584,8 +582,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          DONE_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          DONE_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "done") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -693,8 +691,8 @@ jobs:
             > project_data.json
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
-          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Backlog") | .id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select((.name | ascii_downcase) == "status") | .options[] | select((.name | ascii_downcase) == "backlog") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
