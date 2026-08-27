@@ -18,3 +18,6 @@ postgres-dev-data/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+!.vscode/tasks.json
+
+repomix-output.xml

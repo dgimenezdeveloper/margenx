@@ -1,0 +1,760 @@
+# ============================================================
+# auto-move-issues.yml
+# Automatiza el movimiento de tarjetas en GitHub Projects v2
+# adaptado para MargenX (Equipo de 4 personas).
+# ============================================================
+
+name: Auto Move Issues - Project Board
+
+on:
+  issues:
+    types: [assigned, unassigned]
+  create:
+  pull_request:
+    types: [opened, closed, reopened]
+    branches:
+      - develop
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Modo prueba (true = solo muestra qué haría, sin mover nada)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  # ============================================================
+  # JOB 1: BACKLOG → READY (Al asignar issue)
+  # ============================================================
+  move_to_ready:
+    name: "Issue asignada → READY"
+    if: github.event_name == 'issues' && github.event.action == 'assigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover issue a columna Ready
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          ISSUE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          READY_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Ready") | .id' project_data.json)
+
+          ITEM_ID=$(gh api graphql -f query='
+            mutation($project: ID!, $issue: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f issue="$ISSUE_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          gh api graphql -f query='
+            mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $project,
+                itemId: $item,
+                fieldId: $field,
+                value: { singleSelectOptionId: $option }
+              }) {
+                projectV2Item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f item="$ITEM_ID" \
+            -f field="$STATUS_FIELD_ID" \
+            -f option="$READY_OPTION_ID" \
+            --silent
+
+          echo "✅ Issue #${{ github.event.issue.number }} movida a READY"
+
+  # ============================================================
+  # JOB 2: READY → BACKLOG (Al desasignar)
+  # ============================================================
+  move_to_backlog_unassigned:
+    name: "Issue desasignada → BACKLOG"
+    if: github.event_name == 'issues' && github.event.action == 'unassigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover issue a columna Backlog
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          ISSUE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Backlog") | .id' project_data.json)
+
+          ITEM_ID=$(gh api graphql -f query='
+            mutation($project: ID!, $issue: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f issue="$ISSUE_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          gh api graphql -f query='
+            mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $project,
+                itemId: $item,
+                fieldId: $field,
+                value: { singleSelectOptionId: $option }
+              }) {
+                projectV2Item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f item="$ITEM_ID" \
+            -f field="$STATUS_FIELD_ID" \
+            -f option="$BACKLOG_OPTION_ID" \
+            --silent
+
+          echo "📋 Issue #${{ github.event.issue.number }} devuelta a BACKLOG"
+
+  # ============================================================
+  # JOB 3: READY → IN PROGRESS (Al crear branch con número de issue)
+  # ============================================================
+  move_to_in_progress:
+    name: "Branch creada → IN PROGRESS"
+    if: github.event_name == 'create' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extraer número de issue
+        id: extract_issue
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "ISSUE_FOUND=false" >> $GITHUB_OUTPUT
+          else
+            echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "ISSUE_FOUND=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Obtener node_id de la issue
+        if: steps.extract_issue.outputs.ISSUE_FOUND == 'true'
+        id: get_issue
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.extract_issue.outputs.ISSUE_NUMBER }}
+        run: |
+          ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+          if [ "$ISSUE_DATA" = "null" ]; then
+            echo "ISSUE_VALID=false" >> $GITHUB_OUTPUT
+          else
+            ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+            echo "ISSUE_ID=$ISSUE_ID" >> $GITHUB_OUTPUT
+            echo "ISSUE_VALID=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Mover a IN PROGRESS
+        if: steps.get_issue.outputs.ISSUE_VALID == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          ISSUE_ID: ${{ steps.get_issue.outputs.ISSUE_ID }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id' project_data.json)
+
+          ITEM_ID=$(gh api graphql -f query='
+            mutation($project: ID!, $issue: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f issue="$ISSUE_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          gh api graphql -f query='
+            mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $project,
+                itemId: $item,
+                fieldId: $field,
+                value: { singleSelectOptionId: $option }
+              }) {
+                projectV2Item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f item="$ITEM_ID" \
+            -f field="$STATUS_FIELD_ID" \
+            -f option="$IN_PROGRESS_OPTION_ID" \
+            --silent
+
+          echo "🔄 Issue #${{ steps.extract_issue.outputs.ISSUE_NUMBER }} movida a IN PROGRESS"
+
+  # ============================================================
+  # JOB 4: IN PROGRESS → IN REVIEW (Al abrir PR a develop)
+  # ============================================================
+  move_to_in_review:
+    name: "PR abierto → IN REVIEW"
+    if: |
+      github.event_name == 'pull_request' &&
+      (github.event.action == 'opened' || github.event.action == 'reopened')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover issues vinculadas a IN REVIEW
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          IN_REVIEW_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Review") | .id' project_data.json)
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            if [ -n "$ISSUE_NUMBER" ]; then
+              ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+              if [ "$ISSUE_DATA" != "null" ]; then
+                ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+                CLOSING_ISSUES="{\"id\":\"$ISSUE_ID\",\"number\":$ISSUE_NUMBER}"
+              fi
+            fi
+          fi
+
+          if [ -n "$CLOSING_ISSUES" ]; then
+            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
+            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+              ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+              ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+              ITEM_ID=$(gh api graphql -f query='
+                mutation($project: ID!, $issue: ID!) {
+                  addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                    item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f issue="$ISSUE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id')
+
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project,
+                    itemId: $item,
+                    fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f item="$ITEM_ID" \
+                -f field="$STATUS_FIELD_ID" \
+                -f option="$IN_REVIEW_OPTION_ID" \
+                --silent
+
+              echo "👀 Issue #$ISSUE_NUM movida a IN REVIEW"
+            done
+          fi
+
+      - name: Agregar label 'needs-qa' al PR
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          gh api /repos/${{ github.repository }}/labels \
+            -f name="needs-qa" -f color="fbca04" \
+            -f description="Pendiente de revisión QA" 2>/dev/null || true
+
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --add-label "needs-qa" \
+            --repo ${{ github.repository }}
+
+  # ============================================================
+  # JOB 5: REVISIÓN DE QA (QA Approved o In Progress)
+  # ============================================================
+  handle_qa_review:
+    name: "Review QA → QA APPROVED o IN PROGRESS"
+    if: github.event_name == 'pull_request_review' && github.event.action == 'submitted'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar si el reviewer es QA
+        id: check_reviewer
+        env:
+          REVIEWER: ${{ github.event.review.user.login }}
+          QA_USERS: ${{ vars.QA_GITHUB_USERS }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+        run: |
+          IS_QA=false
+          for USER in $QA_USERS; do
+            if [ "$REVIEWER" = "$USER" ]; then
+              IS_QA=true
+              break
+            fi
+          done
+          echo "IS_QA=$IS_QA" >> $GITHUB_OUTPUT
+          echo "REVIEW_STATE=$REVIEW_STATE" >> $GITHUB_OUTPUT
+
+      # --- QA APRUEBA ---
+      - name: Mover issues a QA APPROVED y notificar a Diego
+        if: |
+          steps.check_reviewer.outputs.IS_QA == 'true' &&
+          steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REVIEWER: ${{ github.event.review.user.login }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "QA Approved") | .id' project_data.json)
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            if [ -n "$ISSUE_NUMBER" ]; then
+              ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+              if [ "$ISSUE_DATA" != "null" ]; then
+                ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+                CLOSING_ISSUES="{\"id\":\"$ISSUE_ID\",\"number\":$ISSUE_NUMBER}"
+              fi
+            fi
+          fi
+
+          if [ -n "$CLOSING_ISSUES" ]; then
+            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
+            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+              ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+              ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+              ITEM_ID=$(gh api graphql -f query='
+                mutation($project: ID!, $issue: ID!) {
+                  addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                    item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f issue="$ISSUE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id')
+
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project,
+                    itemId: $item,
+                    fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f item="$ITEM_ID" \
+                -f field="$STATUS_FIELD_ID" \
+                -f option="$QA_APPROVED_OPTION_ID" \
+                --silent
+
+              echo "✔️ Issue #$ISSUE_NUM movida a QA APPROVED"
+            done
+          fi
+
+      - name: Labels y Notificación al Scrum Master
+        if: |
+          steps.check_reviewer.outputs.IS_QA == 'true' &&
+          steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          REVIEWER: ${{ github.event.review.user.login }}
+        run: |
+          gh api /repos/${{ github.repository }}/labels -f name="qa-approved" -f color="0e8a16" 2>/dev/null || true
+          gh api /repos/${{ github.repository }}/labels -f name="ready-to-merge" -f color="0075ca" 2>/dev/null || true
+
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --add-label "qa-approved,ready-to-merge" \
+            --remove-label "needs-qa,qa-rejected" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+
+          COMMENT="## ✅ PR Aprobado por QA — Listo para Mergear
+
+          @dgimenezdeveloper, este PR ha sido **aprobado por QA** (@$REVIEWER) y está listo para ser mergeado a \`develop\`."
+
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "$COMMENT" \
+            --repo ${{ github.repository }}
+
+  # ============================================================
+  # JOB 6: MERGEADO → DONE
+  # ============================================================
+  move_to_done:
+    name: "PR mergeado → DONE"
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover issues a DONE
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          DONE_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id' project_data.json)
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            if [ -n "$ISSUE_NUMBER" ]; then
+              ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+              if [ "$ISSUE_DATA" != "null" ]; then
+                ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+                CLOSING_ISSUES="{\"id\":\"$ISSUE_ID\",\"number\":$ISSUE_NUMBER}"
+              fi
+            fi
+          fi
+
+          if [ -n "$CLOSING_ISSUES" ]; then
+            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
+            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+              ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+              ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+              ITEM_ID=$(gh api graphql -f query='
+                mutation($project: ID!, $issue: ID!) {
+                  addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                    item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f issue="$ISSUE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id')
+
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project,
+                    itemId: $item,
+                    fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f item="$ITEM_ID" \
+                -f field="$STATUS_FIELD_ID" \
+                -f option="$DONE_OPTION_ID" \
+                --silent
+
+              echo "🏁 Issue #$ISSUE_NUM movida a DONE"
+            done
+          fi
+
+  # ============================================================
+  # JOB 7: PR CERRADO SIN MERGE → BACKLOG
+  # ============================================================
+  move_to_backlog_closed_pr:
+    name: "PR cerrado sin merge → BACKLOG"
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover issues a BACKLOG
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Backlog") | .id' project_data.json)
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            if [ -n "$ISSUE_NUMBER" ]; then
+              ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+              if [ "$ISSUE_DATA" != "null" ]; then
+                ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+                CLOSING_ISSUES="{\"id\":\"$ISSUE_ID\",\"number\":$ISSUE_NUMBER}"
+              fi
+            fi
+          fi
+
+          if [ -n "$CLOSING_ISSUES" ]; then
+            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
+            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+              ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+              ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+              ITEM_ID=$(gh api graphql -f query='
+                mutation($project: ID!, $issue: ID!) {
+                  addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                    item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f issue="$ISSUE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id')
+
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project,
+                    itemId: $item,
+                    fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f item="$ITEM_ID" \
+                -f field="$STATUS_FIELD_ID" \
+                -f option="$BACKLOG_OPTION_ID" \
+                --silent
+
+              echo "📋 Issue #$ISSUE_NUM devuelta a BACKLOG"
+            done
+          fi

@@ -1,16 +1,6 @@
 # 📊 MargenX — Control de Márgenes en Tiempo Real
 
-> Sistema web multiempresa para comercios gastronómicos y producción artesanal. Permite calcular el margen de ganancia real por producto ante la variación de costos de insumos, con recálculo en cascada y alertas automáticas vía n8n.
-
----
-
-## 🚀 Propuesta de Valor & MVP
-Los comercios fijan precios de venta en base a costos iniciales que rara vez actualizan. MargenX resuelve esto permitiendo:
-1. **ABM de Insumos y Recetas:** Carga ágil de costos unitarios y composición de productos.
-2. **Recálculo en Cascada:** Al actualizar el costo de un insumo, el sistema recalcula en tiempo real el margen y costo de todos los productos asociados.
-3. **Semáforo de Rentabilidad:** Visualización clara de productos que caen por debajo del margen mínimo esperado.
-4. **Automatización (n8n):** Alertas por email ante márgenes críticos y reportes periódicos de rentabilidad.
-5. **Control de Acceso (RBAC):** Rol Administrador (visión total) y Rol Colaborador (actualización de costos sin acceso a márgenes ni precios).
+> Aplicación web multiempresa para comercios gastronómicos y producción artesanal. Permite calcular el margen de ganancia real por producto ante la variación de costos de insumos, con recálculo en cascada y alertas automáticas vía n8n.
 
 ---
 
@@ -18,10 +8,10 @@ Los comercios fijan precios de venta en base a costos iniciales que rara vez act
 
 * **Frontend:** React + TypeScript, Vite, Tailwind CSS, Recharts, Zustand.
 * **Backend:** Node.js, Express, TypeScript, Prisma ORM.
-* **Base de Datos:** PostgreSQL (Dockerizado).
-* **Autenticación:** Supabase Auth / Clerk (Control de roles).
+* **Base de Datos:** PostgreSQL 16 (Dockerizado local y en VPS).
+* **Autenticación:** Supabase Auth / Clerk con control de roles (Admin / Colaborador).
 * **Automatización:** n8n (Self-hosted vía Webhooks).
-* **Testing:** Playwright (E2E) & Vitest/Jest (Unit testing).
+* **Testing:** Playwright (E2E) & Vitest (Unit tests).
 * **Infraestructura:**
   * *Entorno Local:* Docker + VS Code DevContainers.
   * *Producción:* Microsoft Azure (App Service) + VPS Propia (PostgreSQL + n8n).
@@ -29,15 +19,27 @@ Los comercios fijan precios de venta en base a costos iniciales que rara vez act
 
 ---
 
-## 📦 Entorno de Desarrollo (DevContainers)
+## 💻 Guía de Inicio Rápido (Windows + VS Code DevContainers)
 
-Este proyecto está 100% dockerizado para garantizar que todo el equipo trabaje en el mismo entorno.
+El proyecto está 100% dockerizado. **No necesitás instalar Node.js, TypeScript ni PostgreSQL en tu computadora de Windows.** Todo corre dentro de un contenedor aislado con las versiones exactas.
 
-### Requisitos previos:
-* [Docker Desktop](https://www.docker.com/) instalado y corriendo.
-* [VS Code](https://code.visualstudio.com/) con la extensión **Dev Containers** (`ms-vscode-remote.remote-containers`).
+### 1. Requisitos Previos en Windows (Se hace una sola vez)
 
-### Cómo iniciar:
-1. Clonar el repositorio:
+1. **Instalar Docker Desktop para Windows:**
+   * Descargar de [docker.com](https://www.docker.com/products/docker-desktop/).
+   * Asegurarse de tener habilitado el motor **WSL 2** durante la instalación.
+   * Abrir Docker Desktop y verificar que esté en verde (**Engine running**).
+2. **Instalar VS Code:**
+   * Descargar de [code.visualstudio.com](https://code.visualstudio.com/).
+3. **Instalar la extensión oficial en VS Code:**
+   * Abrir VS Code, ir a Extensiones (`Ctrl + Shift + X`) y buscar:
+   * **Dev Containers** (Identificador: `ms-vscode-remote.remote-containers`).
+
+---
+
+### 2. Cómo levantar el proyecto
+
+1. **Clonar el repositorio desde la terminal (Git Bash o PowerShell):**
    ```bash
    git clone https://github.com/dgimenezdeveloper/margenx.git
+   cd margenx
