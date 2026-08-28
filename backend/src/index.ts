@@ -1,15 +1,23 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth';
 
+// Carga las variables de entorno desde el archivo .env.
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;  // Utiliza el puerto definido en .env o 3000 como valor por defecto.
 
-app.use(cors());
-app.use(express.json());
+app.use(cors());  // Permite solicitudes desde otros orígenes.
+app.use(express.json());  // Permite recibir y procesar JSON en el body de las peticiones.
+app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenticación.
 
+/*
+  Health check de la API.
+  Permite comprobar rápidamente si el servidor
+  está funcionando correctamente.
+*/
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
