@@ -6,6 +6,25 @@
 # FLUJO DE ESTADOS:
 #   BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE
 #                                  ↑___QA rechaza___|
+#
+# ⚠️ IMPORTANTE (leer antes de tocar este archivo):
+# Los eventos "issues", "create" y "pull_request_review" NO están
+# atados a un commit/rama específica de una PR. GitHub SIEMPRE
+# evalúa estos jobs usando la copia de este archivo que existe en
+# la RAMA POR DEFECTO del repositorio (Settings → Branches → Default
+# branch), sin importar en qué rama se haya editado el workflow.
+#
+# En cambio, el evento "pull_request" SÍ usa el ref de merge de la
+# propia PR (para PRs del mismo repo). Por eso el job de IN REVIEW
+# puede reflejar cambios recientes aunque vivan en una rama de
+# feature, mientras que "handle_qa_review" (pull_request_review)
+# puede seguir ejecutando una versión vieja -o directamente no
+# ejecutar el job si no existía- hasta que este archivo esté
+# actualizado en la rama por defecto.
+#
+# 👉 Después de modificar este archivo, mergeá siempre a la rama
+#    configurada como default antes de dar por fallido un flujo que
+#    dependa de pull_request_review, issues o create.
 # ============================================================
 
 name: Auto Move Issues - Project Board
@@ -22,14 +41,18 @@ on:
     types: [submitted]
   workflow_dispatch:
     inputs:
+      pr_number:
+        description: "Número del PR a simular/forzar como QA APPROVED (ej: 12)"
+        required: true
+        type: string
       dry_run:
-        description: "Modo prueba (true = solo muestra qué haría, sin mover nada)"
+        description: "Modo prueba (true = solo muestra qué haría, sin mover ni comentar nada)"
         required: false
-        default: "false"
+        default: "true"
         type: choice
         options:
-          - "false"
           - "true"
+          - "false"
 
 permissions:
   issues: write
@@ -403,15 +426,28 @@ jobs:
           QA_USERS: ${{ vars.QA_GITHUB_USERS }}
           REVIEW_STATE: ${{ github.event.review.state }}
         run: |
+          echo "🔍 Reviewer recibido: '$REVIEWER'"
+          echo "🔍 Estado del review: '$REVIEW_STATE'"
+          echo "🔍 QA_GITHUB_USERS crudo: '$QA_USERS'"
+
+          # Normalizamos separadores: admite espacios, comas, ';' o saltos de línea
+          NORMALIZED_USERS=$(echo "$QA_USERS" | tr ',;' ' ')
+
           IS_QA=false
-          for USER in $QA_USERS; do
-            if [ "$REVIEWER" = "$USER" ]; then
+          for USER in $NORMALIZED_USERS; do
+            USER_TRIMMED=$(echo "$USER" | xargs)
+            [ -z "$USER_TRIMMED" ] && continue
+            REVIEWER_LOWER=$(echo "$REVIEWER" | tr '[:upper:]' '[:lower:]')
+            USER_LOWER=$(echo "$USER_TRIMMED" | tr '[:upper:]' '[:lower:]')
+            if [ "$REVIEWER_LOWER" = "$USER_LOWER" ]; then
               IS_QA=true
               break
             fi
           done
+
           echo "IS_QA=$IS_QA" >> $GITHUB_OUTPUT
           echo "REVIEW_STATE=$REVIEW_STATE" >> $GITHUB_OUTPUT
+          echo "✅ Resultado -> IS_QA=$IS_QA | REVIEW_STATE=$REVIEW_STATE"
 
       # --- QA APRUEBA ---
       - name: Mover issues a QA APPROVED y notificar a Diego
@@ -757,3 +793,146 @@ jobs:
               echo "📋 Issue #$ISSUE_NUM devuelta a BACKLOG"
             done
           fi
+
+  # ============================================================
+  # JOB 8: EJECUCIÓN MANUAL (workflow_dispatch) → Simula/fuerza QA APPROVED
+  #
+  # Corre el mismo movimiento de tarjeta que dispara una aprobación real
+  # de QA, pero a demanda desde la pestaña Actions → "Run workflow",
+  # sin depender de aprobar/desaprobar PRs de verdad.
+  #
+  # dry_run=true  (default): solo MUESTRA qué haría, no mueve ni comenta nada.
+  # dry_run=false            : ejecuta el movimiento real + labels + comentario,
+  #                            igual que si LeanHerrera97/dgimenezdeveloper
+  #                            hubieran aprobado el PR indicado.
+  # ============================================================
+  manual_test_qa_approved:
+    name: "🧪 Manual → Simular/Forzar QA APPROVED"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolver issues vinculadas y mover a QA APPROVED (o simular)
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          REVIEWER: ${{ github.actor }}
+        run: |
+          echo "🧪 Ejecución manual disparada por: $REVIEWER"
+          echo "🧪 PR objetivo: #$PR_NUMBER | dry_run=$DRY_RUN"
+
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json)
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$STATUS_FIELD_ID" ] || [ -z "$QA_APPROVED_OPTION_ID" ]; then
+            echo "❌ No pude resolver PROJECT_ID/STATUS_FIELD_ID/QA_APPROVED_OPTION_ID. Revisá ORGANIZATION, PROJECT_NUMBER y que exista la columna 'QA Approved'."
+            exit 1
+          fi
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            echo "⚠️ El PR #$PR_NUMBER no tiene issues vinculadas vía closingIssuesReferences. Nada para mover."
+            exit 0
+          fi
+
+          ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
+          echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+            ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+            ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "🧪 [DRY RUN] Movería Issue #$ISSUE_NUM a QA APPROVED (sin ejecutar mutación real)"
+              continue
+            fi
+
+            ITEM_ID=$(gh api graphql -f query='
+              mutation($project: ID!, $issue: ID!) {
+                addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                  item { id }
+                }
+              }' \
+              -f project="$PROJECT_ID" \
+              -f issue="$ISSUE_ID" \
+              --jq '.data.addProjectV2ItemById.item.id')
+
+            gh api graphql -f query='
+              mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $project,
+                  itemId: $item,
+                  fieldId: $field,
+                  value: { singleSelectOptionId: $option }
+                }) {
+                  projectV2Item { id }
+                }
+              }' \
+              -f project="$PROJECT_ID" \
+              -f item="$ITEM_ID" \
+              -f field="$STATUS_FIELD_ID" \
+              -f option="$QA_APPROVED_OPTION_ID" \
+              --silent
+
+            echo "✔️ Issue #$ISSUE_NUM movida a QA APPROVED (forzado manualmente)"
+          done
+
+      - name: Labels y comentario (solo si dry_run=false)
+        if: github.event.inputs.dry_run == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          REVIEWER: ${{ github.actor }}
+        run: |
+          gh api /repos/${{ github.repository }}/labels -f name="qa-approved" -f color="0e8a16" 2>/dev/null || true
+          gh api /repos/${{ github.repository }}/labels -f name="ready-to-merge" -f color="0075ca" 2>/dev/null || true
+
+          gh pr edit ${{ github.event.inputs.pr_number }} \
+            --add-label "qa-approved,ready-to-merge" \
+            --remove-label "needs-qa,qa-rejected" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+
+          COMMENT="## ✅ PR Aprobado por QA — Listo para Mergear (forzado manualmente)
+
+          @dgimenezdeveloper, este PR fue movido a **QA Approved** manualmente vía workflow_dispatch por @$REVIEWER."
+
+          gh pr comment ${{ github.event.inputs.pr_number }} \
+            --body "$COMMENT" \
+            --repo ${{ github.repository }}
