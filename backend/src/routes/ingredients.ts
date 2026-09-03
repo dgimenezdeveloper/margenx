@@ -199,6 +199,10 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 /* 404 No encontrado/ajeno | 500 Error interno                         */
 /* ------------------------------------------------------------------ */
 router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.is('application/json')) {
+    return res.status(400).json({ errors: ['El header Content-Type debe ser application/json.'] });
+  }
+  
   try {
     const accountId = req.user!.accountId;
     const id = getIdParam(req.params.id);
