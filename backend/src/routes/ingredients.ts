@@ -225,7 +225,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
     const { name, unit, currentCost } = validation.data;
 
-    // 3) Actualizar filtrando nuevamente por accountId (defensa en profundidad).
+    // 3) Pertenencia ya verificada arriba; no se refiltra por accountId aquí.
     const updated = await prisma.ingredient.update({
       where: { id },
       data: { name, unit, currentCost },
@@ -240,9 +240,14 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 /* ------------------------------------------------------------------ */
 /* DELETE /api/ingredients/:id                                         */
-/* Elimina un insumo, controlando integridad referencial.              */
+/* Elimina un insumo, asegurando integridad referencial a nivel de     */
+/* aplicación (Regla de negocio 1.8): la FK usa onDelete: Cascade,     */
+/* por lo que la base de datos NO impide el borrado por sí sola. Se    */
+/* consulta previamente si el insumo está en uso en ProductIngredient  */
+/* y, de estarlo, se rechaza la operación devolviendo el listado de    */
+/* productos afectados.                                                */
 /* 200 OK | 401 No autenticado | 404 No encontrado/ajeno               */
-/* 409 Conflicto (insumo usado en una receta/producto activo) | 500    */
+/* 409 Conflicto (insumo usado en una o más recetas activas) | 500     */
 /* ------------------------------------------------------------------ */
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -261,20 +266,27 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: 'Insumo no encontrado.' });
     }
 
+    // Regla de negocio 1.8: consultar previamente si el insumo está en uso.
+    const usages = await prisma.productIngredient.findMany({
+      where: { ingredientId: id },
+      select: {
+        product: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (usages.length > 0) {
+      return res.status(409).json({
+        error: 'No se puede eliminar el insumo porque forma parte de una o más recetas activas.',
+        productsAffected: usages.map((u) => u.product),
+      });
+    }
+
     await prisma.ingredient.delete({ where: { id } });
 
     return res.status(200).json({ message: 'Insumo eliminado correctamente.' });
   } catch (err) {
-    // P2003: violación de restricción de clave foránea (Foreign key constraint
-    // failed). Ocurre cuando el insumo está referenciado en ProductIngredient,
-    // es decir, forma parte de una receta/producto activo.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
-      return res.status(409).json({
-        error:
-          'No se puede eliminar el insumo porque forma parte de una o más recetas activas.',
-      });
-    }
-
     console.error('[DELETE /api/ingredients/:id] Error:', err);
     return res.status(500).json({ error: 'Error interno del servidor.' });
   }
