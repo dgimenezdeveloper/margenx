@@ -11,6 +11,8 @@ model Account {
   id               String       @id @default(uuid())
   businessName     String
   subscriptionPlan String       @default("FREE")
+  trialEndsAt      DateTime?
+  isActive         Boolean      @default(true)
   createdAt        DateTime     @default(now())
   users            User[]
   ingredients      Ingredient[]
