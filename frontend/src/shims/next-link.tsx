@@ -1,10 +1,13 @@
-import React from 'react'
+import type React from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 
-export default function Link({ href, to, children, ...props }: any) {
+type LinkProps = Omit<React.ComponentProps<typeof RouterLink>, 'to'> & {
+  href?: string
+  to?: string
+}
+
+export default function Link({ href, to, ...props }: LinkProps) {
   return (
-    <RouterLink to={href || to} {...props}>
-      {children}
-    </RouterLink>
+    <RouterLink to={href ?? to ?? '/'} {...props} />
   )
 }

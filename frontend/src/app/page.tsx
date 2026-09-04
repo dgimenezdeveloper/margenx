@@ -7,20 +7,17 @@ import {
   Boxes,
   Check,
   ChevronDown,
-  Layers,
   Menu,
   Moon,
-  Package,
   Play,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Sun,
   Target,
-  TrendingUp,
   X
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 const benefits = [
   [
@@ -74,13 +71,9 @@ const faqs = [
 ]
 
 function ThemeToggle() {
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setDark(document.documentElement.classList.contains('dark'))
-    }
-  }, [])
+  const [dark, setDark] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+  )
 
   const toggle = () => {
     const next = !dark

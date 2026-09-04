@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   ArrowLeft,
   Boxes,
@@ -16,12 +16,9 @@ import {
 } from 'lucide-react'
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setDark(document.documentElement.classList.contains('dark'))
-    }
-  }, [])
+  const [dark, setDark] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+  )
   const toggle = () =>
     setDark((value) => {
       const next = !value
