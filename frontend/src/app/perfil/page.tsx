@@ -7,6 +7,8 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 
+const profileTitle = 'Perfil y Configuración'
+
 // Componente Toggle Switch estándar con proporción fija inmune a deformaciones
 function ToggleSwitch({
   checked,
@@ -38,7 +40,7 @@ function ToggleSwitch({
 }
 
 export default function ProfilePage() {
-  const [companyName, setCompanyName] = useState('Hamburguesería')
+  const [companyName] = useState('Hamburguesería')
   const [globalMargin, setGlobalMargin] = useState('30')
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
@@ -47,11 +49,15 @@ export default function ProfilePage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
-          <Navbar title="Perfil y Configuración" />
+          <Navbar title={profileTitle} titleMobileOnly />
+
+          <h1 className="hidden text-2xl font-bold tracking-tight md:block md:text-3xl">
+            {profileTitle}
+          </h1>
 
           {/* Grilla: 1 col en mobile, 2 cols en desktop */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            
+
             {/* Columna Izquierda: Usuario y Comercio */}
             <div className="space-y-6">
               <section className="flex items-center gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">

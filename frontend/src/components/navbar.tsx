@@ -42,12 +42,14 @@ export function ThemeToggle() {
 
 export function Navbar({
   title,
+  titleMobileOnly = false,
   backHref,
   showCompany = true,
   companyName = 'Hamburguesería',
   onLogoClick
 }: {
   title?: string
+  titleMobileOnly?: boolean
   backHref?: string
   showCompany?: boolean
   companyName?: string
@@ -88,14 +90,22 @@ export function Navbar({
         )}
 
         {title ? (
-          <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100 md:text-base">
-            {title}
-          </h1>
+          <>
+            <h1 className={`truncate text-sm font-bold text-gray-900 dark:text-gray-100 md:text-base ${titleMobileOnly ? 'md:hidden' : ''}`}>
+              {title}
+            </h1>
+            {titleMobileOnly && showCompany && (
+              <span className="hidden items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200 md:flex">
+                <Building2 className="size-3" />
+                <span className="truncate max-w-30 md:max-w-50">{companyName}</span>
+              </span>
+            )}
+          </>
         ) : (
           showCompany && (
             <span className="flex items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200">
               <Building2 className="size-3" />
-              <span className="truncate max-w-[120px] md:max-w-[200px]">{companyName}</span>
+              <span className="truncate max-w-30 md:max-w-50">{companyName}</span>
             </span>
           )
         )}
