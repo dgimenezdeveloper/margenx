@@ -1,4 +1,4 @@
-import { Analytics } from '@vercel/analytics/next'
+import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 
 export default function RootLayout({
@@ -10,7 +10,7 @@ export default function RootLayout({
     <html lang="es">
       <body className="antialiased">
         {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {import.meta.env.PROD && <Analytics />}
       </body>
     </html>
   )
