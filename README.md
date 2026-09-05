@@ -43,3 +43,30 @@ El proyecto está 100% dockerizado. **No necesitás instalar Node.js, TypeScript
    ```bash
    git clone https://github.com/dgimenezdeveloper/margenx.git
    cd margenx
+
+
+## Diseño UI/UX
+
+Para garantizar una experiencia visual clara y validar el flujo de carga de recetas antes de la programación, hemos diseñado los wireframes del MVP siguiendo un enfoque **Mobile First (360px)**.
+
+🔗 **[Ver Prototipo Interactivo en Figma](https://www.figma.com/proto/VP7NOtPGVwSCPZex5wYpmZ/Margen-X?node-id=0-1&t=AkoTRJ9OMR8ePuRU-1)**
+
+A continuación, se detalla la estructura y funcionalidad de cada uno de los módulos diseñados:
+
+### 1. Login / Registro
+Pantalla inicial de autenticación orientada a la conversión y fácil acceso del usuario a la plataforma.
+
+### 2. Dashboard Principal
+Vista general que presenta la tabla de productos de forma rápida y accesible desde dispositivos móviles.
+* **Semáforo de rentabilidad (Criterio de Aceptación):** Implementa un sistema de *badges* visuales. Si el margen de un producto cae por debajo del margen mínimo establecido, se destaca con una alerta (rojo/naranja) que cumple con los estándares de contraste (WCAG AA).
+
+### 3. Insumos
+Módulo para la gestión de la materia prima. Incluye el listado actual y un formulario de alta ágil que mapea directamente con la base de datos, solicitando:
+* Nombre del Insumo
+* Unidad de medida
+* Costo
+
+### 4. Productos y Recetas
+Es el núcleo de la aplicación, donde se cruza la información comercial con los costos.
+* Contempla los campos clave del negocio: **Precio de Venta** y **Margen Mínimo %**.
+* **Carga de Receta (Criterio de Aceptación):** Cuenta con un selector dinámico y un botón claro ("Agregar Insumo") que permite al usuario añadir múltiples filas de materias primas con sus cantidades para componer la receta final del producto.
