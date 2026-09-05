@@ -158,7 +158,7 @@ export default function ProductDetailPage() {
                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                   Margen actual
                 </p>
-                <p className="mt-2 text-5xl font-black tracking-tight text-emerald-600 dark:text-emerald-300">
+                <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
                   {margin}%
                 </p>
                 <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
@@ -170,7 +170,7 @@ export default function ProductDetailPage() {
                 <p className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   Margen actual
                 </p>
-                <p className="mt-2 text-5xl font-black tracking-tight text-rose-600 dark:text-rose-300">
+                <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
                   {margin}%
                 </p>
                 <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
@@ -196,7 +196,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       {item.name === 'Carne Picada' && (
-                        <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:bg-rose-950">Subió 8%</span>
+                        <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950">Subió 8%</span>
                       )}
                       <button type="button" onClick={() => { setRecipe(recipe.filter((_, i) => i !== index)); notify('Insumo eliminado de la receta') }} className="p-1 text-rose-500 hover:text-rose-700">
                         <Trash2 className="size-4" />
@@ -219,7 +219,7 @@ export default function ProductDetailPage() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Simulador de Precio</h3>
                   <p className="text-base font-black text-gray-900 dark:text-white mt-1">Costo Total: {money(cost)}</p>
                 </div>
-                <span className={`text-sm font-black ${gain >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>Ganancia: {money(gain)}</span>
+                <span className={`text-sm font-black ${gain >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Ganancia: {money(gain)}</span>
               </div>
 
               <div>
@@ -239,7 +239,7 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              <p className={`text-xs font-bold ${margin >= 30 ? 'text-emerald-600' : 'text-rose-600'}`}>Proyección: Nuevo margen {margin}% {margin >= 30 ? '✅' : '⚠️'}</p>
+              <p className={`text-xs font-bold ${margin >= 30 ? 'text-emerald-700' : 'text-rose-700'}`}>Proyección: Nuevo margen {margin}% {margin >= 30 ? '✅' : '⚠️'}</p>
 
               <button type="button" onClick={() => notify('Precio guardado correctamente')} className="w-full rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700">
                 Guardar Precio
@@ -254,7 +254,7 @@ export default function ProductDetailPage() {
           <div className="flex flex-col text-left">
             <span className="text-[11px] font-medium text-gray-500">Costo: {money(cost)}</span>
             <span className="text-xs font-bold text-gray-900 dark:text-white">
-              Ganancia: <strong className={gain >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{money(gain)}</strong>
+              Ganancia: <strong className={gain >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{money(gain)}</strong>
             </span>
           </div>
           <button type="button" onClick={() => setShowSheet(true)} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700">
@@ -270,7 +270,7 @@ export default function ProductDetailPage() {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
             <div className="mb-3 flex items-center justify-between text-xs font-semibold text-gray-500">
               <span>SIMULADOR DE PRECIO (Costo: {money(cost)})</span>
-              <span className={gain >= 0 ? 'text-sm font-bold text-emerald-600' : 'text-sm font-bold text-rose-600'}>Ganancia: {money(gain)}</span>
+              <span className={gain >= 0 ? 'text-sm font-bold text-emerald-700' : 'text-sm font-bold text-rose-700'}>Ganancia: {money(gain)}</span>
             </div>
             <div className="mb-4 grid grid-cols-3 gap-2">
               <button type="button" onClick={() => adjustPrice(1.05)} className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700">+5%</button>
@@ -284,7 +284,7 @@ export default function ProductDetailPage() {
                 <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="decimal" type="number" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
               </div>
             </label>
-            <p className={`mt-2 text-xs font-bold ${margin >= 30 ? 'text-emerald-600' : 'text-rose-600'}`}>Proyección: Nuevo margen {margin}%</p>
+            <p className={`mt-2 text-xs font-bold ${margin >= 30 ? 'text-emerald-700' : 'text-rose-700'}`}>Proyección: Nuevo margen {margin}%</p>
             <div className="mt-5 flex gap-3">
               <button type="button" onClick={() => setShowSheet(false)} className="flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
               <button type="button" onClick={() => { notify('Precio guardado correctamente'); setShowSheet(false) }} className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">Guardar Precio</button>

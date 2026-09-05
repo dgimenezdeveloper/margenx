@@ -238,7 +238,7 @@ export default function NewProductPage() {
             <p className="text-xs text-gray-500">
               Costo Total: <strong>{money(cost)}</strong>
             </p>
-            <p className={`text-sm font-bold ${isHealthy ? 'text-emerald-600' : 'text-rose-600'}`}>
+            <p className={`text-sm font-bold ${isHealthy ? 'text-emerald-700' : 'text-rose-700'}`}>
               Margen: {projected}% {isHealthy ? '✅' : '⚠️'}
             </p>
           </div>

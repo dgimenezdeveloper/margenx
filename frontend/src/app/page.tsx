@@ -219,15 +219,15 @@ export default function LandingPage() {
           </div>
           <div className="mt-7 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600" /> Sin tarjeta de crédito
+              <Check className="size-4 text-emerald-700" /> Sin tarjeta de crédito
             </span>
             <span>·</span>
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600" /> Multiempresa
+              <Check className="size-4 text-emerald-700" /> Multiempresa
             </span>
             <span>·</span>
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600" /> Web Mobile-First
+              <Check className="size-4 text-emerald-700" /> Web Mobile-First
             </span>
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function LandingPage() {
                 <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">18</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/40">
-                <BarChart3 className="size-5 text-emerald-600 dark:text-emerald-400" />
+                <BarChart3 className="size-5 text-emerald-700 dark:text-emerald-400" />
                 <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Margen promedio</p>
                 <p className="mt-1 text-2xl font-black text-emerald-700 dark:text-emerald-300">36.8%</p>
               </div>

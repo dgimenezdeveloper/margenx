@@ -78,7 +78,7 @@ export default function ProductsPage() {
                   >
                     <div className="flex w-full items-start justify-between gap-2">
                       <h3 className="text-sm font-bold leading-5 text-gray-900 md:text-base group-hover:text-indigo-600 dark:text-gray-100">{product.name}</h3>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${product.risk ? 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${product.risk ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                         Margen {product.margin}%
                       </span>
                     </div>

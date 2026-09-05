@@ -133,7 +133,7 @@ export function Navbar({
         <ThemeToggle />
         <Link
           href="/"
-          className="hidden items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-600 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
+          className="hidden items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
           title="Cerrar sesión"
         >
           <LogOut className="size-3.5" />

@@ -116,11 +116,11 @@ export default function SuppliesPage() {
               <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
             </div>
             <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
-              <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">Variaciones recientes</p>
+              <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
               <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
             </div>
             <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
-              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Recálculo</p>
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
               <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
             </div>
             <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">

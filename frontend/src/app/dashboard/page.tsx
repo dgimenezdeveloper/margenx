@@ -24,7 +24,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-        
+
         {/* Contenedor del contenido principal */}
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar companyName="Hamburguesería" />
@@ -61,7 +61,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
                   {riskProductsCount} {riskProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
                 </p>
-                <p className="text-xs text-rose-600 dark:text-rose-300">Margen por debajo del 30%</p>
+                <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen por debajo del 30%</p>
               </div>
             </section>
 
@@ -76,7 +76,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex md:items-center md:gap-3.5 dark:border-gray-800 dark:bg-gray-900">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 <TrendingUp className="size-5" />
               </div>
               <div>
@@ -109,11 +109,10 @@ export default function DashboardPage() {
                       {product.name}
                     </h3>
                     <span
-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
-                        product.risk
-                          ? 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-200'
-                          : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-200'
-                      }`}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${product.risk
+                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                          : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                        }`}
                     >
                       Margen {product.margin}%
                     </span>

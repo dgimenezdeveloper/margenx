@@ -157,7 +157,7 @@ export default function ProfilePage() {
           <div className="pt-2 md:flex md:justify-end md:pt-6">
             <Link
               href="/"
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-600 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
             >
               <LogOut className="size-4" />
               Cerrar Sesión
