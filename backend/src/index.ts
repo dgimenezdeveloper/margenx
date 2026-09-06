@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import ingredientsRoutes from './routes/ingredients';
+import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
 dotenv.config();
@@ -28,6 +29,9 @@ app.get('/api/health', (_req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Middleware global de errores — SIEMPRE al final, después de todas las rutas.
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`⚡ [Backend] Servidor corriendo en http://localhost:${PORT}`);
