@@ -2,13 +2,13 @@
 
 **Proyecto:** MargenX
 
-**Issue:** #6 — Matriz y casos de prueba del Sprint 1
+**Issue:** #6 — Matriz y casos de prueba del Sprint 1 · #39 — Vinculación de criterios HTTP para Insumos, Productos y Seguridad
 
 **Responsable de QA:** Leandro Herrera
 
 **Estado del documento:** En revisión
 
-**Última actualización:** 2026-08-30
+**Última actualización:** 2026-09-08
 
 ---
 
@@ -40,6 +40,37 @@ contraseña ni administración de usuarios.
   revisar consola y solicitudes de red.
 - Cuando se compruebe el margen, se aplicará la fórmula:
   `((precio de venta - costo de receta) / precio de venta) * 100`.
+
+### 3.1 Convenciones de verificación HTTP (issue #39)
+
+A partir de esta actualización, cada escenario de Insumos, Productos y
+Seguridad incluye un bloque **"Verificación HTTP esperada"** con el
+endpoint, el código de estado y el cuerpo de respuesta esperado, para
+servir de base a la automatización E2E.
+
+- **Base URL local:** `http://localhost:3000/api`.
+- **Autenticación:** header `Authorization: Bearer <token>` con un JWT
+  de Clerk válido del usuario administrador de la cuenta correspondiente.
+  Sin este header, cualquier endpoint de Insumos o Productos responde
+  `401 Unauthorized` con `{"error": "No autorizado"}`.
+- **IDs de referencia:** se usan los IDs fijos del seed documentado en
+  `docs/qa/seed-data-comercios.md` (cuentas piloto Panadería Central
+  `30a00000-0000-4000-8000-000000000001` y Química GyJ
+  `30a00000-0000-4000-8000-000000000002`).
+- **Formato de error de validación (400) vigente en `develop`:**
+  `{"errors": ["mensaje 1", "mensaje 2", ...]}` (arreglo de strings),
+  tal como responde hoy `backend/src/routes/ingredients.ts`. La issue
+  #35 (middleware global de manejo de errores) unifica este formato a
+  `{"error": "mensaje único"}` para 400/404/409/500; una vez que esa
+  PR se mergee a `develop`, este documento debe actualizarse para
+  reflejar el formato unificado.
+- ⚠️ **Módulo Productos sin API implementada:** al momento de escribir
+  este documento, `backend/src/index.ts` solo registra `/api/auth` y
+  `/api/ingredients`. No existe todavía un endpoint `/api/products`.
+  Los criterios HTTP de TC-PRD-01 y TC-PRD-02 documentan el **contrato
+  esperado**, siguiendo la misma convención que Insumos, para que
+  Backend lo implemente y QA lo valide contra este documento — no son
+  respuestas verificadas contra un endpoint real todavía.
 
 ## 4. Matriz resumen de casos de prueba
 
@@ -75,6 +106,15 @@ Escenario: Registrar un insumo con datos válidos
   Y debe mostrar su costo con formato monetario
 ```
 
+**Verificación HTTP esperada**
+
+| | |
+| --- | --- |
+| Endpoint | `POST /api/ingredients` |
+| Request body | `{"name": "Harina de trigo 000", "unit": "kg", "currentCost": "742.98"}` |
+| Status esperado | `201 Created` |
+| Body esperado | `{"ingredient": {"id": "<uuid>", "accountId": "30a00000-0000-4000-8000-000000000001", "name": "Harina de trigo 000", "unit": "kg", "currentCost": "742.98", "updatedAt": "<iso-datetime>"}}` |
+
 #### TC-INS-02: Bloqueo de un costo negativo
 
 ```gherkin
@@ -89,6 +129,15 @@ Escenario: Rechazar un insumo con costo negativo
   Y debe informar que el costo debe ser mayor a cero
 ```
 
+**Verificación HTTP esperada**
+
+| | |
+| --- | --- |
+| Endpoint | `POST /api/ingredients` |
+| Request body | `{"name": "Levadura fresca", "unit": "kg", "currentCost": "-500"}` |
+| Status esperado | `400 Bad Request` |
+| Body esperado | `{"errors": ["El campo \"currentCost\" debe ser mayor a cero."]}` |
+
 #### TC-INS-03: Bloqueo de un nombre vacío
 
 ```gherkin
@@ -102,6 +151,15 @@ Escenario: Rechazar un insumo sin nombre
   Y debe señalar el campo nombre como obligatorio
   Y debe conservar los demás datos ingresados para su corrección
 ```
+
+**Verificación HTTP esperada**
+
+| | |
+| --- | --- |
+| Endpoint | `POST /api/ingredients` |
+| Request body | `{"name": "", "unit": "l", "currentCost": "2000"}` |
+| Status esperado | `400 Bad Request` |
+| Body esperado | `{"errors": ["El campo \"name\" es obligatorio y debe ser un texto no vacío."]}` |
 
 #### TC-INS-04: Bloqueo de un costo vacío o no numérico
 
@@ -121,6 +179,16 @@ Esquema del escenario: Rechazar un costo que no sea numérico y positivo
     | texto          |
     | 0              |
 ```
+
+**Verificación HTTP esperada**
+
+Endpoint: `POST /api/ingredients` con `{"name": "Azúcar", "unit": "kg", "currentCost": "<costo_invalido>"}`. Status esperado en los tres casos: `400 Bad Request`.
+
+| costo_invalido | Body esperado |
+| --- | --- |
+| *(vacío)* | `{"errors": ["El campo \"currentCost\" es obligatorio."]}` |
+| `texto` | `{"errors": ["El campo \"currentCost\" debe ser un valor decimal válido (ej: \"742.98\")."]}` |
+| `0` | `{"errors": ["El campo \"currentCost\" debe ser mayor a cero."]}` |
 
 ### Módulo: Productos y Recetas
 
@@ -142,6 +210,21 @@ Escenario: Registrar un producto terminado con una receta válida
   Y debe mostrar el margen real calculado para "Pan común"
 ```
 
+**Verificación HTTP esperada** (contrato propuesto — ver nota 3.1: `/api/products` no está implementado aún)
+
+| | |
+| --- | --- |
+| Endpoint | `POST /api/products` |
+| Request body | `{"name": "Pan flauta — 1 kg", "salePrice": "4332.14", "minMarginPercent": "55.00"}` |
+| Status esperado | `201 Created` |
+| Body esperado | `{"product": {"id": "<uuid>", "accountId": "30a00000-0000-4000-8000-000000000001", "name": "Pan flauta — 1 kg", "salePrice": "4332.14", "minMarginPercent": "55.00", "cost": "0.00", "marginAmount": "0.00", "marginPercent": "0.00", "updatedAt": "<iso-datetime>"}}` |
+
+La carga de componentes de receta (`ProductIngredient`, con el consecuente
+recálculo de `cost`/`marginAmount`/`marginPercent`) corresponde a un
+endpoint separado, aún no definido ni implementado — queda fuera del
+alcance de este contrato y debe documentarse en una issue de Backend
+específica antes de automatizarlo.
+
 #### TC-PRD-02: Bloqueo de precio de venta igual a cero
 
 ```gherkin
@@ -155,6 +238,15 @@ Escenario: Rechazar un producto con precio de venta igual a cero
   Y debe señalar el campo precio de venta como inválido
   Y debe informar que el precio de venta debe ser mayor a cero
 ```
+
+**Verificación HTTP esperada** (contrato propuesto — ver nota 3.1: `/api/products` no está implementado aún)
+
+| | |
+| --- | --- |
+| Endpoint | `POST /api/products` |
+| Request body | `{"name": "Medialunas de manteca", "salePrice": "0", "minMarginPercent": "65.00"}` |
+| Status esperado | `400 Bad Request` |
+| Body esperado | `{"errors": ["El campo \"salePrice\" debe ser mayor a cero."]}` (mismo formato y convención de `validateIngredientInput`, a confirmar con Backend Lead al implementar el endpoint) |
 
 #### TC-REC-01: Bloqueo de una cantidad usada igual o menor a cero
 
@@ -216,6 +308,29 @@ Escenario: Impedir que una cuenta consulte los insumos de otra empresa
   Y el sistema debe rechazar la consulta directa sin revelar los datos del insumo
 ```
 
+**Verificación HTTP esperada** (verificado manualmente contra `backend/src/routes/ingredients.ts`)
+
+Paso 1 — listado propio:
+
+| | |
+| --- | --- |
+| Endpoint | `GET /api/ingredients` |
+| Auth | Bearer token del admin de **Panadería Central** |
+| Status esperado | `200 OK` |
+| Body esperado | `{"ingredients": [...]}` — únicamente insumos con `accountId = "30a00000-0000-4000-8000-000000000001"`; no debe incluir "Etoxilado" ni ningún insumo de Química GyJ. |
+
+Paso 2 — acceso directo al insumo ajeno:
+
+| | |
+| --- | --- |
+| Endpoint | `GET /api/ingredients/30b00002-0000-4000-8000-000000000003` (id de "Etoxilado", perteneciente a Química GyJ) |
+| Auth | Bearer token del admin de **Panadería Central** |
+| Status esperado | `404 Not Found` — **no** `403 Forbidden` (decisión de diseño intencional: no debe revelarse si el recurso existe en otra cuenta) |
+| Body esperado | `{"error": "Insumo no encontrado."}` |
+
+El mismo criterio aplica a `PUT` y `DELETE /api/ingredients/:id` sobre un id
+ajeno: ambos deben responder `404` con el mismo body, nunca `200` ni `403`.
+
 ## 6. Checklist de ejecución manual de QA
 
 - [ ] Ejecutar los casos con una base de datos controlada y registrar la evidencia.
@@ -236,3 +351,10 @@ Escenario: Impedir que una cuenta consulte los insumos de otra empresa
 - Se verifica el aislamiento de datos entre empresas.
 - Todo resultado Fail queda asociado a un defecto reproducible antes del merge a
   `develop`.
+- Los casos de Insumos, Productos y Seguridad (TC-INS-01 a 04, TC-PRD-01,
+  TC-PRD-02 y TC-SEC-01) especifican su endpoint, código de estado HTTP y
+  cuerpo de respuesta esperado (issue #39).
+- Los criterios HTTP de Insumos y Seguridad están verificados contra el
+  comportamiento real de `backend/src/routes/ingredients.ts` en `develop`;
+  los de Productos documentan el contrato esperado, pendiente de
+  implementación del endpoint `/api/products`.
