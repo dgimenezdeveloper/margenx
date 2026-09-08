@@ -1,11 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Boxes, Check, Plus, Search, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 
 const initialSupplies = [
   { name: 'Carne Picada', unit: 'kg', cost: 4200 },
@@ -13,6 +17,8 @@ const initialSupplies = [
   { name: 'Queso Cheddar', unit: 'kg', cost: 6800 },
   { name: 'Papas Congeladas', unit: 'kg', cost: 2400 },
 ]
+
+const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -23,9 +29,20 @@ export default function SuppliesPage() {
   const [newOpen, setNewOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
-  const [name, setName] = useState('')
-  const [unit, setUnit] = useState('kg')
-  const [cost, setCost] = useState('')
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    control,
+    formState: { errors },
+  } = useForm<z.input<typeof ingredientSchema>, undefined, IngredientFormValues>({
+    resolver: zodResolver(ingredientSchema),
+    mode: 'onChange',
+    defaultValues: { name: '', unit: 'kg', currentCost: '' },
+  })
+
+  const selectedUnit = useWatch({ control, name: 'unit' })
 
   const notify = (msg: string) => {
     setToast(msg)
@@ -42,16 +59,12 @@ export default function SuppliesPage() {
 
   const handleOpenEdit = (supply: (typeof initialSupplies)[number]) => {
     setSelected(supply)
-    setName(supply.name)
-    setUnit(supply.unit)
-    setCost(String(supply.cost))
+    reset({ name: supply.name, unit: supply.unit as IngredientFormValues['unit'], currentCost: String(supply.cost) })
   }
 
   const handleOpenNew = () => {
     setSelected(null)
-    setName('')
-    setUnit('kg')
-    setCost('')
+    reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
   }
 
@@ -60,16 +73,13 @@ export default function SuppliesPage() {
     setNewOpen(false)
   }
 
-  const handleSave = () => {
-    const numCost = Number(cost)
-    if (!name.trim() || numCost <= 0) return
-
+  const handleSave = (data: IngredientFormValues) => {
     if (selected) {
-      setSupplies(supplies.map((s) => (s.name === selected.name ? { ...s, cost: numCost } : s)))
-      notify(`Costo de ${selected.name} actualizado a ${money(numCost)}`)
+      setSupplies(supplies.map((s) => (s.name === selected.name ? { ...s, cost: data.currentCost } : s)))
+      notify(`Costo de ${selected.name} actualizado a ${money(data.currentCost)}`)
     } else {
-      setSupplies([...supplies, { name: name.trim(), unit, cost: numCost }])
-      notify(`Insumo "${name.trim()}" creado correctamente`)
+      setSupplies([...supplies, { name: data.name, unit: data.unit, cost: data.currentCost }])
+      notify(`Insumo "${data.name}" creado correctamente`)
     }
     handleCloseSheet()
   }
@@ -236,7 +246,7 @@ export default function SuppliesPage() {
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={handleCloseSheet} />
-          <section className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+          <form onSubmit={handleSubmit(handleSave)} className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
             <div className="flex items-start justify-between">
               <div>
@@ -255,7 +265,8 @@ export default function SuppliesPage() {
             {!selected && (
               <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
                 Nombre del insumo
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Harina 0000" className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800" />
+                <input {...register('name')} placeholder="Ej. Harina 0000" className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800" />
+                {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
               </label>
             )}
 
@@ -263,28 +274,30 @@ export default function SuppliesPage() {
               <div className="mt-4">
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
                 <div className="flex flex-wrap gap-2">
-                  {['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'].map((u) => (
-                    <button key={u} type="button" onClick={() => setUnit(u)} className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition ${unit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
+                  {ingredientUnits.map((u) => (
+                    <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
                       {u}
                     </button>
                   ))}
                 </div>
+                {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
               </div>
             )}
 
             <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
-              Costo unitario ({selected ? selected.unit : unit})
+              Costo unitario ({selected ? selected.unit : selectedUnit})
               <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                 <span className="text-lg font-bold text-gray-400">$</span>
-                <input value={cost} onChange={(e) => setCost(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" type="number" placeholder="0.00" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
+                <input {...register('currentCost')} inputMode="decimal" type="number" placeholder="0.00" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
               </div>
+              {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
             </label>
 
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={handleCloseSheet} className="flex-1 rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
-              <button type="button" onClick={handleSave} className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+              <button type="submit" className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
             </div>
-          </section>
+          </form>
         </div>
       )}
     </main>
