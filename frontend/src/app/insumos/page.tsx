@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, Plus, Search, X } from 'lucide-react'
+import { Boxes, Check, Plus, Search, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
+import { EmptyState } from '@/components/empty-state'
 
 const initialSupplies = [
   { name: 'Carne Picada', unit: 'kg', cost: 4200 },
@@ -35,6 +36,9 @@ export default function SuppliesPage() {
     () => supplies.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())),
     [supplies, query]
   )
+
+  const isTotalEmpty = supplies.length === 0
+  const isSearchEmpty = filtered.length === 0 && !isTotalEmpty
 
   const handleOpenEdit = (supply: (typeof initialSupplies)[number]) => {
     setSelected(supply)
@@ -80,7 +84,7 @@ export default function SuppliesPage() {
       )}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-        
+
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
 
@@ -89,7 +93,7 @@ export default function SuppliesPage() {
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
               <p className="mt-1 text-sm text-gray-500">Administra los costos de tus materias primas.</p>
             </div>
-            
+
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="relative flex-1 md:w-72 lg:w-80">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
@@ -97,15 +101,16 @@ export default function SuppliesPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar insumos..."
-                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-indigo-600 dark:border-gray-800 dark:bg-gray-900"
+                  disabled={isTotalEmpty}
+                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-indigo-600 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-900"
                 />
               </div>
               <button
                 type="button"
                 onClick={handleOpenNew}
-                className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+                className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4" /> Nuevo Insumo
+                <Plus className="size-4 " /> Nuevo Insumo
               </button>
             </div>
           </section>
@@ -141,29 +146,84 @@ export default function SuppliesPage() {
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm md:overflow-visible md:border-0 md:bg-transparent md:shadow-none dark:border-gray-800 dark:bg-gray-900 md:dark:bg-transparent">
-              <div className="grid grid-cols-1 gap-0 md:grid-cols-2 md:gap-3 lg:grid-cols-3">
-                {filtered.map((supply) => (
-                  <button
-                    key={supply.name}
-                    type="button"
-                    onClick={() => handleOpenEdit(supply)}
-                    className="group flex w-full flex-col justify-between border-b border-gray-100 bg-white p-4 text-left transition-all hover:bg-gray-50/80 last:border-0 md:rounded-2xl md:border md:p-5 md:shadow-sm md:hover:border-indigo-200 md:hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800/40 md:dark:hover:border-indigo-900"
-                  >
-                    <div className="flex w-full items-start justify-between gap-2">
-                      <strong className="block text-sm font-bold text-gray-900 md:text-base group-hover:text-indigo-600 dark:text-gray-100">{supply.name}</strong>
-                      <span className="text-xs text-gray-500 md:rounded-lg md:bg-gray-100 md:px-2 md:py-0.5 md:text-[10px] md:font-bold md:text-gray-600 md:dark:bg-gray-800 md:dark:text-gray-300">
-                        <span className="md:hidden">Unidad: </span>{supply.unit}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex w-full items-end justify-between text-xs md:mt-4 md:border-t md:border-gray-50 md:pt-3 md:dark:border-gray-800">
-                      <span className="text-[10px] font-bold text-indigo-600 md:text-gray-400 md:font-normal">Tocar para editar</span>
-                      <strong className="text-sm font-bold text-gray-900 md:text-lg md:font-black dark:text-white">{money(supply.cost)}</strong>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ESTADOS VACÍOS */}
+            {isTotalEmpty && (
+              <EmptyState
+                icon={<Boxes className="size-6" />}
+                title="Sin insumos en la despensa"
+                description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
+                actionLabel="Crear nuevo insumo"
+                onAction={handleOpenNew}
+              />
+            )}
+
+            {isSearchEmpty && (
+              <EmptyState
+                icon={<Search className="size-6" />}
+                title="Insumo no encontrado"
+                description={`No existe ningún insumo con el nombre "${query}".`}
+              />
+            )}
+
+            {/* TABLA VS CARDS */}
+            {!isTotalEmpty && !isSearchEmpty && (
+              <>
+                {/* VERSIÓN MOBILE: Tarjetas */}
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                  {filtered.map((supply) => (
+                    <button
+                      key={supply.name}
+                      type="button"
+                      onClick={() => handleOpenEdit(supply)}
+                      className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
+                    >
+                      <div className="flex w-full items-start justify-between gap-2">
+                        <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{supply.name}</strong>
+                        <span className="text-xs text-gray-500">
+                          Unidad: {supply.unit}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">
+                        <span className="text-[10px] font-bold text-indigo-600">Tocar para editar</span>
+                        <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.cost)}</strong>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* VERSIÓN DESKTOP: Tabla genérica con overflow */}
+                <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                  <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                    <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
+                      <tr>
+                        <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del Insumo</th>
+                        <th className="px-5 py-4 font-bold whitespace-nowrap">Unidad de Medida</th>
+                        <th className="px-5 py-4 font-bold whitespace-nowrap">Costo Actual</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {filtered.map((supply) => (
+                        <tr
+                          key={supply.name}
+                          onClick={() => handleOpenEdit(supply)}
+                          className="group cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
+                        >
+                          <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
+                            {supply.name}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                              {supply.unit}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(supply.cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </section>
         </div>
 
@@ -172,7 +232,7 @@ export default function SuppliesPage() {
 
       <BottomNav />
 
-      {/* Modal / Bottom Sheet (Sin cambios en clases móviles) */}
+      {/* Modal / Bottom Sheet */}
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={handleCloseSheet} />
