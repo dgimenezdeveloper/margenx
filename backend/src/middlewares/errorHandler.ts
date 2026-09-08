@@ -25,7 +25,7 @@ export class AppError extends Error {
  * DESPUÉS de todas las rutas de la API (Express lo reconoce como error
  * handler por tener 4 parámetros, aunque `next` no se use explícitamente).
  */
-export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
   // 1) JSON malformado en el body — lo lanza express.json() antes de
   //    llegar a cualquier ruta (body-parser marca el error con `.type`).
   if (err instanceof SyntaxError && 'body' in err) {

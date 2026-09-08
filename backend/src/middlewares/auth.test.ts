@@ -4,12 +4,12 @@ import { Response, NextFunction } from 'express';
 
 const verifyTokenMock = vi.fn();
 vi.mock('@clerk/backend', () => ({
-  verifyToken: (...args: any[]) => verifyTokenMock(...args),
+  verifyToken: (...args: unknown[]) => verifyTokenMock(...args),
 }));
 
 const findUniqueMock = vi.fn();
 vi.mock('../lib/prisma', () => ({
-  prisma: { user: { findUnique: (...args: any[]) => findUniqueMock(...args) } },
+  prisma: { user: { findUnique: (...args: unknown[]) => findUniqueMock(...args) } },
 }));
 
 import { authMiddleware, AuthenticatedRequest } from './auth';

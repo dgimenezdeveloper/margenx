@@ -3,14 +3,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { errorHandler, AppError } from './errorHandler';
 
-function buildRes() {
+import type { Request, Response } from 'express';
+
+function buildRes(): Response {
   const json = vi.fn();
   const status = vi.fn(() => ({ json }));
-  return { status, json } as any;
+  // Cast doble justificado: es un test double parcial, no un objeto
+  // Response real. "as unknown as X" es intencional (no un escape de any).
+  return { status, json } as unknown as Response;
 }
 
 describe('errorHandler', () => {
-  const req = {} as any;
+  const req = {} as unknown as Request;
   const next = vi.fn();
 
   beforeEach(() => {

@@ -8,6 +8,8 @@ import { parsePaginationParams } from '../utils/pagination';
 const router = Router();
 
 // Todas las rutas de este router requieren un usuario autenticado.
+// Por eso `req.user!` se usa sin chequeo adicional en cada handler: si
+// authMiddleware llamó a next(), req.user está garantizado seteado.
 router.use(authMiddleware);
 
 /**
@@ -191,6 +193,9 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
+  // req.body es `any` por diseño de Express; el cast a IngredientInputDTO es
+  // seguro porque cada campo del DTO es `unknown` (no asume estructura) y se
+  // valida explícitamente en validateIngredientInput antes de usarse.
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
 
   const ingredient = await prisma.ingredient.create({

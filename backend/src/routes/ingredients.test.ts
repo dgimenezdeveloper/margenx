@@ -3,8 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 
+import type { AuthenticatedRequest } from '../middlewares/auth';
+import type { Response, NextFunction } from 'express';
+
 vi.mock('../middlewares/auth', () => ({
-  authMiddleware: (req: any, _res: any, next: any) => {
+  authMiddleware: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
     req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: 'ADMIN' };
     next();
   },
@@ -21,15 +24,15 @@ const productIngredientFindManyMock = vi.fn();
 vi.mock('../lib/prisma', () => ({
   prisma: {
     ingredient: {
-      findMany: (...args: any[]) => findManyMock(...args),
-      count: (...args: any[]) => countMock(...args),
-      findFirst: (...args: any[]) => findFirstMock(...args),
-      create: (...args: any[]) => createMock(...args),
-      update: (...args: any[]) => updateMock(...args),
-      delete: (...args: any[]) => deleteMock(...args),
+      findMany: (...args: unknown[]) => findManyMock(...args),
+      count: (...args: unknown[]) => countMock(...args),
+      findFirst: (...args: unknown[]) => findFirstMock(...args),
+      create: (...args: unknown[]) => createMock(...args),
+      update: (...args: unknown[]) => updateMock(...args),
+      delete: (...args: unknown[]) => deleteMock(...args),
     },
     productIngredient: {
-      findMany: (...args: any[]) => productIngredientFindManyMock(...args),
+      findMany: (...args: unknown[]) => productIngredientFindManyMock(...args),
     },
   },
 }));
