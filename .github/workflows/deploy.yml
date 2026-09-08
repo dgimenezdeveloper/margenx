@@ -1,0 +1,65 @@
+name: CD Pipeline to VPS (Docker Hub)
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Environment & Tags
+        id: env_check
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "TARGET_ENV=production" >> $GITHUB_OUTPUT
+            echo "DOCKER_TAG=latest" >> $GITHUB_OUTPUT
+            echo "FRONT_SVC=frontend-prod" >> $GITHUB_OUTPUT
+            echo "BACK_SVC=backend-prod" >> $GITHUB_OUTPUT
+            echo "VITE_API_URL=https://api.margenx.tech" >> $GITHUB_OUTPUT
+          else
+            echo "TARGET_ENV=staging" >> $GITHUB_OUTPUT
+            echo "DOCKER_TAG=dev" >> $GITHUB_OUTPUT
+            echo "FRONT_SVC=frontend-dev" >> $GITHUB_OUTPUT
+            echo "BACK_SVC=backend-dev" >> $GITHUB_OUTPUT
+            echo "VITE_API_URL=https://api-dev.margenx.tech" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/margenx-backend:${{ steps.env_check.outputs.DOCKER_TAG }}
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            VITE_API_URL=${{ steps.env_check.outputs.VITE_API_URL }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/margenx-frontend:${{ steps.env_check.outputs.DOCKER_TAG }}
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/margenx-infra
+            docker compose pull ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
+            docker compose up -d --no-deps ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
