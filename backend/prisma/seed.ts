@@ -12,8 +12,8 @@ const accounts = [
     id: "30a00000-0000-4000-8000-000000000001",
     businessName: "Panadería Central",
     users: [
-      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@seed.example.test", role: Role.ADMIN, authProviderId: "seed_local_panaderia_admin" },
-      { id: "30d00001-0000-4000-8000-000000000002", email: "colaborador.panaderia@seed.example.test", role: Role.COLLABORATOR, authProviderId: "seed_local_panaderia_collaborator" },
+      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
+      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
     ],
     ingredients: [
       { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "742.98" },
@@ -40,8 +40,8 @@ const accounts = [
     id: "30a00000-0000-4000-8000-000000000002",
     businessName: "Química GyJ",
     users: [
-      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@seed.example.test", role: Role.ADMIN, authProviderId: "seed_local_quimica_admin" },
-      { id: "30d00002-0000-4000-8000-000000000002", email: "colaborador.quimica@seed.example.test", role: Role.COLLABORATOR, authProviderId: "seed_local_quimica_collaborator" },
+      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
+      { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
     ],
     ingredients: [
       { id: "30b00002-0000-4000-8000-000000000001", name: "Pasta suavi", unit: "kg", currentCost: "15400.00" },
