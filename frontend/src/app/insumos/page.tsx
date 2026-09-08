@@ -275,7 +275,7 @@ export default function SuppliesPage() {
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
                 <div className="flex flex-wrap gap-2">
                   {ingredientUnits.map((u) => (
-                    <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
+                    <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
                       {u}
                     </button>
                   ))}
@@ -294,8 +294,8 @@ export default function SuppliesPage() {
             </label>
 
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={handleCloseSheet} className="flex-1 rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
-              <button type="submit" className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+              <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
+              <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
             </div>
           </form>
         </div>

@@ -94,7 +94,7 @@ export default function NewProductPage() {
   }
 
   const handleSaveProduct = () => {
-    if (recipe.length === 0) return
+    // Se eliminó la restricción `if (recipe.length === 0) return` para permitir productos "Sin Receta"
     notify('Producto creado con éxito')
     setTimeout(() => router.push('/productos'), 800)
   }
@@ -213,7 +213,7 @@ export default function NewProductPage() {
               <button
                 type="button"
                 onClick={handleAddIngredient}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
               >
                 <Plus className="size-4" />
                 Agregar Insumo a la Receta
@@ -234,7 +234,7 @@ export default function NewProductPage() {
                     <button
                       type="button"
                       onClick={() => setRecipe(recipe.filter((_, i) => i !== index))}
-                      className="p-1 text-rose-500 hover:text-rose-700"
+                      className="p-1 cursor-pointer text-rose-500 hover:text-rose-700"
                       aria-label="Eliminar ingrediente"
                     >
                       <Trash2 className="size-4" />
@@ -260,7 +260,7 @@ export default function NewProductPage() {
           </div>
           <button
             type="submit"
-            className="rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+            className="cursor-pointer rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
           >
             Guardar Producto
           </button>
