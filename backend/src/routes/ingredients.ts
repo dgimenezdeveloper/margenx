@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import { parsePaginationParams } from '../utils/pagination';
 
 const router = Router();
 
@@ -125,18 +126,37 @@ function parseIngredientInput(body: IngredientInputDTO): ValidatedIngredientInpu
 
 /* ------------------------------------------------------------------ */
 /* GET /api/ingredients                                                */
-/* Lista los insumos de la cuenta autenticada.                         */
+/* Lista los insumos de la cuenta autenticada, paginados y ordenados.  */
+/* Query params: page, limit, sortBy (name|currentCost|updatedAt),     */
+/* order (asc|desc). Todos opcionales, con defaults seguros.           */
 /* 200 OK | 401 No autenticado | 500 (vía errorHandler)                */
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
+  const { page, limit, sortBy, order } = parsePaginationParams(
+    req.query as Record<string, unknown>
+  );
 
-  const ingredients = await prisma.ingredient.findMany({
-    where: { accountId },
-    orderBy: { name: 'asc' },
+  const skip = (page - 1) * limit;
+
+  // La paginación se resuelve en la base de datos (skip/take), no en
+  // memoria de Node. Se ejecutan ambas consultas en paralelo.
+  const [data, total] = await Promise.all([
+    prisma.ingredient.findMany({
+      where: { accountId },
+      orderBy: { [sortBy]: order },
+      skip,
+      take: limit,
+    }),
+    prisma.ingredient.count({ where: { accountId } }),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return res.status(200).json({
+    data,
+    meta: { total, page, limit, totalPages },
   });
-
-  return res.status(200).json({ ingredients });
 });
 
 /* ------------------------------------------------------------------ */
