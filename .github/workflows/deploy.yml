@@ -62,4 +62,5 @@ jobs:
           script: |
             cd /opt/margenx-infra
             docker compose pull ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
+            docker compose run --rm ${{ steps.env_check.outputs.BACK_SVC }} npx prisma migrate deploy
             docker compose up -d --no-deps ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
