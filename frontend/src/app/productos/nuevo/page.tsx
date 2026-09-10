@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -18,13 +17,13 @@ const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 function getAvailableRecipeUnits(baseUnit: string): string[] {
   if (baseUnit === 'kg') return ['gr', 'kg']
-  if (baseUnit === 'litro') return ['ml', 'litro']
+  if (baseUnit === 'litro' || baseUnit === 'l') return ['ml', 'litro']
   return [baseUnit || 'unidad']
 }
 
 function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): number {
   if (baseUnit === 'kg' && selectedUnit === 'gr') return qty / 1000
-  if (baseUnit === 'litro' && selectedUnit === 'ml') return qty / 1000
+  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return qty / 1000
   return qty
 }
 
@@ -38,13 +37,6 @@ export default function NewProductPage() {
   }
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
-
-  useEffect(() => {
-    ingredientService.getAll(getToken)
-      .then(setSupplies)
-      .catch((error: unknown) => notify(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'))
-      .finally(() => setIsLoadingSupplies(false))
-  }, [getToken])
 
   const {
     register,
@@ -64,7 +56,21 @@ export default function NewProductPage() {
   const [recipeUnit, setRecipeUnit] = useState('kg')
   const [inputQty, setInputQty] = useState('200')
 
-  const currentSupply = supplies.find((s) => s.id === selectedIngredient)
+  useEffect(() => {
+    ingredientService.getAll(getToken)
+      .then((items) => {
+        setSupplies(items)
+        if (items.length > 0) {
+          setSelectedIngredient(items[0].id)
+          const units = getAvailableRecipeUnits(items[0].unit)
+          setRecipeUnit(units[0])
+        }
+      })
+      .catch((error: unknown) => notify(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'))
+      .finally(() => setIsLoadingSupplies(false))
+  }, [getToken])
+
+  const currentSupply = supplies.find((s) => s.id === selectedIngredient) ?? supplies[0]
   const availableUnits = getAvailableRecipeUnits(currentSupply?.unit ?? 'kg')
 
   const [recipe, setRecipe] = useState<{ supply: Ingredient; inputQty: number; recipeUnit: string; baseQty: number }[]>([])
@@ -74,9 +80,9 @@ export default function NewProductPage() {
   const projected = salePrice > 0 ? Math.round(((salePrice - cost) / salePrice) * 1000) / 10 : 0
   const isHealthy = projected >= Number(minimum)
 
-  const handleSupplyChange = (supplyName: string) => {
-    setSelectedIngredient(supplyName)
-    const sup = supplies.find((s) => s.id === supplyName)
+  const handleSupplyChange = (supplyId: string) => {
+    setSelectedIngredient(supplyId)
+    const sup = supplies.find((s) => s.id === supplyId)
     if (sup) {
       const units = getAvailableRecipeUnits(sup.unit)
       setRecipeUnit(units[0])
@@ -225,7 +231,7 @@ export default function NewProductPage() {
                 type="button"
                 onClick={handleAddIngredient}
                 disabled={isLoadingSupplies || !currentSupply}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isLoadingSupplies ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
                 {isLoadingSupplies ? 'Cargando insumos...' : 'Agregar Insumo a la Receta'}

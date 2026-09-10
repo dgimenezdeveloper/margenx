@@ -18,6 +18,7 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
 export default function SuppliesPage() {
   const { getToken } = useAuth()
@@ -33,7 +34,7 @@ export default function SuppliesPage() {
     let active = true
     ingredientService.getAll(getToken)
       .then((ingredients) => {
-        if (active) setSupplies(ingredients)
+        if (active) setSupplies(sortIngredients(ingredients))
       })
       .catch((error: unknown) => {
         if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.')
@@ -100,8 +101,8 @@ export default function SuppliesPage() {
         ? await ingredientService.update(getToken, selected.id, input)
         : await ingredientService.create(getToken, input)
       setSupplies((current) => selected
-        ? current.map((item) => item.id === ingredient.id ? ingredient : item)
-        : [...current, ingredient])
+        ? sortIngredients(current.map((item) => item.id === ingredient.id ? ingredient : item))
+        : sortIngredients([...current, ingredient]))
       notify(selected ? `Costo de ${selected.name} actualizado a ${money(data.currentCost)}` : `Insumo "${data.name}" creado correctamente`)
       handleCloseSheet()
     } catch (error: unknown) {
