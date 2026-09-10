@@ -3,10 +3,13 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import { parsePaginationParams } from '../utils/pagination';
 
 const router = Router();
 
 // Todas las rutas de este router requieren un usuario autenticado.
+// Por eso `req.user!` se usa sin chequeo adicional en cada handler: si
+// authMiddleware llamó a next(), req.user está garantizado seteado.
 router.use(authMiddleware);
 
 /**
@@ -125,18 +128,37 @@ function parseIngredientInput(body: IngredientInputDTO): ValidatedIngredientInpu
 
 /* ------------------------------------------------------------------ */
 /* GET /api/ingredients                                                */
-/* Lista los insumos de la cuenta autenticada.                         */
+/* Lista los insumos de la cuenta autenticada, paginados y ordenados.  */
+/* Query params: page, limit, sortBy (name|currentCost|updatedAt),     */
+/* order (asc|desc). Todos opcionales, con defaults seguros.           */
 /* 200 OK | 401 No autenticado | 500 (vía errorHandler)                */
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
+  const { page, limit, sortBy, order } = parsePaginationParams(
+    req.query as Record<string, unknown>
+  );
 
-  const ingredients = await prisma.ingredient.findMany({
-    where: { accountId },
-    orderBy: { name: 'asc' },
+  const skip = (page - 1) * limit;
+
+  // La paginación se resuelve en la base de datos (skip/take), no en
+  // memoria de Node. Se ejecutan ambas consultas en paralelo.
+  const [data, total] = await Promise.all([
+    prisma.ingredient.findMany({
+      where: { accountId },
+      orderBy: { [sortBy]: order },
+      skip,
+      take: limit,
+    }),
+    prisma.ingredient.count({ where: { accountId } }),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return res.status(200).json({
+    data,
+    meta: { total, page, limit, totalPages },
   });
-
-  return res.status(200).json({ ingredients });
 });
 
 /* ------------------------------------------------------------------ */
@@ -171,6 +193,9 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
+  // req.body es `any` por diseño de Express; el cast a IngredientInputDTO es
+  // seguro porque cada campo del DTO es `unknown` (no asume estructura) y se
+  // valida explícitamente en validateIngredientInput antes de usarse.
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
 
   const ingredient = await prisma.ingredient.create({
