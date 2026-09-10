@@ -61,6 +61,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/margenx-infra
+            echo "Descargando imagenes actualizadas (${{ steps.env_check.outputs.DOCKER_TAG }})..."
             docker compose pull ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
+            echo "Ejecutando migraciones de Prisma en ${{ steps.env_check.outputs.TARGET_ENV }}..."
             docker compose run --rm ${{ steps.env_check.outputs.BACK_SVC }} npx prisma migrate deploy
+            echo "Reiniciando contenedores..."
             docker compose up -d --no-deps ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
