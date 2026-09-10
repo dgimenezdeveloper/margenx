@@ -1,33 +1,48 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Boxes, Check, Plus, Search, X } from 'lucide-react'
+import { Boxes, Check, LoaderCircle, Plus, Search, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
-
-const initialSupplies = [
-  { name: 'Carne Picada', unit: 'kg', cost: 4200 },
-  { name: 'Pan Brioche', unit: 'unidad', cost: 950 },
-  { name: 'Queso Cheddar', unit: 'kg', cost: 6800 },
-  { name: 'Papas Congeladas', unit: 'kg', cost: 2400 },
-]
+import { ApiError } from '@/services/api'
+import { ingredientService, type Ingredient } from '@/services/ingredientService'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function SuppliesPage() {
-  const [supplies, setSupplies] = useState(initialSupplies)
+  const { getToken } = useAuth()
+  const [supplies, setSupplies] = useState<Ingredient[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<(typeof initialSupplies)[number] | null>(null)
+  const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    ingredientService.getAll(getToken)
+      .then((ingredients) => {
+        if (active) setSupplies(ingredients)
+      })
+      .catch((error: unknown) => {
+        if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.')
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => { active = false }
+  }, [getToken])
 
   const {
     register,
@@ -57,9 +72,10 @@ export default function SuppliesPage() {
   const isTotalEmpty = supplies.length === 0
   const isSearchEmpty = filtered.length === 0 && !isTotalEmpty
 
-  const handleOpenEdit = (supply: (typeof initialSupplies)[number]) => {
+  const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
-    reset({ name: supply.name, unit: supply.unit as IngredientFormValues['unit'], currentCost: String(supply.cost) })
+    const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
+    reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
   }
 
   const handleOpenNew = () => {
@@ -73,15 +89,24 @@ export default function SuppliesPage() {
     setNewOpen(false)
   }
 
-  const handleSave = (data: IngredientFormValues) => {
-    if (selected) {
-      setSupplies(supplies.map((s) => (s.name === selected.name ? { ...s, cost: data.currentCost } : s)))
-      notify(`Costo de ${selected.name} actualizado a ${money(data.currentCost)}`)
-    } else {
-      setSupplies([...supplies, { name: data.name, unit: data.unit, cost: data.currentCost }])
-      notify(`Insumo "${data.name}" creado correctamente`)
+  const handleSave = async (data: IngredientFormValues) => {
+    const input = {
+      name: selected?.name ?? data.name,
+      unit: data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit,
+      currentCost: data.currentCost,
     }
-    handleCloseSheet()
+    try {
+      const ingredient = selected
+        ? await ingredientService.update(getToken, selected.id, input)
+        : await ingredientService.create(getToken, input)
+      setSupplies((current) => selected
+        ? current.map((item) => item.id === ingredient.id ? ingredient : item)
+        : [...current, ingredient])
+      notify(selected ? `Costo de ${selected.name} actualizado a ${money(data.currentCost)}` : `Insumo "${data.name}" creado correctamente`)
+      handleCloseSheet()
+    } catch (error: unknown) {
+      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.')
+    }
   }
 
   return (
@@ -157,7 +182,19 @@ export default function SuppliesPage() {
             </div>
 
             {/* ESTADOS VACÍOS */}
-            {isTotalEmpty && (
+            {isLoading && (
+              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
+              </div>
+            )}
+
+            {!isLoading && loadError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+                {loadError}
+              </div>
+            )}
+
+            {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Boxes className="size-6" />}
                 title="Sin insumos en la despensa"
@@ -167,7 +204,7 @@ export default function SuppliesPage() {
               />
             )}
 
-            {isSearchEmpty && (
+            {!isLoading && !loadError && isSearchEmpty && (
               <EmptyState
                 icon={<Search className="size-6" />}
                 title="Insumo no encontrado"
@@ -176,7 +213,7 @@ export default function SuppliesPage() {
             )}
 
             {/* TABLA VS CARDS */}
-            {!isTotalEmpty && !isSearchEmpty && (
+            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
                 {/* VERSIÓN MOBILE: Tarjetas */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
@@ -195,7 +232,7 @@ export default function SuppliesPage() {
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">
                         <span className="text-[10px] font-bold text-indigo-600">Tocar para editar</span>
-                        <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.cost)}</strong>
+                        <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.currentCost)}</strong>
                       </div>
                     </button>
                   ))}
@@ -226,7 +263,7 @@ export default function SuppliesPage() {
                               {supply.unit}
                             </span>
                           </td>
-                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(supply.cost)}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(supply.currentCost)}</td>
                         </tr>
                       ))}
                     </tbody>

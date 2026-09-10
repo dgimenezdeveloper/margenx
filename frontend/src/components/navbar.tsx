@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useAuth } from '@clerk/clerk-react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
@@ -53,6 +54,7 @@ export function Navbar({
   onLogoClick?: () => void
 }) {
   const pathname = usePathname()
+  const { signOut } = useAuth()
 
   const navLinks = [
     { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
@@ -131,14 +133,14 @@ export function Navbar({
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Link
-          href="/"
-          className="hidden items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
-          title="Cerrar sesión"
-        >
-          <LogOut className="size-3.5" />
-          <span>Salir</span>
-        </Link>
+        <button
+              type="button"
+              onClick={() => void signOut({ redirectUrl: '/' })}
+              className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
+            >
+              <LogOut className="size-4" />
+              Salir
+            </button>
       </div>
     </header>
   )

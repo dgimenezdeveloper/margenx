@@ -9,6 +9,7 @@ import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
 import ProductDetailPage from './app/productos/hamburguesa-doble/page'
 import ProfilePage from './app/perfil/page'
+import { ProtectedRoute } from './components/protected-route'
 
 export const router = createBrowserRouter([
   {
@@ -21,27 +22,27 @@ export const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
-    element: <DashboardPage />,
+    element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
   },
   {
     path: '/insumos',
-    element: <SuppliesPage />,
+    element: <ProtectedRoute><SuppliesPage /></ProtectedRoute>,
   },
   {
     path: '/productos',
-    element: <ProductsPage />,
+    element: <ProtectedRoute><ProductsPage /></ProtectedRoute>,
   },
   {
     path: '/productos/nuevo',
-    element: <NewProductPage />,
+    element: <ProtectedRoute><NewProductPage /></ProtectedRoute>,
   },
   {
     path: '/productos/hamburguesa-doble',
-    element: <ProductDetailPage />,
+    element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute>,
   },
   {
     path: '/perfil',
-    element: <ProfilePage />,
+    element: <ProtectedRoute><ProfilePage /></ProtectedRoute>,
   },
   {
     path: '*',

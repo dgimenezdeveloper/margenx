@@ -3,26 +3,36 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { ChevronRight, Package, Plus, Search } from 'lucide-react'
+import { useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { ChevronRight, LoaderCircle, Package, Plus, Search } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
-
-const initialProducts = [
-  { name: 'Hamburguesa Doble', price: 1600, cost: 1380, margin: 13.8, risk: true },
-  { name: 'Combo Familiar', price: 32700, cost: 18000, margin: 45.0, risk: false },
-  { name: 'Papas Especiales', price: 6500, cost: 3100, margin: 52.0, risk: false },
-  { name: 'Bebida Grande', price: 4000, cost: 2900, margin: 18.0, risk: true },
-]
+import { ApiError } from '@/services/api'
+import { productService, type Product } from '@/services/productService'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function ProductsPage() {
   const router = useRouter()
-  // Para probar el Empty State, cambia initialProducts por []
-  const [products] = useState(initialProducts)
+  const { getToken } = useAuth()
+  const [products, setProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    let active = true
+    productService.getAll(getToken)
+      .then((items) => { if (active) setProducts(items) })
+      .catch((error: unknown) => {
+        if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los productos.')
+      })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
+  }, [getToken])
 
   const filtered = useMemo(
     () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
@@ -77,7 +87,19 @@ export default function ProductsPage() {
             </div>
 
             {/* MANEJO DE ESTADOS VACÍOS (Gherkin AC #1) */}
-            {isTotalEmpty && (
+            {isLoading && (
+              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando productos...
+              </div>
+            )}
+
+            {!isLoading && loadError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+                {loadError}
+              </div>
+            )}
+
+            {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Package className="size-6"/>}
                 title="Aún no tienes productos cargados"
@@ -87,7 +109,7 @@ export default function ProductsPage() {
               />
             )}
 
-            {isSearchEmpty && (
+            {!isLoading && !loadError && isSearchEmpty && (
               <EmptyState
                 icon={<Search className="size-6" />}
                 title="No se encontraron resultados"
@@ -96,7 +118,7 @@ export default function ProductsPage() {
             )}
 
             {/* TABLA VS CARDS (Gherkin AC #2) */}
-            {!isTotalEmpty && !isSearchEmpty && (
+            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
                 {/* VERSIÓN MOBILE: Tarjetas (Se oculta en Desktop) */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
@@ -108,14 +130,18 @@ export default function ProductsPage() {
                     >
                       <div className="flex w-full items-start justify-between gap-2">
                         <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{product.name}</h3>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${product.risk ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
-                          Margen {product.margin}%
-                        </span>
+                        {product.cost === 0 || product.ingredients.length === 0 ? (
+                          <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin Receta</span>
+                        ) : (
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${product.marginPercent < product.minMarginPercent ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                            Margen {product.marginPercent}%
+                          </span>
+                        )}
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
                         <span>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></span>
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
-                          Precio: <span className="text-sm">{money(product.price)}</span>
+                          Precio: <span className="text-sm">{money(product.salePrice)}</span>
                           <ChevronRight className="size-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
                         </span>
                       </div>
@@ -145,11 +171,15 @@ export default function ProductsPage() {
                             {product.name}
                           </td>
                           <td className="px-5 py-4 font-medium">{money(product.cost)}</td>
-                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(product.price)}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(product.salePrice)}</td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${product.risk ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
-                              {product.margin}% {product.risk && '⚠️'}
-                            </span>
+                            {product.cost === 0 || product.ingredients.length === 0 ? (
+                              <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin Receta</span>
+                            ) : (
+                              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${product.marginPercent < product.minMarginPercent ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                                {product.marginPercent}%
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
