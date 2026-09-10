@@ -55,7 +55,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+            className="mt-2 cursor-pointer inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
           >
             Ingresar al sistema
             <ArrowRight className="size-4" />

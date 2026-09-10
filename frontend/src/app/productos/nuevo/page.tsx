@@ -2,8 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Check, Plus, Trash2 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 
 const initialSupplies = [
   { name: 'Carne Picada', unit: 'kg', cost: 4200 },
@@ -32,10 +36,21 @@ function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): 
 
 export default function NewProductPage() {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [price, setPrice] = useState('')
-  const [minimum, setMinimum] = useState('30')
   const [toast, setToast] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    mode: 'onChange',
+    defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
+  })
+
+  const price = useWatch({ control, name: 'salePrice' })
+  const minimum = useWatch({ control, name: 'minMarginPercent' })
 
   const [selectedIngredient, setSelectedIngredient] = useState(initialSupplies[0]?.name ?? '')
   const [recipeUnit, setRecipeUnit] = useState('gr')
@@ -79,7 +94,7 @@ export default function NewProductPage() {
   }
 
   const handleSaveProduct = () => {
-    if (!name.trim() || salePrice <= 0 || recipe.length === 0) return
+    // Se eliminó la restricción `if (recipe.length === 0) return` para permitir productos "Sin Receta"
     notify('Producto creado con éxito')
     setTimeout(() => router.push('/productos'), 800)
   }
@@ -93,6 +108,7 @@ export default function NewProductPage() {
         </div>
       )}
 
+      <form onSubmit={handleSubmit(handleSaveProduct)}>
       <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
         <Navbar title="Nuevo Producto" backHref="/productos" />
 
@@ -103,11 +119,11 @@ export default function NewProductPage() {
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
               Nombre del producto
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                {...register('name')}
                 placeholder="Ej. Bidón Lavandina 5L / Docena Medialunas"
                 className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800"
               />
+              {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
             </label>
 
             <div className="grid grid-cols-2 gap-3">
@@ -116,28 +132,28 @@ export default function NewProductPage() {
                 <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <span className="text-gray-400 font-bold">$</span>
                   <input
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ''))}
+                    {...register('salePrice')}
                     inputMode="decimal"
                     type="number"
                     placeholder="0"
                     className="no-spinners w-full bg-transparent px-2 text-base font-bold outline-none"
                   />
                 </div>
+                {errors.salePrice && <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>}
               </label>
 
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                 Margen Mínimo (%)
                 <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <input
-                    value={minimum}
-                    onChange={(e) => setMinimum(e.target.value)}
+                    {...register('minMarginPercent')}
                     inputMode="decimal"
                     type="number"
                     className="no-spinners w-full bg-transparent text-right font-bold outline-none"
                   />
                   <span className="text-gray-400 font-bold ml-1">%</span>
                 </div>
+                {errors.minMarginPercent && <p className="mt-1 text-xs font-bold text-rose-500">{errors.minMarginPercent.message}</p>}
               </label>
             </div>
           </section>
@@ -145,7 +161,7 @@ export default function NewProductPage() {
           {/* Sección 2: Constructor de Receta (BOM) */}
           <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <h2 className="text-base font-bold mb-3">2. Composición / Receta</h2>
-            
+
             <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
               <label className="block text-xs font-bold text-gray-500">Insumo de la despensa</label>
               <select
@@ -197,7 +213,7 @@ export default function NewProductPage() {
               <button
                 type="button"
                 onClick={handleAddIngredient}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
               >
                 <Plus className="size-4" />
                 Agregar Insumo a la Receta
@@ -218,7 +234,7 @@ export default function NewProductPage() {
                     <button
                       type="button"
                       onClick={() => setRecipe(recipe.filter((_, i) => i !== index))}
-                      className="p-1 text-rose-500 hover:text-rose-700"
+                      className="p-1 cursor-pointer text-rose-500 hover:text-rose-700"
                       aria-label="Eliminar ingrediente"
                     >
                       <Trash2 className="size-4" />
@@ -243,14 +259,14 @@ export default function NewProductPage() {
             </p>
           </div>
           <button
-            type="button"
-            onClick={handleSaveProduct}
-            className="rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+            type="submit"
+            className="cursor-pointer rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
           >
             Guardar Producto
           </button>
         </div>
       </footer>
+      </form>
     </main>
   )
 }

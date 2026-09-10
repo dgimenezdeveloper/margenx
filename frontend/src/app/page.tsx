@@ -86,7 +86,7 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+      className="flex cursor-pointer size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
       aria-label="Cambiar tema"
     >
       {dark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-slate-600 dark:text-slate-300" />}
@@ -365,7 +365,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setOpenFaq(isOpen ? null : index)}
-                    className="flex w-full items-center justify-between p-5 text-left text-sm font-bold text-slate-900 dark:text-slate-100"
+                    className="flex cursor-pointer w-full items-center justify-between p-5 text-left text-sm font-bold text-slate-900 dark:text-slate-100"
                   >
                     <span>{faq.q}</span>
                     <ChevronDown className={`size-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
