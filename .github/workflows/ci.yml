@@ -55,3 +55,50 @@ jobs:
 
       - name: Verificar Build de Producción
         run: npm run build
+
+  notify-ci-failure:
+    name: Notificar Fallo en Discord
+    runs-on: ubuntu-latest
+    needs: [backend-check, frontend-check]
+    if: failure()
+    steps:
+      - name: Enviar alerta a Discord
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BRANCH_OR_REF: "${{ github.head_ref || github.ref_name }}"
+          AUTHOR: "${{ github.actor }}"
+          COMMIT_MSG: "${{ github.event.head_commit.message || github.event.pull_request.title || 'Commit en PR' }}"
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL no configurado. Omitiendo notificación."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "🚨 **Fallo en Pipeline de CI — MargenX**" \
+            --arg title "Falló la verificación de CI (Lint / Build)" \
+            --arg run_url "$RUN_URL" \
+            --arg branch "$BRANCH_OR_REF" \
+            --arg author "$AUTHOR" \
+            --arg commit "$COMMIT_MSG" \
+            '{
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  url: $run_url,
+                  color: 15158332,
+                  fields: [
+                    { name: "Rama / Ref", value: $branch, inline: true },
+                    { name: "Disparado por", value: $author, inline: true },
+                    { name: "Mensaje / PR", value: $commit, inline: false },
+                    { name: "Detalles del Error", value: ("[Ver Logs en GitHub Actions](" + $run_url + ")"), inline: false }
+                  ],
+                  timestamp: (now | todate)
+                }
+              ]
+            }')
+
+          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || echo "Error enviando notificación a Discord"
