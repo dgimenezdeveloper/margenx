@@ -1,16 +1,30 @@
+
 # Changelog — MargenX
 
 Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased] (En desarrollo - Sprint 1)
-### Added (Planificado)
-- **Frontend:** Formularios con validación Zod y React Hook Form (`#32`).
-- **Frontend:** Integración de `<ClerkProvider>` y consumo de API con token JWT (`#29`, `#33`).
-- **Backend:** Middleware global de captura de excepciones HTTP (`#35`).
-- **Backend:** Paginación y ordenamiento en endpoint de Insumos (`#36`).
-- **QA:** Script ejecutable de Seed idempotente en `prisma/seed.ts` (`#30`).
-- **QA:** Colecciones automatizadas de Postman para Insumos y Productos (`#37`, `#38`).
-- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia Azure App Service (`#40`).
+
+### Added (Terminado y Mergeado)
+- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH (puerto 5371) y Nginx Reverse Proxy (`#40` via PR `#58`).
+- **DevOps:** Automatización de migraciones de Prisma en el pipeline de deploy mediante contenedor efímero con mecanismo de fallo seguro (`#41` via PR `#59`).
+- **Backend:** Middleware global de captura, formateo y estandarización de errores HTTP (`#35` via PR `#51`).
+- **Backend:** Paginación y ordenamiento (Sorting) nativo en base de datos para la API de Insumos (`#36` via PR `#57`).
+- **Frontend:** Maquetado responsivo Mobile-First de vistas de Insumos y Productos con tablas, badges y Empty States (`#31` via PR `#53`).
+- **Frontend:** Formularios de Insumos y Productos con validación estricta Zod y React Hook Form (`#32` via PR `#55`).
+- **QA:** Script ejecutable de Seed idempotente (`prisma/seed.ts`) con dataset verídico de comercios piloto (`#30` via PR `#52`).
+- **QA:** Redacción de Casos de Prueba manuales en formato Gherkin para Insumos y Productos (`#39` via PR `#54`).
+- **QA:** Colección de pruebas automatizadas de API en Postman/Newman para el módulo de Insumos (`#37` via PR `#56`).
+
+### In Review (En Revisión de Pares / PR Abierto)
+- **Frontend:** Integración con `<ClerkProvider>`, capa de servicios y consumo de API autenticada mediante tokens JWT (`#29` en PR `#60`).
+- **Frontend:** Integración de API de Insumos y Productos con manejo visual de estados de carga (Loading/Skeletons) y error (`#33` en PR `#60`).
+
+### In Progress (En Desarrollo)
+- **QA:** Colección de pruebas automatizadas de API para el módulo de Productos en Postman/Newman (`#38`).
+
+### To Do (Planificado / Próximo a iniciar)
+- **DevOps:** Configuración de notificaciones automáticas de estado de CI/CD vía Webhook de Discord (`#42`).
 
 ---
 

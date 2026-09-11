@@ -1,3 +1,4 @@
+
 # 📊 MargenX — Control de Márgenes en Tiempo Real
 
 > Aplicación web multiempresa para comercios gastronómicos y producción artesanal. Permite calcular el margen de ganancia real por producto ante la variación de costos de insumos, con recálculo en cascada y alertas automáticas vía n8n.
@@ -14,7 +15,7 @@
 * **Testing:** Playwright (E2E) & Vitest (Unit tests).
 * **Infraestructura:**
   * *Entorno Local:* Docker + VS Code DevContainers.
-  * *Producción:* Microsoft Azure (App Service) + VPS Propia (PostgreSQL + n8n).
+  * *Producción y Staging:* VPS Propia, 100% consolidada (Frontend, Backend, PostgreSQL y n8n), con doble entorno por subdominio y despliegue vía Docker Hub.
   * *CI/CD:* GitHub Actions.
 
 ---
