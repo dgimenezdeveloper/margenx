@@ -18,12 +18,16 @@ jobs:
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "TARGET_ENV=production" >> $GITHUB_OUTPUT
+            echo "ENV_LABEL=Producción" >> $GITHUB_OUTPUT
+            echo "PUBLIC_URL=https://margenx.tech" >> $GITHUB_OUTPUT
             echo "DOCKER_TAG=latest" >> $GITHUB_OUTPUT
             echo "FRONT_SVC=frontend-prod" >> $GITHUB_OUTPUT
             echo "BACK_SVC=backend-prod" >> $GITHUB_OUTPUT
             echo "VITE_API_URL=https://api.margenx.tech" >> $GITHUB_OUTPUT
           else
             echo "TARGET_ENV=staging" >> $GITHUB_OUTPUT
+            echo "ENV_LABEL=Staging" >> $GITHUB_OUTPUT
+            echo "PUBLIC_URL=https://dev.margenx.tech" >> $GITHUB_OUTPUT
             echo "DOCKER_TAG=dev" >> $GITHUB_OUTPUT
             echo "FRONT_SVC=frontend-dev" >> $GITHUB_OUTPUT
             echo "BACK_SVC=backend-dev" >> $GITHUB_OUTPUT
@@ -67,3 +71,84 @@ jobs:
             docker compose run --rm ${{ steps.env_check.outputs.BACK_SVC }} npx prisma migrate deploy
             echo "Reiniciando contenedores..."
             docker compose up -d --no-deps ${{ steps.env_check.outputs.BACK_SVC }} ${{ steps.env_check.outputs.FRONT_SVC }}
+
+      # --- NOTIFICACIÓN DISCORD: DEPLOY EXITOSO ---
+      - name: Notificar Deploy Exitoso en Discord
+        if: success()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ENV_LABEL: ${{ steps.env_check.outputs.ENV_LABEL }}
+          PUBLIC_URL: ${{ steps.env_check.outputs.PUBLIC_URL }}
+          DOCKER_TAG: ${{ steps.env_check.outputs.DOCKER_TAG }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          COMMIT_MSG: "${{ github.event.head_commit.message || 'Despliegue continuo' }}"
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL no configurado. Omitiendo notificación."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "@everyone 🚀 **Deploy Exitoso en ${ENV_LABEL} (${PUBLIC_URL})**" \
+            --arg title "MargenX — Despliegue Exitoso en ${ENV_LABEL}" \
+            --arg url "$PUBLIC_URL" \
+            --arg tag "$DOCKER_TAG" \
+            --arg commit "$COMMIT_MSG" \
+            --arg run_url "$RUN_URL" \
+            '{
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  color: 3066993,
+                  fields: [
+                    { name: "Entorno", value: $url, inline: true },
+                    { name: "Tag Docker", value: $tag, inline: true },
+                    { name: "Commit", value: $commit, inline: false },
+                    { name: "Ver Ejecución", value: ("[Logs de GitHub Actions](" + $run_url + ")"), inline: false }
+                  ],
+                  timestamp: (now | todate)
+                }
+              ]
+            }')
+
+          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || echo "Error enviando notificación a Discord"
+
+      # --- NOTIFICACIÓN DISCORD: FALLO EN DEPLOY ---
+      - name: Notificar Fallo de Deploy en Discord
+        if: failure()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ENV_LABEL: ${{ steps.env_check.outputs.ENV_LABEL || 'VPS' }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL no configurado. Omitiendo notificación."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "🚨 **FALLO CRÍTICO EN DESPLIEGUE A ${ENV_LABEL}** — Atención @dgimenezdeveloper" \
+            --arg title "Error en el Pipeline de CD a la VPS" \
+            --arg run_url "$RUN_URL" \
+            '{
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  url: $run_url,
+                  color: 15158332,
+                  description: "El pipeline de despliegue continuo ha fallado. Revisa inmediatamente los logs del contenedor o la conexión SSH.",
+                  fields: [
+                    { name: "Entorno Afectado", value: $ENV_LABEL, inline: true },
+                    { name: "Logs de Error", value: ("[Inspeccionar Logs de GitHub Actions](" + $run_url + ")"), inline: false }
+                  ],
+                  timestamp: (now | todate)
+                }
+              ]
+            }')
+
+          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || echo "Error enviando notificación a Discord"
