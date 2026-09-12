@@ -134,13 +134,13 @@ export function Navbar({
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <button
-              type="button"
-              onClick={() => void signOut({ redirectUrl: '/' })}
-              className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
-            >
-              <LogOut className="size-4" />
-              Salir
-            </button>
+          type="button"
+          onClick={() => void signOut({ redirectUrl: '/' })}
+          className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
+        >
+          <LogOut className="size-4" />
+          Salir
+        </button>
       </div>
     </header>
   )

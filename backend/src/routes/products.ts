@@ -3,9 +3,39 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
 
 const router = Router();
 router.use(authMiddleware);
+
+const SORTABLE_FIELDS = ['name', 'salePrice', 'cost', 'marginPercent', 'updatedAt'] as const;
+type SortableField = (typeof SORTABLE_FIELDS)[number];
+
+interface ProductPaginationParams {
+  page: number;
+  limit: number;
+  sortBy: SortableField;
+  order: 'asc' | 'desc';
+}
+
+function parseProductPaginationParams(query: Record<string, unknown>): ProductPaginationParams {
+  const rawPage = Number(query.page);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
+
+  const rawLimit = Number(query.limit);
+  const limit =
+    Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
+
+  const rawSortBy = typeof query.sortBy === 'string' ? query.sortBy : '';
+  const sortBy = (SORTABLE_FIELDS as readonly string[]).includes(rawSortBy)
+    ? (rawSortBy as SortableField)
+    : 'name';
+
+  const rawOrder = typeof query.order === 'string' ? query.order.toLowerCase() : '';
+  const order = rawOrder === 'desc' ? 'desc' : 'asc';
+
+  return { page, limit, sortBy, order };
+}
 
 interface ProductBody {
   name?: unknown;
@@ -50,15 +80,43 @@ function parseBody(body: ProductBody) {
   return { name, salePrice, minMarginPercent, ingredients };
 }
 
+/* ------------------------------------------------------------------ */
+/* GET /api/products                                                  */
+/* Lista los productos paginados y ordenados por cuenta.               */
+/* Query params: page, limit, sortBy, order                            */
+/* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const products = await prisma.product.findMany({
-    where: { accountId: req.user!.accountId },
-    include: { ingredients: { select: { ingredientId: true, quantity: true } } },
-    orderBy: { name: 'asc' },
+  const accountId = req.user!.accountId;
+  const { page, limit, sortBy, order } = parseProductPaginationParams(
+    req.query as Record<string, unknown>
+  );
+
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    prisma.product.findMany({
+      where: { accountId },
+      include: { ingredients: { select: { ingredientId: true, quantity: true } } },
+      orderBy: { [sortBy]: order },
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({ where: { accountId } }),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return res.status(200).json({
+    data,
+    products: data, // Mantenemos el alias para compatibilidad retroactiva
+    meta: { total, page, limit, totalPages },
   });
-  return res.status(200).json({ products });
 });
 
+/* ------------------------------------------------------------------ */
+/* POST /api/products                                                 */
+/* Crea un producto calculando costos/márgenes o en modo borrador.   */
+/* ------------------------------------------------------------------ */
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const input = parseBody(req.body as ProductBody);
   const accountId = req.user!.accountId;
@@ -69,12 +127,18 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   });
   if (ingredientRows.length !== ingredientIds.length) throw new AppError('Una receta contiene un insumo inexistente.', 400);
 
-  const cost = input.ingredients.reduce((total, item) => {
-    const ingredient = ingredientRows.find((row) => row.id === item.ingredientId);
-    return total.add((ingredient?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
-  }, new Prisma.Decimal(0));
-  const marginAmount = input.salePrice.sub(cost);
-  const marginPercent = input.salePrice.isZero() ? new Prisma.Decimal(0) : marginAmount.div(input.salePrice).mul(100);
+  const hasIngredients = input.ingredients.length > 0;
+  const cost = hasIngredients
+    ? input.ingredients.reduce((total, item) => {
+        const ingredient = ingredientRows.find((row) => row.id === item.ingredientId);
+        return total.add((ingredient?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
+      }, new Prisma.Decimal(0))
+    : new Prisma.Decimal(0);
+
+  const marginAmount = hasIngredients ? input.salePrice.sub(cost) : new Prisma.Decimal(0);
+  const marginPercent = (!hasIngredients || input.salePrice.isZero())
+    ? new Prisma.Decimal(0)
+    : marginAmount.div(input.salePrice).mul(100);
 
   const product = await prisma.product.create({
     data: {

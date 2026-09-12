@@ -39,7 +39,14 @@ type RawProduct = Omit<Product, 'salePrice' | 'minMarginPercent' | 'cost' | 'mar
 }
 
 interface ProductResponse {
-  products: RawProduct[]
+  data?: RawProduct[]
+  products?: RawProduct[]
+  meta?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
 }
 
 interface SingleProductResponse {
@@ -64,7 +71,8 @@ function normalizeProduct(product: RawProduct): Product {
 export const productService = {
   async getAll(getToken: TokenGetter): Promise<Product[]> {
     const response = await fetchApi<ProductResponse>('/products', getToken)
-    return response.products.map(normalizeProduct)
+    const list = response.data ?? response.products ?? []
+    return list.map(normalizeProduct)
   },
 
   async create(getToken: TokenGetter, input: ProductInput): Promise<Product> {
