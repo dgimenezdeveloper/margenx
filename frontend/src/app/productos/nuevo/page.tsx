@@ -1,42 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Check, Plus, Trash2 } from 'lucide-react'
+import { Check, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
-
-const initialSupplies = [
-  { name: 'Carne Picada', unit: 'kg', cost: 4200 },
-  { name: 'Pan Brioche', unit: 'unidad', cost: 950 },
-  { name: 'Queso Cheddar', unit: 'kg', cost: 6800 },
-  { name: 'Papas Congeladas', unit: 'kg', cost: 2400 },
-  { name: 'Bacon Ahumado', unit: 'kg', cost: 5000 },
-  { name: 'Harina 0000', unit: 'kg', cost: 1200 },
-  { name: 'Hipoclorito de Sodio', unit: 'litro', cost: 800 },
-  { name: 'Envase 5L', unit: 'unidad', cost: 650 }
-]
+import { ApiError } from '@/services/api'
+import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { productService } from '@/services/productService'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 function getAvailableRecipeUnits(baseUnit: string): string[] {
   if (baseUnit === 'kg') return ['gr', 'kg']
-  if (baseUnit === 'litro') return ['ml', 'litro']
+  if (baseUnit === 'litro' || baseUnit === 'l') return ['ml', 'litro']
   return [baseUnit || 'unidad']
 }
 
 function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): number {
   if (baseUnit === 'kg' && selectedUnit === 'gr') return qty / 1000
-  if (baseUnit === 'litro' && selectedUnit === 'ml') return qty / 1000
+  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return qty / 1000
   return qty
 }
 
 export default function NewProductPage() {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [toast, setToast] = useState<string | null>(null)
+  const notify = (msg: string) => {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 3000)
+  }
+  const [supplies, setSupplies] = useState<Ingredient[]>([])
+  const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
 
   const {
     register,
@@ -52,31 +52,37 @@ export default function NewProductPage() {
   const price = useWatch({ control, name: 'salePrice' })
   const minimum = useWatch({ control, name: 'minMarginPercent' })
 
-  const [selectedIngredient, setSelectedIngredient] = useState(initialSupplies[0]?.name ?? '')
-  const [recipeUnit, setRecipeUnit] = useState('gr')
+  const [selectedIngredient, setSelectedIngredient] = useState('')
+  const [recipeUnit, setRecipeUnit] = useState('kg')
   const [inputQty, setInputQty] = useState('200')
 
-  const currentSupply = initialSupplies.find((s) => s.name === selectedIngredient) || initialSupplies[0]
+  useEffect(() => {
+    ingredientService.getAll(getToken)
+      .then((items) => {
+        setSupplies(items)
+        if (items.length > 0) {
+          setSelectedIngredient(items[0].id)
+          const units = getAvailableRecipeUnits(items[0].unit)
+          setRecipeUnit(units[0])
+        }
+      })
+      .catch((error: unknown) => notify(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'))
+      .finally(() => setIsLoadingSupplies(false))
+  }, [getToken])
+
+  const currentSupply = supplies.find((s) => s.id === selectedIngredient) ?? supplies[0]
   const availableUnits = getAvailableRecipeUnits(currentSupply?.unit ?? 'kg')
 
-  const [recipe, setRecipe] = useState<{ supply: typeof initialSupplies[0]; inputQty: number; recipeUnit: string; baseQty: number }[]>([
-    { supply: initialSupplies[0], inputQty: 200, recipeUnit: 'gr', baseQty: 0.2 },
-    { supply: initialSupplies[1], inputQty: 1, recipeUnit: 'unidad', baseQty: 1 }
-  ])
+  const [recipe, setRecipe] = useState<{ supply: Ingredient; inputQty: number; recipeUnit: string; baseQty: number }[]>([])
 
-  const notify = (msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 3000)
-  }
-
-  const cost = recipe.reduce((total, item) => total + item.supply.cost * item.baseQty, 0)
+  const cost = recipe.reduce((total, item) => total + item.supply.currentCost * item.baseQty, 0)
   const salePrice = Number(price) || 0
   const projected = salePrice > 0 ? Math.round(((salePrice - cost) / salePrice) * 1000) / 10 : 0
   const isHealthy = projected >= Number(minimum)
 
-  const handleSupplyChange = (supplyName: string) => {
-    setSelectedIngredient(supplyName)
-    const sup = initialSupplies.find((s) => s.name === supplyName)
+  const handleSupplyChange = (supplyId: string) => {
+    setSelectedIngredient(supplyId)
+    const sup = supplies.find((s) => s.id === supplyId)
     if (sup) {
       const units = getAvailableRecipeUnits(sup.unit)
       setRecipeUnit(units[0])
@@ -93,10 +99,21 @@ export default function NewProductPage() {
     }
   }
 
-  const handleSaveProduct = () => {
-    // Se eliminó la restricción `if (recipe.length === 0) return` para permitir productos "Sin Receta"
-    notify('Producto creado con éxito')
-    setTimeout(() => router.push('/productos'), 800)
+  const handleSaveProduct = async (data: ProductFormValues) => {
+    try {
+      await productService.create(getToken, {
+        name: data.name,
+        salePrice: data.salePrice,
+        minMarginPercent: data.minMarginPercent,
+        ingredients: recipe.map((item) => ({ ingredientId: item.supply.id, quantity: item.baseQty })),
+      })
+      notify(recipe.length === 0
+        ? 'Producto guardado en estado borrador. Agrega una receta para calcular su margen.'
+        : 'Producto creado con éxito')
+      setTimeout(() => router.push('/productos'), 800)
+    } catch (error: unknown) {
+      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el producto.')
+    }
   }
 
   return (
@@ -169,9 +186,9 @@ export default function NewProductPage() {
                 onChange={(e) => handleSupplyChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-bold outline-none dark:border-gray-700 dark:bg-gray-900"
               >
-                {initialSupplies.map((s) => (
-                  <option key={s.name} value={s.name}>
-                    {s.name} (${s.cost.toLocaleString('es-AR')} por {s.unit})
+                {supplies.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} (${s.currentCost.toLocaleString('es-AR')} por {s.unit})
                   </option>
                 ))}
               </select>
@@ -206,17 +223,18 @@ export default function NewProductPage() {
 
               {Number(inputQty) > 0 && currentSupply && (
                 <p className="text-[11px] font-semibold text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50 p-2.5 rounded-xl">
-                  ℹ️ {inputQty} {recipeUnit} = {convertToBaseQty(Number(inputQty), recipeUnit, currentSupply.unit)} {currentSupply.unit} · Subtotal: {money(currentSupply.cost * convertToBaseQty(Number(inputQty), recipeUnit, currentSupply.unit))}
+                  ℹ️ {inputQty} {recipeUnit} = {convertToBaseQty(Number(inputQty), recipeUnit, currentSupply.unit)} {currentSupply.unit} · Subtotal: {money(currentSupply.currentCost * convertToBaseQty(Number(inputQty), recipeUnit, currentSupply.unit))}
                 </p>
               )}
 
               <button
                 type="button"
                 onClick={handleAddIngredient}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                disabled={isLoadingSupplies || !currentSupply}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
               >
-                <Plus className="size-4" />
-                Agregar Insumo a la Receta
+                {isLoadingSupplies ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                {isLoadingSupplies ? 'Cargando insumos...' : 'Agregar Insumo a la Receta'}
               </button>
             </div>
 
@@ -228,7 +246,7 @@ export default function NewProductPage() {
                     <div>
                       <strong className="block text-sm">{item.supply.name}</strong>
                       <span className="text-xs text-gray-400">
-                        {item.inputQty} {item.recipeUnit} ({item.baseQty} {item.supply.unit}) · Subtotal: {money(item.supply.cost * item.baseQty)}
+                        {item.inputQty} {item.recipeUnit} ({item.baseQty} {item.supply.unit}) · Subtotal: {money(item.supply.currentCost * item.baseQty)}
                       </span>
                     </div>
                     <button
