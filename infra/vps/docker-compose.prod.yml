@@ -6,32 +6,33 @@ networks:
     driver: bridge
 
 services:
-  margenx-postgres:
+  # Base de Datos PostgreSQL Compartida (Aloja margenx_prod y margenx_dev)
+  postgres:
     image: postgres:16-alpine
     container_name: margenx_postgres_prod
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB_PROD}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
+      # Expuesto a internet en puerto no estándar para acceso DBeaver del equipo
       - "${POSTGRES_PORT}:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     networks:
       - margenx_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_PROD}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  margenx-n8n:
-    image: n8nio/n8n:latest
+  # n8n Satélite
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
     container_name: margenx_n8n_prod
-    restart: always
-    ports:
-      - "${N8N_PORT}:5678"
+    restart: unless-stopped
     environment:
       - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
@@ -41,8 +42,65 @@ services:
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
     volumes:
       - ./data/n8n:/home/node/.n8n
+    ports:
+      - "127.0.0.1:${N8N_PORT}:5678"
+    networks:
+      - margenx_network
+
+  # ==========================================
+  # ENTORNO PRODUCCIÓN (Rama main)
+  # ==========================================
+  backend-prod:
+    image: ${DOCKER_USERNAME}/margenx-backend:latest
+    container_name: margenx_backend_prod
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_PROD}?schema=public
+    ports:
+      - "127.0.0.1:3011:3000"
     networks:
       - margenx_network
     depends_on:
-      margenx-postgres:
-        condition: service_healthy
+      - postgres
+
+  frontend-prod:
+    image: ${DOCKER_USERNAME}/margenx-frontend:latest
+    container_name: margenx_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3010:80"
+    networks:
+      - margenx_network
+    depends_on:
+      - backend-prod
+
+  # ==========================================
+  # ENTORNO STAGING / DEV (Rama develop)
+  # ==========================================
+  backend-dev:
+    image: ${DOCKER_USERNAME}/margenx-backend:dev
+    container_name: margenx_backend_dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_DEV}?schema=public
+    ports:
+      - "127.0.0.1:3021:3000"
+    networks:
+      - margenx_network
+    depends_on:
+      - postgres
+
+  frontend-dev:
+    image: ${DOCKER_USERNAME}/margenx-frontend:dev
+    container_name: margenx_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3020:80"
+    networks:
+      - margenx_network
+    depends_on:
+      - backend-dev
