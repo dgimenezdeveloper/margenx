@@ -54,6 +54,7 @@ jobs:
           push: true
           build-args: |
             VITE_API_URL=${{ steps.env_check.outputs.VITE_API_URL }}
+            VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           tags: ${{ secrets.DOCKER_USERNAME }}/margenx-frontend:${{ steps.env_check.outputs.DOCKER_TAG }}
 
       - name: Deploy to VPS via SSH
