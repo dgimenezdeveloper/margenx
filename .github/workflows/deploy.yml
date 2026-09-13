@@ -23,7 +23,7 @@ jobs:
             echo "DOCKER_TAG=latest" >> $GITHUB_OUTPUT
             echo "FRONT_SVC=frontend-prod" >> $GITHUB_OUTPUT
             echo "BACK_SVC=backend-prod" >> $GITHUB_OUTPUT
-            echo "VITE_API_URL=https://api.margenx.tech" >> $GITHUB_OUTPUT
+            echo "VITE_API_URL=https://api.margenx.tech/api" >> $GITHUB_OUTPUT
           else
             echo "TARGET_ENV=staging" >> $GITHUB_OUTPUT
             echo "ENV_LABEL=Staging" >> $GITHUB_OUTPUT
@@ -31,7 +31,7 @@ jobs:
             echo "DOCKER_TAG=dev" >> $GITHUB_OUTPUT
             echo "FRONT_SVC=frontend-dev" >> $GITHUB_OUTPUT
             echo "BACK_SVC=backend-dev" >> $GITHUB_OUTPUT
-            echo "VITE_API_URL=https://api-dev.margenx.tech" >> $GITHUB_OUTPUT
+            echo "VITE_API_URL=https://api-dev.margenx.tech/api" >> $GITHUB_OUTPUT
           fi
 
       - name: Login to Docker Hub
