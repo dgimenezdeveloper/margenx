@@ -54,6 +54,8 @@ services:
     image: ${DOCKER_USERNAME}/margenx-backend:latest
     container_name: margenx_backend_prod
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -83,6 +85,8 @@ services:
     image: ${DOCKER_USERNAME}/margenx-backend:dev
     container_name: margenx_backend_dev
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
       - PORT=3000
