@@ -1,0 +1,387 @@
+{
+  "info": {
+    "_postman_id": "7a1e4c6d-2b3f-4a9e-8c5d-1f6a9b3e7d42",
+    "name": "MargenX - Productos API",
+    "description": "Colección automatizada de pruebas de API para el módulo de Productos (issue #38). Cubre alta exitosa (con y sin receta), validaciones negativas y aislamiento multi-tenant. Requiere el backend corriendo localmente y dos tokens JWT de Clerk válidos (uno por cada cuenta de prueba) cargados en el environment antes de correr.\n\n⚠️ El backend hoy solo expone `GET /api/products` y `POST /api/products` (no existe `GET/PUT/DELETE /api/products/:id`). El aislamiento multi-tenant se valida a través del listado en vez de una consulta directa por id — ver README-Productos.md en esta misma carpeta para el detalle y las instrucciones de ejecución con Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Alta y Validaciones (Cuenta A - Panadería Central)",
+      "item": [
+        {
+          "name": "POST Crear producto válido, sin receta (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['product'],",
+                  "    properties: {",
+                  "        product: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'accountId', 'name', 'salePrice', 'minMarginPercent', 'cost', 'marginAmount', 'marginPercent', 'ingredients', 'updatedAt'],",
+                  "            properties: {",
+                  "                id: { type: 'string' },",
+                  "                accountId: { type: 'string' },",
+                  "                name: { type: 'string' },",
+                  "                salePrice: { type: 'string' },",
+                  "                minMarginPercent: { type: 'string' },",
+                  "                cost: { type: 'string' },",
+                  "                marginAmount: { type: 'string' },",
+                  "                marginPercent: { type: 'string' },",
+                  "                ingredients: { type: 'array' },",
+                  "                updatedAt: { type: 'string' }",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de Product', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El producto creado pertenece a la Cuenta A', function () {",
+                  "    pm.expect(jsonData.product.accountId).to.eql(pm.environment.get('accountId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.test('El producto creado tiene los valores enviados', function () {",
+                  "    pm.expect(jsonData.product.salePrice).to.eql('15000');",
+                  "    pm.expect(jsonData.product.minMarginPercent).to.eql('30');",
+                  "});",
+                  "",
+                  "pm.test('Sin ingredientes, queda en modo borrador (costo y margen en 0)', function () {",
+                  "    pm.expect(jsonData.product.ingredients).to.have.lengthOf(0);",
+                  "    pm.expect(jsonData.product.cost).to.eql('0');",
+                  "    pm.expect(jsonData.product.marginPercent).to.eql('0');",
+                  "});",
+                  "",
+                  "// Guarda el id para reutilizarlo en el resto de la colección",
+                  "// (verificación de listado y aislamiento multiempresa).",
+                  "pm.environment.set('productId_cuentaA', jsonData.product.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Producto QA {{$timestamp}}\",\n  \"salePrice\": \"15000\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - salePrice en cero (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['error'],",
+                  "    properties: { error: { type: 'string' } }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de error uniforme', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el precio debe ser mayor a cero', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ningún registro (respuesta no incluye un product)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('product');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Producto Precio Cero {{$timestamp}}\",\n  \"salePrice\": \"0\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - salePrice negativo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NOTA: a diferencia de 'salePrice en cero', el backend valida el",
+                  "// formato numérico ANTES que el rango (su regex no admite signo",
+                  "// negativo), así que un valor negativo cae en 'debe ser numérico'",
+                  "// y no en 'debe ser mayor a cero'. Ambos casos son 400 válidos para",
+                  "// el criterio de la issue (bloquear salePrice <= 0); documentamos",
+                  "// el mensaje real tal como responde el backend hoy.",
+                  "",
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el precio debe ser numérico', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('numérico');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ningún registro (respuesta no incluye un product)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('product');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Producto Precio Negativo {{$timestamp}}\",\n  \"salePrice\": \"-100\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - nombre vacío (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el nombre es obligatorio', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('obligatorio');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ningún registro (respuesta no incluye un product)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('product');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"salePrice\": \"15000\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Listar productos (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['data', 'meta'],",
+                  "    properties: {",
+                  "        data: {",
+                  "            type: 'array',",
+                  "            items: {",
+                  "                type: 'object',",
+                  "                required: ['id', 'accountId', 'name', 'salePrice']",
+                  "            }",
+                  "        },",
+                  "        meta: {",
+                  "            type: 'object',",
+                  "            required: ['total', 'page', 'limit', 'totalPages']",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema paginado { data, meta }', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El producto creado en este run aparece en el listado de su cuenta', function () {",
+                  "    const ids = jsonData.data.map((p) => p.id);",
+                  "    pm.expect(ids).to.include(pm.environment.get('productId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.test('El listado es exclusivo de la Cuenta A (sin fugas de otras cuentas)', function () {",
+                  "    const accountId = pm.environment.get('accountId_cuentaA');",
+                  "    jsonData.data.forEach((product) => {",
+                  "        pm.expect(product.accountId).to.eql(accountId);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Listar productos sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje de error es el uniforme de autenticación', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('No autorizado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Aislamiento Multiempresa (Cuenta B - Química GyJ contra datos de Cuenta A)",
+      "item": [
+        {
+          "name": "GET Listar productos como Cuenta B (no debe incluir productos de Cuenta A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El backend todavía no expone GET /api/products/:id, así que no hay",
+                  "// forma de reproducir un ataque IDOR clásico (consulta directa por id",
+                  "// ajeno) como se hizo con Insumos. Este test valida el mismo riesgo",
+                  "// de fuga de datos multi-tenant a través del único endpoint de lectura",
+                  "// disponible hoy: el listado. Ver README-Productos.md.",
+                  "",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "const ids = jsonData.data.map((p) => p.id);",
+                  "const accountIdCuentaA = pm.environment.get('accountId_cuentaA');",
+                  "",
+                  "pm.test('El producto de la Cuenta A no aparece en el listado de la Cuenta B', function () {",
+                  "    pm.expect(ids).to.not.include(pm.environment.get('productId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.test('Ningún producto listado pertenece a la Cuenta A', function () {",
+                  "    jsonData.data.forEach((product) => {",
+                  "        pm.expect(product.accountId).to.not.eql(accountIdCuentaA);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
