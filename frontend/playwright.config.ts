@@ -1,12 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// "type": "module" en package.json => no hay __dirname nativo acá.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * Carga frontend/.env (VITE_CLERK_PUBLISHABLE_KEY, etc.) y frontend/.env.test
+ * (CLERK_SECRET_KEY + credenciales de la cuenta E2E — ver .env.test.example),
+ * necesarias para el proyecto "setup" que autentica contra Clerk.
  */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env.test') });
+
+const authFile = path.join(__dirname, 'playwright/.auth/user.json');
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -35,18 +43,28 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
+      /* Corre auth.setup.ts antes que cualquier otra suite, generando
+         playwright/.auth/user.json con la sesión de Clerk ya autenticada. */
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+    },
+
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: authFile },
+      dependencies: ['setup'],
     },
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: { ...devices['Desktop Firefox'], storageState: authFile },
+      dependencies: ['setup'],
     },
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices['Desktop Safari'], storageState: authFile },
+      dependencies: ['setup'],
     },
 
     /* Test against mobile viewports. */
