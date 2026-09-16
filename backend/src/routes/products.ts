@@ -118,42 +118,206 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 /* Crea un producto calculando costos/márgenes o en modo borrador.   */
 /* ------------------------------------------------------------------ */
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
-  const input = parseBody(req.body as ProductBody);
+  const payload = req.body && typeof req.body === 'object' && 'product' in req.body
+    ? (req.body as { product?: unknown }).product
+    : req.body;  const input = parseBody(payload as ProductBody);
   const accountId = req.user!.accountId;
-  const ingredientIds = input.ingredients.map((item) => item.ingredientId);
-  const ingredientRows = await prisma.ingredient.findMany({
-    where: { accountId, id: { in: ingredientIds } },
-    select: { id: true, currentCost: true },
+
+  // Ejecutar la creación de forma atómica en una transacción.
+  const product = await prisma.$transaction(async (tx) => {
+    const ingredientIds = input.ingredients.map((item) => item.ingredientId);
+    const ingredientRows = await tx.ingredient.findMany({
+      where: { accountId, id: { in: ingredientIds } },
+      select: { id: true, currentCost: true },
+    });
+    if (ingredientRows.length !== ingredientIds.length) throw new AppError('Una receta contiene un insumo inexistente.', 400);
+
+    const hasIngredients = input.ingredients.length > 0;
+    const cost = hasIngredients
+      ? input.ingredients.reduce((total, item) => {
+          const ingredient = ingredientRows.find((row) => row.id === item.ingredientId);
+          return total.add((ingredient?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
+        }, new Prisma.Decimal(0))
+      : new Prisma.Decimal(0);
+
+    const marginAmount = hasIngredients ? input.salePrice.sub(cost) : new Prisma.Decimal(0);
+    const marginPercent = (!hasIngredients || input.salePrice.isZero())
+      ? new Prisma.Decimal(0)
+      : marginAmount.div(input.salePrice).mul(100);
+
+    const created = await tx.product.create({
+      data: {
+        accountId,
+        name: input.name,
+        salePrice: input.salePrice,
+        minMarginPercent: input.minMarginPercent,
+        cost,
+        marginAmount,
+        marginPercent,
+        ingredients: { create: input.ingredients },
+      },
+      include: { ingredients: { select: { ingredientId: true, quantity: true } } },
+    });
+
+    return created;
   });
-  if (ingredientRows.length !== ingredientIds.length) throw new AppError('Una receta contiene un insumo inexistente.', 400);
 
-  const hasIngredients = input.ingredients.length > 0;
-  const cost = hasIngredients
-    ? input.ingredients.reduce((total, item) => {
-        const ingredient = ingredientRows.find((row) => row.id === item.ingredientId);
-        return total.add((ingredient?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
-      }, new Prisma.Decimal(0))
+  return res.status(201).json({ product });
+});
+
+/* ------------------------------------------------------------------ */
+/* Helper para normalizar param `id` (string | string[] | undefined)     */
+/* ------------------------------------------------------------------ */
+function getIdParam(rawId: string | string[] | undefined): string {
+  if (Array.isArray(rawId)) return rawId[0] ?? '';
+  return rawId ?? '';
+}
+
+/* ------------------------------------------------------------------ */
+/* GET /api/products/:id — detalle con ingredientes (incluye Ingredient) */
+/* ------------------------------------------------------------------ */
+router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id as unknown as string | string[] | undefined);
+  if (!id) throw new AppError('ID de producto inválido.', 400);
+
+  const product = await prisma.product.findFirst({
+    where: { id, accountId },
+    include: { ingredients: { include: { ingredient: true } } },
+  });
+  if (!product) throw new AppError('Producto no encontrado.', 404);
+
+  return res.status(200).json({ product });
+});
+
+/* ------------------------------------------------------------------ */
+/* PUT /api/products/:id — actualizar (datos y/o receta)               */
+/* ------------------------------------------------------------------ */
+router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.is('application/json')) throw new AppError('Se requiere Content-Type: application/json', 415);
+
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id as unknown as string | string[] | undefined);
+  if (!id) throw new AppError('ID de producto inválido.', 400);
+
+  // Aceptar body con o sin wrapper `product` enviado por el frontend
+  const payload = req.body && typeof req.body === 'object' && 'product' in req.body
+    ? (req.body as { product?: unknown }).product
+    : req.body;  // Validación de payload parcial
+  const body = payload as Partial<ProductBody>;
+  const name = typeof body.name === 'string' ? body.name.trim() : undefined;
+  const salePrice = body.salePrice !== undefined ? decimal(body.salePrice, 'salePrice') : undefined;
+  const minMarginPercent = body.minMarginPercent !== undefined ? decimal(body.minMarginPercent, 'minMarginPercent', true) : undefined;
+
+  const ingredientsProvided = body.ingredients !== undefined;
+  let ingredients: { ingredientId: string; quantity: Prisma.Decimal }[] | undefined;
+  if (ingredientsProvided) {
+    if (!Array.isArray(body.ingredients)) throw new AppError('El campo "ingredients" debe ser un array.', 400);
+    ingredients = (body.ingredients as unknown[]).map((entry) => {
+      if (typeof entry !== 'object' || entry === null) throw new AppError('Cada ingrediente debe ser un objeto.', 400);
+      const item = entry as ProductIngredientBody;
+      if (typeof item.ingredientId !== 'string' || !item.ingredientId) throw new AppError('Cada ingrediente requiere ingredientId.', 400);
+      const qty = decimal(item.quantity, 'quantity');
+      return { ingredientId: item.ingredientId, quantity: qty };
+    });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+  const existing = await tx.product.findFirst({ where: { id, accountId } });
+  if (!existing) throw new AppError('Producto no encontrado.', 404);
+
+  const finalSalePrice = salePrice ?? existing.salePrice;
+  const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
+
+  let finalCost = existing.cost;
+  let hasFinalIngredients: boolean;
+
+  if (ingredientsProvided) {
+    hasFinalIngredients = !!ingredients && ingredients.length > 0;
+
+    if (!hasFinalIngredients) {
+      finalCost = new Prisma.Decimal(0);
+    } else {
+      const ingredientIds = ingredients!.map((i) => i.ingredientId);
+      const ingredientRows = await tx.ingredient.findMany({
+        where: { accountId, id: { in: ingredientIds } },
+        select: { id: true, currentCost: true },
+      });
+      if (ingredientRows.length !== ingredientIds.length) {
+        throw new AppError('Una receta contiene un insumo inexistente.', 400);
+      }
+
+      finalCost = ingredients!.reduce((total, item) => {
+        const ing = ingredientRows.find((r) => r.id === item.ingredientId);
+        return total.add((ing?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
+      }, new Prisma.Decimal(0));
+    }
+  } else {
+    // No vino "ingredients" en el body: la receta no cambia, pero
+    // igual necesitamos saber si el producto YA tiene receta para
+    // decidir si corresponde recalcular el margen o mantenerlo en 0.
+    const existingIngredientsCount = await tx.productIngredient.count({
+      where: { productId: id },
+    });
+    hasFinalIngredients = existingIngredientsCount > 0;
+  }
+
+  // Se recalcula SIEMPRE que salePrice o cost puedan haber cambiado,
+  // no solo cuando cambia la receta — esto es lo que corrige el bug
+  // reportado por QA (Issue #27 vs. PR #65).
+  const finalMarginAmount = hasFinalIngredients
+    ? finalSalePrice.sub(finalCost)
     : new Prisma.Decimal(0);
-
-  const marginAmount = hasIngredients ? input.salePrice.sub(cost) : new Prisma.Decimal(0);
-  const marginPercent = (!hasIngredients || input.salePrice.isZero())
+  const finalMarginPercent = (!hasFinalIngredients || finalSalePrice.isZero())
     ? new Prisma.Decimal(0)
-    : marginAmount.div(input.salePrice).mul(100);
+    : finalMarginAmount.div(finalSalePrice).mul(100);
 
-  const product = await prisma.product.create({
+  if (ingredientsProvided) {
+    await tx.productIngredient.deleteMany({ where: { productId: id } });
+    return tx.product.update({
+      where: { id },
+      data: {
+        name: name ?? existing.name,
+        salePrice: finalSalePrice,
+        minMarginPercent: finalMinMargin,
+        cost: finalCost,
+        marginAmount: finalMarginAmount,
+        marginPercent: finalMarginPercent,
+        ingredients: ingredients && ingredients.length > 0 ? { create: ingredients } : undefined,
+      },
+      include: { ingredients: { select: { ingredientId: true, quantity: true } } },
+    });
+  }
+
+  return tx.product.update({
+    where: { id },
     data: {
-      accountId,
-      name: input.name,
-      salePrice: input.salePrice,
-      minMarginPercent: input.minMarginPercent,
-      cost,
-      marginAmount,
-      marginPercent,
-      ingredients: { create: input.ingredients },
+      name: name ?? existing.name,
+      salePrice: finalSalePrice,
+      minMarginPercent: finalMinMargin,
+      cost: finalCost,
+      marginAmount: finalMarginAmount,
+      marginPercent: finalMarginPercent,
     },
     include: { ingredients: { select: { ingredientId: true, quantity: true } } },
   });
-  return res.status(201).json({ product });
+});
+
+  return res.status(200).json({ product: updated });
+});
+
+/* ------------------------------------------------------------------ */
+/* DELETE /api/products/:id — elimina producto (filtrado por cuenta)   */
+/* ------------------------------------------------------------------ */
+router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id as unknown as string | string[] | undefined);
+  if (!id) throw new AppError('ID de producto inválido.', 400);
+
+  const result = await prisma.product.deleteMany({ where: { id, accountId } });
+  if (result.count === 0) throw new AppError('Producto no encontrado.', 404);
+
+  return res.status(200).json({ success: true });
 });
 
 export default router;
