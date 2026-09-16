@@ -118,8 +118,9 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 /* Crea un producto calculando costos/márgenes o en modo borrador.   */
 /* ------------------------------------------------------------------ */
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
-  const payload = req.body && typeof req.body === 'object' && 'product' in req.body ? (req.body as any).product : req.body;
-  const input = parseBody(payload as ProductBody);
+  const payload = req.body && typeof req.body === 'object' && 'product' in req.body
+    ? (req.body as { product?: unknown }).product
+    : req.body;  const input = parseBody(payload as ProductBody);
   const accountId = req.user!.accountId;
 
   // Ejecutar la creación de forma atómica en una transacción.
@@ -200,8 +201,9 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   if (!id) throw new AppError('ID de producto inválido.', 400);
 
   // Aceptar body con o sin wrapper `product` enviado por el frontend
-  const payload = req.body && typeof req.body === 'object' && 'product' in req.body ? (req.body as any).product : req.body;
-  // Validación de payload parcial
+  const payload = req.body && typeof req.body === 'object' && 'product' in req.body
+    ? (req.body as { product?: unknown }).product
+    : req.body;  // Validación de payload parcial
   const body = payload as Partial<ProductBody>;
   const name = typeof body.name === 'string' ? body.name.trim() : undefined;
   const salePrice = body.salePrice !== undefined ? decimal(body.salePrice, 'salePrice') : undefined;
@@ -221,75 +223,85 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const existing = await tx.product.findFirst({ where: { id, accountId } });
-    if (!existing) throw new AppError('Producto no encontrado.', 404);
+  const existing = await tx.product.findFirst({ where: { id, accountId } });
+  if (!existing) throw new AppError('Producto no encontrado.', 404);
 
-    // Determine valores finales (si no se envía, mantener los existentes)
-    const finalSalePrice = salePrice ?? existing.salePrice;
-    const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
+  const finalSalePrice = salePrice ?? existing.salePrice;
+  const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
 
-    // Si se enviaron ingredientes, validar pertenencia y calcular costos
-    let finalCost = existing.cost;
-    let finalMarginAmount = existing.marginAmount;
-    let finalMarginPercent = existing.marginPercent;
+  let finalCost = existing.cost;
+  let hasFinalIngredients: boolean;
 
-    if (ingredientsProvided) {
-      if (!ingredients || ingredients.length === 0) {
-        // Borrador: eliminar receta y dejar valores en 0
-        finalCost = new Prisma.Decimal(0);
-        finalMarginAmount = new Prisma.Decimal(0);
-        finalMarginPercent = new Prisma.Decimal(0);
-      } else {
-        const ingredientIds = ingredients.map((i) => i.ingredientId);
-        const ingredientRows = await tx.ingredient.findMany({
-          where: { accountId, id: { in: ingredientIds } },
-          select: { id: true, currentCost: true },
-        });
-        if (ingredientRows.length !== ingredientIds.length) throw new AppError('Una receta contiene un insumo inexistente.', 400);
+  if (ingredientsProvided) {
+    hasFinalIngredients = !!ingredients && ingredients.length > 0;
 
-        finalCost = ingredients.reduce((total, item) => {
-          const ing = ingredientRows.find((r) => r.id === item.ingredientId);
-          return total.add((ing?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
-        }, new Prisma.Decimal(0));
-
-        finalMarginAmount = finalSalePrice.sub(finalCost);
-        finalMarginPercent = finalSalePrice.isZero() ? new Prisma.Decimal(0) : finalMarginAmount.div(finalSalePrice).mul(100);
-      }
-    }
-
-    // Actualizar producto y (si corresponde) receta de forma atómica
-    if (ingredientsProvided) {
-      // Reemplazamos la receta completa: borramos y creamos
-      await tx.productIngredient.deleteMany({ where: { productId: id } });
-      const updatedProduct = await tx.product.update({
-        where: { id },
-        data: {
-          name: name ?? existing.name,
-          salePrice: finalSalePrice,
-          minMarginPercent: finalMinMargin,
-          cost: finalCost,
-          marginAmount: finalMarginAmount,
-          marginPercent: finalMarginPercent,
-          ingredients: ingredients && ingredients.length > 0 ? { create: ingredients } : undefined,
-        },
-        include: { ingredients: { select: { ingredientId: true, quantity: true } } },
+    if (!hasFinalIngredients) {
+      finalCost = new Prisma.Decimal(0);
+    } else {
+      const ingredientIds = ingredients!.map((i) => i.ingredientId);
+      const ingredientRows = await tx.ingredient.findMany({
+        where: { accountId, id: { in: ingredientIds } },
+        select: { id: true, currentCost: true },
       });
-      return updatedProduct;
-    }
+      if (ingredientRows.length !== ingredientIds.length) {
+        throw new AppError('Una receta contiene un insumo inexistente.', 400);
+      }
 
-    // Solo actualizar campos básicos
-    const updatedProduct = await tx.product.update({
+      finalCost = ingredients!.reduce((total, item) => {
+        const ing = ingredientRows.find((r) => r.id === item.ingredientId);
+        return total.add((ing?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
+      }, new Prisma.Decimal(0));
+    }
+  } else {
+    // No vino "ingredients" en el body: la receta no cambia, pero
+    // igual necesitamos saber si el producto YA tiene receta para
+    // decidir si corresponde recalcular el margen o mantenerlo en 0.
+    const existingIngredientsCount = await tx.productIngredient.count({
+      where: { productId: id },
+    });
+    hasFinalIngredients = existingIngredientsCount > 0;
+  }
+
+  // Se recalcula SIEMPRE que salePrice o cost puedan haber cambiado,
+  // no solo cuando cambia la receta — esto es lo que corrige el bug
+  // reportado por QA (Issue #27 vs. PR #65).
+  const finalMarginAmount = hasFinalIngredients
+    ? finalSalePrice.sub(finalCost)
+    : new Prisma.Decimal(0);
+  const finalMarginPercent = (!hasFinalIngredients || finalSalePrice.isZero())
+    ? new Prisma.Decimal(0)
+    : finalMarginAmount.div(finalSalePrice).mul(100);
+
+  if (ingredientsProvided) {
+    await tx.productIngredient.deleteMany({ where: { productId: id } });
+    return tx.product.update({
       where: { id },
       data: {
         name: name ?? existing.name,
         salePrice: finalSalePrice,
         minMarginPercent: finalMinMargin,
+        cost: finalCost,
+        marginAmount: finalMarginAmount,
+        marginPercent: finalMarginPercent,
+        ingredients: ingredients && ingredients.length > 0 ? { create: ingredients } : undefined,
       },
       include: { ingredients: { select: { ingredientId: true, quantity: true } } },
     });
+  }
 
-    return updatedProduct;
+  return tx.product.update({
+    where: { id },
+    data: {
+      name: name ?? existing.name,
+      salePrice: finalSalePrice,
+      minMarginPercent: finalMinMargin,
+      cost: finalCost,
+      marginAmount: finalMarginAmount,
+      marginPercent: finalMarginPercent,
+    },
+    include: { ingredients: { select: { ingredientId: true, quantity: true } } },
   });
+});
 
   return res.status(200).json({ product: updated });
 });
