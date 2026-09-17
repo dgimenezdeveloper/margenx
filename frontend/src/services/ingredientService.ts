@@ -57,4 +57,10 @@ export const ingredientService = {
     })
     return normalizeIngredient(response.ingredient)
   },
+
+  async delete(getToken: TokenGetter, id: string): Promise<void> {
+    await fetchApi(`/ingredients/${id}`, getToken, {
+      method: 'DELETE',
+    })
+  },
 }

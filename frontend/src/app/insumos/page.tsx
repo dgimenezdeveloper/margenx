@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Boxes, Check, LoaderCircle, Plus, Search, X } from 'lucide-react'
+import { Boxes, Check, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -109,6 +109,30 @@ export default function SuppliesPage() {
       notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.')
     }
   }
+
+  const handleDelete = async () => {
+    if (!selected) return
+
+    // 1. Confirmación de seguridad
+    const confirm = window.confirm(`¿Estás seguro de que deseas eliminar "${selected.name}"?`)
+    if (!confirm) return
+
+    try {
+      // 2. Llamada al servicio que creamos
+      await ingredientService.delete(getToken, selected.id)
+
+      // 3. Actualizar la UI (sacar el insumo de la lista)
+      setSupplies((current) => current.filter((item) => item.id !== selected.id))
+
+      // 4. Mostrar éxito y cerrar modal
+      notify(`Insumo "${selected.name}" eliminado correctamente`)
+      handleCloseSheet()
+    } catch (error: unknown) {
+      // 5. Mostrar error (ej. si está en uso en una receta)
+      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.')
+    }
+  }
+
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -295,9 +319,24 @@ export default function SuppliesPage() {
                   {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
                 </h2>
               </div>
-              <button type="button" onClick={handleCloseSheet} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
-                <X className="size-5" />
-              </button>
+
+              {/* Contenedor de botones de acción */}
+              <div className="flex items-center gap-2">
+                {/* Botón de eliminar (solo aparece si estamos editando un insumo existente) */}
+                {selected && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                    title="Eliminar insumo"
+                  >
+                    <Trash2 className="size-5" />
+                  </button>
+                )}
+                <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <X className="size-5" />
+                </button>
+              </div>
             </div>
 
             {!selected && (
