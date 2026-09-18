@@ -1,41 +1,27 @@
 # E2E — Playwright + Global Auth Setup con Clerk
 
-Issue #67. Scaffolding para que las suites E2E del Sprint 2 arranquen ya autenticadas, sin pasar por el formulario visual de login en cada test.
+Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen autenticadas en local y en el pipeline de CI, sin pasar por el formulario visual de login en cada prueba.
 
-## Cómo funciona
+---
 
-- **`auth.setup.ts`** corre como el proyecto `setup` de Playwright (ver `playwright.config.ts`), **siempre antes** que cualquier otra suite. Usa `@clerk/testing` para autenticar a un usuario real (ADMIN de Panadería Central) por `strategy: 'password'`, sin tocar la UI del formulario de `<SignIn>`, y guarda el estado de la sesión (cookies + local storage) en `playwright/.auth/user.json`.
-- Los proyectos `chromium`/`firefox`/`webkit` declaran `dependencies: ['setup']` y `storageState: authFile`, así que **todas** las suites (incluida `home.spec.ts`) arrancan con esa sesión ya cargada.
-- `playwright/.auth/` está en `.gitignore` — el archivo de sesión nunca se versiona, y como el proyecto `setup` corre en cada ejecución de `npx playwright test`, se regenera solo aunque no exista todavía.
+## 1. Cómo Funciona la Autenticación Global
 
-## Requisitos previos
+1. **Proyecto `setup` (`auth.setup.ts`):**  
+   Corre siempre antes que cualquier suite (configurado en `playwright.config.ts`).
+2. **Estrategia Oficial Server-Side (`emailAddress`):**  
+   Utiliza `@clerk/testing/playwright` invocando `clerk.signIn({ page, emailAddress })`. Mediante `CLERK_SECRET_KEY`, Clerk genera un token firmado del lado del servidor que omite validaciones de contraseña, emails de confirmación y multi-factor authentication (MFA). Cuenta con un fallback automático a `strategy: 'password'` en caso de entornos con acceso restringido a la Backend API.
+3. **Persistencia de Sesión (`storageState`):**  
+   Una vez logueado en `/dashboard`, almacena cookies y localStorage en `frontend/playwright/.auth/user.json`.
+4. **Herencia de Sesión:**  
+   Los proyectos `chromium`, `firefox` y `webkit` declaran `dependencies: ['setup']` y cargan `storageState: authFile`. Todas las pruebas inician con la sesión activa del usuario administrador de Panadería Central (`admin.panaderia@hotmail.com`).
+5. **Seguridad y Git:**  
+   La carpeta `playwright/.auth/` está excluida en `.gitignore`. Como el job `setup` se ejecuta al inicio de cada corrida, el archivo de sesión se regenera de forma autónoma tanto en local como en GitHub Actions.
 
-1. Backend y frontend corriendo localmente (`npm run dev` en ambas carpetas).
-2. `frontend/.env` con `VITE_CLERK_PUBLISHABLE_KEY` configurado (ya lo tenés si corriste la app).
-3. `frontend/.env.test` con las credenciales de Node/Playwright — copiá `frontend/.env.test.example`:
-   ```bash
-   cp .env.test.example .env.test
-   ```
-   y completá:
-   - `CLERK_SECRET_KEY` — la misma clave que usa `backend/.env` (necesaria para que `@clerk/testing` obtenga el Testing Token de Clerk).
-   - `E2E_CLERK_TEST_EMAIL` / `E2E_CLERK_TEST_PASSWORD` — credenciales reales de un usuario de Clerk con password configurada para la cuenta piloto Panadería Central. Pedirlas al equipo si no las tenés.
+---
 
-## Correr los tests
+## 2. Requisitos Previos
 
+### Variables de Entorno Locales
+Copiá la plantilla de pruebas a tu entorno local:
 ```bash
-cd frontend
-npx playwright test
-```
-
-Para correr solo el smoke test en Chromium:
-
-```bash
-npx playwright test tests/e2e/smoke.spec.ts --project=chromium
-```
-
-Salida esperada: el proyecto `setup` pasa primero (genera `playwright/.auth/user.json`), y después `smoke.spec.ts` accede directo a `/dashboard` sin pasar por `/login`.
-
-## Notas
-
-- `@clerk/testing`'s `clerk.signIn()` no soporta 2FA/multi-factor — si la cuenta de prueba tiene MFA activado, el setup va a fallar. Usá una cuenta sin MFA para E2E.
-- Si `E2E_CLERK_TEST_EMAIL`/`E2E_CLERK_TEST_PASSWORD` faltan, `auth.setup.ts` corta con un mensaje explícito en vez de fallar de forma críptica más adelante.
+cp frontend/.env.test.example frontend/.env.test
