@@ -1,3 +1,4 @@
+
 # Definition of Done (DoD) — MargenX
 **Materia:** Prácticas Profesionales Supervisadas (PPS)  
 **Vigencia:** Sprint 0 a Sprint 6 (7 iteraciones de 2 semanas)  
@@ -53,4 +54,4 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 ---
 
 ### 7. Despliegue en Producción (A partir del Sprint 1)
-- **Entorno Productivo:** Código desplegado y verificado en la URL pública de Microsoft Azure comunicándose con la base de datos PostgreSQL de la VPS.
+- **Entorno Productivo:** Código desplegado y verificado en la VPS, en el entorno correspondiente a la rama (`dev.margenx.tech` / `api-dev.margenx.tech` para `develop`, `margenx.tech` / `api.margenx.tech` para `main`), comunicándose con la base de datos PostgreSQL de la misma VPS.

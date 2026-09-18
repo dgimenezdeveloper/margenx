@@ -7,6 +7,9 @@ import { PrismaClient } from '@prisma/client';
   Guardamos una única instancia en el objeto global para
   evitar abrir múltiples conexiones innecesarias a la base de datos.
  */
+// El cast pasa primero por `unknown` porque globalThis no tiene índice de
+// tipo declarado — es el patrón estándar recomendado por Prisma para el
+// singleton en dev con hot-reload, no un escape de tipado real.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 /*

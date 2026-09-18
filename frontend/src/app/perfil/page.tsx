@@ -1,7 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { Bell, Building2, LogOut, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
@@ -40,6 +40,7 @@ function ToggleSwitch({
 }
 
 export default function ProfilePage() {
+  const { signOut } = useAuth()
   const [companyName] = useState('Hamburguesería')
   const [globalMargin, setGlobalMargin] = useState('30')
   const [emailAlerts, setEmailAlerts] = useState(true)
@@ -155,13 +156,14 @@ export default function ProfilePage() {
 
           {/* Cerrar Sesión */}
           <div className="pt-2 md:flex md:justify-end md:pt-6">
-            <Link
-              href="/"
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
+            <button
+              type="button"
+              onClick={() => void signOut({ redirectUrl: '/' })}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
             >
               <LogOut className="size-4" />
               Cerrar Sesión
-            </Link>
+            </button>
           </div>
         </div>
 

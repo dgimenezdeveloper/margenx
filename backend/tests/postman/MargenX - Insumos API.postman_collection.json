@@ -1,0 +1,500 @@
+{
+  "info": {
+    "_postman_id": "b3f2a9c4-7e1d-4a6b-9c3f-8e2d5a6b7c19",
+    "name": "MargenX - Insumos API",
+    "description": "Colección automatizada de pruebas de API para el módulo de Insumos (issue #37). Cubre alta exitosa, validaciones negativas, consulta y aislamiento multi-tenant. Requiere el backend corriendo localmente y dos tokens JWT de Clerk válidos (uno por cada cuenta de prueba) cargados en el environment antes de correr.\n\nVer README.md en esta misma carpeta para instrucciones de ejecución con Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Alta y Validaciones (Cuenta A)",
+      "item": [
+        {
+          "name": "POST Crear insumo válido (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['ingredient'],",
+                  "    properties: {",
+                  "        ingredient: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'accountId', 'name', 'unit', 'currentCost', 'updatedAt'],",
+                  "            properties: {",
+                  "                id: { type: 'string' },",
+                  "                accountId: { type: 'string' },",
+                  "                name: { type: 'string' },",
+                  "                unit: { type: 'string', enum: ['kg', 'l', 'u'] },",
+                  "                currentCost: { type: 'string' },",
+                  "                updatedAt: { type: 'string' }",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de Ingredient', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El insumo creado pertenece a la Cuenta A', function () {",
+                  "    pm.expect(jsonData.ingredient.accountId).to.eql(pm.environment.get('accountId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.test('El insumo creado tiene los valores enviados', function () {",
+                  "    pm.expect(jsonData.ingredient.unit).to.eql('kg');",
+                  "    pm.expect(jsonData.ingredient.currentCost).to.eql('500');",
+                  "});",
+                  "",
+                  "// Guarda el id para reutilizarlo en el resto de la colección",
+                  "// (aislamiento multiempresa y limpieza final).",
+                  "pm.environment.set('ingredientId_cuentaA', jsonData.ingredient.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Harina QA {{$timestamp}}\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"500\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - costo negativo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['error'],",
+                  "    properties: { error: { type: 'string' } }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de error uniforme', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el costo debe ser mayor a cero', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ningún registro (respuesta no incluye un id)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('ingredient');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Insumo Costo Negativo\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"-500\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - costo no numérico (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['error'],",
+                  "    properties: { error: { type: 'string' } }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de error uniforme', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el costo debe ser un valor decimal válido', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('valor decimal válido');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Insumo Costo Texto\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"abc\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - nombre vacío (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el nombre es obligatorio', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('name');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"100\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Listar insumos (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NOTA (issue #37 vs. issue #36): el criterio técnico original pide",
+                  "// validar un array `data` y un objeto `meta` (respuesta paginada).",
+                  "// Al momento de escribir esta colección, la issue #36 (paginación)",
+                  "// todavía no está implementada en `develop`: el endpoint devuelve",
+                  "// un array plano bajo la clave `ingredients`, sin paginar.",
+                  "// Este test valida el contrato REAL vigente hoy. Cuando la issue #36",
+                  "// se mergee, actualizar este schema a { data: [...], meta: {...} }.",
+                  "",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['ingredients'],",
+                  "    properties: {",
+                  "        ingredients: {",
+                  "            type: 'array',",
+                  "            items: {",
+                  "                type: 'object',",
+                  "                required: ['id', 'accountId', 'name', 'unit', 'currentCost', 'updatedAt']",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema vigente (sin paginar, issue #36 pendiente)', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('El insumo creado en este run aparece en el listado de su cuenta', function () {",
+                  "    const ids = pm.response.json().ingredients.map((i) => i.id);",
+                  "    pm.expect(ids).to.include(pm.environment.get('ingredientId_cuentaA'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Listar insumos sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje de error es el uniforme de autenticación', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('No autorizado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Aislamiento Multiempresa (Cuenta B contra datos de Cuenta A)",
+      "item": [
+        {
+          "name": "GET Insumo ajeno (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Insumo no encontrado.');",
+                  "});",
+                  "",
+                  "pm.test('No se filtra información del insumo ajeno (sin campo ingredient)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('ingredient');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Insumo ajeno (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Insumo no encontrado.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Intento de modificación ajena\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"999\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Insumo ajeno (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Insumo no encontrado.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Confirmar que el insumo de Cuenta A sigue intacto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Corrobora que los intentos de la Cuenta B (GET/PUT/DELETE) de arriba",
+                  "// no modificaron ni borraron el insumo real de la Cuenta A.",
+                  "pm.test('Status code es 200 OK (el dueño real sigue viéndolo)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('El insumo conserva sus datos originales (no fue alterado)', function () {",
+                  "    const ingredient = pm.response.json().ingredient;",
+                  "    pm.expect(ingredient.currentCost).to.eql('500');",
+                  "    pm.expect(ingredient.name).to.not.eql('Intento de modificación ajena');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Limpieza (Cuenta A)",
+      "item": [
+        {
+          "name": "DELETE Cleanup - Eliminar insumo de prueba (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Deja la base como estaba antes del run, para que la colección",
+                  "// sea reproducible sin acumular insumos de prueba en cada ejecución.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Confirma la eliminación', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('eliminado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

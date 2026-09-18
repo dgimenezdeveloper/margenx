@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import ingredientsRoutes from './routes/ingredients';
+import productsRoutes from './routes/products';
+import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
 dotenv.config();
@@ -14,6 +16,7 @@ app.use(cors());  // Permite solicitudes desde otros orígenes.
 app.use(express.json());  // Permite recibir y procesar JSON en el body de las peticiones.
 app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenticación.
 app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de insumos (protegidas por authMiddleware).
+app.use('/api/products', productsRoutes);
 
 /*
   Health check de la API.
@@ -28,6 +31,9 @@ app.get('/api/health', (_req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Middleware global de errores — SIEMPRE al final, después de todas las rutas.
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`⚡ [Backend] Servidor corriendo en http://localhost:${PORT}`);

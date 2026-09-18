@@ -450,7 +450,7 @@ jobs:
           echo "✅ Resultado -> IS_QA=$IS_QA | REVIEW_STATE=$REVIEW_STATE"
 
       # --- QA APRUEBA ---
-      - name: Mover issues a QA APPROVED y notificar a Diego
+      - name: Mover issues a QA APPROVED y notificar a Dario
         if: |
           steps.check_reviewer.outputs.IS_QA == 'true' &&
           steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
@@ -575,6 +575,47 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "$COMMENT" \
             --repo ${{ github.repository }}
+
+      - name: Notificar Aprobación de QA en Discord
+        if: |
+          steps.check_reviewer.outputs.IS_QA == 'true' &&
+          steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
+          PR_TITLE: "${{ github.event.pull_request.title }}"
+          PR_URL: "${{ github.event.pull_request.html_url }}"
+          REVIEWER: "${{ github.event.review.user.login }}"
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL no configurado. Omitiendo notificación."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "✅ **PR #${PR_NUMBER} Aprobado por QA — Listo para Mergear**" \
+            --arg title "PR #${PR_NUMBER}: ${PR_TITLE}" \
+            --arg url "$PR_URL" \
+            --arg reviewer "$REVIEWER" \
+            '{
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: ("El PR ha sido revisado y formalmente aprobado por @" + $reviewer + ". Está listo para fusión a `develop`."),
+                  color: 3066993,
+                  fields: [
+                    { name: "Aprobado por (QA)", value: ("@" + $reviewer), inline: true },
+                    { name: "Acción Requerida", value: "Merge a `develop` por Scrum Master", inline: true }
+                  ],
+                  timestamp: (now | todate)
+                }
+              ]
+            }')
+
+          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || echo "Error enviando notificación a Discord"
 
   # ============================================================
   # JOB 6: MERGEADO → DONE
@@ -796,15 +837,6 @@ jobs:
 
   # ============================================================
   # JOB 8: EJECUCIÓN MANUAL (workflow_dispatch) → Simula/fuerza QA APPROVED
-  #
-  # Corre el mismo movimiento de tarjeta que dispara una aprobación real
-  # de QA, pero a demanda desde la pestaña Actions → "Run workflow",
-  # sin depender de aprobar/desaprobar PRs de verdad.
-  #
-  # dry_run=true  (default): solo MUESTRA qué haría, no mueve ni comenta nada.
-  # dry_run=false            : ejecuta el movimiento real + labels + comentario,
-  #                            igual que si LeanHerrera97/dgimenezdeveloper
-  #                            hubieran aprobado el PR indicado.
   # ============================================================
   manual_test_qa_approved:
     name: "🧪 Manual → Simular/Forzar QA APPROVED"
