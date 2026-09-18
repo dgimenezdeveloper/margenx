@@ -252,21 +252,22 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [DEVOPS] Automatización de migraciones de Prisma en el pipeline de deploy (#41 - Done).
   * [DEVOPS] Configuración de notificaciones de CI/CD en Discord vía Webhooks (#42 - To Do).
 
-#### Sprint 2: MVP Core — Recetas Compuestas y Cálculo en Vivo (19/09 al 02/10)
-* **Hito Cátedra:** Sprint Review: Demo del MVP en URL pública de producción (Clase 03/10).
-* **Entregable:** Ficha de producto terminada con receta compuesta, cálculo matemático en tiempo real de costo de elaboración y margen de ganancia sin recargar la pantalla, soporte para productos borrador sin costear y suite E2E de Playwright operativa.
+#### Sprint 2: MVP Core — Recetas Compuestas y Cálculo en Vivo (19/09/2026 al 02/10/2026)
+* **Hito Cátedra:** Demo del MVP Core desplegado en Producción (`https://margenx.tech`).
+* **Entregable:** Ficha de producto terminada con receta compuesta, cálculo matemático en tiempo real, soporte para productos borrador sin costear, vista de detalle/edición dinámica y suite E2E de Playwright operativa.
 * **Backend (Mauricio Barreras):**
   * [BE] Endpoints CRUD de Productos y Recetas con soporte de estado "Sin Costear" (#27 - RF-02 a RF-05, RF-16).
-  * [BE] Motor de cálculo financiero con tipos `Prisma.Decimal` y tests unitarios de precisión aritmética (#61 - RF-04, RF-05).
+  * [BE] Motor de cálculo financiero con tipos `Prisma.Decimal` y tests unitarios de precisión aritmética (#66 - RF-04, RF-05).
 * **Frontend (Federico Paal):**
-  * [FE] Editor interactivo de recetas con selector dinámico de insumos y cálculo reactivo en Zustand (#62 - RF-03, RNF-04).
-  * [FE] Conexión de API para guardar productos con receta compuesta y desglose de materias primas (#63 - RF-02, RF-03).
-* **QA / PO (Leandro Herrera):**
-  * [QA] Suite de pruebas automatizadas E2E de Recálculo de Margen en Playwright (#47 - TC-MRG-01, TC-SEC-01).
-  * [QA] Validación de precisión aritmética en fórmulas financieras y casos borde de recetas (#64).
-* **DevOps / SM (Darío Giménez):**
-  * [DEVOPS] Integración de Playwright en GitHub Actions con bloqueo de PRs defectuosos y reportes HTML (#65).
-  * [SCRUM] Puesta a punto del entorno de Producción (`https://margenx.tech`) para la Demo oficial del MVP (#66).
+  * [FE] Editor interactivo de recetas con selector dinámico de insumos y cálculo reactivo en Zustand (#67 - RF-03, RNF-04).
+  * [FE] Vista dinámica de Detalle, Edición y Eliminación de Producto en `/productos/:id` para consultar y modificar fichas técnicas individuales (#68 - RF-02, RF-09).
+  * [FE] Conexión de API para guardar productos con receta compuesta y manejo de estados de carga y error (#69 - RF-02, RF-03).
+* **QA (Leandro Herrera):**
+  * [QA] Suite de pruebas automatizadas E2E de Recálculo de Margen y Aislamiento en Playwright (#47 - TC-MRG-01, TC-SEC-01).
+  * [QA] Validación de precisión aritmética en fórmulas financieras y casos borde de recetas (#70).
+* **DevOps / Scrum Master (Darío Giménez):**
+  * [DEVOPS] Integración de Playwright en GitHub Actions con bloqueo de PRs defectuosos y reportes HTML (#71).
+  * [DEVOPS] Puesta a punto y despliegue del entorno de Producción (`https://margenx.tech`) para la Demo oficial del MVP (#72).
 
 #### Sprint 3: Dashboard de Rentabilidad, Roles (RBAC) y Dominio Multi-Proveedor (03/10 al 16/10)
 * **Hito Cátedra:** Pruebas en clase con usuarios reales y QA (Clase 17/10).
