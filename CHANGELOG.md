@@ -5,7 +5,7 @@
 
 ## Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
 
-## [Unreleased] (En desarrollo - Sprint 1)
+## [0.2.0] - 2026-09-18 (Sprint 1: Insumos, Productos Base y Hardening)
 
 ### Added (Terminado y Mergeado)
 - **DevOps:** Runner headless de Playwright (Chromium) en GitHub Actions (`ci.yml`) y preconfiguración SSL de producción (Nginx/Certbot) en VPS Donweb (`#68`).
