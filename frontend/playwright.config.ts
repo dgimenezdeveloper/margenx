@@ -1,7 +1,8 @@
+/// <reference types="node" />
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // "type": "module" en package.json => no hay __dirname nativo acá.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
