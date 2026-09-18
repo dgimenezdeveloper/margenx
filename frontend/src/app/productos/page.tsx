@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
-import { useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ChevronRight, LoaderCircle, Package, Plus, Search } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
@@ -86,7 +85,6 @@ export default function ProductsPage() {
               </Link>
             </div>
 
-            {/* MANEJO DE ESTADOS VACÍOS (Gherkin AC #1) */}
             {isLoading && (
               <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando productos...
@@ -117,15 +115,14 @@ export default function ProductsPage() {
               />
             )}
 
-            {/* TABLA VS CARDS (Gherkin AC #2) */}
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
-                {/* VERSIÓN MOBILE: Tarjetas (Se oculta en Desktop) */}
+                {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((product) => (
                     <Link
-                      key={product.name}
-                      href="/productos/hamburguesa-doble"
+                      key={product.id}
+                      href={`/productos/${product.id}`}
                       className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
                     >
                       <div className="flex w-full items-start justify-between gap-2">
@@ -149,7 +146,7 @@ export default function ProductsPage() {
                   ))}
                 </div>
 
-                {/* VERSIÓN DESKTOP: Tabla genérica con overflow (Se oculta en Mobile) */}
+                {/* VERSIÓN DESKTOP */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -163,8 +160,8 @@ export default function ProductsPage() {
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {filtered.map((product) => (
                         <tr
-                          key={product.name}
-                          onClick={() => router.push('/productos/hamburguesa-doble')}
+                          key={product.id}
+                          onClick={() => router.push(`/productos/${product.id}`)}
                           className="group cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
                         >
                           <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">

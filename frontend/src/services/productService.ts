@@ -20,13 +20,19 @@ export interface Product {
 export interface ProductIngredient {
   ingredientId: string
   quantity: number
+  ingredient?: {
+    id: string
+    name: string
+    unit: string
+    currentCost: number
+  }
 }
 
 export interface ProductInput {
-  name: string
-  salePrice: number
-  minMarginPercent: number
-  ingredients: ProductIngredientInput[]
+  name?: string
+  salePrice?: number
+  minMarginPercent?: number
+  ingredients?: ProductIngredientInput[]
 }
 
 type RawProduct = Omit<Product, 'salePrice' | 'minMarginPercent' | 'cost' | 'marginAmount' | 'marginPercent' | 'ingredients'> & {
@@ -35,7 +41,10 @@ type RawProduct = Omit<Product, 'salePrice' | 'minMarginPercent' | 'cost' | 'mar
   cost: number | string
   marginAmount: number | string
   marginPercent: number | string
-  ingredients?: Array<Omit<ProductIngredient, 'quantity'> & { quantity: number | string }>
+  ingredients?: Array<Omit<ProductIngredient, 'quantity' | 'ingredient'> & {
+    quantity: number | string,
+    ingredient?: { id: string, name: string, unit: string, currentCost: number | string }
+  }>
 }
 
 interface ProductResponse {
@@ -61,9 +70,13 @@ function normalizeProduct(product: RawProduct): Product {
     cost: Number(product.cost),
     marginAmount: Number(product.marginAmount),
     marginPercent: Number(product.marginPercent),
-    ingredients: (product.ingredients ?? []).map((ingredient) => ({
-      ...ingredient,
-      quantity: Number(ingredient.quantity),
+    ingredients: (product.ingredients ?? []).map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      ingredient: item.ingredient ? {
+        ...item.ingredient,
+        currentCost: Number(item.ingredient.currentCost)
+      } : undefined
     })),
   }
 }
@@ -75,11 +88,30 @@ export const productService = {
     return list.map(normalizeProduct)
   },
 
+  async getById(getToken: TokenGetter, id: string): Promise<Product> {
+    const response = await fetchApi<SingleProductResponse>(`/products/${id}`, getToken)
+    return normalizeProduct(response.product)
+  },
+
   async create(getToken: TokenGetter, input: ProductInput): Promise<Product> {
     const response = await fetchApi<SingleProductResponse>('/products', getToken, {
       method: 'POST',
       body: JSON.stringify(input),
     })
     return normalizeProduct(response.product)
+  },
+
+  async update(getToken: TokenGetter, id: string, input: ProductInput): Promise<Product> {
+    const response = await fetchApi<SingleProductResponse>(`/products/${id}`, getToken, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+    return normalizeProduct(response.product)
+  },
+
+  async delete(getToken: TokenGetter, id: string): Promise<void> {
+    await fetchApi(`/products/${id}`, getToken, {
+      method: 'DELETE',
+    })
   },
 }

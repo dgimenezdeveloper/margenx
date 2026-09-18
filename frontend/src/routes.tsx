@@ -1,13 +1,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
-// Importaciones directas relativas desde src/routes.tsx hacia src/app/
 import LandingPage from './app/page'
 import LoginPage from './app/login/page'
 import DashboardPage from './app/dashboard/page'
 import SuppliesPage from './app/insumos/page'
 import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
-import ProductDetailPage from './app/productos/hamburguesa-doble/page'
+import ProductDetailPage from './app/productos/detalle/page'
 import ProfilePage from './app/perfil/page'
 import { ProtectedRoute } from './components/protected-route'
 
@@ -37,7 +36,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute><NewProductPage /></ProtectedRoute>,
   },
   {
-    path: '/productos/hamburguesa-doble',
+    path: '/productos/:id',
     element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute>,
   },
   {

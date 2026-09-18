@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Boxes, Check, LoaderCircle, Plus, Search, X } from 'lucide-react'
+import { AlertTriangle, Boxes, Check, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -28,6 +28,7 @@ export default function SuppliesPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // Nuevo estado para la confirmación UX
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -75,12 +76,14 @@ export default function SuppliesPage() {
 
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
+    setShowDeleteConfirm(false) // Aseguramos que no abra en modo confirmación
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
   }
 
   const handleOpenNew = () => {
     setSelected(null)
+    setShowDeleteConfirm(false)
     reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
   }
@@ -88,6 +91,7 @@ export default function SuppliesPage() {
   const handleCloseSheet = () => {
     setSelected(null)
     setNewOpen(false)
+    setShowDeleteConfirm(false) // Reseteamos el estado al cerrar
   }
 
   const handleSave = async (data: IngredientFormValues) => {
@@ -107,6 +111,20 @@ export default function SuppliesPage() {
       handleCloseSheet()
     } catch (error: unknown) {
       notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.')
+    }
+  }
+
+  // Función que ejecuta el borrado real tras la confirmación
+  const confirmDelete = async () => {
+    if (!selected) return
+    try {
+      await ingredientService.delete(getToken, selected.id)
+      setSupplies((current) => current.filter((item) => item.id !== selected.id))
+      notify(`Insumo "${selected.name}" eliminado correctamente`)
+      handleCloseSheet()
+    } catch (error: unknown) {
+      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.')
+      setShowDeleteConfirm(false) // Volvemos al formulario si falla (ej: está en uso)
     }
   }
 
@@ -182,7 +200,6 @@ export default function SuppliesPage() {
               </button>
             </div>
 
-            {/* ESTADOS VACÍOS */}
             {isLoading && (
               <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
@@ -213,14 +230,13 @@ export default function SuppliesPage() {
               />
             )}
 
-            {/* TABLA VS CARDS */}
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
-                {/* VERSIÓN MOBILE: Tarjetas */}
+                {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((supply) => (
                     <button
-                      key={supply.name}
+                      key={supply.id}
                       type="button"
                       onClick={() => handleOpenEdit(supply)}
                       className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
@@ -239,7 +255,7 @@ export default function SuppliesPage() {
                   ))}
                 </div>
 
-                {/* VERSIÓN DESKTOP: Tabla genérica con overflow */}
+                {/* VERSIÓN DESKTOP */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -252,7 +268,7 @@ export default function SuppliesPage() {
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {filtered.map((supply) => (
                         <tr
-                          key={supply.name}
+                          key={supply.id}
                           onClick={() => handleOpenEdit(supply)}
                           className="group cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
                         >
@@ -284,58 +300,103 @@ export default function SuppliesPage() {
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={handleCloseSheet} />
-          <form onSubmit={handleSubmit(handleSave)} className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase text-indigo-600">
-                  {selected ? selected.name : 'Despensa'}
-                </p>
-                <h2 className="mt-1 text-2xl font-bold">
-                  {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
-                </h2>
-              </div>
-              <button type="button" onClick={handleCloseSheet} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
-                <X className="size-5" />
-              </button>
-            </div>
 
-            {!selected && (
-              <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
-                Nombre del insumo
-                <input {...register('name')} placeholder="Ej. Harina 0000" className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800" />
-                {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
-              </label>
-            )}
-
-            {!selected && (
-              <div className="mt-4">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
-                <div className="flex flex-wrap gap-2">
-                  {ingredientUnits.map((u) => (
-                    <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
-                      {u}
-                    </button>
-                  ))}
+            {/* RENDERIZADO CONDICIONAL: Confirmación de Borrado vs Formulario */}
+            {showDeleteConfirm ? (
+              <div className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 py-4">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
+                  <AlertTriangle className="size-7 text-rose-600 dark:text-rose-400" />
                 </div>
-                {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">¿Eliminar insumo?</h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Estás a punto de eliminar <strong>{selected?.name}</strong>. Esta acción no se puede deshacer.
+                </p>
+                <div className="mt-8 flex w-full gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    className="flex-1 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit(handleSave)}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-indigo-600">
+                      {selected ? selected.name : 'Despensa'}
+                    </p>
+                    <h2 className="mt-1 text-2xl font-bold">
+                      {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {selected && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                        title="Eliminar insumo"
+                      >
+                        <Trash2 className="size-5" />
+                      </button>
+                    )}
+                    <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                      <X className="size-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {!selected && (
+                  <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
+                    Nombre del insumo
+                    <input {...register('name')} placeholder="Ej. Harina 0000" className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800" />
+                    {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
+                  </label>
+                )}
+
+                {!selected && (
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
+                    <div className="flex flex-wrap gap-2">
+                      {ingredientUnits.map((u) => (
+                        <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                  </div>
+                )}
+
+                <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
+                  Costo unitario ({selected ? selected.unit : selectedUnit})
+                  <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <span className="text-lg font-bold text-gray-400">$</span>
+                    <input {...register('currentCost')} inputMode="decimal" type="number" placeholder="0.00" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
+                  </div>
+                  {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
+                </label>
+
+                <div className="mt-6 flex gap-3">
+                  <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
+                  <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+                </div>
+              </form>
             )}
-
-            <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
-              Costo unitario ({selected ? selected.unit : selectedUnit})
-              <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
-                <span className="text-lg font-bold text-gray-400">$</span>
-                <input {...register('currentCost')} inputMode="decimal" type="number" placeholder="0.00" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
-              </div>
-              {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
-            </label>
-
-            <div className="mt-6 flex gap-3">
-              <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
-              <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
-            </div>
-          </form>
+          </div>
         </div>
       )}
     </main>
