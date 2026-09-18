@@ -64,10 +64,10 @@ jobs:
         working-directory: ./frontend
     env:
       CI: true
-      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_Zmx1ZW50LW1vb3NlLTkwNjAuY2xlcmsuYWNjb3VudHMuZGV2JA' }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || 'sk_test_A7X9QzQD66LtWJx1ZiupnnxFseRsYcqUTx34Y2OQA1' }}
-      E2E_CLERK_TEST_EMAIL: ${{ secrets.E2E_CLERK_TEST_EMAIL || 'admin.panaderia@hotmail.com' }}
-      E2E_CLERK_TEST_PASSWORD: ${{ secrets.E2E_CLERK_TEST_PASSWORD || 'MargenXDev2026.' }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      E2E_CLERK_TEST_EMAIL: ${{ secrets.E2E_CLERK_TEST_EMAIL }}
+      E2E_CLERK_TEST_PASSWORD: ${{ secrets.E2E_CLERK_TEST_PASSWORD }}
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
