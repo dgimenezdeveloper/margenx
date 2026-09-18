@@ -3,9 +3,18 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
 
+## [UTodos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+
 ## [Unreleased] (En desarrollo - Sprint 1)
 
 ### Added (Terminado y Mergeado)
+- **DevOps:** Runner headless de Playwright (Chromium) en GitHub Actions (`ci.yml`) y preconfiguración SSL de producción (Nginx/Certbot) en VPS Donweb (`#68`).
+- **QA:** Suite global de autenticación persistente con Clerk y smoke test E2E en Playwright (`#69`).
+- **Backend:** Endpoints CRUD de Productos y Recetas con soporte borrador y transacciones ACID (`#65`).
+- **QA:** Colección automatizada de pruebas de API en Postman/Newman para el módulo de Productos (`#64`).
+- **DevOps:** Notificaciones automáticas de estado de CI/CD en Discord vía Webhooks (`#63`).
+- **Docs:** Sincronización de arquitectura VPS consolidada, SAD y plan de entregas (`#62`).
+- **Frontend:** Integración con `<ClerkProvider>`, rutas protegidas y consumo autenticado de API (`#60`).
 - **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH (puerto 5371) y Nginx Reverse Proxy (`#40` via PR `#58`).
 - **DevOps:** Automatización de migraciones de Prisma en el pipeline de deploy mediante contenedor efímero con mecanismo de fallo seguro (`#41` via PR `#59`).
 - **Backend:** Middleware global de captura, formateo y estandarización de errores HTTP (`#35` via PR `#51`).
@@ -15,16 +24,6 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **QA:** Script ejecutable de Seed idempotente (`prisma/seed.ts`) con dataset verídico de comercios piloto (`#30` via PR `#52`).
 - **QA:** Redacción de Casos de Prueba manuales en formato Gherkin para Insumos y Productos (`#39` via PR `#54`).
 - **QA:** Colección de pruebas automatizadas de API en Postman/Newman para el módulo de Insumos (`#37` via PR `#56`).
-
-### In Review (En Revisión de Pares / PR Abierto)
-- **Frontend:** Integración con `<ClerkProvider>`, capa de servicios y consumo de API autenticada mediante tokens JWT (`#29` en PR `#60`).
-- **Frontend:** Integración de API de Insumos y Productos con manejo visual de estados de carga (Loading/Skeletons) y error (`#33` en PR `#60`).
-
-### In Progress (En Desarrollo)
-- **QA:** Colección de pruebas automatizadas de API para el módulo de Productos en Postman/Newman (`#38`).
-
-### To Do (Planificado / Próximo a iniciar)
-- **DevOps:** Configuración de notificaciones automáticas de estado de CI/CD vía Webhook de Discord (`#42`).
 
 ---
 

@@ -69,7 +69,7 @@ El contenedor de PostgreSQL publica el puerto `5435` en el host (`5435:5432` en 
 En condiciones normales, el pipeline de CI/CD aplica las migraciones automáticamente en cada deploy. Si el Lead Backend necesita correrlas manualmente desde su máquina local:
 
 ```bash
-DATABASE_URL="postgresql://margenx_admin:PASSWORD@168.197.49.120:5435/margenx_prod?schema=public" npx prisma migrate deploy
+DATABASE_URL='postgresql://margenx_admin:PASSWORD@168.197.49.120:5435/margenx_prod?schema=public' npx prisma migrate deploy
 ```
 
 ---
@@ -102,3 +102,42 @@ cp docker-compose.prod.yml /opt/margenx-infra/docker-compose.yml
 cp .env.example /opt/margenx-infra/.env # Configurar variables
 docker compose up -d
 ```
+
+---
+
+## 7. Verificación Perimetral y SSL de Producción (margenx.tech y api.margenx.tech)
+
+Para asegurar la disponibilidad de la Demo de Producción del Sprint 2, se verifican la configuración de Nginx y los certificados SSL emitidos por Let's Encrypt:
+
+### Puertos Internos de Producción
+* **Frontend Prod:** `127.0.0.1:3010`
+* **Backend Prod:** `127.0.0.1:3011`
+
+### Verificación de Certificados Let's Encrypt
+```bash
+# Listar certificados instalados y vigencia
+sudo certbot certificates
+
+# Simular proceso de renovación automática
+sudo certbot renew --dry-run
+```
+
+### Verificación de Sintaxis y Recarga de Nginx
+```bash
+# Comprobar sintaxis
+sudo nginx -t
+
+# Recargar configuración sin caída de servicio
+sudo systemctl reload nginx
+```
+
+### Smoke Test de Conectividad HTTPS (TLS 1.2 / TLS 1.3)
+```bash
+# Frontend Producción
+curl -I https://margenx.tech
+
+# Backend Producción Healthcheck
+curl -I https://api.margenx.tech/api/health
+```
+
+---
