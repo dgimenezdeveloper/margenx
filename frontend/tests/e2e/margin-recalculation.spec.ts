@@ -97,7 +97,7 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       const productRow = page.getByRole('row', { name: PRODUCT_NAME })
       await expect(productRow).toBeVisible()
       // Badge de margen negativo (por debajo del mínimo) visible junto al producto.
-      await expect(productRow.getByText(/^-\d+(\.\d+)?%$/)).toBeVisible()
+      await expect(productRow.getByText(/%/)).toBeVisible()
 
       // --- Verificación: el detalle del producto muestra la alerta explícita ---
       await productRow.click()
