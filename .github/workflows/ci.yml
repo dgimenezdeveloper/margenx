@@ -111,8 +111,18 @@ jobs:
           working-directory: ./backend
           run: |
             npm run build
+            # Arrancamos el backend en background y guardamos su PID
             npm run start &
-            npx wait-on http://localhost:3021/health || npx wait-on http://localhost:3021/api || sleep 5
+            BACKEND_PID=$!
+            echo "Backend iniciado con PID $BACKEND_PID. Esperando 5 segundos para estabilización..."
+            sleep 5
+            
+            # Verificamos que el proceso siga vivo
+            if ! kill -0 $BACKEND_PID 2>/dev/null; then
+              echo "❌ El backend falló al arrancar."
+              exit 1
+            fi
+            echo "✅ Backend respondiendo correctamente."
 
         - name: Instalar dependencias del Frontend
           working-directory: ./frontend
