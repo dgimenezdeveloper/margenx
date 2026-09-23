@@ -85,6 +85,45 @@ simple vista y queda muy por debajo del umbral.
 **El `marginPercent` es otra historia.** El frontend calcula el margen
 porcentual y lo redondea a **1 decimal**:
 
-```js
+\`\`\`js
 // frontend/src/app/productos/detalle/page.tsx (y useRecipeStore.ts, mismo patrón)
 const margin = Math.round(((sale - cost) / sale) * 1000) / 10
+\`\`\`
+
+El backend (`calculateMarginPercent` en `marginCalculator.ts`) redondea a
+**2 decimales**. Esto no es un bug de cálculo — ambos parten del mismo
+`totalCost` y llegan al mismo resultado matemático antes de redondear — es
+una diferencia de **resolución de redondeo** entre capas. El Gherkin de la
+issue #77 pide que *"el margen porcentual debe coincidir hasta el segundo
+decimal"*, y tal como está hoy la UI, **eso no es alcanzable**: el frontend
+nunca calcula ni muestra un segundo decimal, así que la comparación siempre
+va a mostrar una diferencia de hasta ±0.05 puntos porcentuales (la mitad del
+paso de redondeo de 1 decimal), como se ve en los 4 casos de la tabla.
+
+En la práctica esto es un margen de error muy pequeño (por ejemplo, "71.67%"
+en el backend vs "71.7%" en pantalla) y no representa una pérdida de plata
+real para el comerciante — a diferencia de `totalCost`/`marginAmount`, que sí
+están dentro de tolerancia exacta. Aun así, técnicamente incumple la letra
+del Gherkin de la issue.
+
+**Queda pendiente de decisión del equipo** (no es una acción que le
+corresponda a este PR de QA):
+1. Aceptar la resolución de 1 decimal del frontend como el comportamiento
+   esperado, y ajustar el Gherkin/DoD de la issue #77 para reflejar una
+   tolerancia realista en el campo porcentual (ej. ±0.05 pp), o
+2. Cambiar el frontend para redondear `marginPercent` a 2 decimales
+   (`Math.round(raw * 100) / 100`), igualando la resolución del backend.
+
+## 6. Definition of Done
+
+- [x] Reporte de consistencia financiera firmado por QA (este documento).
+- [x] 0 discrepancias de redondeo **monetarias** (`totalCost`/`marginAmount`)
+      detectadas, dentro de la tolerancia de ±$0.01 ARS, en los 4 casos de
+      frontera.
+- [ ] 0 discrepancias en `marginPercent` — **no cumplido tal cual está escrito
+      el DoD**; ver hallazgo de §5. El campo está dentro de la resolución
+      propia del frontend (±0.05 pp), pero no coincide exactamente al segundo
+      decimal como pide la letra de la issue.
+- [ ] Corrida contra Staging (`https://api-dev.margenx.tech`) — pendiente,
+      requiere acceso de red que este entorno no tiene (ver §2).
+- [x] PR abierto hacia `develop` con CI en verde.
