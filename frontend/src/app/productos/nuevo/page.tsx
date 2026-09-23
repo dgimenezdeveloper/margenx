@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  Info,
   LoaderCircle,
   Plus,
   Search,
@@ -22,7 +23,89 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
-import { useRecipeStore } from '@/stores/useRecipeStore'
+
+type RecipeItem = {
+  ingredientId: string
+  name: string
+  unit: string
+  unitCost: number
+  quantity: number
+  recipeUnit?: string
+  inputQty?: number
+}
+
+type RecipeState = {
+  items: RecipeItem[]
+  salePrice: number
+  minMarginPercent: number
+}
+
+const recipeInitialState: RecipeState = { items: [], salePrice: 0, minMarginPercent: 30 }
+let recipeState = recipeInitialState
+const recipeListeners = new Set<() => void>()
+const updateRecipeState = (update: (state: RecipeState) => RecipeState) => {
+  recipeState = update(recipeState)
+  recipeListeners.forEach((listener) => listener())
+}
+
+const recipeStore = {
+  getState: () => recipeState,
+  subscribe: (listener: () => void) => {
+    recipeListeners.add(listener)
+    return () => recipeListeners.delete(listener)
+  },
+  addIngredient: (item: RecipeItem) =>
+    updateRecipeState((state) => ({ ...state, items: [...state.items, item] })),
+  removeIngredient: (ingredientId: string) =>
+    updateRecipeState((state) => ({
+      ...state,
+      items: state.items.filter((item) => item.ingredientId !== ingredientId),
+    })),
+  updateQuantity: (ingredientId: string, quantity: number, inputQty: number, recipeUnit: string) =>
+    updateRecipeState((state) => ({
+      ...state,
+      items: state.items.map((item) =>
+        item.ingredientId === ingredientId ? { ...item, quantity, inputQty, recipeUnit } : item
+      ),
+    })),
+  setSalePrice: (salePrice: number) => updateRecipeState((state) => ({ ...state, salePrice })),
+  setMinMarginPercent: (minMarginPercent: number) =>
+    updateRecipeState((state) => ({ ...state, minMarginPercent })),
+  reset: () => updateRecipeState(() => ({ ...recipeInitialState })),
+}
+
+function useRecipeStore<T>(
+  selector: (
+    state: RecipeState &
+      typeof recipeStore & {
+        totalCost: () => number
+        marginAmount: () => number
+        marginPercent: () => number
+        isUnderMargin: () => boolean
+      }
+  ) => T
+): T {
+  return selector({
+    ...recipeState,
+    ...recipeStore,
+    totalCost: () => recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
+    marginAmount: () => recipeState.salePrice - recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
+    marginPercent: () => {
+      const cost = recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+      return recipeState.salePrice > 0 ? Math.round(((recipeState.salePrice - cost) / recipeState.salePrice) * 100) : 0
+    },
+    isUnderMargin: () => {
+      const cost = recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+      return recipeState.items.length > 0 && recipeState.salePrice > 0 && ((recipeState.salePrice - cost) / recipeState.salePrice) * 100 < recipeState.minMarginPercent
+    },
+  } as RecipeState &
+    typeof recipeStore & {
+      totalCost: () => number
+      marginAmount: () => number
+      marginPercent: () => number
+      isUnderMargin: () => boolean
+    })
+}
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -229,7 +312,7 @@ export default function NewProductPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(handleSaveProduct)}>
+      <form onSubmit={handleSubmit(handleSaveProduct)} noValidate>
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
           <Navbar title="Nuevo Producto" backHref="/productos" />
 
@@ -256,41 +339,63 @@ export default function NewProductPage() {
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                    Precio de Venta
-                    <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
-                      <span className="font-bold text-gray-400">$</span>
-                      <input
-                        {...register('salePrice')}
-                        inputMode="decimal"
-                        type="number"
-                        placeholder="0"
-                        className="no-spinners w-full bg-transparent px-2 text-base font-bold outline-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                      <span className="flex items-center justify-between">
+                        <span>Precio de Venta</span>
+                      </span>
+                      <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                        <span className="font-bold text-gray-400">$</span>
+                        <input
+                          {...register('salePrice')}
+                          inputMode="decimal"
+                          type="number"
+                          step="any"
+                          placeholder="0.00"
+                          className="no-spinners w-full bg-transparent px-2 text-base font-bold outline-none"
+                        />
+                      </div>
+                    </label>
                     {errors.salePrice && (
                       <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
                     )}
-                  </label>
+                    <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                      Separador decimal con punto (ej: 1250.50).
+                    </p>
+                  </div>
 
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                    Margen Mínimo (%)
-                    <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
-                      <input
-                        {...register('minMarginPercent')}
-                        inputMode="decimal"
-                        type="number"
-                        placeholder="30"
-                        className="no-spinners w-full bg-transparent text-right font-bold outline-none"
-                      />
-                      <span className="ml-1 font-bold text-gray-400">%</span>
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                      <span>Margen Mínimo (%)</span>
+                      <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                        <input
+                          {...register('minMarginPercent')}
+                          inputMode="decimal"
+                          type="number"
+                          step="any"
+                          placeholder="30"
+                          className="no-spinners w-full bg-transparent text-right font-bold outline-none"
+                        />
+                        <span className="ml-1 font-bold text-gray-400">%</span>
+                      </div>
+                    </label>
                     {errors.minMarginPercent && (
                       <p className="mt-1 text-xs font-bold text-rose-500">
                         {errors.minMarginPercent.message}
                       </p>
                     )}
-                  </label>
+                    <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                      Umbral objetivo (ej: 30 o 35.5).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Banner de aviso amigable de UX para decimales */}
+                <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
+                  <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  <p className="leading-tight">
+                    <strong>Atención con los decimales:</strong> Escribí las fracciones y centavos usando punto (<code>.</code>) y no coma (por ejemplo: <code>1250.50</code>).
+                  </p>
                 </div>
               </section>
 
@@ -398,6 +503,7 @@ export default function NewProductPage() {
                         placeholder="100"
                         inputMode="decimal"
                         type="number"
+                        step="any"
                         className="no-spinners h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
                       />
                     </div>
@@ -541,7 +647,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral mínimo ({Number(watchedMinMargin) || 0}%).
+                        El margen está por debajo del umbral mínimo ({String(watchedMinMargin || 0)}%).
                       </p>
                     </div>
                   ) : (
@@ -555,7 +661,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({Number(watchedMinMargin) || 0}%).
+                        Cumple o supera el objetivo de rentabilidad ({String(watchedMinMargin || 0)}%).
                       </p>
                     </div>
                   )}
@@ -618,7 +724,7 @@ export default function NewProductPage() {
                         }}
                         className="rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 cursor-pointer"
                       >
-                        Objetivo ({String(watchedMinMargin ?? '')}%)
+                        Objetivo ({String(watchedMinMargin)}%)
                       </button>
                     </div>
                   </div>

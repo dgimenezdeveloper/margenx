@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,7 +17,8 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+const sortIngredients = (ingredients: Ingredient[]) =>
+  [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
 export default function SuppliesPage() {
   const { getToken } = useAuth()
@@ -28,12 +28,13 @@ export default function SuppliesPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // Nuevo estado para la confirmación UX
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    ingredientService.getAll(getToken)
+    ingredientService
+      .getAll(getToken)
       .then((ingredients) => {
         if (active) setSupplies(sortIngredients(ingredients))
       })
@@ -43,7 +44,9 @@ export default function SuppliesPage() {
       .finally(() => {
         if (active) setIsLoading(false)
       })
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [getToken])
 
   const {
@@ -76,9 +79,13 @@ export default function SuppliesPage() {
 
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
-    setShowDeleteConfirm(false) // Aseguramos que no abra en modo confirmación
+    setShowDeleteConfirm(false)
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
-    reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
+    reset({
+      name: supply.name,
+      unit: formUnit as IngredientFormValues['unit'],
+      currentCost: String(supply.currentCost),
+    })
   }
 
   const handleOpenNew = () => {
@@ -91,7 +98,7 @@ export default function SuppliesPage() {
   const handleCloseSheet = () => {
     setSelected(null)
     setNewOpen(false)
-    setShowDeleteConfirm(false) // Reseteamos el estado al cerrar
+    setShowDeleteConfirm(false)
   }
 
   const handleSave = async (data: IngredientFormValues) => {
@@ -104,17 +111,22 @@ export default function SuppliesPage() {
       const ingredient = selected
         ? await ingredientService.update(getToken, selected.id, input)
         : await ingredientService.create(getToken, input)
-      setSupplies((current) => selected
-        ? sortIngredients(current.map((item) => item.id === ingredient.id ? ingredient : item))
-        : sortIngredients([...current, ingredient]))
-      notify(selected ? `Costo de ${selected.name} actualizado a ${money(data.currentCost)}` : `Insumo "${data.name}" creado correctamente`)
+      setSupplies((current) =>
+        selected
+          ? sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item)))
+          : sortIngredients([...current, ingredient])
+      )
+      notify(
+        selected
+          ? `Costo de ${selected.name} actualizado a ${money(data.currentCost)}`
+          : `Insumo "${data.name}" creado correctamente`
+      )
       handleCloseSheet()
     } catch (error: unknown) {
       notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.')
     }
   }
 
-  // Función que ejecuta el borrado real tras la confirmación
   const confirmDelete = async () => {
     if (!selected) return
     try {
@@ -124,7 +136,7 @@ export default function SuppliesPage() {
       handleCloseSheet()
     } catch (error: unknown) {
       notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.')
-      setShowDeleteConfirm(false) // Volvemos al formulario si falla (ej: está en uso)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -138,7 +150,6 @@ export default function SuppliesPage() {
       )}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
 
@@ -164,7 +175,7 @@ export default function SuppliesPage() {
                 onClick={handleOpenNew}
                 className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4 " /> Nuevo Insumo
+                <Plus className="size-4" /> Nuevo Insumo
               </button>
             </div>
           </section>
@@ -332,7 +343,7 @@ export default function SuppliesPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit(handleSave)}>
+              <form onSubmit={handleSubmit(handleSave)} noValidate>
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase text-indigo-600">
@@ -385,7 +396,14 @@ export default function SuppliesPage() {
                   Costo unitario ({selected ? selected.unit : selectedUnit})
                   <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                     <span className="text-lg font-bold text-gray-400">$</span>
-                    <input {...register('currentCost')} inputMode="decimal" type="number" placeholder="0.00" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
+                    <input
+                      {...register('currentCost')}
+                      inputMode="decimal"
+                      type="number"
+                      step="any"
+                      placeholder="0.00"
+                      className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                    />
                   </div>
                   {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
                 </label>
