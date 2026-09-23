@@ -55,7 +55,7 @@ function decimal(value: unknown, field: string, allowZero = false): Prisma.Decim
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const text = String(value).trim();
-  if (!/^\d+(\.\d+)?$/.test(text)) {
+  if (!/^-?\d+(\.\d+)?$/.test(text)) { // ← agregado el "-?" Con esto, "-10" sí matchea el formato, se convierte a Decimal, y recién ahí cae en lessThan(0) → tira el mensaje correcto "mayor o igual a cero".
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const result = new Prisma.Decimal(text);
