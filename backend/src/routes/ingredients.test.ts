@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { Prisma } from '@prisma/client';
 
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
@@ -20,9 +21,23 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
+const productFindUniqueMock = vi.fn();
+const productUpdateMock = vi.fn();
+
+// $transaction real de Prisma recibe un callback (tx) => {...} y lo ejecuta
+// pasándole un cliente con los mismos modelos. Acá reutilizamos los mocks
+// de arriba como si fueran ese `tx`, para no duplicar mocks por separado.
+const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
+  return callback({
+    ingredient: { update: updateMock },
+    productIngredient: { findMany: productIngredientFindManyMock },
+    product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+  });
+});
 
 vi.mock('../lib/prisma', () => ({
   prisma: {
+    $transaction: (callback: (tx: unknown) => unknown) => transactionMock(callback),
     ingredient: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       count: (...args: unknown[]) => countMock(...args),
@@ -33,6 +48,10 @@ vi.mock('../lib/prisma', () => ({
     },
     productIngredient: {
       findMany: (...args: unknown[]) => productIngredientFindManyMock(...args),
+    },
+    product: {
+      findUnique: (...args: unknown[]) => productFindUniqueMock(...args),
+      update: (...args: unknown[]) => productUpdateMock(...args),
     },
   },
 }));
@@ -56,6 +75,9 @@ beforeEach(() => {
   updateMock.mockReset();
   deleteMock.mockReset();
   productIngredientFindManyMock.mockReset();
+  productFindUniqueMock.mockReset();
+  productUpdateMock.mockReset();
+  transactionMock.mockClear();
 });
 
 describe('GET /api/ingredients - paginación', () => {
@@ -229,10 +251,12 @@ describe('PUT /api/ingredients/:id', () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it('actualiza el insumo cuando pertenece a la cuenta y el payload es válido', async () => {
+  it('actualiza el insumo cuando pertenece a la cuenta y el payload es válido (sin productos afectados)', async () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1' });
     const updated = { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '120.00' };
     updateMock.mockResolvedValue(updated);
+    // El insumo no está en la receta de ningún producto → no hay cascada que recalcular.
+    productIngredientFindManyMock.mockResolvedValue([]);
 
     const res = await request(buildApp())
       .put('/api/ingredients/ing-1')
@@ -244,6 +268,80 @@ describe('PUT /api/ingredients/:id', () => {
       where: { id: 'ing-1' },
       data: expect.objectContaining({ name: 'Harina 000' }),
     });
+    expect(productFindUniqueMock).not.toHaveBeenCalled();
+    expect(productUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    updateMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg', currentCost: '150.00' });
+
+    // El insumo aparece en la receta de dos productos distintos.
+    productIngredientFindManyMock.mockResolvedValue([
+      { productId: 'prod-1' },
+      { productId: 'prod-2' },
+    ]);
+
+    productFindUniqueMock.mockImplementation(({ where }: { where: { id: string } }) => {
+      const base = {
+        salePrice: new Prisma.Decimal('200.00'),
+        ingredients: [
+          { quantity: new Prisma.Decimal('2'), ingredient: { currentCost: new Prisma.Decimal('150.00') } },
+        ],
+      };
+      return Promise.resolve(where.id === 'prod-1' ? { id: 'prod-1', ...base } : { id: 'prod-2', ...base });
+    });
+    productUpdateMock.mockResolvedValue({});
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina', unit: 'kg', currentCost: '150.00' });
+
+    expect(res.status).toBe(200);
+    // cost = 2 * 150 = 300.00 ; margin = 200 - 300 = -100.00 ; marginPercent = (200-300)/200*100 = -50.00
+    expect(productUpdateMock).toHaveBeenCalledTimes(2);
+    expect(productUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'prod-1' },
+      data: {
+        cost: expect.objectContaining({ d: expect.anything() }), // Prisma.Decimal
+        marginAmount: expect.anything(),
+        marginPercent: expect.anything(),
+      },
+    });
+    // Verifica los valores calculados en la primera llamada a productUpdateMock
+        const firstCall = productUpdateMock.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const firstCallArgs = firstCall![0] as {
+      data: { cost: Prisma.Decimal; marginAmount: Prisma.Decimal; marginPercent: Prisma.Decimal };
+    };
+    expect(firstCallArgs.data.cost.toString()).toBe('300');
+    expect(firstCallArgs.data.marginAmount.toString()).toBe('-100');
+    expect(firstCallArgs.data.marginPercent.toString()).toBe('-50');
+  });
+
+  it('no duplica el recálculo si un producto tiene el insumo repetido en la lista de afectados', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    updateMock.mockResolvedValue({ id: 'ing-1' });
+
+    // Caso defensivo: mismo productId dos veces (no debería pasar con la FK real,
+    // pero el código dedupea con un Set — este test documenta ese comportamiento).
+    productIngredientFindManyMock.mockResolvedValue([
+      { productId: 'prod-1' },
+      { productId: 'prod-1' },
+    ]);
+
+    productFindUniqueMock.mockResolvedValue({
+      id: 'prod-1',
+      salePrice: new Prisma.Decimal('100.00'),
+      ingredients: [],
+    });
+    productUpdateMock.mockResolvedValue({});
+
+    await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina', unit: 'kg', currentCost: '10' });
+
+    expect(productUpdateMock).toHaveBeenCalledTimes(1);
   });
 });
 
