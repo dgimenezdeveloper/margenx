@@ -28,7 +28,7 @@ export interface RecipeState {
   setMinMarginPercent: (minMarginPercent: number) => void
   reset: () => void
 
-  // Selectores computados
+  // Métodos calculados en el store
   totalCost: () => number
   marginAmount: () => number
   marginPercent: () => number
@@ -50,10 +50,13 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         const updated = [...state.items]
         const existing = updated[existingIndex]
         if (existing) {
+          const newQuantity = existing.quantity + newItem.quantity
+          const newInputQty =
+            (existing.inputQty ?? existing.quantity) + (newItem.inputQty ?? newItem.quantity)
           updated[existingIndex] = {
             ...existing,
-            quantity: existing.quantity + newItem.quantity,
-            inputQty: (existing.inputQty ?? existing.quantity) + (newItem.inputQty ?? newItem.quantity),
+            quantity: newQuantity,
+            inputQty: newInputQty,
           }
         }
         return { items: updated }
@@ -127,8 +130,23 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   },
 }))
 
-// Selectores externos puros para consumo atómico y optimización de renderizados
-export const selectTotalCost = (state: RecipeState) => state.totalCost()
-export const selectMarginAmount = (state: RecipeState) => state.marginAmount()
-export const selectMarginPercent = (state: RecipeState) => state.marginPercent()
-export const selectIsUnderMargin = (state: RecipeState) => state.isUnderMargin()
+// Selectores puros para suscripción atómica en componentes React
+export const selectTotalCost = (state: RecipeState) =>
+  state.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+
+export const selectMarginAmount = (state: RecipeState) => {
+  if (state.items.length === 0 || state.salePrice <= 0) return 0
+  return state.salePrice - selectTotalCost(state)
+}
+
+export const selectMarginPercent = (state: RecipeState) => {
+  if (state.items.length === 0 || state.salePrice <= 0) return 0
+  const cost = selectTotalCost(state)
+  const rawMargin = ((state.salePrice - cost) / state.salePrice) * 100
+  return Math.round(rawMargin * 10) / 10
+}
+
+export const selectIsUnderMargin = (state: RecipeState) => {
+  if (state.items.length === 0) return false
+  return selectMarginPercent(state) < state.minMarginPercent
+}
