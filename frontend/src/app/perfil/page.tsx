@@ -6,14 +6,14 @@ import { Bell, Building2, LogOut, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 
 const profileTitle = 'Perfil y Configuración'
 
-// Componente Toggle Switch estándar con proporción fija inmune a deformaciones
 function ToggleSwitch({
   checked,
   onChange,
-  ariaLabel
+  ariaLabel,
 }: {
   checked: boolean
   onChange: (value: boolean) => void
@@ -41,7 +41,7 @@ function ToggleSwitch({
 
 export default function ProfilePage() {
   const { signOut } = useAuth()
-  const [companyName] = useState('Hamburguesería')
+  const { user, businessName } = useCurrentUser()
   const [globalMargin, setGlobalMargin] = useState('30')
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
@@ -56,23 +56,25 @@ export default function ProfilePage() {
             {profileTitle}
           </h1>
 
-          {/* Grilla: 1 col en mobile, 2 cols en desktop */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-
             {/* Columna Izquierda: Usuario y Comercio */}
             <div className="space-y-6">
               <section className="flex items-center gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-black text-white shadow-lg shadow-indigo-600/20">
-                  AD
+                  {user?.role === 'COLLABORATOR' ? 'CL' : 'AD'}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate font-bold text-lg">Administrador</h2>
+                    <h2 className="truncate font-bold text-lg">
+                      {user?.role === 'COLLABORATOR' ? 'Colaborador' : 'Administrador'}
+                    </h2>
                     <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                      ADMIN
+                      {user?.role || 'ADMIN'}
                     </span>
                   </div>
-                  <p className="truncate text-xs text-gray-500 mt-0.5">admin@comercio.com</p>
+                  <p className="truncate text-xs text-gray-500 mt-0.5">
+                    {user?.email || 'usuario@comercio.com'}
+                  </p>
                 </div>
               </section>
 
@@ -83,7 +85,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50">
                   <div>
-                    <p className="font-bold text-base">{companyName}</p>
+                    <p className="font-bold text-base">{businessName}</p>
                     <p className="text-xs text-gray-500 mt-0.5">Plan Profesional • Activo</p>
                   </div>
                   <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
@@ -125,7 +127,6 @@ export default function ProfilePage() {
                   <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
                 </div>
 
-                {/* 1. Alerta Crítica */}
                 <div className="flex items-center justify-between gap-4 pt-1">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
@@ -138,7 +139,6 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                {/* 2. Reporte Semanal en PDF */}
                 <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
@@ -154,7 +154,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Cerrar Sesión */}
           <div className="pt-2 md:flex md:justify-end md:pt-6">
             <button
               type="button"

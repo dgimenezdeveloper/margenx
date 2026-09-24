@@ -6,7 +6,7 @@ import DashboardPage from './app/dashboard/page'
 import SuppliesPage from './app/insumos/page'
 import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
-import ProductDetailPage from './app/productos/detalle/page'
+import ProductDetailPage from './app/productos/[id]/page'
 import ProfilePage from './app/perfil/page'
 import { ProtectedRoute } from './components/protected-route'
 

@@ -1,33 +1,64 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus } from 'lucide-react'
+import { useAuth } from '@clerk/clerk-react'
+import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus, LoaderCircle } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
-
-const initialProducts = [
-  { name: 'Hamburguesa Doble', price: 1600, cost: 1380, margin: 13.8, risk: true },
-  { name: 'Combo Familiar', price: 32700, cost: 18000, margin: 45.0, risk: false },
-  { name: 'Papas Especiales', price: 6500, cost: 3100, margin: 52.0, risk: false },
-  { name: 'Bebida Grande', price: 4000, cost: 2900, margin: 18.0, risk: true }
-]
+import { productService, type Product } from '@/services/productService'
+import { ingredientService } from '@/services/ingredientService'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function DashboardPage() {
-  const products = initialProducts
-  const riskProductsCount = products.filter((p) => p.risk || p.margin < 30).length
-  const avgMargin = (products.reduce((acc, p) => acc + p.margin, 0) / (products.length || 1)).toFixed(1)
-  const totalSuppliesCount = 18
+  const { getToken } = useAuth()
+  const [products, setProducts] = useState<Product[]>([])
+  const [totalSuppliesCount, setTotalSuppliesCount] = useState<number>(0)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  useEffect(() => {
+    let active = true
+
+    Promise.all([
+      productService.getAll(getToken),
+      ingredientService.getAll(getToken),
+    ])
+      .then(([prods, supplies]) => {
+        if (!active) return
+        setProducts(prods)
+        setTotalSuppliesCount(supplies.length)
+      })
+      .catch(() => {
+        // Manejo silencioso en dashboard
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [getToken])
+
+  const riskProductsCount = products.filter(
+    (p) => p.ingredients.length > 0 && p.marginPercent < p.minMarginPercent
+  ).length
+
+  const avgMargin =
+    products.length > 0
+      ? (
+          products.reduce((acc, p) => acc + (p.ingredients.length > 0 ? p.marginPercent : 0), 0) /
+          products.length
+        ).toFixed(1)
+      : '0.0'
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-
-        {/* Contenedor del contenido principal */}
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
-          <Navbar companyName="Hamburguesería" />
+          <Navbar />
 
           <section className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
@@ -61,7 +92,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
                   {riskProductsCount} {riskProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
                 </p>
-                <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen por debajo del 30%</p>
+                <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen por debajo del umbral mínimo</p>
               </div>
             </section>
 
@@ -97,43 +128,64 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {products.map((product) => (
-                <Link
-                  key={product.name}
-                  href="/productos/hamburguesa-doble"
-                  className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-900"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
-                      {product.name}
-                    </h3>
-                    <span
-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${product.risk
-                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                          : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                        }`}
-                    >
-                      Margen {product.margin}%
-                    </span>
-                  </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-12 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <LoaderCircle className="mr-2 size-5 animate-spin text-indigo-600" /> Cargando catálogo...
+              </div>
+            ) : products.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+                Aún no tienes productos registrados. Crea uno nuevo para comenzar a monitorear.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {products.slice(0, 4).map((product) => {
+                  const hasRecipe = product.ingredients.length > 0
+                  const isRisk = hasRecipe && product.marginPercent < product.minMarginPercent
 
-                  <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                    <span>
-                      Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
-                    </span>
-                    <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
-                      Precio: {money(product.price)}
-                      <ChevronRight className="size-4 text-gray-400 transition-transform group-hover:translate-x-0.5" />
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  return (
+                    <Link
+                      key={product.id}
+                      href={`/productos/${product.id}`}
+                      className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-900"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-base font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
+                          {product.name}
+                        </h3>
+                        {!hasRecipe ? (
+                          <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                            Sin Receta
+                          </span>
+                        ) : (
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+                              isRisk
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                            }`}
+                          >
+                            Margen {product.marginPercent}%
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                        <span>
+                          Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
+                          Precio: {money(product.salePrice)}
+                          <ChevronRight className="size-4 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </section>
         </div>
 
-        {/* Footer anclado al fondo */}
         <DesktopFooter />
       </div>
 

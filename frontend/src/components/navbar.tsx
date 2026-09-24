@@ -13,8 +13,9 @@ import {
   LogOut,
   Moon,
   Package,
-  Sun
+  Sun,
 } from 'lucide-react'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(() =>
@@ -43,8 +44,8 @@ export function Navbar({
   titleMobileOnly = false,
   backHref,
   showCompany = true,
-  companyName = 'Hamburguesería',
-  onLogoClick
+  companyName,
+  onLogoClick,
 }: {
   title?: string
   titleMobileOnly?: boolean
@@ -55,12 +56,15 @@ export function Navbar({
 }) {
   const pathname = usePathname()
   const { signOut } = useAuth()
+  const { businessName } = useCurrentUser()
+
+  const displayedCompanyName = companyName || businessName
 
   const navLinks = [
     { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
-    { label: 'Perfil', href: '/perfil', icon: CircleUserRound }
+    { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ]
 
   return (
@@ -96,7 +100,7 @@ export function Navbar({
             {titleMobileOnly && showCompany && (
               <span className="hidden items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200 md:flex">
                 <Building2 className="size-3" />
-                <span className="truncate max-w-30 md:max-w-50">{companyName}</span>
+                <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
               </span>
             )}
           </>
@@ -104,7 +108,7 @@ export function Navbar({
           showCompany && (
             <span className="flex items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200">
               <Building2 className="size-3" />
-              <span className="truncate max-w-30 md:max-w-50">{companyName}</span>
+              <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
             </span>
           )
         )}
