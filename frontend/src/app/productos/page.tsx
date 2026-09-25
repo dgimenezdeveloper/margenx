@@ -24,14 +24,27 @@ export default function ProductsPage() {
 
   useEffect(() => {
     let active = true
-    productService.getAll(getToken)
-      .then((items) => { if (active) setProducts(items) })
-      .catch((error: unknown) => {
-        if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los productos.')
+    productService
+      .getAll(getToken)
+      .then((items) => {
+        if (active) setProducts(items)
       })
-      .finally(() => { if (active) setIsLoading(false) })
-    return () => { active = false }
-  }, [getToken])
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof ApiError ? error.message : 'No se pudieron cargar los productos.'
+          )
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Solo se ejecuta una vez al montar, evitando el bucle infinito con getToken
 
   const filtered = useMemo(
     () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
@@ -44,7 +57,6 @@ export default function ProductsPage() {
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
 
@@ -99,7 +111,7 @@ export default function ProductsPage() {
 
             {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
-                icon={<Package className="size-6"/>}
+                icon={<Package className="size-6" />}
                 title="Aún no tienes productos cargados"
                 description="Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas."
                 actionLabel="Crear mi primer producto"
@@ -126,17 +138,29 @@ export default function ProductsPage() {
                       className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
                     >
                       <div className="flex w-full items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{product.name}</h3>
+                        <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
+                          {product.name}
+                        </h3>
                         {product.cost === 0 || product.ingredients.length === 0 ? (
-                          <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin Receta</span>
+                          <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                            Sin Receta
+                          </span>
                         ) : (
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${product.marginPercent < product.minMarginPercent ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                              product.marginPercent < product.minMarginPercent
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                            }`}
+                          >
                             Margen {product.marginPercent}%
                           </span>
                         )}
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
-                        <span>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></span>
+                        <span>
+                          Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                        </span>
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: <span className="text-sm">{money(product.salePrice)}</span>
                           <ChevronRight className="size-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
@@ -168,12 +192,22 @@ export default function ProductsPage() {
                             {product.name}
                           </td>
                           <td className="px-5 py-4 font-medium">{money(product.cost)}</td>
-                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(product.salePrice)}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">
+                            {money(product.salePrice)}
+                          </td>
                           <td className="px-5 py-4">
                             {product.cost === 0 || product.ingredients.length === 0 ? (
-                              <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin Receta</span>
+                              <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                Sin Receta
+                              </span>
                             ) : (
-                              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${product.marginPercent < product.minMarginPercent ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                                  product.marginPercent < product.minMarginPercent
+                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                                }`}
+                              >
                                 {product.marginPercent}%
                               </span>
                             )}

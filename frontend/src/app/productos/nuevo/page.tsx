@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -23,15 +23,100 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
-import {
-  useRecipeStore,
-  selectTotalCost,
-  selectMarginAmount,
-  selectMarginPercent,
-  selectIsUnderMargin,
-} from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+
+type RecipeItem = {
+  ingredientId: string
+  name: string
+  unit: string
+  unitCost: number
+  quantity: number
+  recipeUnit?: string
+  inputQty?: number
+}
+
+type RecipeState = {
+  items: RecipeItem[]
+  salePrice: number
+  minMarginPercent: number
+}
+
+function useRecipeState() {
+  const [state, setState] = useState<RecipeState>({
+    items: [],
+    salePrice: 0,
+    minMarginPercent: 30,
+  })
+
+  const addIngredient = useCallback((item: RecipeItem) => {
+    setState((current) => {
+      const existingIndex = current.items.findIndex(
+        (i) => i.ingredientId === item.ingredientId
+      )
+      if (existingIndex >= 0) {
+        const updated = [...current.items]
+        const existing = updated[existingIndex]
+        if (existing) {
+          const newQuantity = existing.quantity + item.quantity
+          const newInputQty = (existing.inputQty ?? existing.quantity) + (item.inputQty ?? item.quantity)
+          updated[existingIndex] = {
+            ...existing,
+            quantity: newQuantity,
+            inputQty: newInputQty,
+          }
+        }
+        return { ...current, items: updated }
+      }
+      return { ...current, items: [...current.items, item] }
+    })
+  }, [])
+
+  const removeIngredient = useCallback((id: string) => {
+    setState((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.ingredientId !== id),
+    }))
+  }, [])
+
+  const updateQuantity = useCallback((id: string, quantity: number, inputQty: number, recipeUnit: string) => {
+    setState((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.ingredientId === id ? { ...item, quantity, inputQty, recipeUnit } : item
+      ),
+    }))
+  }, [])
+
+  // Memoizados con useCallback y validación de valor para no disparar re-renders innecesarios
+  const setSalePrice = useCallback((salePrice: number) => {
+    setState((current) => (current.salePrice === salePrice ? current : { ...current, salePrice }))
+  }, [])
+
+  const setMinMarginPercent = useCallback((minMarginPercent: number) => {
+    setState((current) => (current.minMarginPercent === minMarginPercent ? current : { ...current, minMarginPercent }))
+  }, [])
+
+  const reset = useCallback(() => setState({ items: [], salePrice: 0, minMarginPercent: 30 }), [])
+
+  const totalCost = state.items.reduce((total, item) => total + item.quantity * item.unitCost, 0)
+  const marginAmount = state.salePrice - totalCost
+  const marginPercent = state.salePrice > 0 ? Math.round((marginAmount / state.salePrice) * 100) : 0
+
+  return {
+    ...state,
+    addIngredient,
+    removeIngredient,
+    updateQuantity,
+    setSalePrice,
+    setMinMarginPercent,
+    reset,
+    totalCost,
+    marginAmount,
+    marginPercent,
+    isUnderMargin: marginPercent < state.minMarginPercent,
+  }
+}
 
 function getAvailableRecipeUnits(baseUnit: string): string[] {
   if (baseUnit === 'kg') return ['gr', 'kg']
@@ -73,20 +158,20 @@ export default function NewProductPage() {
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
 
-  // Conexión reactiva al store real de Zustand
-  const items = useRecipeStore((state) => state.items)
-  const addIngredient = useRecipeStore((state) => state.addIngredient)
-  const removeIngredient = useRecipeStore((state) => state.removeIngredient)
-  const updateQuantity = useRecipeStore((state) => state.updateQuantity)
-  const setSalePrice = useRecipeStore((state) => state.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((state) => state.setMinMarginPercent)
-  const resetStore = useRecipeStore((state) => state.reset)
-
-  // Selectores con suscripción real a cambios de estado
-  const totalCost = useRecipeStore(selectTotalCost)
-  const marginAmount = useRecipeStore(selectMarginAmount)
-  const marginPercent = useRecipeStore(selectMarginPercent)
-  const isUnderMargin = useRecipeStore(selectIsUnderMargin)
+  const recipe = useRecipeState()
+  const {
+    items,
+    addIngredient,
+    removeIngredient,
+    updateQuantity,
+    setSalePrice,
+    setMinMarginPercent,
+    reset: resetStore,
+    totalCost,
+    marginAmount,
+    marginPercent,
+    isUnderMargin,
+  } = recipe
 
   // Formulario reactivo para campos básicos
   const {
@@ -113,7 +198,7 @@ export default function NewProductPage() {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
 
-  // Carga inicial de insumos y limpieza del store al desmontar
+  // Carga inicial de insumos y limpieza al desmontar (solo se ejecuta al montar/desmontar)
   useEffect(() => {
     resetStore()
     ingredientService
@@ -134,7 +219,8 @@ export default function NewProductPage() {
     return () => {
       resetStore()
     }
-  }, [getToken, resetStore])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedSupply = useMemo(
     () => supplies.find((s) => s.id === selectedSupplyId) ?? supplies[0],
