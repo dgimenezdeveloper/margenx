@@ -376,7 +376,7 @@ export default function ProductDetailPage() {
               {margin}%
             </p>
             <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-              Por debajo del margen mínimo ({targetMargin}%).
+              Por debajo del mínimo ({targetMargin}%)
             </p>
           </section>
         )}
