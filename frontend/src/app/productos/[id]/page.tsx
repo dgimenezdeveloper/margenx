@@ -186,20 +186,26 @@ export default function ProductDetailPage() {
     )
   }
 
-  // Cálculos matemáticos en tiempo real
   const currentSupply = availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0]
   const availableUnits = currentSupply ? getAvailableRecipeUnits(currentSupply.unit) : ['u']
 
+  // 1. Cálculos matemáticos ajustados según reglas de negocio (Issue #75)
+  const hasRecipe = recipe.length > 0
   const cost = recipe.reduce((sum, item) => sum + item.baseQty * item.cost, 0)
   const sale = Number(watchedSalePrice) || 0
-  const margin = sale > 0 ? Math.round(((sale - cost) / sale) * 1000) / 10 : 0
-  const gain = sale - cost
+
+  // Si no hay receta cargada o el costo es 0, no inventamos ganancia ni margen
+  const margin =
+    hasRecipe && sale > 0 && cost > 0
+      ? Math.round(((sale - cost) / sale) * 1000) / 10
+      : 0
+  const gain = hasRecipe && cost > 0 ? sale - cost : 0
   const targetMargin = Number(watchedMinMargin) || product.minMarginPercent
-  const isHealthy = margin >= targetMargin
+  const isHealthy = hasRecipe && margin >= targetMargin
 
   // Ajustes rápidos de precio
   const applySuggestedMargin = (targetPercentage: number) => {
-    if (cost <= 0) return
+    if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
     const suggestedPrice = Math.round(cost / factor)
     setValue('salePrice', String(suggestedPrice), { shouldValidate: true, shouldDirty: true })
@@ -318,7 +324,7 @@ export default function ProductDetailPage() {
         <Navbar title={product.name} backHref="/productos" />
 
         {/* Banner de Estado de Margen */}
-        {recipe.length === 0 ? (
+        {!hasRecipe ? (
           <section className="rounded-2xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Estado del producto
@@ -458,7 +464,7 @@ export default function ProductDetailPage() {
                 </span>
               </div>
 
-              {recipe.length === 0 ? (
+              {!hasRecipe ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
                   Sin insumos cargados. Suma ingredientes para costear el producto.
                 </div>
@@ -534,12 +540,17 @@ export default function ProductDetailPage() {
                     Costo Total: {money(cost)}
                   </p>
                 </div>
+                {/* 2. Encabezado del Simulador de Precio: sin ganancia inventada en borrador */}
                 <span
                   className={`text-sm font-black ${
-                    gain >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                    !hasRecipe
+                      ? 'text-gray-400 dark:text-gray-500'
+                      : gain >= 0
+                        ? 'text-emerald-700'
+                        : 'text-rose-700'
                   }`}
                 >
-                  Ganancia: {money(gain)}
+                  Ganancia: {!hasRecipe ? '$0' : money(gain)}
                 </span>
               </div>
 
@@ -562,8 +573,9 @@ export default function ProductDetailPage() {
                   </button>
                   <button
                     type="button"
+                    disabled={!hasRecipe || cost <= 0}
                     onClick={() => applySuggestedMargin(targetMargin)}
-                    className="rounded-xl bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 cursor-pointer"
+                    className="rounded-xl bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Sugerir {targetMargin}%
                   </button>
@@ -575,7 +587,7 @@ export default function ProductDetailPage() {
                 <div className="flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
-                    value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
+                    value={String(watchedSalePrice || '')}
                     onChange={(e) =>
                       setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), {
                         shouldValidate: true,
@@ -590,12 +602,19 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* 3. Pie del Simulador: proyección 0.0% si no hay receta */}
               <p
                 className={`text-xs font-bold ${
-                  margin >= targetMargin ? 'text-emerald-700' : 'text-rose-700'
+                  !hasRecipe
+                    ? 'text-gray-500 dark:text-gray-400'
+                    : margin >= targetMargin
+                      ? 'text-emerald-700'
+                      : 'text-rose-700'
                 }`}
               >
-                Proyección: Margen {margin}% {margin >= targetMargin ? '✅' : '⚠️'}
+                {!hasRecipe
+                  ? 'Proyección: 0.0% (Sin Receta)'
+                  : `Proyección: Margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
               </p>
             </div>
           </div>
