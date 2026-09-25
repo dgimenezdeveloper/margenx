@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { parsePaginationParams } from '../utils/pagination';
+import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
 const router = Router();
 
@@ -227,8 +228,6 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     throw new AppError('Insumo no encontrado.', 404);
   }
 
-  // 1) Verificar pertenencia ANTES de validar/actualizar, para no filtrar
-  //    información de insumos ajenos ni permitir su modificación.
   const existing = await prisma.ingredient.findFirst({
     where: { id, accountId },
     select: { id: true },
@@ -238,13 +237,47 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     throw new AppError('Insumo no encontrado.', 404);
   }
 
-  // 2) Validar payload (lanza AppError con 400 si falla).
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
 
-  // 3) Pertenencia ya verificada arriba; no se refiltra por accountId aquí.
-  const updated = await prisma.ingredient.update({
-    where: { id },
-    data: { name, unit, currentCost },
+  // Transacción: actualiza el insumo y recalcula en cascada el costo/margen
+  // de todos los productos que lo usan en su receta.
+  const updated = await prisma.$transaction(async (tx) => {
+    const ingredient = await tx.ingredient.update({
+      where: { id },
+      data: { name, unit, currentCost },
+    });
+
+    const affected = await tx.productIngredient.findMany({
+      where: { ingredientId: id },
+      select: { productId: true },
+    });
+    const productIds = [...new Set(affected.map((a) => a.productId))];
+
+    for (const productId of productIds) {
+      const product = await tx.product.findUnique({
+        where: { id: productId },
+        include: { ingredients: { include: { ingredient: { select: { currentCost: true } } } } },
+      });
+      if (!product) continue;
+
+      const cost = calculateRecipeTotal(
+        product.ingredients.map((pi) => ({
+          quantity: pi.quantity,
+          unitCost: pi.ingredient.currentCost,
+        }))
+      );
+
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          cost,
+          marginAmount: calculateMarginAmount(product.salePrice, cost),
+          marginPercent: calculateMarginPercent(product.salePrice, cost),
+        },
+      });
+    }
+
+    return ingredient;
   });
 
   return res.status(200).json({ ingredient: updated });
