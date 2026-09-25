@@ -71,7 +71,7 @@ export default function ProductDetailPage() {
     let active = true
     Promise.all([
       productService.getById(getToken, id),
-      ingredientService.getAll(getToken)
+      ingredientService.getAll(getToken),
     ])
       .then(([prodData, ingredientsData]) => {
         if (!active) return
@@ -82,20 +82,20 @@ export default function ProductDetailPage() {
         setTempName(prodData.name)
         setPrice(String(prodData.salePrice))
 
-        const mappedRecipe = prodData.ingredients.map(pi => ({
+        const mappedRecipe = prodData.ingredients.map((pi) => ({
           id: pi.ingredientId,
           name: pi.ingredient?.name || 'Insumo desconocido',
           baseUnit: pi.ingredient?.unit || 'u',
           recipeUnit: pi.ingredient?.unit || 'u',
           inputQty: pi.quantity,
           baseQty: pi.quantity,
-          cost: pi.ingredient?.currentCost || 0
+          cost: pi.ingredient?.currentCost || 0,
         }))
         setRecipe(mappedRecipe)
 
-        if (ingredientsData.length > 0) {
+        if (ingredientsData.length > 0 && ingredientsData[0]) {
           setSelectedSupplyId(ingredientsData[0].id)
-          setRecipeUnit(getAvailableRecipeUnits(ingredientsData[0].unit)[0])
+          setRecipeUnit(getAvailableRecipeUnits(ingredientsData[0].unit)[0] || 'kg')
         }
       })
       .catch((err) => {
@@ -105,7 +105,9 @@ export default function ProductDetailPage() {
         if (active) setIsLoading(false)
       })
 
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [id, getToken])
 
   if (isLoading) {
@@ -159,7 +161,7 @@ export default function ProductDetailPage() {
     const item = availablePantry.find((p) => p.id === supplyId)
     if (item) {
       const units = getAvailableRecipeUnits(item.unit)
-      setRecipeUnit(units[0])
+      setRecipeUnit(units[0] || 'kg')
       setInputQty(units[0] === 'gr' ? '50' : units[0] === 'ml' ? '30' : '1')
     }
   }
@@ -177,13 +179,13 @@ export default function ProductDetailPage() {
           recipeUnit,
           inputQty: numQty,
           baseQty,
-          cost: currentSupply.currentCost
-        }
+          cost: currentSupply.currentCost,
+        },
       ]
 
       try {
         await productService.update(getToken, id!, {
-          ingredients: newRecipe.map(r => ({ ingredientId: r.id, quantity: r.baseQty }))
+          ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
         })
         setRecipe(newRecipe)
         setShowAddModal(false)
@@ -198,7 +200,7 @@ export default function ProductDetailPage() {
     const newRecipe = recipe.filter((_, i) => i !== indexToRemove)
     try {
       await productService.update(getToken, id!, {
-        ingredients: newRecipe.map(r => ({ ingredientId: r.id, quantity: r.baseQty }))
+        ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
       })
       setRecipe(newRecipe)
       notify('Insumo eliminado de la receta')
@@ -354,7 +356,14 @@ export default function ProductDetailPage() {
                 <label className="block text-xs font-bold text-gray-500 mb-1">Precio de Venta</label>
                 <div className="flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <span className="text-lg font-bold text-gray-400">$</span>
-                  <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="decimal" type="number" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
+                  <input
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))}
+                    inputMode="decimal"
+                    type="number"
+                    step="any"
+                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                  />
                 </div>
               </div>
 
@@ -400,7 +409,14 @@ export default function ProductDetailPage() {
               Precio de Venta
               <div className="mt-1 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                 <span className="text-lg font-bold text-gray-400">$</span>
-                <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="decimal" type="number" className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none" />
+                <input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))}
+                  inputMode="decimal"
+                  type="number"
+                  step="any"
+                  className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                />
               </div>
             </label>
             <p className={`mt-2 text-xs font-bold ${margin >= product.minMarginPercent ? 'text-emerald-700' : 'text-rose-700'}`}>Proyección: Nuevo margen {margin}%</p>
@@ -440,7 +456,15 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Cantidad utilizada</label>
-                  <input value={inputQty} onChange={(e) => setInputQty(e.target.value)} inputMode="decimal" type="number" placeholder="50" className="no-spinners h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600" />
+                  <input
+                    value={inputQty}
+                    onChange={(e) => setInputQty(e.target.value)}
+                    inputMode="decimal"
+                    type="number"
+                    step="any"
+                    placeholder="50"
+                    className="no-spinners h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
+                  />
                 </div>
                 <div className="w-28">
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad</label>
