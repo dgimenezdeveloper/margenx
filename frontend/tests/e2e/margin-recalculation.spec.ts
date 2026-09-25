@@ -87,7 +87,7 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       }
 
       // Con el costo base del insumo, el margen debe estar saludable.
-      await expect(page.getByText(/Margen saludable/)).toBeVisible()
+      await expect(page.getByText(/Margen saludable/i)).toBeVisible()
 
       // --- Acción: editar el costo del insumo a un valor crítico desde /insumos ---
       await setIngredientCost(page, INGREDIENT_CRITICAL_COST)
