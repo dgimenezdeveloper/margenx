@@ -56,11 +56,11 @@ export default function ProductDetailPage() {
   const { getToken } = useAuth()
 
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setErrorState] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showSheet, setShowSheet] = useState(false) // Control del modal móvil del simulador
+  const [showSheet, setShowSheet] = useState(false)
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
@@ -83,6 +83,7 @@ export default function ProductDetailPage() {
     handleSubmit,
     reset,
     setValue,
+    setError,
     control,
     formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
@@ -100,7 +101,7 @@ export default function ProductDetailPage() {
 
     let active = true
     Promise.all([
-      productService.getById(getToken, id),
+      productService.getById(id, getToken),
       ingredientService.getAll(getToken),
     ])
       .then(([prodData, ingredientsData]) => {
@@ -108,7 +109,6 @@ export default function ProductDetailPage() {
         setProduct(prodData)
         setAvailablePantry(ingredientsData)
 
-        // Pre-poblar formulario con Zod
         reset({
           name: prodData.name,
           salePrice: String(prodData.salePrice),
@@ -132,7 +132,7 @@ export default function ProductDetailPage() {
         }
       })
       .catch((err) => {
-        if (active) setError(err instanceof ApiError ? err.message : 'Error al cargar el producto')
+        if (active) setErrorState(err instanceof ApiError ? err.message : 'Error al cargar el producto')
       })
       .finally(() => {
         if (active) setIsLoading(false)
@@ -191,7 +191,6 @@ export default function ProductDetailPage() {
   const currentSupply = availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0]
   const availableUnits = currentSupply ? getAvailableRecipeUnits(currentSupply.unit) : ['u']
 
-  // Cálculos matemáticos con reglas de negocio (QA - Issue #75)
   const hasRecipe = recipe.length > 0
   const cost = recipe.reduce((sum, item) => sum + item.baseQty * item.cost, 0)
   const sale = Number(watchedSalePrice) || 0
@@ -204,7 +203,6 @@ export default function ProductDetailPage() {
   const targetMargin = Number(watchedMinMargin) || product.minMarginPercent
   const isHealthy = hasRecipe && margin >= targetMargin
 
-  // Ajustes rápidos de precio
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
@@ -230,7 +228,6 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Agregar insumo a la receta
   const handleAddIngredient = async () => {
     const numQty = Number(inputQty)
     if (currentSupply && numQty > 0) {
@@ -249,9 +246,9 @@ export default function ProductDetailPage() {
       ]
 
       try {
-        await productService.update(getToken, id!, {
+        await productService.update(id!, {
           ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
-        })
+        }, getToken)
         setRecipe(newRecipe)
         setShowAddModal(false)
         notify(`"${currentSupply.name}" sumado a la receta`)
@@ -261,13 +258,12 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Quitar insumo de la receta
   const handleRemoveIngredient = async (indexToRemove: number) => {
     const newRecipe = recipe.filter((_, i) => i !== indexToRemove)
     try {
-      await productService.update(getToken, id!, {
+      await productService.update(id!, {
         ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
-      })
+      }, getToken)
       setRecipe(newRecipe)
       notify('Insumo eliminado de la receta')
     } catch {
@@ -275,15 +271,15 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Guardar formulario de edición con Zod
+  // Guardar formulario de edición con mapeo de errores del backend
   const handleFormSubmit = async (data: ProductFormValues) => {
     try {
       setIsSaving(true)
-      const updated = await productService.update(getToken, id!, {
+      const updated = await productService.update(id!, {
         name: data.name,
         salePrice: data.salePrice,
         minMarginPercent: data.minMarginPercent,
-      })
+      }, getToken)
       setProduct(updated)
       reset({
         name: updated.name,
@@ -291,14 +287,25 @@ export default function ProductDetailPage() {
         minMarginPercent: String(updated.minMarginPercent),
       })
       notify('Datos del producto guardados exitosamente')
-    } catch (err) {
-      notify(err instanceof ApiError ? err.message : 'Error al guardar los cambios')
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        const errorMsg = err.message.toLowerCase()
+        if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
+          setError('name', { type: 'server', message: err.message })
+        } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
+          setError('salePrice', { type: 'server', message: err.message })
+        } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
+          setError('minMarginPercent', { type: 'server', message: err.message })
+        }
+        notify(err.message)
+      } else {
+        notify('Error al guardar los cambios')
+      }
     } finally {
       setIsSaving(false)
     }
   }
 
-  // Guardar precio desde el modal móvil
   const handleSavePriceFromSheet = async () => {
     await handleSubmit(async (data) => {
       await handleFormSubmit(data)
@@ -306,11 +313,10 @@ export default function ProductDetailPage() {
     })()
   }
 
-  // Eliminar producto completo
   const handleDeleteProduct = async () => {
     try {
       setIsDeleting(true)
-      await productService.delete(getToken, id!)
+      await productService.delete(id!, getToken)
       notify('Producto eliminado correctamente.')
       setTimeout(() => navigate('/productos'), 600)
     } catch (err) {
