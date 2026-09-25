@@ -16,6 +16,7 @@ import {
   X,
   ShieldCheck,
   Save,
+  Pencil,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
@@ -59,6 +60,7 @@ export default function ProductDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showSheet, setShowSheet] = useState(false) // Control del modal móvil del simulador
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
@@ -189,12 +191,11 @@ export default function ProductDetailPage() {
   const currentSupply = availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0]
   const availableUnits = currentSupply ? getAvailableRecipeUnits(currentSupply.unit) : ['u']
 
-  // 1. Cálculos matemáticos ajustados según reglas de negocio (Issue #75)
+  // Cálculos matemáticos con reglas de negocio (QA - Issue #75)
   const hasRecipe = recipe.length > 0
   const cost = recipe.reduce((sum, item) => sum + item.baseQty * item.cost, 0)
   const sale = Number(watchedSalePrice) || 0
 
-  // Si no hay receta cargada o el costo es 0, no inventamos ganancia ni margen
   const margin =
     hasRecipe && sale > 0 && cost > 0
       ? Math.round(((sale - cost) / sale) * 1000) / 10
@@ -297,6 +298,14 @@ export default function ProductDetailPage() {
     }
   }
 
+  // Guardar precio desde el modal móvil
+  const handleSavePriceFromSheet = async () => {
+    await handleSubmit(async (data) => {
+      await handleFormSubmit(data)
+      setShowSheet(false)
+    })()
+  }
+
   // Eliminar producto completo
   const handleDeleteProduct = async () => {
     try {
@@ -312,7 +321,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 pb-36 pt-5 text-gray-900 md:px-8 md:pb-12 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
+    <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
         <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg animate-in fade-in slide-in-from-top-4">
           <Check className="size-5" />
@@ -528,7 +537,7 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
-          {/* Columna Derecha: Simulador de Precio */}
+          {/* Columna Derecha: Simulador de Precio (Desktop >= 1024px) */}
           <div className="hidden lg:col-span-5 lg:sticky lg:top-6 lg:block">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -540,7 +549,6 @@ export default function ProductDetailPage() {
                     Costo Total: {money(cost)}
                   </p>
                 </div>
-                {/* 2. Encabezado del Simulador de Precio: sin ganancia inventada en borrador */}
                 <span
                   className={`text-sm font-black ${
                     !hasRecipe
@@ -587,7 +595,7 @@ export default function ProductDetailPage() {
                 <div className="flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
-                    value={String(watchedSalePrice || '')}
+                    value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
                     onChange={(e) =>
                       setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), {
                         shouldValidate: true,
@@ -602,7 +610,6 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* 3. Pie del Simulador: proyección 0.0% si no hay receta */}
               <p
                 className={`text-xs font-bold ${
                   !hasRecipe
@@ -620,6 +627,142 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── BARRA FLOTANTE MÓVIL (< 1024px) ── */}
+      {!showSheet && (
+        <div className="fixed inset-x-0 bottom-16 z-20 mx-auto flex h-14 max-w-md items-center justify-between border-t border-gray-100 bg-white/95 px-5 shadow-sm backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+          <div className="flex flex-col text-left">
+            <span className="text-[11px] font-medium text-gray-500">Costo: {money(cost)}</span>
+            <span className="text-xs font-bold text-gray-900 dark:text-white">
+              Ganancia:{' '}
+              <strong
+                className={
+                  !hasRecipe
+                    ? 'text-gray-400 dark:text-gray-500'
+                    : gain >= 0
+                      ? 'text-emerald-700'
+                      : 'text-rose-700'
+                }
+              >
+                {!hasRecipe ? '$0' : money(gain)}
+              </strong>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSheet(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
+          >
+            <Pencil className="size-3.5" /> Ajustar Precio
+          </button>
+        </div>
+      )}
+
+      {/* ── BOTTOM SHEET / MODAL DEL SIMULADOR MÓVIL (< 1024px) ── */}
+      {showSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
+          <div className="fixed inset-0" onClick={() => setShowSheet(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+
+            <div className="mb-3 flex items-center justify-between text-xs font-semibold text-gray-500">
+              <span>SIMULADOR DE PRECIO (Costo: {money(cost)})</span>
+              <span
+                className={
+                  !hasRecipe
+                    ? 'text-sm font-bold text-gray-400 dark:text-gray-500'
+                    : gain >= 0
+                      ? 'text-sm font-bold text-emerald-700'
+                      : 'text-sm font-bold text-rose-700'
+                }
+              >
+                Ganancia: {!hasRecipe ? '$0' : money(gain)}
+              </span>
+            </div>
+
+            {/* Botones de ajuste rápido en móvil */}
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => adjustPriceFactor(1.05)}
+                className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+              >
+                +5%
+              </button>
+              <button
+                type="button"
+                onClick={() => adjustPriceFactor(1.10)}
+                className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+              >
+                +10%
+              </button>
+              <button
+                type="button"
+                disabled={!hasRecipe || cost <= 0}
+                onClick={() => applySuggestedMargin(targetMargin)}
+                className="rounded-xl border border-indigo-100 bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sugerir {targetMargin}%
+              </button>
+            </div>
+
+            {/* Input de precio en móvil */}
+            <label className="mb-1 block text-xs font-bold text-gray-600 dark:text-gray-300">
+              Precio de Venta
+              <div className="mt-1 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                <span className="text-lg font-bold text-gray-400">$</span>
+                <input
+                  value={String(watchedSalePrice || '')}
+                  onChange={(e) =>
+                    setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                    })
+                  }
+                  inputMode="decimal"
+                  type="number"
+                  step="any"
+                  className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                />
+              </div>
+            </label>
+
+            {/* Proyección de margen en móvil */}
+            <p
+              className={`mt-2 text-xs font-bold ${
+                !hasRecipe
+                  ? 'text-gray-500 dark:text-gray-400'
+                  : margin >= targetMargin
+                    ? 'text-emerald-700'
+                    : 'text-rose-700'
+              }`}
+            >
+              {!hasRecipe
+                ? 'Proyección: 0.0% (Sin Receta)'
+                : `Proyección: Nuevo margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
+            </p>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSheet(false)}
+                className="flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePriceFromSheet}
+                disabled={isSaving}
+                className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              >
+                {isSaving && <LoaderCircle className="size-4 animate-spin" />}
+                {isSaving ? 'Guardando...' : 'Guardar Precio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal / Diálogo de Confirmación de Eliminación */}
       {showDeleteModal && (
