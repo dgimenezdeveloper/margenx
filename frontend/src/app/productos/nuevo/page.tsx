@@ -23,6 +23,13 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
+import {
+  useRecipeStore,
+  selectTotalCost,
+  selectMarginAmount,
+  selectMarginPercent,
+  selectIsUnderMargin,
+} from '@/stores/useRecipeStore'
 
 type RecipeItem = {
   ingredientId: string
@@ -268,6 +275,11 @@ export default function NewProductPage() {
       const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
       updateQuantity(ingredientId, baseQty, val, activeUnit)
     }
+  }
+
+  const handleRemoveItem = (ingredientId: string, itemName: string) => {
+    removeIngredient(ingredientId)
+    notify(`"${itemName}" eliminado de la receta`)
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {

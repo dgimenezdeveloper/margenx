@@ -142,6 +142,56 @@ describe('POST /api/products', () => {
       expect.objectContaining({ where: { accountId: 'account-1', id: { in: ['ing-1'] } } })
     );
   });
+  it('permite salePrice = 0 (producto borrador) y calcula margen negativo sin lanzar 400 (fix del bug reportado por QA)', async () => {
+    // Insumo con currentCost = 1500, cantidad 1 => cost total = 1500
+    txIngredientFindManyMock.mockResolvedValue([
+      { id: 'ing-1', currentCost: new Prisma.Decimal('1500') },
+    ]);
+    txProductCreateMock.mockResolvedValue({
+      id: 'p-borrador',
+      name: 'Producto borrador',
+      cost: '1500.00',
+      marginAmount: '-1500.00',
+      marginPercent: '0.00',
+    });
+
+    const payload = {
+      name: 'Producto borrador',
+      salePrice: '0', // <- antes del fix, esto tiraba 400 "debe ser mayor a cero"
+      minMarginPercent: '0',
+      ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+    };
+
+    const res = await request(buildApp()).post('/api/products').send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.product.marginAmount).toBe('-1500.00');
+    expect(res.body.product.marginPercent).toBe('0.00');
+
+    // Verificamos qué se le pasó realmente a product.create, no solo el mock de retorno
+    const createCall = txProductCreateMock.mock.calls[0] as [{ data: any }];
+    const createData = createCall[0].data;
+
+    expect(createData.salePrice.toString()).toBe('0');
+    expect(createData.cost.toString()).toBe('1500');
+    expect(createData.marginAmount.toString()).toBe('-1500');
+    expect(createData.marginPercent.toString()).toBe('0');
+  });
+
+  it('sigue rechazando salePrice negativo con 400', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto inválido',
+        salePrice: '-10',
+        minMarginPercent: '0',
+        ingredients: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/mayor o igual a cero/);
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /api/products/:id', () => {
