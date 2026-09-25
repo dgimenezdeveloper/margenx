@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -23,13 +23,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
-import {
-  useRecipeStore,
-  selectTotalCost,
-  selectMarginAmount,
-  selectMarginPercent,
-  selectIsUnderMargin,
-} from '@/stores/useRecipeStore'
+const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 type RecipeItem = {
   ingredientId: string
@@ -47,74 +41,45 @@ type RecipeState = {
   minMarginPercent: number
 }
 
-const recipeInitialState: RecipeState = { items: [], salePrice: 0, minMarginPercent: 30 }
-let recipeState = recipeInitialState
-const recipeListeners = new Set<() => void>()
-const updateRecipeState = (update: (state: RecipeState) => RecipeState) => {
-  recipeState = update(recipeState)
-  recipeListeners.forEach((listener) => listener())
-}
+function useRecipeState() {
+  const [state, setState] = useState<RecipeState>({
+    items: [],
+    salePrice: 0,
+    minMarginPercent: 30,
+  })
 
-const recipeStore = {
-  getState: () => recipeState,
-  subscribe: (listener: () => void) => {
-    recipeListeners.add(listener)
-    return () => recipeListeners.delete(listener)
-  },
-  addIngredient: (item: RecipeItem) =>
-    updateRecipeState((state) => ({ ...state, items: [...state.items, item] })),
-  removeIngredient: (ingredientId: string) =>
-    updateRecipeState((state) => ({
-      ...state,
-      items: state.items.filter((item) => item.ingredientId !== ingredientId),
-    })),
-  updateQuantity: (ingredientId: string, quantity: number, inputQty: number, recipeUnit: string) =>
-    updateRecipeState((state) => ({
-      ...state,
-      items: state.items.map((item) =>
-        item.ingredientId === ingredientId ? { ...item, quantity, inputQty, recipeUnit } : item
-      ),
-    })),
-  setSalePrice: (salePrice: number) => updateRecipeState((state) => ({ ...state, salePrice })),
-  setMinMarginPercent: (minMarginPercent: number) =>
-    updateRecipeState((state) => ({ ...state, minMarginPercent })),
-  reset: () => updateRecipeState(() => ({ ...recipeInitialState })),
-}
+  const addIngredient = useCallback((item: RecipeItem) => {
+    setState((current) => ({ ...current, items: [...current.items, item] }))
+  }, [])
+  const removeIngredient = useCallback((id: string) => {
+    setState((current) => ({ ...current, items: current.items.filter((item) => item.ingredientId !== id) }))
+  }, [])
+  const updateQuantity = useCallback((id: string, quantity: number, inputQty: number, recipeUnit: string) => {
+    setState((current) => ({
+      ...current,
+      items: current.items.map((item) => item.ingredientId === id ? { ...item, quantity, inputQty, recipeUnit } : item),
+    }))
+  }, [])
+  const reset = useCallback(() => setState({ items: [], salePrice: 0, minMarginPercent: 30 }), [])
 
-function useRecipeStore<T>(
-  selector: (
-    state: RecipeState &
-      typeof recipeStore & {
-        totalCost: () => number
-        marginAmount: () => number
-        marginPercent: () => number
-        isUnderMargin: () => boolean
-      }
-  ) => T
-): T {
-  return selector({
-    ...recipeState,
-    ...recipeStore,
-    totalCost: () => recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
-    marginAmount: () => recipeState.salePrice - recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
-    marginPercent: () => {
-      const cost = recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
-      return recipeState.salePrice > 0 ? Math.round(((recipeState.salePrice - cost) / recipeState.salePrice) * 100) : 0
-    },
-    isUnderMargin: () => {
-      const cost = recipeState.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
-      return recipeState.items.length > 0 && recipeState.salePrice > 0 && ((recipeState.salePrice - cost) / recipeState.salePrice) * 100 < recipeState.minMarginPercent
-    },
-  } as RecipeState &
-    typeof recipeStore & {
-      totalCost: () => number
-      marginAmount: () => number
-      marginPercent: () => number
-      isUnderMargin: () => boolean
-    })
-}
+  const totalCost = state.items.reduce((total, item) => total + item.quantity * item.unitCost, 0)
+  const marginAmount = state.salePrice - totalCost
+  const marginPercent = state.salePrice > 0 ? Math.round((marginAmount / state.salePrice) * 100) : 0
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+  return {
+    ...state,
+    addIngredient,
+    removeIngredient,
+    updateQuantity,
+    setSalePrice: (salePrice: number) => setState((current) => ({ ...current, salePrice })),
+    setMinMarginPercent: (minMarginPercent: number) => setState((current) => ({ ...current, minMarginPercent })),
+    reset,
+    totalCost,
+    marginAmount,
+    marginPercent,
+    isUnderMargin: marginPercent < state.minMarginPercent,
+  }
+}
 
 function getAvailableRecipeUnits(baseUnit: string): string[] {
   if (baseUnit === 'kg') return ['gr', 'kg']
@@ -145,30 +110,20 @@ export default function NewProductPage() {
     window.setTimeout(() => setToast(null), 3000)
   }
 
-  // Catálogo de insumos disponibles cargados desde el backend
+  // Catálogo de insumos disponibles desde backend
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
 
-  // Estado del selector reactivo con búsqueda
+  // Selector reactivo de insumos
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedSupplyId, setSelectedSupplyId] = useState<string>('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
 
-  // Conexión al store global de Zustand
-  const items = useRecipeStore((state) => state.items)
-  const addIngredient = useRecipeStore((state) => state.addIngredient)
-  const removeIngredient = useRecipeStore((state) => state.removeIngredient)
-  const updateQuantity = useRecipeStore((state) => state.updateQuantity)
-  const setSalePrice = useRecipeStore((state) => state.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((state) => state.setMinMarginPercent)
-  const resetStore = useRecipeStore((state) => state.reset)
-
-  const totalCost = useRecipeStore((state) => state.totalCost())
-  const marginAmount = useRecipeStore((state) => state.marginAmount())
-  const marginPercent = useRecipeStore((state) => state.marginPercent())
-  const isUnderMargin = useRecipeStore((state) => state.isUnderMargin())
+  const recipe = useRecipeState()
+  const { items, addIngredient, removeIngredient, updateQuantity, setSalePrice, setMinMarginPercent,
+    reset: resetStore, totalCost, marginAmount, marginPercent, isUnderMargin } = recipe
 
   // Formulario reactivo para campos básicos
   const {
@@ -186,7 +141,7 @@ export default function NewProductPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Sincronizar el store al variar precio o margen mínimo
+  // Sincronización del store con el formulario
   useEffect(() => {
     setSalePrice(Number(watchedSalePrice) || 0)
   }, [watchedSalePrice, setSalePrice])
@@ -195,7 +150,7 @@ export default function NewProductPage() {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
 
-  // Carga inicial del catálogo de insumos
+  // Carga inicial de insumos y limpieza del store al desmontar
   useEffect(() => {
     resetStore()
     ingredientService
@@ -228,7 +183,7 @@ export default function NewProductPage() {
     [selectedSupply]
   )
 
-  // Filtro reactivo en vivo de insumos (<50ms)
+  // Filtro en vivo sin llamadas de red
   const filteredSupplies = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
     if (!q) return supplies
@@ -264,7 +219,6 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
-  // Actualización en línea de la cantidad dentro de la receta
   const handleItemQuantityChange = (ingredientId: string, rawVal: string) => {
     const targetItem = items.find((i) => i.ingredientId === ingredientId)
     if (!targetItem) return
@@ -308,7 +262,6 @@ export default function NewProductPage() {
     }
   }
 
-  // Previsualización del subtotal del insumo seleccionado
   const previewNumericQty = Number(inputQty) || 0
   const previewBaseQty = selectedSupply
     ? convertToBaseQty(previewNumericQty, recipeUnit, selectedSupply.unit)
@@ -329,7 +282,7 @@ export default function NewProductPage() {
           <Navbar title="Nuevo Producto" backHref="/productos" />
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-            {/* Columna Izquierda: Formulario y Constructor (Mobile y Desktop) */}
+            {/* Columna Izquierda: Datos y Receta */}
             <div className="space-y-6 lg:col-span-7">
               {/* Sección 1: Datos Básicos */}
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
@@ -355,6 +308,9 @@ export default function NewProductPage() {
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                       <span className="flex items-center justify-between">
                         <span>Precio de Venta</span>
+                        <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                          Usar punto (.)
+                        </span>
                       </span>
                       <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
                         <span className="font-bold text-gray-400">$</span>
@@ -402,7 +358,7 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* Banner de aviso amigable de UX para decimales */}
+                {/* Banner amigable de UX para decimales */}
                 <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
                   <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <p className="leading-tight">
@@ -449,7 +405,7 @@ export default function NewProductPage() {
                     />
                   </button>
 
-                  {/* Menú Desplegable con Input de Búsqueda Reactiva */}
+                  {/* Dropdown con Búsqueda Reactiva */}
                   {isDropdownOpen && (
                     <div className="absolute inset-x-4 top-20 z-30 mt-1 max-h-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 animate-in fade-in zoom-in-95 duration-150">
                       <div className="sticky top-0 border-b border-gray-100 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-950">
@@ -503,7 +459,7 @@ export default function NewProductPage() {
                     </div>
                   )}
 
-                  {/* Inputs de Cantidad y Unidad */}
+                  {/* Cantidad y Unidad */}
                   <div className="mt-3.5 flex items-center gap-2">
                     <div className="flex-1">
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
@@ -537,7 +493,6 @@ export default function NewProductPage() {
                     </div>
                   </div>
 
-                  {/* Previsualización del cálculo proporcional */}
                   {selectedSupply && previewNumericQty > 0 && (
                     <div className="mt-3 flex items-center justify-between rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
                       <span>
@@ -562,7 +517,7 @@ export default function NewProductPage() {
                   </button>
                 </div>
 
-                {/* Lista de Insumos Agregados con Ajuste de Cantidad en Vivo */}
+                {/* Lista de Insumos con Eliminación y Edición Reactiva */}
                 {items.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
                     Aún no has sumado insumos a esta receta. El producto se guardará como borrador ("Sin Receta").
@@ -571,7 +526,13 @@ export default function NewProductPage() {
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/50 p-2 dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/40">
                     {items.map((item) => {
                       const itemSubtotal = item.quantity * item.unitCost
-                      const displayQty = item.inputQty ?? convertToRecipeUnitQty(item.quantity, item.recipeUnit ?? item.unit, item.unit)
+                      const displayQty =
+                        item.inputQty ??
+                        convertToRecipeUnitQty(
+                          item.quantity,
+                          item.recipeUnit ?? item.unit,
+                          item.unit
+                        )
 
                       return (
                         <div
@@ -588,7 +549,6 @@ export default function NewProductPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            {/* Input reactivo de ajuste de cantidad */}
                             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
                               <input
                                 type="number"
@@ -615,7 +575,7 @@ export default function NewProductPage() {
 
                             <button
                               type="button"
-                              onClick={() => removeIngredient(item.ingredientId)}
+                              onClick={() => handleRemoveItem(item.ingredientId, item.name)}
                               className="rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
                               title="Remover insumo"
                               aria-label={`Eliminar ${item.name}`}
@@ -631,7 +591,7 @@ export default function NewProductPage() {
               </section>
             </div>
 
-            {/* Columna Derecha: Simulador de Rentabilidad Sticky (Desktop >= 1024px) */}
+            {/* Columna Derecha: Simulador Sticky (Desktop) */}
             <div className="hidden lg:col-span-5 lg:sticky lg:top-6 lg:block">
               <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-6">
                 <div className="border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -641,7 +601,6 @@ export default function NewProductPage() {
                   <h3 className="text-xl font-black mt-1">Análisis de Rentabilidad</h3>
                 </div>
 
-                {/* Semáforo de Margen / Estado Visual */}
                 <div>
                   {items.length === 0 ? (
                     <div className="flex items-center gap-2 rounded-2xl bg-gray-100 p-4 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -659,7 +618,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral mínimo ({String(watchedMinMargin || 0)}%).
+                        El margen está por debajo del umbral mínimo ({Number(watchedMinMargin) || 0}%).
                       </p>
                     </div>
                   ) : (
@@ -673,13 +632,12 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({String(watchedMinMargin || 0)}%).
+                        Cumple o supera el objetivo de rentabilidad ({Number(watchedMinMargin) || 0}%).
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Métricas consolidadas */}
                 <div className="space-y-2 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Costo Total de Elaboración:</span>
@@ -701,7 +659,6 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* Botones de sugerencia rápida de precio */}
                 {totalCost > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-gray-500">Ajuste Rápido de Precio</p>
@@ -755,7 +712,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        {/* Footer Fijo para Mobile (<1024px) */}
+        {/* Footer Sticky para Mobile (<1024px) */}
         <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="min-w-0">
