@@ -23,6 +23,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
+
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 type RecipeItem = {
@@ -49,17 +50,53 @@ function useRecipeState() {
   })
 
   const addIngredient = useCallback((item: RecipeItem) => {
-    setState((current) => ({ ...current, items: [...current.items, item] }))
+    setState((current) => {
+      const existingIndex = current.items.findIndex(
+        (i) => i.ingredientId === item.ingredientId
+      )
+      if (existingIndex >= 0) {
+        const updated = [...current.items]
+        const existing = updated[existingIndex]
+        if (existing) {
+          const newQuantity = existing.quantity + item.quantity
+          const newInputQty = (existing.inputQty ?? existing.quantity) + (item.inputQty ?? item.quantity)
+          updated[existingIndex] = {
+            ...existing,
+            quantity: newQuantity,
+            inputQty: newInputQty,
+          }
+        }
+        return { ...current, items: updated }
+      }
+      return { ...current, items: [...current.items, item] }
+    })
   }, [])
+
   const removeIngredient = useCallback((id: string) => {
-    setState((current) => ({ ...current, items: current.items.filter((item) => item.ingredientId !== id) }))
+    setState((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.ingredientId !== id),
+    }))
   }, [])
+
   const updateQuantity = useCallback((id: string, quantity: number, inputQty: number, recipeUnit: string) => {
     setState((current) => ({
       ...current,
-      items: current.items.map((item) => item.ingredientId === id ? { ...item, quantity, inputQty, recipeUnit } : item),
+      items: current.items.map((item) =>
+        item.ingredientId === id ? { ...item, quantity, inputQty, recipeUnit } : item
+      ),
     }))
   }, [])
+
+  // Memoizados con useCallback y validación de valor para no disparar re-renders innecesarios
+  const setSalePrice = useCallback((salePrice: number) => {
+    setState((current) => (current.salePrice === salePrice ? current : { ...current, salePrice }))
+  }, [])
+
+  const setMinMarginPercent = useCallback((minMarginPercent: number) => {
+    setState((current) => (current.minMarginPercent === minMarginPercent ? current : { ...current, minMarginPercent }))
+  }, [])
+
   const reset = useCallback(() => setState({ items: [], salePrice: 0, minMarginPercent: 30 }), [])
 
   const totalCost = state.items.reduce((total, item) => total + item.quantity * item.unitCost, 0)
@@ -71,8 +108,8 @@ function useRecipeState() {
     addIngredient,
     removeIngredient,
     updateQuantity,
-    setSalePrice: (salePrice: number) => setState((current) => ({ ...current, salePrice })),
-    setMinMarginPercent: (minMarginPercent: number) => setState((current) => ({ ...current, minMarginPercent })),
+    setSalePrice,
+    setMinMarginPercent,
     reset,
     totalCost,
     marginAmount,
@@ -122,8 +159,19 @@ export default function NewProductPage() {
   const [inputQty, setInputQty] = useState('100')
 
   const recipe = useRecipeState()
-  const { items, addIngredient, removeIngredient, updateQuantity, setSalePrice, setMinMarginPercent,
-    reset: resetStore, totalCost, marginAmount, marginPercent, isUnderMargin } = recipe
+  const {
+    items,
+    addIngredient,
+    removeIngredient,
+    updateQuantity,
+    setSalePrice,
+    setMinMarginPercent,
+    reset: resetStore,
+    totalCost,
+    marginAmount,
+    marginPercent,
+    isUnderMargin,
+  } = recipe
 
   // Formulario reactivo para campos básicos
   const {
@@ -150,7 +198,7 @@ export default function NewProductPage() {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
 
-  // Carga inicial de insumos y limpieza del store al desmontar
+  // Carga inicial de insumos y limpieza al desmontar (solo se ejecuta al montar/desmontar)
   useEffect(() => {
     resetStore()
     ingredientService
@@ -171,7 +219,8 @@ export default function NewProductPage() {
     return () => {
       resetStore()
     }
-  }, [getToken, resetStore])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedSupply = useMemo(
     () => supplies.find((s) => s.id === selectedSupplyId) ?? supplies[0],
