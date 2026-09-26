@@ -88,7 +88,6 @@ function useRecipeState() {
     }))
   }, [])
 
-  // Memoizados con useCallback y validación de valor para no disparar re-renders innecesarios
   const setSalePrice = useCallback((salePrice: number) => {
     setState((current) => (current.salePrice === salePrice ? current : { ...current, salePrice }))
   }, [])
@@ -179,6 +178,7 @@ export default function NewProductPage() {
     handleSubmit,
     control,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -198,7 +198,7 @@ export default function NewProductPage() {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
 
-  // Carga inicial de insumos y limpieza al desmontar (solo se ejecuta al montar/desmontar)
+  // Carga inicial de insumos y limpieza al desmontar
   useEffect(() => {
     resetStore()
     ingredientService
@@ -306,7 +306,19 @@ export default function NewProductPage() {
       resetStore()
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'Error al guardar el producto.')
+      if (error instanceof ApiError) {
+        const errorMsg = error.message.toLowerCase()
+        if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
+          setError('name', { type: 'server', message: error.message })
+        } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
+          setError('salePrice', { type: 'server', message: error.message })
+        } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
+          setError('minMarginPercent', { type: 'server', message: error.message })
+        }
+        notify(error.message)
+      } else {
+        notify('Error al guardar el producto.')
+      }
       setIsSubmitting(false)
     }
   }
@@ -788,6 +800,7 @@ export default function NewProductPage() {
               disabled={isSubmitting}
               className="flex h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
             >
+              {isSubmitting && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
               {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
             </button>
           </div>
