@@ -145,7 +145,7 @@ export function Navbar({
           }}
           className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
         >
-          <LogOut className="size-4" />
+          <LogOut className="size-5" />
           Salir
         </button>
       </div>

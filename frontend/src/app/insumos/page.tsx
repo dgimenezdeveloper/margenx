@@ -74,8 +74,8 @@ export default function SuppliesPage() {
     [supplies, query]
   )
 
-  const isTotalEmpty = supplies.length === 0
-  const isSearchEmpty = filtered.length === 0 && !isTotalEmpty
+  const isTotalEmpty = !isLoading && supplies.length === 0
+  const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
 
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
@@ -160,16 +160,20 @@ export default function SuppliesPage() {
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              <div className="relative flex-1 md:w-72 lg:w-80">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+              {/* Contenedor del Buscador: Desvinculado de estados condicionales y con tamaño rígido */}
+              <div className="relative w-full md:w-72 lg:w-80 shrink-0">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                  <Search className="size-4 text-gray-400" />
+                </span>
                 <input
+                  type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar insumos..."
-                  disabled={isTotalEmpty}
-                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-indigo-600 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-900"
+                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition-colors focus:border-indigo-600 dark:border-gray-800 dark:bg-gray-900"
                 />
               </div>
+
               <button
                 type="button"
                 onClick={handleOpenNew}
