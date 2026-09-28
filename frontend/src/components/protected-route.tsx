@@ -1,6 +1,12 @@
 import { SignedIn, SignedOut } from '@clerk/clerk-react'
 import { Navigate } from 'react-router-dom'
 import { isClerkConfigured } from '@/lib/clerkConfig'
+import { useSessionSecurity } from '@/hooks/useSessionSecurity'
+
+function ProtectedContent({ children }: { children: React.ReactNode }) {
+  useSessionSecurity()
+  return <>{children}</>
+}
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isClerkConfigured) {
@@ -9,7 +15,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <SignedIn>{children}</SignedIn>
+      <SignedIn>
+        <ProtectedContent>{children}</ProtectedContent>
+      </SignedIn>
       <SignedOut>
         <Navigate to="/login" replace />
       </SignedOut>

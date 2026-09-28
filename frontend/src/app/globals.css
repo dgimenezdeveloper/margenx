@@ -184,8 +184,6 @@ input[type='number'],
 .dark input { color: #f9fafb; }
 .dark input::placeholder { color: #9ca3af; }
 
-
-
 /* El simulador cerrado es una barra compacta; al abrirse recupera el bottom sheet completo. */
 .simulator-closed { height: 4rem; min-height: 4rem; overflow: hidden; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 0 1.25rem; }
 .simulator-closed > * { display: none !important; }
@@ -226,6 +224,10 @@ div.fixed.inset-0.z-30:not(:has([role='dialog'])) > * { width: 100%; max-width: 
 @layer base {
   :root {
     color-scheme: light;
+  }
+
+  html {
+    scrollbar-gutter: stable;
   }
 
   * {

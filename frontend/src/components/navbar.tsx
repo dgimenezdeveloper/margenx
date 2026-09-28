@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
 import {
   ArrowLeft,
   Boxes,
@@ -16,25 +15,18 @@ import {
   Sun,
 } from 'lucide-react'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { useTheme } from '@/hooks/useTheme'
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(() =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
-  )
-  const toggle = () =>
-    setDark((value) => {
-      const next = !value
-      document.documentElement.classList.toggle('dark', next)
-      return next
-    })
+  const { isDark, toggleTheme } = useTheme()
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleTheme}
       className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
       aria-label="Cambiar tema"
     >
-      {dark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4" />}
+      {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4" />}
     </button>
   )
 }
@@ -56,7 +48,7 @@ export function Navbar({
 }) {
   const pathname = usePathname()
   const { signOut } = useAuth()
-  const { businessName } = useCurrentUser()
+  const { businessName, isLoading } = useCurrentUser()
 
   const displayedCompanyName = companyName || businessName
 
@@ -100,7 +92,11 @@ export function Navbar({
             {titleMobileOnly && showCompany && (
               <span className="hidden items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200 md:flex">
                 <Building2 className="size-3" />
-                <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+                {isLoading ? (
+                  <div className="h-3 w-20 animate-pulse rounded bg-indigo-200 dark:bg-indigo-800" />
+                ) : (
+                  <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+                )}
               </span>
             )}
           </>
@@ -108,7 +104,11 @@ export function Navbar({
           showCompany && (
             <span className="flex items-center gap-1.5 truncate rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200">
               <Building2 className="size-3" />
-              <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+              {isLoading ? (
+                <div className="h-3 w-20 animate-pulse rounded bg-indigo-200 dark:bg-indigo-800" />
+              ) : (
+                <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+              )}
             </span>
           )
         )}
@@ -139,7 +139,10 @@ export function Navbar({
         <ThemeToggle />
         <button
           type="button"
-          onClick={() => void signOut({ redirectUrl: '/' })}
+          onClick={() => {
+            sessionStorage.removeItem('margenx_active_session')
+            void signOut({ redirectUrl: '/' })
+          }}
           className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
         >
           <LogOut className="size-4" />

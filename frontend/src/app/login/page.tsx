@@ -1,13 +1,45 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { SignIn } from '@clerk/clerk-react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Check } from 'lucide-react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
 
 export default function LoginPage() {
+  // Inicializamos el estado leyendo la URL directamente para evitar el setState síncrono en el useEffect
+  const [toast, setToast] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('reason') === 'inactivity') {
+        return 'Sesión cerrada por inactividad por motivos de seguridad.'
+      }
+    }
+    return null
+  })
+
+  useEffect(() => {
+    // Seteamos la sesión activa para que al redirigir a /dashboard, la pestaña sea válida
+    sessionStorage.setItem('margenx_active_session', 'true')
+
+    if (toast) {
+      // Limpiamos el query param de la URL sin recargar la página
+      window.history.replaceState({}, document.title, window.location.pathname)
+
+      // Ocultamos el toast después de 5 segundos
+      const timer = setTimeout(() => setToast(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-gray-50 px-5 py-10 text-gray-950 dark:bg-gray-950 dark:text-gray-100">
+      {toast && (
+        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg animate-in fade-in slide-in-from-top-4">
+          <Check className="size-5" />
+          {toast}
+        </div>
+      )}
       <Link
         href="/"
         className="absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-indigo-600"

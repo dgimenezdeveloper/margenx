@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
-/* Obliga a Tailwind v4 a obedecer la clase .dark en vez del sistema operativo */
 @variant dark (&:where(.dark, .dark *));
 
-/* Ocultar flechas de inputs numéricos */
+html {
+  scrollbar-gutter: stable;
+}
+
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button,
 .no-spinners::-webkit-inner-spin-button,

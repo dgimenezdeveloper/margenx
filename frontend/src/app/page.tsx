@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react'
 import { useState } from 'react'
+import { useTheme } from '@/hooks/useTheme'
 
 const benefits = [
   [
@@ -71,25 +72,16 @@ const faqs = [
 ]
 
 function ThemeToggle() {
-  const [dark, setDark] = useState(() =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
-  )
-
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    document.documentElement.style.colorScheme = next ? 'dark' : 'light'
-  }
+  const { isDark, toggleTheme } = useTheme()
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleTheme}
       className="flex cursor-pointer size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
       aria-label="Cambiar tema"
     >
-      {dark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-slate-600 dark:text-slate-300" />}
+      {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-slate-600 dark:text-slate-300" />}
     </button>
   )
 }
