@@ -27,7 +27,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
-import { useRecipeStore } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeItem, type RecipeState } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -73,19 +73,19 @@ export default function ProductDetailPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   // Conexión a Zustand
-  const items = useRecipeStore((s) => s.items)
-  const setItems = useRecipeStore((s) => s.setItems)
-  const addIngredient = useRecipeStore((s) => s.addIngredient)
-  const removeIngredient = useRecipeStore((s) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s) => s.updateQuantity)
-  const setSalePrice = useRecipeStore((s) => s.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((s) => s.setMinMarginPercent)
-  const resetStore = useRecipeStore((s) => s.reset)
+  const items = useRecipeStore((s: RecipeState) => s.items)
+  const setItems = useRecipeStore((s: RecipeState) => s.setItems)
+  const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
+  const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
+  const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
+  const resetStore = useRecipeStore((s: RecipeState) => s.reset)
 
-  const cost = useRecipeStore((s) => s.totalCost())
-  const margin = useRecipeStore((s) => s.marginPercent())
-  const gain = useRecipeStore((s) => s.marginAmount())
-  const isHealthy = useRecipeStore((s) => !s.isUnderMargin())
+  const cost = useRecipeStore((s: RecipeState) => s.totalCost())
+  const margin = useRecipeStore((s: RecipeState) => s.marginPercent())
+  const gain = useRecipeStore((s: RecipeState) => s.marginAmount())
+  const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
   const notify = (msg: string) => {
     setToast(msg)
@@ -227,13 +227,13 @@ export default function ProductDetailPage() {
       }
 
       addIngredient(newItem)
-      const updatedItems = useRecipeStore.getState().items
+      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
 
       try {
         await productService.update(
           id!,
           {
-            ingredients: updatedItems.map((r) => ({
+            ingredients: updatedItems.map((r: RecipeItem) => ({
               ingredientId: r.ingredientId,
               quantity: r.quantity,
             })),
@@ -249,7 +249,7 @@ export default function ProductDetailPage() {
   }
 
   const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i) => i.ingredientId === ingredientId)
+    const targetItem = items.find((i: { ingredientId: string }) => i.ingredientId === ingredientId)
     if (!targetItem) return
 
     const val = Number(rawVal)
@@ -258,12 +258,12 @@ export default function ProductDetailPage() {
       const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
       updateQuantity(ingredientId, baseQty, val, activeUnit)
       
-      const updatedItems = useRecipeStore.getState().items
+      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
       try {
         await productService.update(
           id!,
           {
-            ingredients: updatedItems.map((r) => ({
+            ingredients: updatedItems.map((r: RecipeItem) => ({
               ingredientId: r.ingredientId,
               quantity: r.quantity,
             })),
@@ -278,12 +278,12 @@ export default function ProductDetailPage() {
 
   const handleRemoveIngredient = async (ingredientId: string) => {
     removeIngredient(ingredientId)
-    const updatedItems = useRecipeStore.getState().items
+    const updatedItems = useRecipeStore.getState().items as RecipeItem[]
     try {
       await productService.update(
         id!,
         {
-          ingredients: updatedItems.map((r) => ({
+          ingredients: updatedItems.map((r: RecipeItem) => ({
             ingredientId: r.ingredientId,
             quantity: r.quantity,
           })),
@@ -297,17 +297,19 @@ export default function ProductDetailPage() {
   }
 
   const handleFormSubmit = async (data: ProductFormValues) => {
+    const payload = {
+      name: data.name,
+      salePrice: Number(data.salePrice),
+      minMarginPercent: Number(data.minMarginPercent),
+      ingredients: items.map((item: { ingredientId: string; quantity: number }) => ({
+        ingredientId: item.ingredientId,
+        quantity: Number(item.quantity),
+      })),
+    }
+
     try {
       setIsSaving(true)
-      const updated = await productService.update(
-        id!,
-        {
-          name: data.name,
-          salePrice: data.salePrice,
-          minMarginPercent: data.minMarginPercent,
-        },
-        getToken
-      )
+      const updated = await productService.update(id!, payload, getToken)
       setProduct(updated)
       reset({
         name: updated.name,
@@ -552,7 +554,7 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {items.map((item) => {
+                  {items.map((item: { ingredientId: string; quantity: number; unitCost: number; name: string; inputQty?: number; recipeUnit?: string; unit: string }) => {
                     const itemSubtotal = item.quantity * item.unitCost
                     const displayQty =
                       item.inputQty ??

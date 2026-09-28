@@ -24,7 +24,7 @@ import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
 import { useCurrentUser } from '@/lib/useCurrentUser'
-import { useRecipeStore } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -69,18 +69,18 @@ export default function NewProductPage() {
   const [inputQty, setInputQty] = useState('100')
 
   // Conexión a Zustand
-  const items = useRecipeStore((s) => s.items)
-  const addIngredient = useRecipeStore((s) => s.addIngredient)
-  const removeIngredient = useRecipeStore((s) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s) => s.updateQuantity)
-  const setSalePrice = useRecipeStore((s) => s.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((s) => s.setMinMarginPercent)
-  const resetStore = useRecipeStore((s) => s.reset)
+  const items = useRecipeStore((s: RecipeState) => s.items)
+  const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
+  const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
+  const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
+  const resetStore = useRecipeStore((s: RecipeState) => s.reset)
 
-  const totalCost = useRecipeStore((s) => s.totalCost())
-  const marginAmount = useRecipeStore((s) => s.marginAmount())
-  const marginPercent = useRecipeStore((s) => s.marginPercent())
-  const isUnderMargin = useRecipeStore((s) => s.isUnderMargin())
+  const totalCost = useRecipeStore((s: RecipeState) => s.totalCost())
+  const marginAmount = useRecipeStore((s: RecipeState) => s.marginAmount())
+  const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
+  const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
 
   const {
     register,
@@ -182,7 +182,7 @@ export default function NewProductPage() {
   }
 
   const handleItemQuantityChange = (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i) => i.ingredientId === ingredientId)
+    const targetItem = items.find((i: { ingredientId: string }) => i.ingredientId === ingredientId)
     if (!targetItem) return
 
     const val = Number(rawVal)
@@ -199,17 +199,19 @@ export default function NewProductPage() {
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
+    const payload = {
+      name: data.name,
+      salePrice: Number(data.salePrice),
+      minMarginPercent: Number(data.minMarginPercent),
+      ingredients: items.map((item: { ingredientId: string; quantity: number }) => ({
+        ingredientId: item.ingredientId,
+        quantity: Number(item.quantity),
+      })),
+    }
+
     try {
       setIsSubmitting(true)
-      await productService.create(getToken, {
-        name: data.name,
-        salePrice: data.salePrice,
-        minMarginPercent: data.minMarginPercent,
-        ingredients: items.map((item) => ({
-          ingredientId: item.ingredientId,
-          quantity: item.quantity,
-        })),
-      })
+      await productService.create(getToken, payload)
 
       notify(
         items.length === 0
@@ -232,6 +234,7 @@ export default function NewProductPage() {
       } else {
         notify('Error al guardar el producto.')
       }
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -490,7 +493,7 @@ export default function NewProductPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/50 p-2 dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/40">
-                    {items.map((item) => {
+                    {items.map((item: { ingredientId: string; quantity: number; unitCost: number; name: string; inputQty?: number; recipeUnit?: string; unit: string }) => {
                       const itemSubtotal = item.quantity * item.unitCost
                       const displayQty =
                         item.inputQty ??
