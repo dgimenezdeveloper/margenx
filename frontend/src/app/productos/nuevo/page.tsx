@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   AlertTriangle,
-  Check,
   ChevronDown,
   Info,
   LoaderCircle,
@@ -19,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import ToastAlert from '@/components/ToastAlert'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -51,12 +51,12 @@ export default function NewProductPage() {
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const notify = (msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 3000)
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type })
+    window.setTimeout(() => setToast(null), 4000)
   }
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
@@ -230,9 +230,9 @@ export default function NewProductPage() {
         } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
           setError('minMarginPercent', { type: 'server', message: error.message })
         }
-        notify(error.message)
+        notify(error.message, 'error')
       } else {
-        notify('Error al guardar el producto.')
+        notify('Error al guardar el producto.', 'error')
       }
     } finally {
       setIsSubmitting(false)
@@ -247,12 +247,7 @@ export default function NewProductPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
-      {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5 shrink-0" />
-          <span>{toast}</span>
-        </div>
-      )}
+      {toast && <ToastAlert message={toast.message} type={toast.type} />}
 
       <form onSubmit={handleSubmit(handleSaveProduct)} noValidate>
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">

@@ -74,6 +74,7 @@ interface SingleProductResponse {
 function normalizeProduct(product: RawProduct): Product {
   return {
     ...product,
+    name: typeof product.name === 'string' ? product.name.replace(/(^|\s)\S/g, (t) => t.toUpperCase()) : String(product.name),
     salePrice: Number(product.salePrice),
     minMarginPercent: Number(product.minMarginPercent),
     cost: Number(product.cost),
