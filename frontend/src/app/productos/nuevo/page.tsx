@@ -56,8 +56,14 @@ export default function NewProductPage() {
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
-    window.setTimeout(() => setToast(null), 4000)
   }
+
+  // Cada toast nuevo reinicia el conteo; el cleanup cancela el timer anterior y también al desmontar
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(id)
+  }, [toast])
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
@@ -247,7 +253,13 @@ export default function NewProductPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
-      {toast && <ToastAlert message={toast.message} type={toast.type} />}
+      {toast && (
+        <ToastAlert
+          key={`${toast.type}-${toast.message}`}
+          message={toast.message}
+          type={toast.type}
+        />
+      )}
 
       <form onSubmit={handleSubmit(handleSaveProduct)} noValidate>
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
