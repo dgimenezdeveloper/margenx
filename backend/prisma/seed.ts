@@ -1,11 +1,16 @@
 /// <reference types="node" />
 import "dotenv/config";
 import { Prisma, PrismaClient, Role } from "@prisma/client";
+import {
+  calculateRecipeTotal,
+  calculateMarginAmount,
+  calculateMarginPercent,
+} from "../src/services/marginCalculator";
 
-// Issue #30 — referencia QA confirmada.
+// Issue #30 / Issue #90 — referencia QA confirmada.
 // Todos los importes están en ARS.
 // Conversión fija de insumos en USD: 1540 ARS/USD.
-// No incluye envases, descuentos por volumen ni recetas.
+// No incluye envases ni descuentos por volumen.
 //
 // IMPORTANTE: conservar estos IDs entre ejecuciones.
 const accounts = [
@@ -31,10 +36,141 @@ const accounts = [
       { id: "30b00001-0000-4000-8000-000000000010", name: "Ricota Castelmar", unit: "kg", currentCost: "4294.14" },
     ],
     products: [
-      { id: "30c00001-0000-4000-8000-000000000001", name: "Medialunas de manteca — docena (12 unidades)", salePrice: "13500.00", minMarginPercent: "65.00" },
-      { id: "30c00001-0000-4000-8000-000000000002", name: "Medialunas de grasa — docena (12 unidades)", salePrice: "13500.00", minMarginPercent: "70.00" },
-      { id: "30c00001-0000-4000-8000-000000000003", name: "Pan flauta — 1 kg", salePrice: "4332.14", minMarginPercent: "55.00" },
-      { id: "30c00001-0000-4000-8000-000000000004", name: "Tarta de ricota — 24 cm", salePrice: "28000.00", minMarginPercent: "60.00" },
+      {
+        id: "30c00001-0000-4000-8000-000000000001",
+        name: "Medialunas de manteca — docena (12 unidades)",
+        salePrice: "13500.00",
+        minMarginPercent: "65.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.500" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000004", quantity: "0.250" }, // Manteca
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.080" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.020" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000008", quantity: "0.150" }, // Leche
+          { ingredientId: "30b00001-0000-4000-8000-000000000009", quantity: "1.000" }, // Huevo
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000002",
+        name: "Medialunas de grasa — docena (12 unidades)",
+        salePrice: "13500.00",
+        minMarginPercent: "70.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.500" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000005", quantity: "0.250" }, // Grasa bovina
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.060" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.020" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000008", quantity: "0.100" }, // Leche
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000003",
+        name: "Pan flauta — 1 kg",
+        salePrice: "4332.14",
+        minMarginPercent: "55.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "0.600" }, // Harina 000
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.015" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.015" }, // Sal
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000004",
+        name: "Tarta de ricota — 24 cm",
+        salePrice: "28000.00",
+        minMarginPercent: "60.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000010", quantity: "1.000" }, // Ricota
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.300" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000004", quantity: "0.150" }, // Manteca
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.200" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000009", quantity: "3.000" }, // Huevo
+          { ingredientId: "30b00001-0000-4000-8000-000000000008", quantity: "0.200" }, // Leche
+        ],
+      },
+      {
+        // ⚠️ Alerta roja intencional (issue #90): margen real < minMarginPercent.
+        id: "30c00001-0000-4000-8000-000000000005",
+        name: "Bizcochitos de grasa — 1 kg",
+        salePrice: "3200.00",
+        minMarginPercent: "40.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "0.500" }, // Harina 000
+          { ingredientId: "30b00001-0000-4000-8000-000000000005", quantity: "0.300" }, // Grasa bovina
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.050" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.010" }, // Levadura
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000006",
+        name: "Pan lactal — 800 g",
+        salePrice: "4500.00",
+        minMarginPercent: "55.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.500" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000008", quantity: "0.300" }, // Leche
+          { ingredientId: "30b00001-0000-4000-8000-000000000004", quantity: "0.050" }, // Manteca
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.040" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.015" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000009", quantity: "1.000" }, // Huevo
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000007",
+        name: "Facturas surtidas — docena (12 unidades)",
+        salePrice: "14000.00",
+        minMarginPercent: "65.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.500" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000004", quantity: "0.200" }, // Manteca
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.150" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.020" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000009", quantity: "2.000" }, // Huevo
+          { ingredientId: "30b00001-0000-4000-8000-000000000008", quantity: "0.150" }, // Leche
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000008",
+        name: "Cremonas de grasa — unidad",
+        salePrice: "900.00",
+        minMarginPercent: "60.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "0.080" }, // Harina 000
+          { ingredientId: "30b00001-0000-4000-8000-000000000005", quantity: "0.030" }, // Grasa bovina
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.002" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.003" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.010" }, // Azúcar
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000009",
+        name: "Cañoncitos con dulce de leche — docena (12 unidades)",
+        salePrice: "12000.00",
+        minMarginPercent: "60.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000002", quantity: "0.400" }, // Harina 0000
+          { ingredientId: "30b00001-0000-4000-8000-000000000004", quantity: "0.300" }, // Manteca
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.100" }, // Azúcar
+          { ingredientId: "30b00001-0000-4000-8000-000000000009", quantity: "2.000" }, // Huevo
+        ],
+      },
+      {
+        id: "30c00001-0000-4000-8000-000000000010",
+        name: "Prepizzas — x2 unidades",
+        salePrice: "3600.00",
+        minMarginPercent: "55.00",
+        recipe: [
+          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "0.400" }, // Harina 000
+          { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.015" }, // Levadura
+          { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.010" }, // Sal
+          { ingredientId: "30b00001-0000-4000-8000-000000000003", quantity: "0.020" }, // Azúcar
+        ],
+      },
     ],
   },
   {
@@ -57,10 +193,122 @@ const accounts = [
       { id: "30b00002-0000-4000-8000-000000000010", name: "Color", unit: "l", currentCost: "2000.00" },
     ],
     products: [
-      { id: "30c00002-0000-4000-8000-000000000001", name: "Jabón líquido (Ariel/Skip/Ace) — 1 L", salePrice: "750.00", minMarginPercent: "40.00" },
-      { id: "30c00002-0000-4000-8000-000000000002", name: "Suavizante (Vivere/Johnson Bebé/Lavadero/Confort Lila) — 1 L", salePrice: "750.00", minMarginPercent: "40.00" },
-      { id: "30c00002-0000-4000-8000-000000000003", name: "Detergente (Magistral) — 1 L", salePrice: "650.00", minMarginPercent: "35.00" },
-      { id: "30c00002-0000-4000-8000-000000000004", name: "Perfumina (Vivere/Confort) — 250 ml", salePrice: "2000.00", minMarginPercent: "35.00" },
+      {
+        id: "30c00002-0000-4000-8000-000000000001",
+        name: "Jabón líquido (Ariel/Skip/Ace) — 1 L",
+        salePrice: "750.00",
+        minMarginPercent: "40.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000004", quantity: "0.050" }, // Sulfonico
+          { ingredientId: "30b00002-0000-4000-8000-000000000008", quantity: "0.030" }, // Sal
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.002" }, // Color
+          { ingredientId: "30b00002-0000-4000-8000-000000000002", quantity: "0.020" }, // Soda
+        ],
+      },
+      {
+        // ⚠️ Alerta roja intencional (issue #90): margen real < minMarginPercent.
+        id: "30c00002-0000-4000-8000-000000000002",
+        name: "Suavizante (Vivere/Johnson Bebé/Lavadero/Confort Lila) — 1 L",
+        salePrice: "750.00",
+        minMarginPercent: "40.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000001", quantity: "0.030" }, // Pasta suavi
+          { ingredientId: "30b00002-0000-4000-8000-000000000003", quantity: "0.010" }, // Etoxilado
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.002" }, // Color
+          { ingredientId: "30b00002-0000-4000-8000-000000000006", quantity: "0.010" }, // Alcohol
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000003",
+        name: "Detergente (Magistral) — 1 L",
+        salePrice: "650.00",
+        minMarginPercent: "35.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000004", quantity: "0.040" }, // Sulfonico
+          { ingredientId: "30b00002-0000-4000-8000-000000000002", quantity: "0.015" }, // Soda
+          { ingredientId: "30b00002-0000-4000-8000-000000000008", quantity: "0.020" }, // Sal
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000004",
+        name: "Perfumina (Vivere/Confort) — 250 ml",
+        salePrice: "2000.00",
+        minMarginPercent: "35.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000006", quantity: "0.150" }, // Alcohol
+          { ingredientId: "30b00002-0000-4000-8000-000000000007", quantity: "0.020" }, // Nonil
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.005" }, // Color
+        ],
+      },
+      {
+        // ⚠️ Margen real también queda por debajo del objetivo (no exigido por el
+        // Gherkin del issue, pero coherente con el nombre "concentrado").
+        id: "30c00002-0000-4000-8000-000000000005",
+        name: "Desodorante de piso concentrado — 1 L",
+        salePrice: "1200.00",
+        minMarginPercent: "35.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000007", quantity: "0.080" }, // Nonil
+          { ingredientId: "30b00002-0000-4000-8000-000000000006", quantity: "0.030" }, // Alcohol
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.003" }, // Color
+          { ingredientId: "30b00002-0000-4000-8000-000000000009", quantity: "0.005" }, // Opacante
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000006",
+        name: "Lavandina común — 1 L",
+        salePrice: "500.00",
+        minMarginPercent: "30.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000002", quantity: "0.080" }, // Soda
+          { ingredientId: "30b00002-0000-4000-8000-000000000008", quantity: "0.010" }, // Sal
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000007",
+        name: "Desengrasante multiuso — 1 L",
+        salePrice: "1500.00",
+        minMarginPercent: "40.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000004", quantity: "0.060" }, // Sulfonico
+          { ingredientId: "30b00002-0000-4000-8000-000000000002", quantity: "0.030" }, // Soda
+          { ingredientId: "30b00002-0000-4000-8000-000000000005", quantity: "0.005" }, // Aceite
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000008",
+        name: "Limpiavidrios — 500 ml",
+        salePrice: "800.00",
+        minMarginPercent: "35.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000006", quantity: "0.100" }, // Alcohol
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.002" }, // Color
+          { ingredientId: "30b00002-0000-4000-8000-000000000003", quantity: "0.005" }, // Etoxilado
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000009",
+        name: "Cera líquida autobrillo — 1 L",
+        salePrice: "2200.00",
+        minMarginPercent: "40.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000005", quantity: "0.030" }, // Aceite
+          { ingredientId: "30b00002-0000-4000-8000-000000000003", quantity: "0.020" }, // Etoxilado
+          { ingredientId: "30b00002-0000-4000-8000-000000000009", quantity: "0.010" }, // Opacante
+        ],
+      },
+      {
+        id: "30c00002-0000-4000-8000-000000000010",
+        name: "Jabón antibacterial manos — 500 ml",
+        salePrice: "900.00",
+        minMarginPercent: "35.00",
+        recipe: [
+          { ingredientId: "30b00002-0000-4000-8000-000000000001", quantity: "0.015" }, // Pasta suavi
+          { ingredientId: "30b00002-0000-4000-8000-000000000003", quantity: "0.010" }, // Etoxilado
+          { ingredientId: "30b00002-0000-4000-8000-000000000006", quantity: "0.030" }, // Alcohol
+          { ingredientId: "30b00002-0000-4000-8000-000000000010", quantity: "0.002" }, // Color
+        ],
+      },
     ],
   },
 ];
@@ -69,8 +317,11 @@ const accounts = [
 const prisma = new PrismaClient();
 
 function confirmDatabaseTarget() {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Seed bloqueado: NODE_ENV=production.");
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+    throw new Error(
+      "Seed bloqueado: NODE_ENV=production. Si realmente querés cargar el dataset de demo en " +
+      "producción, configurá ALLOW_PRODUCTION_SEED=true explícitamente (ver \"db:seed:prod\").",
+    );
   }
 
   const connection = process.env.DATABASE_URL;
@@ -94,8 +345,8 @@ function confirmDatabaseTarget() {
   if (process.env.SEED_CONFIRM_TARGET !== target) {
     throw new Error(
       "Carga no autorizada. Destino detectado: " + target +
-      ". Verificá que sea tu base local/de pruebas y luego configurá " +
-      "SEED_CONFIRM_TARGET con ese valor exacto. No uses una base de producción.",
+      ". Verificá que sea tu base local/de pruebas (o de staging, si es intencional) y luego " +
+      "configurá SEED_CONFIRM_TARGET con ese valor exacto.",
     );
   }
 
@@ -183,6 +434,11 @@ async function main() {
         });
       }
 
+      // Costo unitario vigente de cada insumo de la cuenta, para calcular las recetas.
+      const ingredientCostById = new Map(
+        account.ingredients.map((ingredient) => [ingredient.id, new Prisma.Decimal(ingredient.currentCost)]),
+      );
+
       for (const product of account.products) {
         const matchingProducts = await tx.product.findMany({
           where: {
@@ -201,18 +457,55 @@ async function main() {
           throw new Error("Conflicto de identidad en el producto " + product.name + ".");
         }
 
+        const salePrice = new Prisma.Decimal(product.salePrice);
+        const recipeItems = product.recipe.map((item) => {
+          const unitCost = ingredientCostById.get(item.ingredientId);
+          if (!unitCost) {
+            throw new Error(
+              "Receta de \"" + product.name + "\" referencia un insumo inexistente: " + item.ingredientId,
+            );
+          }
+          return { quantity: new Prisma.Decimal(item.quantity), unitCost };
+        });
+
+        const cost = calculateRecipeTotal(recipeItems);
+        const marginAmount = calculateMarginAmount(salePrice, cost);
+        const marginPercent = calculateMarginPercent(salePrice, cost);
+
         const values = {
           name: product.name,
-          salePrice: new Prisma.Decimal(product.salePrice),
+          salePrice,
           minMarginPercent: new Prisma.Decimal(product.minMarginPercent),
+          cost,
+          marginAmount,
+          marginPercent,
         };
 
         await tx.product.upsert({
           where: { id: product.id },
           create: { id: product.id, accountId: account.id, ...values },
-          // Conserva cost, marginAmount, marginPercent y recetas existentes.
           update: values,
         });
+
+        // Idempotencia por clave compuesta [productId, ingredientId]: upsert, nunca duplica.
+        for (const item of product.recipe) {
+          await tx.productIngredient.upsert({
+            where: {
+              productId_ingredientId: {
+                productId: product.id,
+                ingredientId: item.ingredientId,
+              },
+            },
+            create: {
+              productId: product.id,
+              ingredientId: item.ingredientId,
+              quantity: new Prisma.Decimal(item.quantity),
+            },
+            update: {
+              quantity: new Prisma.Decimal(item.quantity),
+            },
+          });
+        }
       }
     }
 
@@ -226,8 +519,7 @@ async function main() {
     ];
   }, { timeout: 30000 });
 
-  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos y 8 productos base.");
-  console.log("No se insertaron, modificaron ni eliminaron recetas.");
+  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos, 20 productos y sus recetas (BOM).");
   console.table(counts);
 }
 
