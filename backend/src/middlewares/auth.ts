@@ -1,11 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '@clerk/backend';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client'; // <-- AGREGAR IMPORTACIÓN
 
-/**
- * Representa los datos del usuario autenticado
- * que estarán disponibles en req.user.
- */
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
@@ -15,13 +12,11 @@ export interface AuthenticatedRequest extends Request {
     account?: {
       id: string;
       businessName: string;
+      defaultMinMarginPercent: Prisma.Decimal; // <-- NUEVO CAMPO EN LA INTERFAZ
     };
   };
 }
 
-/**
- * Middleware encargado de autenticar las peticiones.
- */
 export async function authMiddleware(
   req: AuthenticatedRequest,
   res: Response,
@@ -52,6 +47,7 @@ export async function authMiddleware(
           select: {
             id: true,
             businessName: true,
+            defaultMinMarginPercent: true, // <-- NUEVO CAMPO EN LA CONSULTA
           },
         },
       },
