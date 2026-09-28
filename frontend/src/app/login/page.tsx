@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { SignIn } from '@clerk/clerk-react'
 import { ArrowLeft, Check } from 'lucide-react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function LoginPage() {
+  const { isDark } = useTheme()
+
   // Inicializamos el estado leyendo la URL directamente para evitar el setState síncrono en el useEffect
   const [toast, setToast] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -52,7 +55,23 @@ export default function LoginPage() {
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
         {isClerkConfigured ? (
-          <SignIn fallbackRedirectUrl="/dashboard" routing="path" path="/login" />
+          <SignIn
+            fallbackRedirectUrl="/dashboard"
+            routing="path"
+            path="/login"
+            appearance={{
+              variables: isDark ? {
+                colorBackground: '#111827', // bg-gray-900 (Fondo de la tarjeta)
+                colorText: '#f9fafb',       // text-gray-50 (Texto principal)
+                colorInputBackground: '#1f2937', // bg-gray-800 (Fondo de los inputs)
+                colorInputText: '#f9fafb',  // text-gray-50 (Texto de los inputs)
+                colorPrimary: '#4f46e5',    // bg-indigo-600 (Botón principal)
+                colorTextSecondary: '#9ca3af', // text-gray-400 (Textos secundarios)
+              } : {
+                colorPrimary: '#4f46e5',    // bg-indigo-600 (Mantenemos el color de marca en modo claro)
+              }
+            }}
+          />
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
             Configura una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.

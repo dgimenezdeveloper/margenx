@@ -23,7 +23,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+      className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-700  dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100"
       aria-label="Cambiar tema"
     >
       {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4" />}
