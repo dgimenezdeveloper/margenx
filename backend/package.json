@@ -7,7 +7,8 @@
     "test:watch": "vitest",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "db:seed:prod": "NODE_ENV=production ALLOW_PRODUCTION_SEED=true tsx prisma/seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
