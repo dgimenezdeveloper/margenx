@@ -23,7 +23,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-700  dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100"
+      className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100"
       aria-label="Cambiar tema"
     >
       {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4" />}
@@ -77,10 +77,11 @@ export function Navbar({
             className="flex shrink-0 items-center gap-2 transition hover:opacity-85 cursor-pointer"
             title="Ir al inicio"
           >
-            <img src="/logo-icon.png" alt="MargenX" className="size-8 object-contain dark:brightness-0 dark:invert" />
-            <span className="hidden text-base font-black tracking-tight text-indigo-600 dark:text-indigo-400 md:inline-block">
-              MargenX
-            </span>
+            <img
+              src="/logo-icon.png"
+              alt="MargenX"
+              className="logo-adaptive size-8 object-contain transition-[filter] duration-150"
+            />
           </Link>
         )}
 

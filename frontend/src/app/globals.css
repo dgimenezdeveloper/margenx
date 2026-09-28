@@ -153,6 +153,11 @@
   }
 }
 
+/* Transforma los logos a color blanco puro en modo oscuro conservando transparencia */
+.dark .logo-theme-adaptive {
+  filter: brightness(0) invert(1) !important;
+}
+
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button,
 .no-spinners::-webkit-inner-spin-button,

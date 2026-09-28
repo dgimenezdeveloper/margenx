@@ -7,6 +7,12 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* En modo oscuro, convierte el logotipo a blanco puro instantáneamente sin delay */
+:is(.dark) .logo-adaptive,
+.dark .logo-adaptive {
+  filter: brightness(0) invert(1) !important;
+}
+
 /* Ocultar flechas de inputs numéricos */
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button,

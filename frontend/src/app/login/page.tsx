@@ -51,7 +51,11 @@ export default function LoginPage() {
       </Link>
       <section className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <img src="/logo.png" alt="MargenX" className="mx-auto h-20 w-auto object-contain dark:brightness-0 dark:invert" />
+          <img
+            src="/logo.png"
+            alt="MargenX"
+            className="logo-adaptive mx-auto h-20 w-auto object-contain transition-[filter] duration-150"
+          />
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
         {isClerkConfigured ? (

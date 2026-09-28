@@ -1,14 +1,39 @@
-import { useState, useEffect } from 'react'
+import { create } from 'zustand'
 
-export function useTheme() {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return document.documentElement.classList.contains('dark')
-  })
+interface ThemeState {
+  isDark: boolean
+  toggleTheme: () => void
+  setTheme: (dark: boolean) => void
+}
 
-  useEffect(() => {
+function getInitialTheme(): boolean {
+  if (typeof window === 'undefined') return false
+  const saved = localStorage.getItem('theme')
+  if (saved) return saved === 'dark'
+  return document.documentElement.classList.contains('dark')
+}
+
+export const useTheme = create<ThemeState>((set) => ({
+  isDark: getInitialTheme(),
+  toggleTheme: () => {
+    set((state) => {
+      const next = !state.isDark
+      const root = document.documentElement
+      if (next) {
+        root.classList.add('dark')
+        root.style.colorScheme = 'dark'
+        localStorage.setItem('theme', 'dark')
+      } else {
+        root.classList.remove('dark')
+        root.style.colorScheme = 'light'
+        localStorage.setItem('theme', 'light')
+      }
+      return { isDark: next }
+    })
+  },
+  setTheme: (dark: boolean) => {
     const root = document.documentElement
-    if (isDark) {
+    if (dark) {
       root.classList.add('dark')
       root.style.colorScheme = 'dark'
       localStorage.setItem('theme', 'dark')
@@ -17,9 +42,6 @@ export function useTheme() {
       root.style.colorScheme = 'light'
       localStorage.setItem('theme', 'light')
     }
-  }, [isDark])
-
-  const toggleTheme = () => setIsDark((prev) => !prev)
-
-  return { isDark, toggleTheme }
-}
+    set({ isDark: dark })
+  },
+}))
