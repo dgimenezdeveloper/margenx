@@ -71,7 +71,7 @@ const accounts = [
         salePrice: "4332.14",
         minMarginPercent: "55.00",
         recipe: [
-          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "0.600" }, // Harina 000
+          { ingredientId: "30b00001-0000-4000-8000-000000000001", quantity: "1.000" }, // Harina 000
           { ingredientId: "30b00001-0000-4000-8000-000000000006", quantity: "0.015" }, // Levadura
           { ingredientId: "30b00001-0000-4000-8000-000000000007", quantity: "0.015" }, // Sal
         ],
