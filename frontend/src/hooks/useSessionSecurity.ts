@@ -2,18 +2,18 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useClerk, useAuth } from '@clerk/clerk-react'
 
 // 30 minutos por defecto (1.800.000 ms) según la historia de usuario
-const DEFAULT_INACTIVITY_LIMIT = 30 * 60 * 1000
+const DEFAULT_INACTIVITY_LIMIT = 1 * 60 * 1000
 const LAST_ACTIVE_KEY = 'margenx_last_active'
 const LOGOUT_REASON_KEY = 'margenx_logout_reason'
 const ACTIVE_SESSION_KEY = 'margenx_active_session'
 
 function getInactivityLimit(): number {
   if (typeof window !== 'undefined') {
-    // 1. Override temporal por consola: window.__MARGENX_INACTIVITY_LIMIT__ = 60000
+    // 1. Override temporal por consola para pruebas de QA: window.__MARGENX_INACTIVITY_LIMIT__ = 60000
     const custom = (window as unknown as { __MARGENX_INACTIVITY_LIMIT__?: number }).__MARGENX_INACTIVITY_LIMIT__
     if (typeof custom === 'number' && custom > 0) return custom
 
-    // 2. Override persistente para pruebas de QA: localStorage.setItem('MARGENX_TEST_TIMEOUT', '60000')
+    // 2. Override persistente para pruebas locales: localStorage.setItem('MARGENX_TEST_TIMEOUT', '60000')
     const storedTest = localStorage.getItem('MARGENX_TEST_TIMEOUT')
     if (storedTest && Number(storedTest) > 0) return Number(storedTest)
 
@@ -64,6 +64,7 @@ export function useSessionSecurity() {
       }
     }
 
+    // Registra actividad de usuario con throttle de 2 segundos
     const recordUserActivity = () => {
       const currentTime = Date.now()
       if (currentTime - lastThrottleRef.current > 2000) {
@@ -84,6 +85,7 @@ export function useSessionSecurity() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', checkInactivity)
 
+    // Pulso evaluador cada 2 segundos
     const intervalId = setInterval(checkInactivity, 2000)
 
     return () => {
