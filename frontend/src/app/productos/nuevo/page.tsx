@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   AlertTriangle,
-  Check,
   ChevronDown,
   Info,
   LoaderCircle,
@@ -19,12 +18,13 @@ import {
   X,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import ToastAlert from '@/components/ToastAlert'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
 import { useCurrentUser } from '@/lib/useCurrentUser'
-import { useRecipeStore } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -51,13 +51,20 @@ export default function NewProductPage() {
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitLockRef = useRef(false)
 
-  const notify = (msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 3000)
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type })
   }
+
+  // Cada toast nuevo reinicia el conteo; el cleanup cancela el timer anterior y también al desmontar
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(id)
+  }, [toast])
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
@@ -69,18 +76,18 @@ export default function NewProductPage() {
   const [inputQty, setInputQty] = useState('100')
 
   // Conexión a Zustand
-  const items = useRecipeStore((s) => s.items)
-  const addIngredient = useRecipeStore((s) => s.addIngredient)
-  const removeIngredient = useRecipeStore((s) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s) => s.updateQuantity)
-  const setSalePrice = useRecipeStore((s) => s.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((s) => s.setMinMarginPercent)
-  const resetStore = useRecipeStore((s) => s.reset)
+  const items = useRecipeStore((s: RecipeState) => s.items)
+  const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
+  const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
+  const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
+  const resetStore = useRecipeStore((s: RecipeState) => s.reset)
 
-  const totalCost = useRecipeStore((s) => s.totalCost())
-  const marginAmount = useRecipeStore((s) => s.marginAmount())
-  const marginPercent = useRecipeStore((s) => s.marginPercent())
-  const isUnderMargin = useRecipeStore((s) => s.isUnderMargin())
+  const totalCost = useRecipeStore((s: RecipeState) => s.totalCost())
+  const marginAmount = useRecipeStore((s: RecipeState) => s.marginAmount())
+  const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
+  const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
 
   const {
     register,
@@ -182,7 +189,7 @@ export default function NewProductPage() {
   }
 
   const handleItemQuantityChange = (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i) => i.ingredientId === ingredientId)
+    const targetItem = items.find((i: { ingredientId: string }) => i.ingredientId === ingredientId)
     if (!targetItem) return
 
     const val = Number(rawVal)
@@ -199,17 +206,22 @@ export default function NewProductPage() {
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+    setIsSubmitting(true)
+
+    const payload = {
+      name: data.name,
+      salePrice: Number(data.salePrice),
+      minMarginPercent: Number(data.minMarginPercent),
+      ingredients: items.map((item: { ingredientId: string; quantity: number }) => ({
+        ingredientId: item.ingredientId,
+        quantity: Number(item.quantity),
+      })),
+    }
+
     try {
-      setIsSubmitting(true)
-      await productService.create(getToken, {
-        name: data.name,
-        salePrice: data.salePrice,
-        minMarginPercent: data.minMarginPercent,
-        ingredients: items.map((item) => ({
-          ingredientId: item.ingredientId,
-          quantity: item.quantity,
-        })),
-      })
+      await productService.create(getToken, payload)
 
       notify(
         items.length === 0
@@ -220,18 +232,28 @@ export default function NewProductPage() {
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
       if (error instanceof ApiError) {
-        const errorMsg = error.message.toLowerCase()
-        if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
-          setError('name', { type: 'server', message: error.message })
-        } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
-          setError('salePrice', { type: 'server', message: error.message })
-        } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
-          setError('minMarginPercent', { type: 'server', message: error.message })
+        const field =
+          error.status === 409
+            ? 'name'
+            : error.status === 400
+              ? (() => {
+                  const msg = error.message.toLowerCase()
+                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                  return null
+                })()
+              : null
+
+        if (field) {
+          setError(field, { type: 'server', message: error.message })
         }
-        notify(error.message)
+        notify(error.message, 'error')
       } else {
-        notify('Error al guardar el producto.')
+        notify('Error al guardar el producto.', 'error')
       }
+    } finally {
+      submitLockRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -245,10 +267,11 @@ export default function NewProductPage() {
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5 shrink-0" />
-          <span>{toast}</span>
-        </div>
+        <ToastAlert
+          key={`${toast.type}-${toast.message}`}
+          message={toast.message}
+          type={toast.type}
+        />
       )}
 
       <form onSubmit={handleSubmit(handleSaveProduct)} noValidate>
@@ -490,7 +513,7 @@ export default function NewProductPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/50 p-2 dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/40">
-                    {items.map((item) => {
+                    {items.map((item: { ingredientId: string; quantity: number; unitCost: number; name: string; inputQty?: number; recipeUnit?: string; unit: string }) => {
                       const itemSubtotal = item.quantity * item.unitCost
                       const displayQty =
                         item.inputQty ??

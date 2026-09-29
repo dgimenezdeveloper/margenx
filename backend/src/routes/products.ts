@@ -142,10 +142,18 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     const marginAmount = calculateMarginAmount(input.salePrice, cost);
     const marginPercent = calculateMarginPercent(input.salePrice, cost);
 
+    // Validar unicidad de nombre (case-insensitive) dentro de la misma cuenta
+    const existingByName = await tx.product.findFirst({
+      where: { accountId, name: { equals: input.name, mode: 'insensitive' } },
+    });
+    if (existingByName) throw new AppError('Ya existe un producto con ese nombre.', 400);
+
     const created = await tx.product.create({
       data: {
         accountId,
-        name: input.name,
+        // Guardamos el nombre en minúsculas en la base de datos para
+        // normalizar y facilitar comparaciones case-insensitive.
+        name: input.name.toLowerCase(),
         salePrice: input.salePrice,
         minMarginPercent: input.minMarginPercent,
         cost,
@@ -253,12 +261,18 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     const finalMarginAmount = calculateMarginAmount(finalSalePrice, finalCost);
     const finalMarginPercent = calculateMarginPercent(finalSalePrice, finalCost);
 
+    // Si se está actualizando el nombre, validar unicidad case-insensitive
+    if (name && name.toLowerCase() !== existing.name.toLowerCase()) {
+      const found = await tx.product.findFirst({ where: { accountId, name: { equals: name, mode: 'insensitive' } } });
+      if (found) throw new AppError('Ya existe un producto con ese nombre.', 400);
+    }
+
     if (ingredientsProvided) {
       await tx.productIngredient.deleteMany({ where: { productId: id } });
       return tx.product.update({
         where: { id },
         data: {
-          name: name ?? existing.name,
+          name: name ? name.toLowerCase() : existing.name,
           salePrice: finalSalePrice,
           minMarginPercent: finalMinMargin,
           cost: finalCost,
@@ -273,7 +287,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     return tx.product.update({
       where: { id },
       data: {
-        name: name ?? existing.name,
+        name: name ? name.toLowerCase() : existing.name,
         salePrice: finalSalePrice,
         minMarginPercent: finalMinMargin,
         cost: finalCost,

@@ -42,8 +42,13 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     switch (err.code) {
       case 'P2025': // Registro no encontrado (ej. update/delete sobre un id inexistente)
         return res.status(404).json({ error: 'Recurso no encontrado.' });
-      case 'P2002': // Violación de restricción única
+      case 'P2002': {
+        const targets = Array.isArray(err.meta?.target) ? err.meta.target : [];
+        if (targets.includes('accountId') && targets.includes('name')) {
+          return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
+        }
         return res.status(409).json({ error: 'Ya existe un registro con esos datos únicos.' });
+      }
       case 'P2003': // Violación de clave foránea (ej. borrar algo referenciado)
         return res
           .status(409)

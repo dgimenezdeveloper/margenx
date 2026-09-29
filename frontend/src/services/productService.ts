@@ -28,10 +28,14 @@ export interface ProductIngredient {
   }
 }
 
-export interface ProductInput {
-  name?: string
-  salePrice?: number
-  minMarginPercent?: number
+export interface ProductCreateInput {
+  name: string
+  salePrice: number
+  minMarginPercent: number
+  ingredients: ProductIngredientInput[]
+}
+
+export type ProductInput = Partial<ProductCreateInput> & {
   ingredients?: ProductIngredientInput[]
 }
 
@@ -70,6 +74,7 @@ interface SingleProductResponse {
 function normalizeProduct(product: RawProduct): Product {
   return {
     ...product,
+    name: typeof product.name === 'string' ? product.name.replace(/(^|\s)\S/g, (t) => t.toUpperCase()) : String(product.name),
     salePrice: Number(product.salePrice),
     minMarginPercent: Number(product.minMarginPercent),
     cost: Number(product.cost),
@@ -104,7 +109,7 @@ async function getById(arg1: string | TokenGetter, arg2: string | TokenGetter): 
   return normalizeProduct(response.product)
 }
 
-async function create(getToken: TokenGetter, input: ProductInput): Promise<Product> {
+async function create(getToken: TokenGetter, input: ProductCreateInput): Promise<Product> {
   const response = await fetchApi<SingleProductResponse>('/products', getToken, {
     method: 'POST',
     body: JSON.stringify(input),

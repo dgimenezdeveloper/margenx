@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   AlertTriangle,
-  Check,
   LoaderCircle,
   Package,
   Plus,
@@ -21,6 +20,7 @@ import {
   Search,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import ToastAlert from '@/components/ToastAlert'
 import { BottomNav } from '@/components/bottom-nav'
 import { EmptyState } from '@/components/empty-state'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
@@ -58,13 +58,14 @@ export default function ProductDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const submitLockRef = useRef(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showSheet, setShowSheet] = useState(false)
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
 
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedSupplyId, setSelectedSupplyId] = useState('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
@@ -87,8 +88,8 @@ export default function ProductDetailPage() {
   const gain = useRecipeStore((s: RecipeState) => s.marginAmount())
   const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
-  const notify = (msg: string) => {
-    setToast(msg)
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type })
     window.setTimeout(() => setToast(null), 3000)
   }
 
@@ -233,7 +234,7 @@ export default function ProductDetailPage() {
       }
 
       addIngredient(newItem)
-      const updatedItems = useRecipeStore.getState().items
+      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
 
       try {
         await productService.update(
@@ -264,7 +265,7 @@ export default function ProductDetailPage() {
       const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
       updateQuantity(ingredientId, baseQty, val, activeUnit)
       
-      const updatedItems = useRecipeStore.getState().items
+      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
       try {
         await productService.update(
           id!,
@@ -284,7 +285,7 @@ export default function ProductDetailPage() {
 
   const handleRemoveIngredient = async (ingredientId: string) => {
     removeIngredient(ingredientId)
-    const updatedItems = useRecipeStore.getState().items
+    const updatedItems = useRecipeStore.getState().items as RecipeItem[]
     try {
       await productService.update(
         id!,
@@ -303,39 +304,53 @@ export default function ProductDetailPage() {
   }
 
   const handleFormSubmit = async (data: ProductFormValues) => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+    setIsSaving(true)
+
+    const payload = {
+      name: data.name,
+      salePrice: Number(data.salePrice),
+      minMarginPercent: Number(data.minMarginPercent),
+      ingredients: items.map((item: { ingredientId: string; quantity: number }) => ({
+        ingredientId: item.ingredientId,
+        quantity: Number(item.quantity),
+      })),
+    }
+
     try {
-      setIsSaving(true)
-      const updated = await productService.update(
-        id!,
-        {
-          name: data.name,
-          salePrice: data.salePrice,
-          minMarginPercent: data.minMarginPercent,
-        },
-        getToken
-      )
+      const updated = await productService.update(id!, payload, getToken)
       setProduct(updated)
       reset({
         name: updated.name,
         salePrice: String(updated.salePrice),
         minMarginPercent: String(updated.minMarginPercent),
       })
-      notify('Datos del producto guardados exitosamente')
+      notify('Datos del producto guardados exitosamente', 'success')
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        const errorMsg = err.message.toLowerCase()
-        if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
-          setError('name', { type: 'server', message: err.message })
-        } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
-          setError('salePrice', { type: 'server', message: err.message })
-        } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
-          setError('minMarginPercent', { type: 'server', message: err.message })
+        const field =
+          err.status === 409
+            ? 'name'
+            : err.status === 400
+              ? (() => {
+                  const msg = err.message.toLowerCase()
+                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                  return null
+                })()
+              : null
+
+        if (field) {
+          setError(field, { type: 'server', message: err.message })
         }
-        notify(err.message)
+        notify(err.message, 'error')
       } else {
-        notify('Error al guardar los cambios')
+        notify('Error al guardar los cambios', 'error')
       }
     } finally {
+      submitLockRef.current = false
       setIsSaving(false)
     }
   }
@@ -405,12 +420,7 @@ export default function ProductDetailPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
-      {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-xl animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5 shrink-0" />
-          <span>{toast}</span>
-        </div>
-      )}
+      {toast && <ToastAlert message={toast.message} type={toast.type} />}
 
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
