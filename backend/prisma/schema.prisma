@@ -8,15 +8,17 @@ datasource db {
 }
 
 model Account {
-  id               String       @id @default(uuid())
-  businessName     String
-  subscriptionPlan String       @default("FREE")
-  trialEndsAt      DateTime?
-  isActive         Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  users            User[]
-  ingredients      Ingredient[]
-  products         Product[]
+  id                      String       @id @default(uuid())
+  businessName            String
+  subscriptionPlan        String       @default("FREE")
+  trialEndsAt             DateTime?
+  isActive                Boolean      @default(true)
+  defaultMinMarginPercent Decimal      @default(30) @db.Decimal(5, 2) // <-- NUEVO CAMPO
+  createdAt               DateTime     @default(now())
+  
+  users                   User[]
+  ingredients             Ingredient[]
+  products                Product[]
 }
 
 enum Role {

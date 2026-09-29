@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Save,
   Pencil,
+  ChevronDown,
+  Search,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
@@ -25,16 +27,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
-
-type RecipeItem = {
-  id: string
-  name: string
-  baseUnit: string
-  recipeUnit: string
-  inputQty: number
-  baseQty: number
-  cost: number
-}
+import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -50,13 +43,19 @@ function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): 
   return qty
 }
 
+function convertToRecipeUnitQty(baseQty: number, selectedUnit: string, baseUnit: string): number {
+  if (baseUnit === 'kg' && selectedUnit === 'gr') return baseQty * 1000
+  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return baseQty * 1000
+  return baseQty
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getToken } = useAuth()
 
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setErrorState] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -70,14 +69,29 @@ export default function ProductDetailPage() {
   const [selectedSupplyId, setSelectedSupplyId] = useState('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('50')
-  const [recipe, setRecipe] = useState<RecipeItem[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
+  // Conexión fuertemente tipada a Zustand
+  const items = useRecipeStore((s: RecipeState) => s.items)
+  const setItems = useRecipeStore((s: RecipeState) => s.setItems)
+  const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
+  const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
+  const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
+  const resetStore = useRecipeStore((s: RecipeState) => s.reset)
+
+  const cost = useRecipeStore((s: RecipeState) => s.totalCost())
+  const margin = useRecipeStore((s: RecipeState) => s.marginPercent())
+  const gain = useRecipeStore((s: RecipeState) => s.marginAmount())
+  const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
   const notify = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 3000)
   }
 
-  // Formulario React Hook Form + Zod
   const {
     register,
     handleSubmit,
@@ -95,7 +109,14 @@ export default function ProductDetailPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Carga inicial del producto
+  useEffect(() => {
+    setSalePrice(Number(watchedSalePrice) || 0)
+  }, [watchedSalePrice, setSalePrice])
+
+  useEffect(() => {
+    setMinMarginPercent(Number(watchedMinMargin) || 0)
+  }, [watchedMinMargin, setMinMarginPercent])
+
   useEffect(() => {
     if (!id) return
 
@@ -115,24 +136,27 @@ export default function ProductDetailPage() {
           minMarginPercent: String(prodData.minMarginPercent),
         })
 
-        const mappedRecipe = prodData.ingredients.map((pi) => ({
-          id: pi.ingredientId,
+        const mappedRecipe: RecipeItem[] = prodData.ingredients.map((pi) => ({
+          ingredientId: pi.ingredientId,
           name: pi.ingredient?.name || 'Insumo desconocido',
-          baseUnit: pi.ingredient?.unit || 'u',
+          unit: pi.ingredient?.unit || 'u',
           recipeUnit: pi.ingredient?.unit || 'u',
-          inputQty: pi.quantity,
-          baseQty: pi.quantity,
-          cost: pi.ingredient?.currentCost || 0,
+          inputQty: Number(pi.quantity),
+          quantity: Number(pi.quantity),
+          unitCost: pi.ingredient?.currentCost || 0,
         }))
-        setRecipe(mappedRecipe)
+
+        setItems(mappedRecipe)
+        setSalePrice(prodData.salePrice)
+        setMinMarginPercent(prodData.minMarginPercent)
 
         if (ingredientsData.length > 0 && ingredientsData[0]) {
           setSelectedSupplyId(ingredientsData[0].id)
           setRecipeUnit(getAvailableRecipeUnits(ingredientsData[0].unit)[0] || 'kg')
         }
       })
-      .catch((err) => {
-        if (active) setErrorState(err instanceof ApiError ? err.message : 'Error al cargar el producto')
+      .catch((err: unknown) => {
+        if (active) setLoadError(err instanceof ApiError ? err.message : 'Error al cargar el producto')
       })
       .finally(() => {
         if (active) setIsLoading(false)
@@ -140,68 +164,34 @@ export default function ProductDetailPage() {
 
     return () => {
       active = false
+      resetStore()
     }
-  }, [id, getToken, reset])
+  }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore])
 
-  // Estado Visual 1: Skeletons de carga
-  if (isLoading) {
-    return (
-      <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6">
-          <div className="h-10 w-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="space-y-6 lg:col-span-7">
-              <div className="h-36 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
-              <div className="h-64 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
-              <div className="h-48 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
-            </div>
-            <div className="hidden lg:col-span-5 lg:block">
-              <div className="h-96 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
-            </div>
-          </div>
-        </div>
-      </main>
-    )
-  }
+  const currentSupply = useMemo(
+    () => availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0],
+    [availablePantry, selectedSupplyId]
+  )
 
-  // Estado Visual 2: Error de red o 404
-  if (error || !product) {
-    return (
-      <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
-          <Navbar title="Producto no encontrado" backHref="/productos" />
-          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-            {error || 'El producto que buscas no existe o pertenece a otra cuenta.'}
-          </div>
-          <div className="mt-8">
-            <EmptyState
-              icon={<Package className="size-6" />}
-              title="Ficha técnica inexistente"
-              description="No pudimos encontrar los datos del producto solicitado."
-              actionLabel="Volver al catálogo"
-              onAction={() => navigate('/productos')}
-            />
-          </div>
-        </div>
-        <BottomNav />
-      </main>
-    )
-  }
+  const availableUnits = useMemo(
+    () => (currentSupply ? getAvailableRecipeUnits(currentSupply.unit) : ['u']),
+    [currentSupply]
+  )
 
-  const currentSupply = availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0]
-  const availableUnits = currentSupply ? getAvailableRecipeUnits(currentSupply.unit) : ['u']
+  const filteredSupplies = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return availablePantry
+    return availablePantry.filter((s) => s.name.toLowerCase().includes(q))
+  }, [availablePantry, searchQuery])
 
-  const hasRecipe = recipe.length > 0
-  const cost = recipe.reduce((sum, item) => sum + item.baseQty * item.cost, 0)
-  const sale = Number(watchedSalePrice) || 0
+  const hasRecipe = items.length > 0
 
-  const margin =
-    hasRecipe && sale > 0 && cost > 0
-      ? Math.round(((sale - cost) / sale) * 1000) / 10
-      : 0
-  const gain = hasRecipe && cost > 0 ? sale - cost : 0
-  const targetMargin = Number(watchedMinMargin) || product.minMarginPercent
-  const isHealthy = hasRecipe && margin >= targetMargin
+  // ✅ Corregido: Respeta el 0% explícito sin caer al valor por defecto
+  const parsedWatchedMargin = Number(watchedMinMargin)
+  const targetMargin =
+    watchedMinMargin !== '' && !isNaN(parsedWatchedMargin)
+      ? parsedWatchedMargin
+      : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
@@ -211,6 +201,7 @@ export default function ProductDetailPage() {
   }
 
   const adjustPriceFactor = (factor: number) => {
+    const sale = Number(watchedSalePrice) || 0
     if (sale <= 0) return
     setValue('salePrice', String(Math.round(sale * factor)), {
       shouldValidate: true,
@@ -218,38 +209,43 @@ export default function ProductDetailPage() {
     })
   }
 
-  const handleSelectSupply = (supplyId: string) => {
-    setSelectedSupplyId(supplyId)
-    const item = availablePantry.find((p) => p.id === supplyId)
-    if (item) {
-      const units = getAvailableRecipeUnits(item.unit)
-      setRecipeUnit(units[0] || 'kg')
-      setInputQty(units[0] === 'gr' ? '50' : units[0] === 'ml' ? '30' : '1')
-    }
+  const handleSelectSupply = (supply: Ingredient) => {
+    setSelectedSupplyId(supply.id)
+    const units = getAvailableRecipeUnits(supply.unit)
+    setRecipeUnit(units[0] || supply.unit)
+    setInputQty(units[0] === 'gr' ? '50' : units[0] === 'ml' ? '30' : '1')
+    setIsDropdownOpen(false)
+    setSearchQuery('')
   }
 
   const handleAddIngredient = async () => {
     const numQty = Number(inputQty)
     if (currentSupply && numQty > 0) {
       const baseQty = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
-      const newRecipe = [
-        ...recipe,
-        {
-          id: currentSupply.id,
-          name: currentSupply.name,
-          baseUnit: currentSupply.unit,
-          recipeUnit,
-          inputQty: numQty,
-          baseQty,
-          cost: currentSupply.currentCost,
-        },
-      ]
+      const newItem: RecipeItem = {
+        ingredientId: currentSupply.id,
+        name: currentSupply.name,
+        unit: currentSupply.unit,
+        recipeUnit,
+        inputQty: numQty,
+        quantity: baseQty,
+        unitCost: currentSupply.currentCost,
+      }
+
+      addIngredient(newItem)
+      const updatedItems = useRecipeStore.getState().items
 
       try {
-        await productService.update(id!, {
-          ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
-        }, getToken)
-        setRecipe(newRecipe)
+        await productService.update(
+          id!,
+          {
+            ingredients: updatedItems.map((r: RecipeItem) => ({
+              ingredientId: r.ingredientId,
+              quantity: r.quantity,
+            })),
+          },
+          getToken
+        )
         setShowAddModal(false)
         notify(`"${currentSupply.name}" sumado a la receta`)
       } catch {
@@ -258,28 +254,66 @@ export default function ProductDetailPage() {
     }
   }
 
-  const handleRemoveIngredient = async (indexToRemove: number) => {
-    const newRecipe = recipe.filter((_, i) => i !== indexToRemove)
+  const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
+    const targetItem = items.find((i: RecipeItem) => i.ingredientId === ingredientId)
+    if (!targetItem) return
+
+    const val = Number(rawVal)
+    if (val >= 0) {
+      const activeUnit = targetItem.recipeUnit ?? targetItem.unit
+      const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
+      updateQuantity(ingredientId, baseQty, val, activeUnit)
+      
+      const updatedItems = useRecipeStore.getState().items
+      try {
+        await productService.update(
+          id!,
+          {
+            ingredients: updatedItems.map((r: RecipeItem) => ({
+              ingredientId: r.ingredientId,
+              quantity: r.quantity,
+            })),
+          },
+          getToken
+        )
+      } catch {
+        notify('Error al actualizar la cantidad')
+      }
+    }
+  }
+
+  const handleRemoveIngredient = async (ingredientId: string) => {
+    removeIngredient(ingredientId)
+    const updatedItems = useRecipeStore.getState().items
     try {
-      await productService.update(id!, {
-        ingredients: newRecipe.map((r) => ({ ingredientId: r.id, quantity: r.baseQty })),
-      }, getToken)
-      setRecipe(newRecipe)
+      await productService.update(
+        id!,
+        {
+          ingredients: updatedItems.map((r: RecipeItem) => ({
+            ingredientId: r.ingredientId,
+            quantity: r.quantity,
+          })),
+        },
+        getToken
+      )
       notify('Insumo eliminado de la receta')
     } catch {
       notify('Error al actualizar la receta')
     }
   }
 
-  // Guardar formulario de edición con mapeo de errores del backend
   const handleFormSubmit = async (data: ProductFormValues) => {
     try {
       setIsSaving(true)
-      const updated = await productService.update(id!, {
-        name: data.name,
-        salePrice: data.salePrice,
-        minMarginPercent: data.minMarginPercent,
-      }, getToken)
+      const updated = await productService.update(
+        id!,
+        {
+          name: data.name,
+          salePrice: data.salePrice,
+          minMarginPercent: data.minMarginPercent,
+        },
+        getToken
+      )
       setProduct(updated)
       reset({
         name: updated.name,
@@ -319,28 +353,70 @@ export default function ProductDetailPage() {
       await productService.delete(id!, getToken)
       notify('Producto eliminado correctamente.')
       setTimeout(() => navigate('/productos'), 600)
-    } catch (err) {
+    } catch (err: unknown) {
       notify(err instanceof ApiError ? err.message : 'No se pudo eliminar el producto.')
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
   }
 
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+        <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6">
+          <div className="h-10 w-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-7">
+              <div className="h-36 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
+              <div className="h-64 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
+              <div className="h-48 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
+            </div>
+            <div className="hidden lg:col-span-5 lg:block">
+              <div className="h-96 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" />
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (loadError || !product) {
+    return (
+      <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+        <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
+          <Navbar title="Producto no encontrado" backHref="/productos" />
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+            {loadError || 'El producto que buscas no existe o pertenece a otra cuenta.'}
+          </div>
+          <div className="mt-8">
+            <EmptyState
+              icon={<Package className="size-6" />}
+              title="Ficha técnica inexistente"
+              description="No pudimos encontrar los datos del producto solicitado."
+              actionLabel="Volver al catálogo"
+              onAction={() => navigate('/productos')}
+            />
+          </div>
+        </div>
+        <BottomNav />
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5" />
-          {toast}
+        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-xl animate-in fade-in slide-in-from-top-4">
+          <Check className="size-5 shrink-0" />
+          <span>{toast}</span>
         </div>
       )}
 
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
 
-        {/* Banner de Estado de Margen */}
         {!hasRecipe ? (
-          <section className="rounded-2xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Estado del producto
             </p>
@@ -352,7 +428,7 @@ export default function ProductDetailPage() {
             </p>
           </section>
         ) : isHealthy ? (
-          <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
+          <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
             <div className="flex justify-between items-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
                 <ShieldCheck className="size-3.5" /> Margen Saludable
@@ -365,11 +441,11 @@ export default function ProductDetailPage() {
               {margin}%
             </p>
             <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              Cumple con el umbral mínimo esperado.
+              Cumple con el umbral personalizado ({targetMargin}%).
             </p>
           </section>
         ) : (
-          <section className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
+          <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
             <div className="flex justify-between items-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
                 <AlertTriangle className="size-3.5" /> Margen Bajo
@@ -387,10 +463,8 @@ export default function ProductDetailPage() {
           </section>
         )}
 
-        {/* Grilla Principal */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
           <div className="space-y-6 lg:col-span-7">
-            {/* Formulario de Edición con Zod */}
             <form
               onSubmit={handleSubmit(handleFormSubmit)}
               className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4"
@@ -411,7 +485,7 @@ export default function ProductDetailPage() {
                 </label>
                 <input
                   {...register('name')}
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
+                  className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
@@ -428,7 +502,7 @@ export default function ProductDetailPage() {
                     inputMode="decimal"
                     type="number"
                     step="any"
-                    className="no-spinners h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
+                    className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
                   />
                   {errors.salePrice && (
                     <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
@@ -444,7 +518,7 @@ export default function ProductDetailPage() {
                     inputMode="decimal"
                     type="number"
                     step="any"
-                    className="no-spinners h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
+                    className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
                   />
                   {errors.minMarginPercent && (
                     <p className="mt-1 text-xs font-bold text-rose-500">
@@ -458,7 +532,7 @@ export default function ProductDetailPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {isSaving ? (
                     <LoaderCircle className="size-4 animate-spin" />
@@ -470,12 +544,11 @@ export default function ProductDetailPage() {
               </div>
             </form>
 
-            {/* Ficha Técnica / Receta */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Composición / Receta</h2>
                 <span className="text-xs font-semibold text-gray-400">
-                  {recipe.length} ingredientes
+                  {items.length} ingredientes
                 </span>
               </div>
 
@@ -485,43 +558,80 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {recipe.map((item, index) => (
-                    <div
-                      key={`${item.id}-${index}`}
-                      className="flex items-center justify-between py-3.5 text-sm"
-                    >
-                      <div>
-                        <strong className="block font-bold">{item.name}</strong>
-                        <span className="text-xs text-gray-500">
-                          {item.inputQty} {item.recipeUnit} ({item.baseQty} {item.baseUnit}) ·
-                          Subtotal: {money(item.baseQty * item.cost)}
-                        </span>
+                  {items.map((item: RecipeItem) => {
+                    const itemSubtotal = item.quantity * item.unitCost
+                    const displayQty =
+                      item.inputQty ??
+                      convertToRecipeUnitQty(
+                        item.quantity,
+                        item.recipeUnit ?? item.unit,
+                        item.unit
+                      )
+
+                    return (
+                      <div
+                        key={item.ingredientId}
+                        className="flex flex-col gap-2 py-3.5 transition sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                            {item.name}
+                          </strong>
+                          <p className="text-xs text-gray-400">
+                            Costo base: {money(item.unitCost)} por {item.unit}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 sm:justify-end">
+                          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={displayQty}
+                              onChange={(e) =>
+                                handleItemQuantityChange(item.ingredientId, e.target.value)
+                              }
+                              aria-label={`Cantidad de ${item.name}`}
+                              className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none"
+                            />
+                            <span className="text-xs font-bold text-gray-500">
+                              {item.recipeUnit ?? item.unit}
+                            </span>
+                          </div>
+
+                          <div className="text-right min-w-20">
+                            <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
+                              {money(itemSubtotal)}
+                            </span>
+                            <span className="text-[10px] text-gray-400">subtotal</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveIngredient(item.ingredientId)}
+                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
+                            title="Remover insumo"
+                            aria-label={`Eliminar ${item.name}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveIngredient(index)}
-                          className="p-1 text-rose-500 hover:text-rose-700 cursor-pointer"
-                          title="Remover insumo"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3.5 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 cursor-pointer"
+                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 cursor-pointer"
               >
                 <Plus className="size-4" /> Agregar Insumo a la Receta
               </button>
             </section>
 
-            {/* Zona de Peligro: Botón de Eliminación */}
             <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -535,7 +645,7 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(true)}
-                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"
+                  className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"
                 >
                   <Trash2 className="size-4" /> Eliminar Producto
                 </button>
@@ -543,7 +653,6 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
-          {/* Columna Derecha: Simulador de Precio (Desktop >= 1024px) */}
           <div className="hidden lg:col-span-5 lg:sticky lg:top-6 lg:block">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -574,14 +683,14 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.05)}
-                    className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                    className="min-h-11 rounded-xl border py-2 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
                   >
                     +5%
                   </button>
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.10)}
-                    className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                    className="min-h-11 rounded-xl border py-2 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
                   >
                     +10%
                   </button>
@@ -589,7 +698,7 @@ export default function ProductDetailPage() {
                     type="button"
                     disabled={!hasRecipe || cost <= 0}
                     onClick={() => applySuggestedMargin(targetMargin)}
-                    className="rounded-xl bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Sugerir {targetMargin}%
                   </button>
@@ -598,7 +707,7 @@ export default function ProductDetailPage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">Precio de Venta</label>
-                <div className="flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
@@ -634,9 +743,8 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* ── BARRA FLOTANTE MÓVIL (< 1024px) ── */}
       {!showSheet && (
-        <div className="fixed inset-x-0 bottom-16 z-20 mx-auto flex h-14 max-w-md items-center justify-between border-t border-gray-100 bg-white/95 px-5 shadow-sm backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+        <div className="fixed inset-x-0 bottom-16 z-20 mx-auto flex min-h-14 max-w-md items-center justify-between border-t border-gray-100 bg-white/95 px-5 shadow-sm backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
           <div className="flex flex-col text-left">
             <span className="text-[11px] font-medium text-gray-500">Costo: {money(cost)}</span>
             <span className="text-xs font-bold text-gray-900 dark:text-white">
@@ -657,14 +765,13 @@ export default function ProductDetailPage() {
           <button
             type="button"
             onClick={() => setShowSheet(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
+            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
           >
             <Pencil className="size-3.5" /> Ajustar Precio
           </button>
         </div>
       )}
 
-      {/* ── BOTTOM SHEET / MODAL DEL SIMULADOR MÓVIL (< 1024px) ── */}
       {showSheet && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setShowSheet(false)} />
@@ -686,19 +793,18 @@ export default function ProductDetailPage() {
               </span>
             </div>
 
-            {/* Botones de ajuste rápido en móvil */}
             <div className="mb-4 grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => adjustPriceFactor(1.05)}
-                className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                className="min-h-11 rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
               >
                 +5%
               </button>
               <button
                 type="button"
                 onClick={() => adjustPriceFactor(1.10)}
-                className="rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                className="min-h-11 rounded-xl border py-2.5 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
               >
                 +10%
               </button>
@@ -706,16 +812,15 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={!hasRecipe || cost <= 0}
                 onClick={() => applySuggestedMargin(targetMargin)}
-                className="rounded-xl border border-indigo-100 bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-h-11 rounded-xl border border-indigo-100 bg-indigo-50 py-2.5 text-xs font-bold text-indigo-600 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Sugerir {targetMargin}%
               </button>
             </div>
 
-            {/* Input de precio en móvil */}
             <label className="mb-1 block text-xs font-bold text-gray-600 dark:text-gray-300">
               Precio de Venta
-              <div className="mt-1 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+              <div className="mt-1 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
                 <span className="text-lg font-bold text-gray-400">$</span>
                 <input
                   value={String(watchedSalePrice || '')}
@@ -733,7 +838,6 @@ export default function ProductDetailPage() {
               </div>
             </label>
 
-            {/* Proyección de margen en móvil */}
             <p
               className={`mt-2 text-xs font-bold ${
                 !hasRecipe
@@ -752,7 +856,7 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowSheet(false)}
-                className="flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 cursor-pointer"
+                className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -760,7 +864,7 @@ export default function ProductDetailPage() {
                 type="button"
                 onClick={handleSavePriceFromSheet}
                 disabled={isSaving}
-                className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
               >
                 {isSaving && <LoaderCircle className="size-4 animate-spin" />}
                 {isSaving ? 'Guardando...' : 'Guardar Precio'}
@@ -770,7 +874,6 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Modal / Diálogo de Confirmación de Eliminación */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="fixed inset-0" onClick={() => !isDeleting && setShowDeleteModal(false)} />
@@ -790,7 +893,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 rounded-xl border border-gray-200 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-xl border border-gray-200 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -798,7 +901,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteProduct}
-                className="flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
               >
                 {isDeleting && <LoaderCircle className="size-3.5 animate-spin" />}
                 {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
@@ -808,7 +911,6 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Modal para Agregar Insumo */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setShowAddModal(false)} />
@@ -822,7 +924,7 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="rounded-full p-1 text-gray-400 cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-gray-400 cursor-pointer"
               >
                 <X className="size-5" />
               </button>
@@ -831,18 +933,77 @@ export default function ProductDetailPage() {
             <div className="mt-5 space-y-4">
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                 Seleccionar Insumo
-                <select
-                  value={selectedSupplyId}
-                  onChange={(e) => handleSelectSupply(e.target.value)}
-                  className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none"
+                
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 cursor-pointer"
                 >
-                  {availablePantry.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.unit}) - {money(item.currentCost)}
-                    </option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {currentSupply
+                      ? `${currentSupply.name} (${money(currentSupply.currentCost)}/${currentSupply.unit})`
+                      : 'Buscar insumo...'}
+                  </span>
+                  <ChevronDown
+                    className={`size-4 text-gray-400 transition-transform duration-200 ${
+                      isDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
               </label>
+
+              {isDropdownOpen && (
+                <div className="absolute inset-x-6 top-32 z-30 mt-1 max-h-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="sticky top-0 border-b border-gray-100 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-950">
+                    <div className="relative flex items-center">
+                      <Search className="pointer-events-none absolute left-3 size-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Filtrar por nombre..."
+                        autoFocus
+                        className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 p-1 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 p-1 dark:divide-gray-800">
+                    {filteredSupplies.length === 0 ? (
+                      <div className="p-4 text-center text-xs font-semibold text-gray-400">
+                        No se encontraron insumos con ese nombre.
+                      </div>
+                    ) : (
+                      filteredSupplies.map((supply) => (
+                        <button
+                          key={supply.id}
+                          type="button"
+                          onClick={() => handleSelectSupply(supply)}
+                          className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${
+                            supply.id === selectedSupplyId
+                              ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                              : 'text-gray-800 dark:text-gray-200'
+                          }`}
+                        >
+                          <span className="truncate">{supply.name}</span>
+                          <span className="ml-2 shrink-0 text-gray-400">
+                            {money(supply.currentCost)}/{supply.unit}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3">
                 <div className="flex-1">
@@ -851,12 +1012,12 @@ export default function ProductDetailPage() {
                   </label>
                   <input
                     value={inputQty}
-                    onChange={(e) => setInputQty(e.target.value)}
+                    onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
                     inputMode="decimal"
                     type="number"
                     step="any"
                     placeholder="50"
-                    className="no-spinners h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
+                    className="no-spinners min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
                   />
                 </div>
                 <div className="w-28">
@@ -866,7 +1027,7 @@ export default function ProductDetailPage() {
                   <select
                     value={recipeUnit}
                     onChange={(e) => setRecipeUnit(e.target.value)}
-                    className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
+                    className="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
                   >
                     {availableUnits.map((u) => (
                       <option key={u} value={u}>
@@ -902,14 +1063,14 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer"
+                className="min-h-11 flex-1 rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleAddIngredient}
-                className="flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer"
+                className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer"
               >
                 Agregar
               </button>
