@@ -43,8 +43,8 @@ function ToggleSwitch({
 
 export default function ProfilePage() {
   const { signOut } = useAuth()
-  const { user, businessName, isLoading } = useCurrentUser()
-  const [globalMargin, setGlobalMargin] = useState('30')
+  const { user, businessName, defaultMinMarginPercent, isLoading } = useCurrentUser()
+  const [globalMargin, setGlobalMargin] = useState(() => String(defaultMinMarginPercent ?? 30))
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
 
@@ -243,6 +243,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => {
                 sessionStorage.removeItem('margenx_active_session')
+                localStorage.removeItem('margenx_last_active')
                 void signOut({ redirectUrl: '/' })
               }}
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
