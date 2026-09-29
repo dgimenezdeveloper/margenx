@@ -18,12 +18,6 @@ export function useCurrentUser() {
 
   const isActuallyLoading = !isLoaded || (isSignedIn && isLoading)
 
-  // ✅ Corregido: Chequeo estricto != null para no anular el 0%
-  const defaultMinMarginPercent =
-    currentUser?.account?.defaultMinMarginPercent != null
-      ? Number(currentUser.account.defaultMinMarginPercent)
-      : 30
-
   return {
     user,
     businessName: user?.account?.businessName,
