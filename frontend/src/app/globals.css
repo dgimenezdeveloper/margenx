@@ -154,7 +154,7 @@
 }
 
 /* Transforma los logos a color blanco puro en modo oscuro conservando transparencia */
-.dark .logo-theme-adaptive {
+.dark .logo-adaptive {
   filter: brightness(0) invert(1) !important;
 }
 

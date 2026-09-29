@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
@@ -13,43 +13,59 @@ export default function LoginPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
+  const wasLoggedOutRef = useRef(false)
 
-  // Detecta si la ejecución proviene de un navegador automatizado (Playwright / CI)
-  const isE2E = typeof window !== 'undefined' && Boolean(window.navigator.webdriver)
+  const isE2E = (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
+    typeof window !== 'undefined' && Boolean(window.navigator.webdriver)
 
-  // 1. Verificación síncrona en fase de render
-  const hasActiveSession =
-    isE2E || (typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true')
+  const hasBrowserSessionCookie =
+    typeof document !== 'undefined' && document.cookie.includes('margenx_session=active')
+  const hasTabSession =
+    typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true'
 
-  // Sesión huérfana: Clerk tiene cookies viejas pero el navegador se reabrió sin sesión activa
-  const isStaleSession = Boolean(!isE2E && isLoaded && isSignedIn && !hasActiveSession)
+  const isSessionAlive = isE2E || hasTabSession || hasBrowserSessionCookie
+
+  // Sesión residual: Clerk tiene cookies pero el navegador se cerró previamente
+  const isStaleSession = Boolean(!isE2E && isLoaded && isSignedIn && !isSessionAlive)
+
+  const authorizeSession = () => {
+    sessionStorage.setItem('margenx_active_session', 'true')
+    document.cookie = 'margenx_session=active; path=/; SameSite=Lax'
+    localStorage.setItem('margenx_last_active', String(Date.now()))
+  }
 
   useEffect(() => {
     if (!isLoaded) return
 
-    // CASO A: Si ya tiene sesión activa en esta misma pestaña o es E2E, enviamos al dashboard
-    if (hasActiveSession && isSignedIn) {
+    // 1. Si ya tiene sesión activa en esta misma sesión de navegador, va directo al dashboard
+    if (isSessionAlive && isSignedIn) {
+      authorizeSession()
       navigate('/dashboard', { replace: true })
       return
     }
 
-    // CASO B: Si reabrió el navegador y entra a /login con cookies residuales de Clerk,
-    // destruimos la sesión pasando un callback vacío para impedir que Clerk lo rebote a la Landing (/)
+    // 2. Si reabrió el navegador tras cerrarlo y entra a /login con cookies residuales de Clerk,
+    // destruimos la sesión con callback para evitar que Clerk lo rebote a la Landing (/)
     if (isStaleSession) {
       sessionStorage.removeItem('margenx_active_session')
+      document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
       localStorage.removeItem('margenx_last_active')
 
       void signOut(() => {
-        // Al proveer este callback, Clerk anula su redirect por defecto a '/' y se queda en /login
+        wasLoggedOutRef.current = true
       })
+      return
     }
-  }, [isLoaded, isSignedIn, hasActiveSession, isStaleSession, isE2E, signOut, navigate])
 
-  // Al interactuar o hacer foco en el formulario de acceso, autorizamos la pestaña
-  const handleAuthorizeTab = () => {
-    sessionStorage.setItem('margenx_active_session', 'true')
-    localStorage.setItem('margenx_last_active', String(Date.now()))
-  }
+    // 3. Si no está autenticado, marcamos que empezó deslogueado
+    if (!isSignedIn) {
+      wasLoggedOutRef.current = true
+    } else if (isSignedIn && wasLoggedOutRef.current) {
+      // 4. Si estaba deslogueado y acaba de completar el login con éxito (humano o Playwright)
+      authorizeSession()
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isLoaded, isSignedIn, isSessionAlive, isStaleSession, isE2E, signOut, navigate])
 
   // Toast de inactividad
   const [toast, setToast] = useState<string | null>(() => {
@@ -100,16 +116,15 @@ export default function LoginPage() {
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
 
-        {/* Mientras se purga la sesión vieja de Clerk sin recargas, mostramos el loader */}
         {!isLoaded || isStaleSession ? (
           <div className="flex h-64 items-center justify-center">
             <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
           </div>
         ) : isClerkConfigured ? (
           <div
-            onClickCapture={handleAuthorizeTab}
-            onKeyDownCapture={handleAuthorizeTab}
-            onFocusCapture={handleAuthorizeTab}
+            onClickCapture={authorizeSession}
+            onKeyDownCapture={authorizeSession}
+            onFocusCapture={authorizeSession}
           >
             <SignIn
               fallbackRedirectUrl="/dashboard"

@@ -177,6 +177,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => {
                 sessionStorage.removeItem('margenx_active_session')
+                document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
                 localStorage.removeItem('margenx_last_active')
                 void signOut({ redirectUrl: '/' })
               }}

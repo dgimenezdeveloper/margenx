@@ -46,9 +46,7 @@ export async function fetchApi<T>(
 
   if (!response.ok) {
     const message = await readErrorMessage(response)
-    if (response.status === 401 && typeof window !== 'undefined') {
-      window.location.assign('/login')
-    }
+    // Lanzamos la excepción para que la capture el llamador sin provocar bucles de navegación forzada
     throw new ApiError(message, response.status)
   }
 

@@ -10,11 +10,12 @@ export function useCurrentUser() {
     if (!isLoaded) return
 
     if (isSignedIn && !hasFetched) {
-      fetchUser(getToken)
+      void fetchUser(getToken)
     } else if (!isSignedIn && hasFetched) {
       clearUser()
     }
-  }, [isLoaded, isSignedIn, hasFetched, fetchUser, getToken, clearUser])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isSignedIn, hasFetched])
 
   const isActuallyLoading = !isLoaded || (isSignedIn && isLoading)
 
