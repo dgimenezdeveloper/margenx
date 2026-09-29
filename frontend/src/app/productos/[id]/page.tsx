@@ -27,7 +27,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
-import { useRecipeStore } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -72,20 +72,20 @@ export default function ProductDetailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  // Conexión a Zustand
-  const items = useRecipeStore((s) => s.items)
-  const setItems = useRecipeStore((s) => s.setItems)
-  const addIngredient = useRecipeStore((s) => s.addIngredient)
-  const removeIngredient = useRecipeStore((s) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s) => s.updateQuantity)
-  const setSalePrice = useRecipeStore((s) => s.setSalePrice)
-  const setMinMarginPercent = useRecipeStore((s) => s.setMinMarginPercent)
-  const resetStore = useRecipeStore((s) => s.reset)
+  // Conexión fuertemente tipada a Zustand
+  const items = useRecipeStore((s: RecipeState) => s.items)
+  const setItems = useRecipeStore((s: RecipeState) => s.setItems)
+  const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
+  const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
+  const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
+  const resetStore = useRecipeStore((s: RecipeState) => s.reset)
 
-  const cost = useRecipeStore((s) => s.totalCost())
-  const margin = useRecipeStore((s) => s.marginPercent())
-  const gain = useRecipeStore((s) => s.marginAmount())
-  const isHealthy = useRecipeStore((s) => !s.isUnderMargin())
+  const cost = useRecipeStore((s: RecipeState) => s.totalCost())
+  const margin = useRecipeStore((s: RecipeState) => s.marginPercent())
+  const gain = useRecipeStore((s: RecipeState) => s.marginAmount())
+  const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
   const notify = (msg: string) => {
     setToast(msg)
@@ -136,7 +136,7 @@ export default function ProductDetailPage() {
           minMarginPercent: String(prodData.minMarginPercent),
         })
 
-        const mappedRecipe = prodData.ingredients.map((pi) => ({
+        const mappedRecipe: RecipeItem[] = prodData.ingredients.map((pi) => ({
           ingredientId: pi.ingredientId,
           name: pi.ingredient?.name || 'Insumo desconocido',
           unit: pi.ingredient?.unit || 'u',
@@ -185,7 +185,13 @@ export default function ProductDetailPage() {
   }, [availablePantry, searchQuery])
 
   const hasRecipe = items.length > 0
-  const targetMargin = Number(watchedMinMargin) || (product?.minMarginPercent ?? 30)
+
+  // ✅ Corregido: Respeta el 0% explícito sin caer al valor por defecto
+  const parsedWatchedMargin = Number(watchedMinMargin)
+  const targetMargin =
+    watchedMinMargin !== '' && !isNaN(parsedWatchedMargin)
+      ? parsedWatchedMargin
+      : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
@@ -216,7 +222,7 @@ export default function ProductDetailPage() {
     const numQty = Number(inputQty)
     if (currentSupply && numQty > 0) {
       const baseQty = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
-      const newItem = {
+      const newItem: RecipeItem = {
         ingredientId: currentSupply.id,
         name: currentSupply.name,
         unit: currentSupply.unit,
@@ -233,7 +239,7 @@ export default function ProductDetailPage() {
         await productService.update(
           id!,
           {
-            ingredients: updatedItems.map((r) => ({
+            ingredients: updatedItems.map((r: RecipeItem) => ({
               ingredientId: r.ingredientId,
               quantity: r.quantity,
             })),
@@ -249,7 +255,7 @@ export default function ProductDetailPage() {
   }
 
   const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i) => i.ingredientId === ingredientId)
+    const targetItem = items.find((i: RecipeItem) => i.ingredientId === ingredientId)
     if (!targetItem) return
 
     const val = Number(rawVal)
@@ -263,7 +269,7 @@ export default function ProductDetailPage() {
         await productService.update(
           id!,
           {
-            ingredients: updatedItems.map((r) => ({
+            ingredients: updatedItems.map((r: RecipeItem) => ({
               ingredientId: r.ingredientId,
               quantity: r.quantity,
             })),
@@ -283,7 +289,7 @@ export default function ProductDetailPage() {
       await productService.update(
         id!,
         {
-          ingredients: updatedItems.map((r) => ({
+          ingredients: updatedItems.map((r: RecipeItem) => ({
             ingredientId: r.ingredientId,
             quantity: r.quantity,
           })),
@@ -552,7 +558,7 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {items.map((item) => {
+                  {items.map((item: RecipeItem) => {
                     const itemSubtotal = item.quantity * item.unitCost
                     const displayQty =
                       item.inputQty ??

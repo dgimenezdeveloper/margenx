@@ -7,7 +7,6 @@ export function useCurrentUser() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isFetching, setIsFetching] = useState<boolean>(false)
 
-  // <-- NUEVA FUNCIÓN PARA REFRESCAR EL USUARIO TRAS GUARDAR
   const fetchUser = useCallback(async () => {
     if (!isSignedIn) return
     setIsFetching(true)
@@ -48,16 +47,17 @@ export function useCurrentUser() {
   const currentUser = isSignedIn ? user : null
   const isLoading = !isLoaded || (isSignedIn && user === null && isFetching)
 
-  // <-- EXTRAEMOS EL MARGEN GLOBAL (Por defecto 30 si no existe)
-  const defaultMinMarginPercent = currentUser?.account?.defaultMinMarginPercent
-    ? Number(currentUser.account.defaultMinMarginPercent)
-    : 30
+  // ✅ Corregido: Chequeo estricto != null para no anular el 0%
+  const defaultMinMarginPercent =
+    currentUser?.account?.defaultMinMarginPercent != null
+      ? Number(currentUser.account.defaultMinMarginPercent)
+      : 30
 
   return {
     user: currentUser,
     businessName: currentUser?.account?.businessName ?? 'Mi Comercio',
-    defaultMinMarginPercent, // <-- LO EXPONEMOS
+    defaultMinMarginPercent,
     isLoading,
-    refreshUser: fetchUser,  // <-- LO EXPONEMOS
+    refreshUser: fetchUser,
   }
 }

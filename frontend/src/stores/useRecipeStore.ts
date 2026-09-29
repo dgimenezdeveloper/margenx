@@ -3,11 +3,11 @@ import { create } from 'zustand'
 export interface RecipeItem {
   ingredientId: string
   name: string
-  unit: string 
-  unitCost: number 
-  quantity: number 
-  recipeUnit?: string 
-  inputQty?: number 
+  unit: string // Unidad base del insumo (kg, l, u)
+  unitCost: number // Costo por unidad base
+  quantity: number // Cantidad base calculada (ej: 0.2 para 200g)
+  recipeUnit?: string // Unidad visible en receta (gr, kg, ml, l, u)
+  inputQty?: number // Cantidad numérica escrita por el usuario
 }
 
 export interface RecipeState {
@@ -16,7 +16,7 @@ export interface RecipeState {
   minMarginPercent: number
 
   // Acciones
-  setItems: (items: RecipeItem[]) => void // <-- NUEVA ACCIÓN
+  setItems: (items: RecipeItem[]) => void
   addIngredient: (item: RecipeItem) => void
   removeIngredient: (ingredientId: string) => void
   updateQuantity: (
@@ -46,9 +46,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   },
 
   addIngredient: (newItem: RecipeItem) => {
-    set((state) => {
+    set((state: RecipeState) => {
       const existingIndex = state.items.findIndex(
-        (item) => item.ingredientId === newItem.ingredientId
+        (item: RecipeItem) => item.ingredientId === newItem.ingredientId
       )
 
       if (existingIndex >= 0) {
@@ -72,14 +72,19 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   },
 
   removeIngredient: (ingredientId: string) => {
-    set((state) => ({
-      items: state.items.filter((item) => item.ingredientId !== ingredientId),
+    set((state: RecipeState) => ({
+      items: state.items.filter((item: RecipeItem) => item.ingredientId !== ingredientId),
     }))
   },
 
-  updateQuantity: (ingredientId, quantity, inputQty, recipeUnit) => {
-    set((state) => ({
-      items: state.items.map((item) => {
+  updateQuantity: (
+    ingredientId: string,
+    quantity: number,
+    inputQty?: number,
+    recipeUnit?: string
+  ) => {
+    set((state: RecipeState) => ({
+      items: state.items.map((item: RecipeItem) => {
         if (item.ingredientId === ingredientId) {
           return {
             ...item,
@@ -111,13 +116,19 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   totalCost: () => {
     const { items } = get()
-    return items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+    return items.reduce(
+      (sum: number, item: RecipeItem) => sum + item.quantity * item.unitCost,
+      0
+    )
   },
 
+  // ✅ Corregido según regla de backend (marginCalculator.ts):
+  // Solo se fuerza a 0 si no hay costo. Si hay receta pero salePrice es 0, da el negativo real.
   marginAmount: () => {
     const { salePrice, totalCost, items } = get()
-    if (items.length === 0 || salePrice <= 0) return 0
-    return salePrice - totalCost()
+    const cost = totalCost()
+    if (items.length === 0 || cost === 0) return 0
+    return salePrice - cost
   },
 
   marginPercent: () => {
@@ -134,3 +145,28 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     return marginPercent() < minMarginPercent
   },
 }))
+
+// Selectores puros
+export const selectTotalCost = (state: RecipeState) =>
+  state.items.reduce(
+    (sum: number, item: RecipeItem) => sum + item.quantity * item.unitCost,
+    0
+  )
+
+export const selectMarginAmount = (state: RecipeState) => {
+  const cost = selectTotalCost(state)
+  if (state.items.length === 0 || cost === 0) return 0
+  return state.salePrice - cost
+}
+
+export const selectMarginPercent = (state: RecipeState) => {
+  if (state.items.length === 0 || state.salePrice <= 0) return 0
+  const cost = selectTotalCost(state)
+  const rawMargin = ((state.salePrice - cost) / state.salePrice) * 100
+  return Math.round(rawMargin * 10) / 10
+}
+
+export const selectIsUnderMargin = (state: RecipeState) => {
+  if (state.items.length === 0) return false
+  return selectMarginPercent(state) < state.minMarginPercent
+}
