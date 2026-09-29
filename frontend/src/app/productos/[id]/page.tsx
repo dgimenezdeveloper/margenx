@@ -27,7 +27,7 @@ import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
-import { useRecipeStore, type RecipeItem, type RecipeState } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -72,7 +72,7 @@ export default function ProductDetailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  // Conexión a Zustand
+  // Conexión fuertemente tipada a Zustand
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
@@ -136,7 +136,7 @@ export default function ProductDetailPage() {
           minMarginPercent: String(prodData.minMarginPercent),
         })
 
-        const mappedRecipe = prodData.ingredients.map((pi) => ({
+        const mappedRecipe: RecipeItem[] = prodData.ingredients.map((pi) => ({
           ingredientId: pi.ingredientId,
           name: pi.ingredient?.name || 'Insumo desconocido',
           unit: pi.ingredient?.unit || 'u',
@@ -185,7 +185,13 @@ export default function ProductDetailPage() {
   }, [availablePantry, searchQuery])
 
   const hasRecipe = items.length > 0
-  const targetMargin = Number(watchedMinMargin) || (product?.minMarginPercent ?? 30)
+
+  // ✅ Corregido: Respeta el 0% explícito sin caer al valor por defecto
+  const parsedWatchedMargin = Number(watchedMinMargin)
+  const targetMargin =
+    watchedMinMargin !== '' && !isNaN(parsedWatchedMargin)
+      ? parsedWatchedMargin
+      : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
@@ -216,7 +222,7 @@ export default function ProductDetailPage() {
     const numQty = Number(inputQty)
     if (currentSupply && numQty > 0) {
       const baseQty = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
-      const newItem = {
+      const newItem: RecipeItem = {
         ingredientId: currentSupply.id,
         name: currentSupply.name,
         unit: currentSupply.unit,
@@ -249,7 +255,7 @@ export default function ProductDetailPage() {
   }
 
   const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i: { ingredientId: string }) => i.ingredientId === ingredientId)
+    const targetItem = items.find((i: RecipeItem) => i.ingredientId === ingredientId)
     if (!targetItem) return
 
     const val = Number(rawVal)
@@ -549,7 +555,7 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {items.map((item: { ingredientId: string; quantity: number; unitCost: number; name: string; inputQty?: number; recipeUnit?: string; unit: string }) => {
+                  {items.map((item: RecipeItem) => {
                     const itemSubtotal = item.quantity * item.unitCost
                     const displayQty =
                       item.inputQty ??
