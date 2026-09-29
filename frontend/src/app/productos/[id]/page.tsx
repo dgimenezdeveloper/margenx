@@ -318,41 +318,41 @@ export default function ProductDetailPage() {
       })),
     }
 
-      try {
-        const updated = await productService.update(id!, payload, getToken)
-        setProduct(updated)
-        reset({
-          name: updated.name,
-          salePrice: String(updated.salePrice),
-          minMarginPercent: String(updated.minMarginPercent),
-        })
-        notify('Datos del producto guardados exitosamente', 'success')
-      } catch (err: unknown) {
-        if (err instanceof ApiError) {
-          const field =
-            err.status === 409
-              ? 'name'
-              : err.status === 400
-                ? (() => {
-                    const msg = err.message.toLowerCase()
-                    if (msg.includes('name') || msg.includes('nombre')) return 'name'
-                    if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
-                    if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
-                    return null
-                  })()
-                : null
+    try {
+      const updated = await productService.update(id!, payload, getToken)
+      setProduct(updated)
+      reset({
+        name: updated.name,
+        salePrice: String(updated.salePrice),
+        minMarginPercent: String(updated.minMarginPercent),
+      })
+      notify('Datos del producto guardados exitosamente', 'success')
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        const field =
+          err.status === 409
+            ? 'name'
+            : err.status === 400
+              ? (() => {
+                  const msg = err.message.toLowerCase()
+                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                  return null
+                })()
+              : null
 
-          if (field) {
-            setError(field, { type: 'server', message: err.message })
-          }
-          notify(err.message, 'error')
-        } else {
-          notify('Error al guardar los cambios', 'error')
+        if (field) {
+          setError(field, { type: 'server', message: err.message })
         }
-      } finally {
-        submitLockRef.current = false
-        setIsSaving(false)
+        notify(err.message, 'error')
+      } else {
+        notify('Error al guardar los cambios', 'error')
       }
+    } finally {
+      submitLockRef.current = false
+      setIsSaving(false)
+    }
   }
 
   const handleSavePriceFromSheet = async () => {
