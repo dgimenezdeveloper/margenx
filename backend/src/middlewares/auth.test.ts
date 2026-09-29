@@ -68,6 +68,7 @@ describe('authMiddleware', () => {
           select: {
             id: true,
             businessName: true,
+            defaultMinMarginPercent: true,
           },
         },
       },
@@ -84,7 +85,11 @@ describe('authMiddleware', () => {
       accountId: 'a1',
       email: 'x@x.com',
       role: 'ADMIN',
-      account: { id: 'a1', businessName: 'Panadería Central' },
+      account: {
+        id: 'a1',
+        businessName: 'Panadería Central',
+        defaultMinMarginPercent: { toString: () => '15.5' },
+      },
     };
     findUniqueMock.mockResolvedValue(user);
     const { req, res, next } = buildReqRes('Bearer good-token');
