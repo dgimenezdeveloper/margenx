@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { Prisma } from '@prisma/client';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
@@ -98,6 +100,13 @@ function firstUpdateData(): ProductUpdateData {
   expect(call).toBeDefined();
   return (call as [{ data: ProductUpdateData }])[0].data;
 }
+
+describe('schema Prisma', () => {
+  it('define una restricción única de nombre por cuenta en Product', () => {
+    const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
+    expect(schema).toContain('@@unique([accountId, name])');
+  });
+});
 
 describe('GET /api/products - paginación', () => {
   it('devuelve data y meta correctos con page/limit/sortBy/order válidos', async () => {

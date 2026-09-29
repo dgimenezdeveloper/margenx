@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -58,6 +58,7 @@ export default function ProductDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const submitLockRef = useRef(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showSheet, setShowSheet] = useState(false)
 
@@ -303,6 +304,10 @@ export default function ProductDetailPage() {
   }
 
   const handleFormSubmit = async (data: ProductFormValues) => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+    setIsSaving(true)
+
     const payload = {
       name: data.name,
       salePrice: Number(data.salePrice),
@@ -314,7 +319,6 @@ export default function ProductDetailPage() {
     }
 
       try {
-        setIsSaving(true)
         const updated = await productService.update(id!, payload, getToken)
         setProduct(updated)
         reset({
@@ -325,19 +329,28 @@ export default function ProductDetailPage() {
         notify('Datos del producto guardados exitosamente', 'success')
       } catch (err: unknown) {
         if (err instanceof ApiError) {
-          const errorMsg = err.message.toLowerCase()
-          if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
-            setError('name', { type: 'server', message: err.message })
-          } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
-            setError('salePrice', { type: 'server', message: err.message })
-          } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
-            setError('minMarginPercent', { type: 'server', message: err.message })
+          const field =
+            err.status === 409
+              ? 'name'
+              : err.status === 400
+                ? (() => {
+                    const msg = err.message.toLowerCase()
+                    if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                    if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                    if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                    return null
+                  })()
+                : null
+
+          if (field) {
+            setError(field, { type: 'server', message: err.message })
           }
           notify(err.message, 'error')
         } else {
           notify('Error al guardar los cambios', 'error')
         }
       } finally {
+        submitLockRef.current = false
         setIsSaving(false)
       }
   }

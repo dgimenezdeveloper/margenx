@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -53,6 +53,7 @@ export default function NewProductPage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitLockRef = useRef(false)
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
@@ -205,6 +206,10 @@ export default function NewProductPage() {
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+    setIsSubmitting(true)
+
     const payload = {
       name: data.name,
       salePrice: Number(data.salePrice),
@@ -216,7 +221,6 @@ export default function NewProductPage() {
     }
 
     try {
-      setIsSubmitting(true)
       await productService.create(getToken, payload)
 
       notify(
@@ -228,19 +232,28 @@ export default function NewProductPage() {
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
       if (error instanceof ApiError) {
-        const errorMsg = error.message.toLowerCase()
-        if (errorMsg.includes('name') || errorMsg.includes('nombre')) {
-          setError('name', { type: 'server', message: error.message })
-        } else if (errorMsg.includes('saleprice') || errorMsg.includes('precio')) {
-          setError('salePrice', { type: 'server', message: error.message })
-        } else if (errorMsg.includes('minmarginpercent') || errorMsg.includes('margen')) {
-          setError('minMarginPercent', { type: 'server', message: error.message })
+        const field =
+          error.status === 409
+            ? 'name'
+            : error.status === 400
+              ? (() => {
+                  const msg = error.message.toLowerCase()
+                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                  return null
+                })()
+              : null
+
+        if (field) {
+          setError(field, { type: 'server', message: error.message })
         }
         notify(error.message, 'error')
       } else {
         notify('Error al guardar el producto.', 'error')
       }
     } finally {
+      submitLockRef.current = false
       setIsSubmitting(false)
     }
   }
