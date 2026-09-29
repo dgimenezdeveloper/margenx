@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { useAuth } from '@clerk/clerk-react'
+import { useClerk, useAuth } from '@clerk/clerk-react'
 
-// Por defecto 30 minutos (1.800.000 ms) según la historia de usuario
+// 30 minutos por defecto (1.800.000 ms) según la historia de usuario
 const DEFAULT_INACTIVITY_LIMIT = 30 * 60 * 1000
 const LAST_ACTIVE_KEY = 'margenx_last_active'
 const LOGOUT_REASON_KEY = 'margenx_logout_reason'
@@ -9,17 +9,24 @@ const ACTIVE_SESSION_KEY = 'margenx_active_session'
 
 function getInactivityLimit(): number {
   if (typeof window !== 'undefined') {
-    // Permite acelerar el temporizador para pruebas en consola (ej: window.__MARGENX_INACTIVITY_LIMIT__ = 60000 para 1 min)
+    // 1. Override temporal por consola: window.__MARGENX_INACTIVITY_LIMIT__ = 60000
     const custom = (window as unknown as { __MARGENX_INACTIVITY_LIMIT__?: number }).__MARGENX_INACTIVITY_LIMIT__
-    if (typeof custom === 'number' && custom > 0) {
-      return custom
-    }
+    if (typeof custom === 'number' && custom > 0) return custom
+
+    // 2. Override persistente para pruebas de QA: localStorage.setItem('MARGENX_TEST_TIMEOUT', '60000')
+    const storedTest = localStorage.getItem('MARGENX_TEST_TIMEOUT')
+    if (storedTest && Number(storedTest) > 0) return Number(storedTest)
+
+    // 3. Variable de entorno Vite si se configuró en .env
+    const envLimit = Number(import.meta.env.VITE_INACTIVITY_TIMEOUT_MS)
+    if (!isNaN(envLimit) && envLimit > 0) return envLimit
   }
   return DEFAULT_INACTIVITY_LIMIT
 }
 
 export function useSessionSecurity() {
-  const { isSignedIn, isLoaded, signOut } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { signOut } = useClerk()
   const isLoggingOutRef = useRef(false)
   const lastThrottleRef = useRef(0)
 
@@ -32,9 +39,9 @@ export function useSessionSecurity() {
     sessionStorage.setItem(LOGOUT_REASON_KEY, 'inactivity')
 
     try {
-      await signOut()
+      // Anulamos redirect por defecto para que no vaya a '/'
+      await signOut(() => {})
     } finally {
-      // Redirección completa para limpiar estado en memoria y mostrar el toast de forma garantizada
       window.location.href = '/login?reason=inactivity'
     }
   }, [signOut])
@@ -42,12 +49,10 @@ export function useSessionSecurity() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
 
-    // 1. Inicializar marca de tiempo SOLO si no existía (evita reiniciarla en cada re-render)
     if (!localStorage.getItem(LAST_ACTIVE_KEY)) {
       localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()))
     }
 
-    // 2. Evaluador de inactividad contra el tiempo real del sistema
     const checkInactivity = () => {
       if (isLoggingOutRef.current) return
       const currentTime = Date.now()
@@ -59,7 +64,6 @@ export function useSessionSecurity() {
       }
     }
 
-    // 3. Listener de actividad de usuario (throttle de 2s para no saturar I/O)
     const recordUserActivity = () => {
       const currentTime = Date.now()
       if (currentTime - lastThrottleRef.current > 2000) {
@@ -68,10 +72,9 @@ export function useSessionSecurity() {
       }
     }
 
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll']
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click']
     events.forEach((evt) => window.addEventListener(evt, recordUserActivity, { passive: true }))
 
-    // 4. Verificación cuando el usuario cambia de pestaña o despierta el equipo
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkInactivity()
@@ -81,7 +84,6 @@ export function useSessionSecurity() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', checkInactivity)
 
-    // 5. Pulso periódico cada 2 segundos
     const intervalId = setInterval(checkInactivity, 2000)
 
     return () => {

@@ -2,15 +2,53 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { SignIn } from '@clerk/clerk-react'
-import { ArrowLeft, Check } from 'lucide-react'
+import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
+import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { isClerkConfigured } from '@/lib/clerkConfig'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function LoginPage() {
   const { isDark } = useTheme()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { signOut } = useClerk()
+  const navigate = useNavigate()
 
-  // Leemos la razón de salida tanto de sessionStorage como de la URL
+  // 1. Verificación síncrona en fase de render
+  const hasActiveSession =
+    typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true'
+
+  // Sesión huérfana: Clerk tiene cookies viejas pero el navegador se reabrió sin sesión activa
+  const isStaleSession = Boolean(isLoaded && isSignedIn && !hasActiveSession)
+
+  useEffect(() => {
+    if (!isLoaded) return
+
+    // CASO A: Si ya tiene sesión activa en esta misma pestaña, enviamos al dashboard
+    if (hasActiveSession && isSignedIn) {
+      navigate('/dashboard', { replace: true })
+      return
+    }
+
+    // CASO B: Si reabrió el navegador y entra a /login con cookies residuales de Clerk,
+    // destruimos la sesión pasando un callback vacío para impedir que Clerk lo rebote a la Landing (/)
+    if (isStaleSession) {
+      sessionStorage.removeItem('margenx_active_session')
+      localStorage.removeItem('margenx_last_active')
+
+      void signOut(() => {
+        // Al proveer este callback, Clerk anula su redirect por defecto a '/' y se queda en /login
+      })
+    }
+  }, [isLoaded, isSignedIn, hasActiveSession, isStaleSession, signOut, navigate])
+
+  // Al interactuar o hacer foco en el formulario de acceso, autorizamos la pestaña
+  const handleAuthorizeTab = () => {
+    sessionStorage.setItem('margenx_active_session', 'true')
+    localStorage.setItem('margenx_last_active', String(Date.now()))
+  }
+
+  // Toast de inactividad
   const [toast, setToast] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const logoutReason = sessionStorage.getItem('margenx_logout_reason')
@@ -58,24 +96,39 @@ export default function LoginPage() {
           />
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
-        {isClerkConfigured ? (
-          <SignIn
-            fallbackRedirectUrl="/dashboard?fresh_auth=true"
-            routing="path"
-            path="/login"
-            appearance={{
-              variables: isDark ? {
-                colorBackground: '#111827', // bg-gray-900 (Fondo de la tarjeta)
-                colorText: '#f9fafb',       // text-gray-50 (Texto principal)
-                colorInputBackground: '#1f2937', // bg-gray-800 (Fondo de los inputs)
-                colorInputText: '#f9fafb',  // text-gray-50 (Texto de los inputs)
-                colorPrimary: '#4f46e5',    // bg-indigo-600 (Botón principal)
-                colorTextSecondary: '#9ca3af', // text-gray-400 (Textos secundarios)
-              } : {
-                colorPrimary: '#4f46e5',    // bg-indigo-600 (Mantenemos el color de marca en modo claro)
-              }
-            }}
-          />
+
+        {/* Mientras se purga la sesión vieja de Clerk sin recargas, mostramos el loader */}
+        {!isLoaded || isStaleSession ? (
+          <div className="flex h-64 items-center justify-center">
+            <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+          </div>
+        ) : isClerkConfigured ? (
+          <div
+            onClickCapture={handleAuthorizeTab}
+            onKeyDownCapture={handleAuthorizeTab}
+            onFocusCapture={handleAuthorizeTab}
+          >
+            <SignIn
+              fallbackRedirectUrl="/dashboard"
+              forceRedirectUrl="/dashboard"
+              routing="path"
+              path="/login"
+              appearance={{
+                variables: isDark
+                  ? {
+                      colorBackground: '#111827',
+                      colorText: '#f9fafb',
+                      colorInputBackground: '#1f2937',
+                      colorInputText: '#f9fafb',
+                      colorPrimary: '#4f46e5',
+                      colorTextSecondary: '#9ca3af',
+                    }
+                  : {
+                      colorPrimary: '#4f46e5',
+                    },
+              }}
+            />
+          </div>
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
             Configura una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
