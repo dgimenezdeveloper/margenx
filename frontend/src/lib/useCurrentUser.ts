@@ -22,7 +22,9 @@ export function useCurrentUser() {
   return {
     user,
     businessName: user?.account?.businessName,
-    defaultMinMarginPercent: 30,
+    defaultMinMarginPercent: user?.account?.defaultMinMarginPercent != null
+      ? Number(user.account.defaultMinMarginPercent)
+      : 30,
     isLoading: isActuallyLoading,
   }
 }
