@@ -6,19 +6,18 @@ interface UserState {
   user: AuthUser | null
   isLoading: boolean
   hasFetched: boolean
-  fetchUser: (getToken: TokenGetter) => Promise<void>
+  fetchUser: (getToken: TokenGetter, force?: boolean) => Promise<void>
   clearUser: () => void
 }
 
-// Promesa compartida a nivel de módulo para deduplicar llamadas concurrentes (ej: Navbar y Profile simultáneos)
 let inFlight: Promise<void> | null = null
 
 export const useUserStore = create<UserState>((set, get) => ({
   user: null,
   isLoading: true,
   hasFetched: false,
-  fetchUser: async (getToken) => {
-    if (get().hasFetched) return
+  fetchUser: async (getToken, force = false) => {
+    if (get().hasFetched && !force) return
     if (inFlight) return inFlight
 
     inFlight = (async () => {
