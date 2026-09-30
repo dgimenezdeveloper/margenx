@@ -31,7 +31,9 @@ export default function DashboardPage() {
         setTotalSuppliesCount(supplies.length)
       })
       .catch(() => {
-        // Manejo silencioso en dashboard
+        if (!active) return
+        setProducts([])
+        setTotalSuppliesCount(0)
       })
       .finally(() => {
         if (active) setIsLoading(false)
@@ -40,7 +42,8 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [getToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Se ejecuta una sola vez al montar para evitar bucles con la referencia de getToken
 
   const riskProductsCount = products.filter(
     (p) => p.ingredients.length > 0 && p.marginPercent < p.minMarginPercent

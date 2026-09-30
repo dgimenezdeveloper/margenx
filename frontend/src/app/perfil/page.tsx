@@ -43,7 +43,7 @@ function ToggleSwitch({
 
 export default function ProfilePage() {
   const { signOut, getToken } = useAuth()
-  const { user, businessName, defaultMinMarginPercent, refreshUser } = useCurrentUser()
+  const { user, businessName, defaultMinMarginPercent, isLoading, refreshUser } = useCurrentUser()
 
   const [customMargin, setCustomMargin] = useState<string | null>(null)
   const [isSavingGlobalMargin, setIsSavingGlobalMargin] = useState<boolean>(false)
@@ -78,7 +78,9 @@ export default function ProfilePage() {
     try {
       setIsSavingGlobalMargin(true)
       await authService.updateGlobalMargin(getToken, numericMargin)
-      await refreshUser()
+      if (refreshUser) {
+        await refreshUser()
+      }
       setCustomMargin(null)
       notify('Margen objetivo global actualizado correctamente')
     } catch (err) {
@@ -108,23 +110,38 @@ export default function ProfilePage() {
           </h1>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Columna Izquierda: Usuario y Comercio con Skeletons */}
             <div className="space-y-6">
               <section className="flex items-center gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-black text-white shadow-lg shadow-indigo-600/20">
-                  {user?.role === 'COLLABORATOR' ? 'CL' : 'AD'}
+                  {isLoading ? (
+                    <div className="size-8 animate-pulse rounded-full bg-indigo-400" />
+                  ) : (
+                    user?.role === 'COLLABORATOR' ? 'CL' : 'AD'
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate font-bold text-lg">
-                      {user?.role === 'COLLABORATOR' ? 'Colaborador' : 'Administrador'}
-                    </h2>
-                    <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                      {user?.role || 'ADMIN'}
-                    </span>
+                    {isLoading ? (
+                      <div className="h-6 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                    ) : (
+                      <>
+                        <h2 className="truncate font-bold text-lg">
+                          {user?.role === 'COLLABORATOR' ? 'Colaborador' : 'Administrador'}
+                        </h2>
+                        <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                          {user?.role || 'ADMIN'}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  <p className="truncate text-xs text-gray-500 mt-0.5">
-                    {user?.email || 'usuario@comercio.com'}
-                  </p>
+                  {isLoading ? (
+                    <div className="mt-1.5 h-4 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                  ) : (
+                    <p className="truncate text-xs text-gray-500 mt-0.5">
+                      {user?.email}
+                    </p>
+                  )}
                 </div>
               </section>
 
@@ -135,7 +152,11 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50">
                   <div>
-                    <p className="font-bold text-base">{businessName}</p>
+                    {isLoading ? (
+                      <div className="h-5 w-40 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                    ) : (
+                      <p className="font-bold text-base">{businessName}</p>
+                    )}
                     <p className="text-xs text-gray-500 mt-0.5">Plan Profesional • Activo</p>
                   </div>
                   <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
@@ -145,6 +166,7 @@ export default function ProfilePage() {
               </section>
             </div>
 
+            {/* Columna Derecha: Margen Objetivo Global con Guardado y Alertas */}
             <div className="space-y-6">
               <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center gap-2">
@@ -192,6 +214,7 @@ export default function ProfilePage() {
                 </button>
               </section>
 
+              {/* Automatizaciones n8n */}
               <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center gap-2">
                   <Bell className="size-5 text-indigo-600" />
@@ -228,8 +251,13 @@ export default function ProfilePage() {
           <div className="pt-2 md:flex md:justify-end md:pt-6">
             <button
               type="button"
-              onClick={() => void signOut({ redirectUrl: '/' })}
-              className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
+              onClick={() => {
+                sessionStorage.removeItem('margenx_active_session')
+                document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+                localStorage.removeItem('margenx_last_active')
+                void signOut({ redirectUrl: '/' })
+              }}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 md:w-auto md:px-8"
             >
               <LogOut className="size-4" />
               Cerrar Sesión

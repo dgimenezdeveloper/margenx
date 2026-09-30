@@ -1,63 +1,39 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { authService, type AuthUser } from '@/services/authService'
+import { useUserStore } from '@/stores/useUserStore'
 
 export function useCurrentUser() {
   const { getToken, isSignedIn, isLoaded } = useAuth()
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isFetching, setIsFetching] = useState<boolean>(false)
-
-  const fetchUser = useCallback(async () => {
-    if (!isSignedIn) return
-    setIsFetching(true)
-    try {
-      const data = await authService.getMe(getToken)
-      setUser(data)
-    } catch {
-      setUser(null)
-    } finally {
-      setIsFetching(false)
-    }
-  }, [getToken, isSignedIn])
+  const { user, isLoading, hasFetched, fetchUser, clearUser } = useUserStore()
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
+    if (!isLoaded) return
 
-    let active = true
-    authService
-      .getMe(getToken)
-      .then((data: AuthUser) => {
-        if (active) {
-          setUser(data)
-          setIsFetching(false)
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setUser(null)
-          setIsFetching(false)
-        }
-      })
-
-    return () => {
-      active = false
+    if (isSignedIn && !hasFetched) {
+      void fetchUser(getToken)
+    } else if (!isSignedIn && hasFetched) {
+      clearUser()
     }
-  }, [getToken, isSignedIn, isLoaded])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isSignedIn, hasFetched])
 
-  const currentUser = isSignedIn ? user : null
-  const isLoading = !isLoaded || (isSignedIn && user === null && isFetching)
+  const refreshUser = useCallback(async () => {
+    if (!isSignedIn) return
+    await fetchUser(getToken, true)
+  }, [getToken, isSignedIn, fetchUser])
 
-  // ✅ Corregido: Chequeo estricto != null para no anular el 0%
+  const isActuallyLoading = !isLoaded || (isSignedIn && isLoading)
+
   const defaultMinMarginPercent =
-    currentUser?.account?.defaultMinMarginPercent != null
-      ? Number(currentUser.account.defaultMinMarginPercent)
+    user?.account?.defaultMinMarginPercent != null
+      ? Number(user.account.defaultMinMarginPercent)
       : 30
 
   return {
-    user: currentUser,
-    businessName: currentUser?.account?.businessName ?? 'Mi Comercio',
+    user,
+    businessName: user?.account?.businessName,
     defaultMinMarginPercent,
-    isLoading,
-    refreshUser: fetchUser,
+    isLoading: isActuallyLoading,
+    refreshUser,
   }
 }
