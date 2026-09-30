@@ -70,12 +70,8 @@ function decimal(value: unknown, field: string, allowZero = false): Prisma.Decim
     throw new AppError('El campo "salePrice" no puede superar $99.999.999,99.', 400);
   }
 
-  if (field === 'minMarginPercent' && result.greaterThan(100)) {
-    throw new AppError('El campo "minMarginPercent" no puede superar el 100%.', 400);
-  }
-
   if (field === 'minMarginPercent' && result.abs().greaterThan(MAX_PERCENT_VALUE)) {
-    throw new AppError('El campo "minMarginPercent" no puede superar el 100%.', 400);
+    throw new AppError('El campo "minMarginPercent" no puede superar el 999.99%.', 400);
   }
 
   if (field === 'quantity' && result.abs().greaterThan(MAX_MONEY_VALUE)) {

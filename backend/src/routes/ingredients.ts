@@ -33,6 +33,8 @@ function getIdParam(rawId: string | string[] | undefined): string {
 
 const VALID_UNITS = ['kg', 'l', 'u'] as const;
 type Unit = (typeof VALID_UNITS)[number];
+const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
+const MAX_MONEY_VALUE_NUMBER = 99_999_999.99;
 
 interface IngredientInputDTO {
   name?: unknown;
@@ -81,20 +83,28 @@ function validateIngredientInput(
     errors.push('El campo "currentCost" debe ser un número o un string numérico.');
   } else {
     const asString = String(rawCost).trim();
-    const isNumericFormat = /^-?\d+(\.\d+)?$/.test(asString);
+    const numericValue = Number(asString);
+    const isNumericValue = Number.isFinite(numericValue);
 
-    if (!isNumericFormat) {
-      errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
+    if (typeof rawCost === 'number' && (!isNumericValue || Math.abs(rawCost) > MAX_MONEY_VALUE_NUMBER)) {
+      errors.push('El insumo no puede superar $99.999.999,99.');
     } else {
-      try {
-        const decimalValue = new Prisma.Decimal(asString);
-        if (decimalValue.lessThanOrEqualTo(0)) {
-          errors.push('El campo "currentCost" debe ser mayor a cero.');
-        } else {
-          currentCost = decimalValue;
+      const isNumericFormat = /^-?\d+(\.\d+)?$/.test(asString);
+      if (!isNumericFormat && !isNumericValue) {
+        errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
+      } else {
+        try {
+          const decimalValue = new Prisma.Decimal(asString);
+          if (decimalValue.lessThanOrEqualTo(0)) {
+            errors.push('El campo "currentCost" debe ser mayor a cero.');
+          } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE) || Math.abs(numericValue) > MAX_MONEY_VALUE_NUMBER) {
+            errors.push('El insumo no puede superar $99.999.999,99.');
+          } else {
+            currentCost = decimalValue;
+          }
+        } catch {
+          errors.push('El campo "currentCost" debe ser un valor decimal válido.');
         }
-      } catch {
-        errors.push('El campo "currentCost" debe ser un valor decimal válido.');
       }
     }
   }

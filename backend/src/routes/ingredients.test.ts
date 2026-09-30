@@ -196,6 +196,16 @@ describe('POST /api/ingredients', () => {
     expect(res.body.error).toMatch(/mayor a cero/);
   });
 
+  it('devuelve 400 si currentCost excede el máximo permitido por la base', async () => {
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina', unit: 'kg', currentCost: 999999999999999 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/no puede superar \$99\.999\.999,99/);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it('devuelve 400 si currentCost no tiene formato decimal válido', async () => {
     const res = await request(buildApp())
       .post('/api/ingredients')
