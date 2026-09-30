@@ -6,6 +6,7 @@ import { Bell, Building2, Check, LoaderCircle, LogOut, Save, Target } from 'luci
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
+import { SupportDocsModal } from '@/components/support-docs-modal'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
@@ -49,6 +50,7 @@ export default function ProfilePage() {
   const [isSavingGlobalMargin, setIsSavingGlobalMargin] = useState<boolean>(false)
   const [toast, setToast] = useState<string | null>(null)
   const [marginError, setMarginError] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
@@ -265,10 +267,24 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Footer Móvil de Perfil */}
+        <div className="mt-8 flex flex-col items-center gap-4 pb-8 md:hidden">
+          <div className="flex items-center gap-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
+            <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Soporte</button>
+            <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Documentación</button>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+            <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
+            Sistemas en línea
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} MargenX • v0.2.0</p>
+        </div>
+
         <DesktopFooter />
       </div>
 
       <BottomNav />
+      <SupportDocsModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </main>
   )
 }
