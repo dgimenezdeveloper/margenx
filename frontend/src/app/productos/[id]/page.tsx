@@ -17,8 +17,10 @@ import {
   Save,
   ChevronDown,
   Search,
+  Pencil,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { EmptyState } from '@/components/empty-state'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
@@ -58,6 +60,7 @@ export default function ProductDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const submitLockRef = useRef(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
@@ -650,7 +653,7 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
-          <div className="lg:col-span-5 lg:sticky lg:top-6">
+          <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
                 <div>
@@ -680,22 +683,22 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.05)}
-                    className="min-h-11 rounded-xl border py-2 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
                   >
                     +5%
                   </button>
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.10)}
-                    className="min-h-11 rounded-xl border py-2 text-xs font-bold hover:bg-gray-50 dark:border-gray-700 cursor-pointer"
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
                   >
                     +10%
                   </button>
                   <button
                     type="button"
                     disabled={!hasRecipe || cost <= 0}
+                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 cursor-pointer disabled:opacity-50"
                     onClick={() => applySuggestedMargin(targetMargin)}
-                    className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Sugerir {targetMargin}%
                   </button>
@@ -717,7 +720,7 @@ export default function ProductDetailPage() {
                     inputMode="decimal"
                     type="number"
                     step="any"
-                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -750,39 +753,81 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500">Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong></span>
+            <div className="flex flex-col text-xs gap-0.5">
+              <span className="text-gray-500">Costo: <strong className="text-gray-900 dark:text-gray-100">{money(cost)}</strong></span>
               <span className="text-gray-500">Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              {!hasRecipe ? (
-                <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
-              ) : !isHealthy ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                  <AlertTriangle className="size-3" /> Margen Bajo ({margin}%)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  <ShieldCheck className="size-3" /> Saludable ({margin}%)
-                </span>
-              )}
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleSubmit(handleFormSubmit)}
-            disabled={isSaving}
-            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+            onClick={() => setIsSimulatorOpen(true)}
+            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700"
           >
-            {isSaving && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
-            {isSaving ? 'Guardando...' : 'Guardar Producto'}
+            <Pencil className="size-3.5" /> Ajustar Precio
           </button>
         </div>
       </footer>
+
+      {isSimulatorOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
+          <div className="fixed inset-0" onClick={() => setIsSimulatorOpen(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Simulador de Precio (Costo: {money(cost)})
+                </p>
+              </div>
+              <span className={`text-sm font-black ${!hasRecipe ? 'text-gray-400' : gain >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                Ganancia: {!hasRecipe ? '$0' : money(gain)}
+              </span>
+            </div>
+
+            <div className="mt-5 space-y-5">
+              <div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={() => adjustPriceFactor(1.05)} className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">+5%</button>
+                  <button type="button" onClick={() => adjustPriceFactor(1.10)} className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">+10%</button>
+                  <button type="button" disabled={!hasRecipe || cost <= 0} onClick={() => applySuggestedMargin(targetMargin)} className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 cursor-pointer disabled:opacity-50">Sugerir {targetMargin}%</button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Precio de Venta</label>
+                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-lg font-bold text-gray-400">$</span>
+                  <input
+                    value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
+                    onChange={(e) => setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), { shouldValidate: true, shouldDirty: true })}
+                    inputMode="decimal" type="number" step="any"
+                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <p className={`text-xs font-bold ${!hasRecipe ? 'text-gray-500' : margin >= targetMargin ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {!hasRecipe ? 'Proyección: 0.0% (Sin Receta)' : `Proyección: Nuevo margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
+              </p>
+
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setIsSimulatorOpen(false)} className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer">
+                  Cancelar
+                </button>
+                <button type="button" onClick={() => { setIsSimulatorOpen(false); handleSubmit(handleFormSubmit)(); }} disabled={isSaving} className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : null}
+                  Guardar Precio
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
@@ -988,6 +1033,8 @@ export default function ProductDetailPage() {
           </section>
         </div>
       )}
+
+      <BottomNav />
     </main>
   )
 }

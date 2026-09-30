@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
@@ -694,7 +695,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
@@ -727,6 +728,7 @@ export default function NewProductPage() {
           </div>
         </footer>
       </form>
+      <BottomNav />
     </main>
   )
 }
