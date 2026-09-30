@@ -50,18 +50,38 @@ interface ProductIngredientBody {
   quantity?: unknown;
 }
 
+const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
+const MAX_PERCENT_VALUE = new Prisma.Decimal('999.99');
+
 function decimal(value: unknown, field: string, allowZero = false): Prisma.Decimal {
   if (typeof value !== 'number' && typeof value !== 'string') {
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const text = String(value).trim();
-  if (!/^-?\d+(\.\d+)?$/.test(text)) { // ← agregado el "-?" Con esto, "-10" sí matchea el formato, se convierte a Decimal, y recién ahí cae en lessThan(0) → tira el mensaje correcto "mayor o igual a cero".
+  if (!/^-?\d+(\.\d+)?$/.test(text)) {
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const result = new Prisma.Decimal(text);
   if (allowZero ? result.lessThan(0) : result.lessThanOrEqualTo(0)) {
     throw new AppError(`El campo "${field}" debe ser ${allowZero ? 'mayor o igual a' : 'mayor a'} cero.`, 400);
   }
+
+  if (field === 'salePrice' && result.abs().greaterThan(MAX_MONEY_VALUE)) {
+    throw new AppError('El campo "salePrice" no puede superar $99.999.999,99.', 400);
+  }
+
+  if (field === 'minMarginPercent' && result.greaterThan(100)) {
+    throw new AppError('El campo "minMarginPercent" no puede superar el 100%.', 400);
+  }
+
+  if (field === 'minMarginPercent' && result.abs().greaterThan(MAX_PERCENT_VALUE)) {
+    throw new AppError('El campo "minMarginPercent" no puede superar el 100%.', 400);
+  }
+
+  if (field === 'quantity' && result.abs().greaterThan(MAX_MONEY_VALUE)) {
+    throw new AppError('El campo "quantity" excede la capacidad máxima permitida.', 400);
+  }
+
   return result;
 }
 

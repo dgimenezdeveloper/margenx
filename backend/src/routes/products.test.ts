@@ -201,6 +201,48 @@ describe('POST /api/products', () => {
     expect(res.body.error).toMatch(/mayor o igual a cero/);
     expect(txProductCreateMock).not.toHaveBeenCalled();
   });
+
+  it('rechaza salePrice mayor al límite de PostgreSQL con 400', async () => {
+    txIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto fuera de rango',
+        salePrice: '100000000',
+        minMarginPercent: '30',
+        ingredients: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('El campo "salePrice" no puede superar $99.999.999,99.');
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('acepta el límite superior exacto de salePrice', async () => {
+    txIngredientFindManyMock.mockResolvedValue([]);
+    txProductCreateMock.mockResolvedValue({
+      id: 'p-limit',
+      name: 'Producto límite',
+      cost: '0.00',
+      marginAmount: '0.00',
+      marginPercent: '0.00',
+    });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto límite',
+        salePrice: '99999999.99',
+        minMarginPercent: '30',
+        ingredients: [],
+      });
+
+    expect(res.status).toBe(201);
+    const createData = txProductCreateMock.mock.calls[0]?.[0]?.data as { salePrice: Prisma.Decimal } | undefined;
+    expect(createData).toBeDefined();
+    expect(createData!.salePrice.toString()).toBe('99999999.99');
+  });
 });
 
 describe('GET /api/products/:id', () => {

@@ -53,6 +53,10 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
         return res
           .status(409)
           .json({ error: 'La operación viola una relación existente con otro recurso.' });
+      case 'P2023':
+        return res.status(400).json({
+          error: 'Uno de los valores numéricos excede la capacidad máxima admitida.',
+        });
       default:
         break; // cualquier otro código de Prisma cae al catch-all de abajo
     }

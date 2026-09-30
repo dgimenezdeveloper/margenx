@@ -89,6 +89,9 @@ export default function NewProductPage() {
   const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
   const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
 
+  const hasCriticalMargin = marginPercent < -100
+  const hasHealthyMargin = marginPercent > 100
+
   const {
     register,
     handleSubmit,
@@ -595,32 +598,46 @@ export default function NewProductPage() {
                       <span className="size-2.5 rounded-full bg-gray-400" />
                       Producto en modo borrador (Sin Receta).
                     </div>
-                  ) : isUnderMargin ? (
+                  ) : hasCriticalMargin ? (
                     <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/40 animate-in fade-in">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
                           <AlertTriangle className="size-3.5" /> Margen Bajo
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {marginPercent}%
+                          {marginPercent.toFixed(1)}%
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado ({Number(watchedMinMargin) || 0}%).
+                        ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
                       </p>
                     </div>
-                  ) : (
+                  ) : hasHealthyMargin ? (
                     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 animate-in fade-in">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
                           <ShieldCheck className="size-3.5" /> Margen Saludable
                         </span>
                         <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                          {marginPercent}%
+                          {marginPercent.toFixed(1)}%
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                         Cumple o supera el objetivo de rentabilidad ({Number(watchedMinMargin) || 0}%).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/40 animate-in fade-in">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
+                          <AlertTriangle className="size-3.5" /> Margen Bajo
+                        </span>
+                        <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
+                          {marginPercent.toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
+                        El margen está por debajo del umbral personalizado ({Number(watchedMinMargin) || 0}%).
                       </p>
                     </div>
                   )}

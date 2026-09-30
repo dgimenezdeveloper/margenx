@@ -110,4 +110,9 @@ describe('calculateMarginPercent', () => {
   it('soporta valores monetarios altos', () => {
     expect(calculateMarginPercent(D('1000000'), D('250000')).toFixed(2)).toBe('75.00');
   });
+
+  it('soporta márgenes negativos y positivos extremos sin romper el parseo', () => {
+    expect(calculateMarginPercent(D('2'), D('100')).toFixed(2)).toBe('-4900.00');
+    expect(calculateMarginPercent(D('1000000'), D('200000')).toFixed(2)).toBe('80.00');
+  });
 });

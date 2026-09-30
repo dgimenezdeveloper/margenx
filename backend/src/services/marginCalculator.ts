@@ -5,6 +5,18 @@ const Decimal = Prisma.Decimal;
 type DecimalType = Prisma.Decimal;
 
 const ZERO = new Decimal(0);
+const MAX_MONEY_VALUE = new Decimal('99999999.99');
+const MIN_MONEY_VALUE = new Decimal('-99999999.99');
+// El campo de margen porcentual en Prisma admite hasta 8 enteros + 2 decimales.
+// Un literal como '999.999.99' es inválido para Decimal.js y rompe la carga del módulo.
+const MAX_PERCENT_VALUE = new Decimal('999999.99');
+const MIN_PERCENT_VALUE = new Decimal('-999999.99');
+
+function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): DecimalType {
+  if (value.lessThan(min)) return min;
+  if (value.greaterThan(max)) return max;
+  return value;
+}
 
 /** Redondea a 2 decimales con ROUND_HALF_UP (estándar para moneda). */
 function roundMoney(value: DecimalType): DecimalType {
@@ -36,7 +48,8 @@ export function calculateRecipeTotal(
     (acc, item) => acc.add(calculateItemCost(item.quantity, item.unitCost)),
     ZERO
   );
-  return roundMoney(total);
+  const rounded = roundMoney(total);
+  return clampDecimal(rounded, MIN_MONEY_VALUE, MAX_MONEY_VALUE);
 }
 
 /**
@@ -48,7 +61,8 @@ export function calculateRecipeTotal(
  */
 export function calculateMarginAmount(salePrice: DecimalType, totalCost: DecimalType): DecimalType {
   if (totalCost.isZero()) return roundMoney(ZERO);
-  return roundMoney(salePrice.sub(totalCost));
+  const margin = roundMoney(salePrice.sub(totalCost));
+  return clampDecimal(margin, MIN_MONEY_VALUE, MAX_MONEY_VALUE);
 }
 
 /**
@@ -57,7 +71,8 @@ export function calculateMarginAmount(salePrice: DecimalType, totalCost: Decimal
  */
 export function calculateMarginPercent(salePrice: DecimalType, totalCost: DecimalType): DecimalType {
   if (salePrice.lte(0) || totalCost.isZero()) return roundMoney(ZERO);
-  return roundMoney(salePrice.sub(totalCost).div(salePrice).mul(100));
+  const percent = roundMoney(salePrice.sub(totalCost).div(salePrice).mul(100));
+  return clampDecimal(percent, MIN_PERCENT_VALUE, MAX_PERCENT_VALUE);
 }
 
 export default {

@@ -77,6 +77,19 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
+  it('mapea P2023 de Prisma a 400 cuando hay overflow numérico', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('numeric field overflow', {
+      code: 'P2023',
+      clientVersion: '6.19.3',
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Uno de los valores numéricos excede la capacidad máxima admitida.',
+    });
+  });
+
   it('oculta el detalle del error en producción', () => {
     process.env.NODE_ENV = 'production';
     const res = buildRes();
