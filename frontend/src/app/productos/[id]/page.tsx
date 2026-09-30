@@ -364,6 +364,13 @@ export default function ProductDetailPage() {
     }
   }
 
+  const handleSavePriceFromSheet = async () => {
+    await handleSubmit(async (data) => {
+      await handleFormSubmit(data)
+      setIsSimulatorOpen(false)
+    })()
+  }
+
   const handleDeleteProduct = async () => {
     try {
       setIsDeleting(true)
@@ -415,6 +422,7 @@ export default function ProductDetailPage() {
             />
           </div>
         </div>
+        <BottomNav />
       </main>
     )
   }
@@ -694,21 +702,21 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.05)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
                   >
                     +5%
                   </button>
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.10)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
                   >
                     +10%
                   </button>
                   <button
                     type="button"
                     disabled={!hasRecipe || cost <= 0}
-                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 cursor-pointer disabled:opacity-50"
+                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:scale-95 active:bg-indigo-100 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:active:bg-indigo-900 cursor-pointer disabled:opacity-50 transition-all"
                     onClick={() => applySuggestedMargin(targetMargin)}
                   >
                     Sugerir {targetMargin}%
@@ -757,14 +765,14 @@ export default function ProductDetailPage() {
                 className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isSaving && <LoaderCircle className="size-4 animate-spin" />}
-                {isSaving ? 'Guardando...' : 'Guardar Producto'}
+                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))]  md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+      <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-col text-xs gap-0.5">
@@ -776,7 +784,7 @@ export default function ProductDetailPage() {
           <button
             type="button"
             onClick={() => setIsSimulatorOpen(true)}
-            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700"
+            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
           >
             <Pencil className="size-3.5" /> Ajustar Precio
           </button>
@@ -803,9 +811,28 @@ export default function ProductDetailPage() {
             <div className="mt-5 space-y-5">
               <div>
                 <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => adjustPriceFactor(1.05)} className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">+5%</button>
-                  <button type="button" onClick={() => adjustPriceFactor(1.10)} className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">+10%</button>
-                  <button type="button" disabled={!hasRecipe || cost <= 0} onClick={() => applySuggestedMargin(targetMargin)} className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 cursor-pointer disabled:opacity-50">Sugerir {targetMargin}%</button>
+                  <button
+                    type="button"
+                    onClick={() => adjustPriceFactor(1.05)}
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                  >
+                    +5%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => adjustPriceFactor(1.10)}
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                  >
+                    +10%
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!hasRecipe || cost <= 0}
+                    onClick={() => applySuggestedMargin(targetMargin)}
+                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:scale-95 active:bg-indigo-100 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:active:bg-indigo-900 cursor-pointer disabled:opacity-50 transition-all"
+                  >
+                    Sugerir {targetMargin}%
+                  </button>
                 </div>
               </div>
 
@@ -827,10 +854,19 @@ export default function ProductDetailPage() {
               </p>
 
               <div className="mt-6 flex gap-3">
-                <button type="button" onClick={() => setIsSimulatorOpen(false)} className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setIsSimulatorOpen(false)}
+                  className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer active:scale-95 transition-all"
+                >
                   Cancelar
                 </button>
-                <button type="button" onClick={() => { setIsSimulatorOpen(false); handleSubmit(handleFormSubmit)(); }} disabled={isSaving} className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSavePriceFromSheet}
+                  disabled={isSaving}
+                  className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
                   {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : null}
                   Guardar Precio
                 </button>

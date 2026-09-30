@@ -491,7 +491,7 @@ export default function NewProductPage() {
                     type="button"
                     onClick={handleAddIngredient}
                     disabled={isLoadingSupplies || !selectedSupply || previewNumericQty <= 0}
-                    className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+                    className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                   >
                     {isLoadingSupplies ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -652,7 +652,7 @@ export default function NewProductPage() {
                           const suggested = Math.round(totalCost * 1.5)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
                         }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
+                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
                       >
                         Margen 33%
                       </button>
@@ -662,7 +662,7 @@ export default function NewProductPage() {
                           const suggested = Math.round(totalCost * 2)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
                         }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
+                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
                       >
                         Margen 50%
                       </button>
@@ -674,7 +674,7 @@ export default function NewProductPage() {
                           const suggested = Math.round(totalCost / factor)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
                         }}
-                        className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 cursor-pointer"
+                        className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-95 active:bg-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900 cursor-pointer transition-all"
                       >
                         Objetivo ({String(watchedMinMargin)}%)
                       </button>
@@ -685,7 +685,7 @@ export default function NewProductPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
+                  className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                 >
                   {isSubmitting && <LoaderCircle className="size-4 animate-spin" />}
                   {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
@@ -720,7 +720,7 @@ export default function NewProductPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+              className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
             >
               {isSubmitting && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
               {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
