@@ -775,16 +775,36 @@ export default function ProductDetailPage() {
       <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-col text-xs gap-0.5">
-              <span className="text-gray-500">Costo: <strong className="text-gray-900 dark:text-gray-100">{money(cost)}</strong></span>
-              <span className="text-gray-500">Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong></span>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-gray-500">
+                Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong>
+              </span>
+              <span className="text-gray-500">
+                Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-500">
+                Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
+              </span>
+              {!hasRecipe ? (
+                <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
+              ) : isHealthy ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <ShieldCheck className="size-3" /> {margin}%
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                  <AlertTriangle className="size-3" /> {margin}%
+                </span>
+              )}
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => setIsSimulatorOpen(true)}
-            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
+            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
           >
             <Pencil className="size-3.5" /> Ajustar Precio
           </button>
