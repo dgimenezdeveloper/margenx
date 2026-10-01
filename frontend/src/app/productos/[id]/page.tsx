@@ -23,6 +23,9 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { EmptyState } from '@/components/empty-state'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -73,16 +76,8 @@ export default function ProductDetailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  useEffect(() => {
-    if (isSimulatorOpen || showDeleteModal || showAddModal) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [isSimulatorOpen, showDeleteModal, showAddModal])
+  // Bloquea el scroll del body cuando un modal/bottom-sheet está abierto
+  useBodyScrollLock(isSimulatorOpen || showDeleteModal || showAddModal)
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
@@ -119,6 +114,11 @@ export default function ProductDetailPage() {
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
+
+  // Fix bloqueante: Se excluye isDeleting para que el borrado no dispare el diálogo
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(
+    isDirty && !isSaving && !isDeleting
+  )
 
   useEffect(() => {
     setSalePrice(Number(watchedSalePrice) || 0)
@@ -1100,6 +1100,13 @@ export default function ProductDetailPage() {
           </section>
         </div>
       )}
+
+      {/* Diálogo de confirmación para cambios no guardados */}
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
 
       <BottomNav />
     </main>

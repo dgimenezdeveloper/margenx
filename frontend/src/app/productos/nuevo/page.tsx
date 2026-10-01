@@ -20,6 +20,9 @@ import {
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -55,6 +58,8 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
+  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
+  const isNavigatingAfterSaveRef = useRef(false)
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
@@ -94,12 +99,23 @@ export default function NewProductPage() {
     control,
     setValue,
     setError,
-    formState: { errors },
+    reset,
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
     mode: 'onChange',
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
+
+  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
+  const hasUnsavedChanges =
+    (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
+
+  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
+  useBodyScrollLock(isDropdownOpen)
+
+  // Protección contra pérdida de datos por navegación accidental
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
@@ -226,9 +242,13 @@ export default function NewProductPage() {
           ? 'Producto guardado en estado borrador (Sin Receta).'
           : 'Producto creado exitosamente con receta vinculada.'
       )
+      // Fix bloqueante: Silenciar blocker, resetear react-hook-form y vaciar receta
+      isNavigatingAfterSaveRef.current = true
+      reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
+      isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {
         const field =
           error.status === 409
@@ -729,6 +749,13 @@ export default function NewProductPage() {
         </footer>
       </form>
       <BottomNav />
+
+      {/* Diálogo de confirmación para cambios no guardados */}
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </main>
   )
 }
