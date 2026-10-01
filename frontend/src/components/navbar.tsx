@@ -80,7 +80,7 @@ export function Navbar({
             <img
               src="/logo-icon.png"
               alt="MargenX"
-              className="logo-adaptive size-8 object-contain transition-[filter] duration-150"
+              className="size-8 object-contain transition-all duration-150 dark:brightness-0 dark:invert"
             />
           </Link>
         )}
