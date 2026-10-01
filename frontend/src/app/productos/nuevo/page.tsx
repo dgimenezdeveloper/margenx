@@ -29,6 +29,7 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 import { productService } from '@/services/productService'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -58,6 +59,8 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
+  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
+  const isNavigatingAfterSaveRef = useRef(false)
 
   // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
   const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
@@ -100,6 +103,7 @@ export default function NewProductPage() {
     control,
     setValue,
     setError,
+    reset,
     formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -107,24 +111,9 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  // Bloquea físicamente que se ingresen letras en inputs numéricos
-  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
-      (e.ctrlKey || e.metaKey)
-    ) {
-      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
-        e.preventDefault()
-      }
-      return
-    }
-    if (!/^[0-9]$/.test(e.key)) {
-      e.preventDefault()
-    }
-  }
-
-  // Considera "sucio" si el formulario tiene cambios O si se agregaron insumos a la receta
-  const hasUnsavedChanges = (isDirty || items.length > 0) && !isSubmitting
+  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
+  const hasUnsavedChanges =
+    (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
   // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
   useBodyScrollLock(isDropdownOpen)
@@ -240,16 +229,16 @@ export default function NewProductPage() {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
     const suggested = Math.round(totalCost / factor)
-    setValue('salePrice', String(suggested), { shouldValidate: true, shouldDirty: true })
+    setValue('salePrice', String(suggested), { shouldValidate: true })
     setActiveStrategy('target')
   }
 
   const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
     const currentSale = Number(watchedSalePrice) || 0
     if (currentSale > 0) {
-      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true, shouldDirty: true })
+      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
     } else if (totalCost > 0) {
-      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true, shouldDirty: true })
+      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
     }
     setActiveStrategy(strategy)
   }
@@ -277,9 +266,12 @@ export default function NewProductPage() {
           ? 'Producto guardado en estado borrador (Sin Receta).'
           : 'Producto creado exitosamente con receta vinculada.'
       )
+      isNavigatingAfterSaveRef.current = true
+      reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
+      isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {
         const field =
           error.status === 409
@@ -357,7 +349,7 @@ export default function NewProductPage() {
                           {...register('salePrice')}
                           onKeyDown={handleNumericKeyDown}
                           onChange={(e) => {
-                            const clean = e.target.value.replace(/[^0-9.]/g, '')
+                            const clean = sanitizeDecimal(e.target.value)
                             setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                             setActiveStrategy('target')
                           }}
@@ -384,7 +376,7 @@ export default function NewProductPage() {
                           {...register('minMarginPercent')}
                           onKeyDown={handleNumericKeyDown}
                           onChange={(e) => {
-                            const clean = e.target.value.replace(/[^0-9.]/g, '')
+                            const clean = sanitizeDecimal(e.target.value)
                             setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
                           }}
                           inputMode="decimal"
@@ -511,7 +503,7 @@ export default function NewProductPage() {
                       <input
                         value={inputQty}
                         onKeyDown={handleNumericKeyDown}
-                        onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
+                        onChange={(e) => setInputQty(sanitizeDecimal(e.target.value))}
                         placeholder="100"
                         inputMode="decimal"
                         type="text"
@@ -525,7 +517,7 @@ export default function NewProductPage() {
                       <select
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
-                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
                       >
                         {availableUnits.map((u) => (
                           <option key={u} value={u}>
@@ -595,7 +587,7 @@ export default function NewProductPage() {
                               <input
                                 onKeyDown={handleNumericKeyDown}
                                 onChange={(e) =>
-                                  handleItemQuantityChange(item.ingredientId, e.target.value.replace(/[^0-9.]/g, ''))
+                                  handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
                                 }
                                 value={displayQty}
                                 inputMode="decimal"

@@ -31,6 +31,7 @@ import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
 import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -115,27 +116,13 @@ export default function ProductDetailPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  // Bloquea físicamente que se ingresen letras en inputs numéricos
-  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
-      (e.ctrlKey || e.metaKey)
-    ) {
-      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
-        e.preventDefault()
-      }
-      return
-    }
-    if (!/^[0-9]$/.test(e.key)) {
-      e.preventDefault()
-    }
-  }
-
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Protección contra pérdida de datos por navegación accidental
-  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(isDirty && !isSaving)
+  // Fix bloqueante: Se excluye isDeleting para que el borrado no dispare el diálogo
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(
+    isDirty && !isSaving && !isDeleting
+  )
 
   useEffect(() => {
     setSalePrice(Number(watchedSalePrice) || 0)
@@ -547,7 +534,7 @@ export default function ProductDetailPage() {
                       {...register('salePrice')}
                       onKeyDown={handleNumericKeyDown}
                       onChange={(e) => {
-                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        const clean = sanitizeDecimal(e.target.value)
                         setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                         setActiveStrategy('target')
                       }}
@@ -571,7 +558,7 @@ export default function ProductDetailPage() {
                       {...register('minMarginPercent')}
                       onKeyDown={handleNumericKeyDown}
                       onChange={(e) => {
-                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        const clean = sanitizeDecimal(e.target.value)
                         setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
                       }}
                       inputMode="decimal"
@@ -648,7 +635,7 @@ export default function ProductDetailPage() {
                             <input
                               onKeyDown={handleNumericKeyDown}
                               onChange={(e) =>
-                                handleItemQuantityChange(item.ingredientId, e.target.value.replace(/[^0-9.]/g, ''))
+                                handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
                               }
                               value={displayQty}
                               inputMode="decimal"
@@ -787,7 +774,7 @@ export default function ProductDetailPage() {
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^0-9.]/g, '')
+                      const clean = sanitizeDecimal(e.target.value)
                       setValue('salePrice', clean, {
                         shouldValidate: true,
                         shouldDirty: true,
@@ -935,7 +922,7 @@ export default function ProductDetailPage() {
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^0-9.]/g, '')
+                      const clean = sanitizeDecimal(e.target.value)
                       setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                       setActiveStrategy('target')
                     }}
@@ -1113,7 +1100,7 @@ export default function ProductDetailPage() {
                   <input
                     value={inputQty}
                     onKeyDown={handleNumericKeyDown}
-                    onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
+                    onChange={(e) => setInputQty(sanitizeDecimal(e.target.value))}
                     inputMode="decimal"
                     type="text"
                     placeholder="50"
