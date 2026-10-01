@@ -77,10 +77,10 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
-  it('mapea P2023 de Prisma a 400 cuando hay overflow numérico', () => {
+  it('mapea P2020 de Prisma a 400 cuando hay overflow numérico', () => {
     const res = buildRes();
     const err = new Prisma.PrismaClientKnownRequestError('numeric field overflow', {
-      code: 'P2023',
+      code: 'P2020',
       clientVersion: '6.19.3',
     });
     errorHandler(err, req, res, next);

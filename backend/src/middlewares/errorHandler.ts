@@ -53,7 +53,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
         return res
           .status(409)
           .json({ error: 'La operación viola una relación existente con otro recurso.' });
-      case 'P2023':
+      case 'P2020': // Prisma: numeric value out of range / Postgres 22003 overflow
         return res.status(400).json({
           error: 'Uno de los valores numéricos excede la capacidad máxima admitida.',
         });

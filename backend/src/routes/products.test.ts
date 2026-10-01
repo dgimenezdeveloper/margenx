@@ -243,6 +243,42 @@ describe('POST /api/products', () => {
     expect(createData).toBeDefined();
     expect(createData!.salePrice.toString()).toBe('99999999.99');
   });
+
+  it('clampa el costo derivado de la receta si excede el máximo permitido por la base', async () => {
+    txIngredientFindManyMock.mockResolvedValue([
+      { id: 'ing-1', currentCost: new Prisma.Decimal('30000000') },
+      { id: 'ing-2', currentCost: new Prisma.Decimal('30000000') },
+    ]);
+    txProductCreateMock.mockResolvedValue({
+      id: 'p-clamp',
+      name: 'Producto clamped',
+      cost: '99999999.99',
+      marginAmount: '0.00',
+      marginPercent: '0.00',
+    });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto clamped',
+        salePrice: '99999999.99',
+        minMarginPercent: '30',
+        ingredients: [
+          { ingredientId: 'ing-1', quantity: '2' },
+          { ingredientId: 'ing-2', quantity: '2' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    const createData = txProductCreateMock.mock.calls[0]?.[0]?.data as {
+      cost: Prisma.Decimal;
+      marginAmount: Prisma.Decimal;
+      marginPercent: Prisma.Decimal;
+    };
+    expect(createData.cost.toString()).toBe('99999999.99');
+    expect(createData.marginAmount.toString()).toBe('0');
+    expect(createData.marginPercent.toString()).toBe('0');
+  });
 });
 
 describe('GET /api/products/:id', () => {
