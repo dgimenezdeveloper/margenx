@@ -141,7 +141,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {products.slice(0, 4).map((product) => {
+                {products.map((product) => {
                   const hasRecipe = product.ingredients.length > 0
                   const isRisk = hasRecipe && product.marginPercent < product.minMarginPercent
 

@@ -20,6 +20,9 @@ import {
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -94,12 +97,21 @@ export default function NewProductPage() {
     control,
     setValue,
     setError,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
     mode: 'onChange',
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
+
+  // Considera "sucio" si el formulario tiene cambios O si se agregaron insumos a la receta
+  const hasUnsavedChanges = (isDirty || items.length > 0) && !isSubmitting
+
+  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
+  useBodyScrollLock(isDropdownOpen)
+
+  // Protección contra pérdida de datos por navegación accidental
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
@@ -729,6 +741,13 @@ export default function NewProductPage() {
         </footer>
       </form>
       <BottomNav />
+
+      {/* Diálogo de confirmación para cambios no guardados */}
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </main>
   )
 }
