@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useBlocker } from 'react-router-dom'
 
 /**
@@ -7,7 +7,7 @@ import { useBlocker } from 'react-router-dom'
  * Funcionalidades:
  * 1. Registra `beforeunload` en el navegador para interceptar recarga / cierre de pestaña.
  * 2. Usa `useBlocker` de React Router para interceptar navegación interna (SPA).
- * 3. Expone estado y callbacks para renderizar un diálogo de confirmación en la UI.
+ * 3. Expone estado derivado y callbacks para renderizar un diálogo de confirmación en la UI.
  *
  * @param isDirty — `true` cuando el formulario tiene cambios sin guardar.
  */
@@ -33,28 +33,19 @@ export function useUnsavedChangesWarning(isDirty: boolean) {
   // ------------------------------------------------------------------
   const blocker = useBlocker(isDirty)
 
-  const [showDialog, setShowDialog] = useState(false)
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setShowDialog(true)
-    } else {
-      setShowDialog(false)
-    }
-  }, [blocker.state])
+  // Estado derivado directamente de React Router (elimina setState en effect)
+  const showDialog = blocker.state === 'blocked'
 
   const confirmNavigation = useCallback(() => {
     if (blocker.state === 'blocked') {
       blocker.proceed()
     }
-    setShowDialog(false)
   }, [blocker])
 
   const cancelNavigation = useCallback(() => {
     if (blocker.state === 'blocked') {
       blocker.reset()
     }
-    setShowDialog(false)
   }, [blocker])
 
   return { showDialog, confirmNavigation, cancelNavigation }
