@@ -111,7 +111,7 @@ export default function LoginPage() {
           <img
             src="/logo.png"
             alt="MargenX"
-            className="logo-adaptive mx-auto h-20 w-auto object-contain transition-[filter] duration-150 dark:brightness-0 dark:invert"
+            className="mx-auto h-20 w-auto object-contain transition-all duration-150 dark:brightness-0 dark:invert"
           />
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>

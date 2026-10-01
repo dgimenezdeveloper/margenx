@@ -59,8 +59,8 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
 
-  // Estado del botón activo en la botonera de ajuste rápido
-  const [activeStrategy, setActiveStrategy] = useState<'33' | '50' | 'target'>('target')
+  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
+  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
@@ -118,6 +118,8 @@ export default function NewProductPage() {
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
+
+  const targetMargin = Number(watchedMinMargin) || defaultMinMarginPercent || 30
 
   useEffect(() => {
     if (!isLoadingUser && defaultMinMarginPercent !== undefined) {
@@ -218,6 +220,24 @@ export default function NewProductPage() {
     notify(`"${itemName}" eliminado de la receta`)
   }
 
+  const applySuggestedMargin = (percentage: number) => {
+    if (items.length === 0 || totalCost <= 0) return
+    const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
+    const suggested = Math.round(totalCost / factor)
+    setValue('salePrice', String(suggested), { shouldValidate: true })
+    setActiveStrategy('target')
+  }
+
+  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+    const currentSale = Number(watchedSalePrice) || 0
+    if (currentSale > 0) {
+      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
+    } else if (totalCost > 0) {
+      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
+    }
+    setActiveStrategy(strategy)
+  }
+
   const handleSaveProduct = async (data: ProductFormValues) => {
     if (submitLockRef.current) return
     submitLockRef.current = true
@@ -295,7 +315,7 @@ export default function NewProductPage() {
             <div className="space-y-6 lg:col-span-7">
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-                  <h2 className="text-base font-bold">1. Datos Básicos</h2>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">1. Datos Básicos</h2>
                   <span className="text-xs text-gray-400 font-medium">Información comercial</span>
                 </div>
 
@@ -304,7 +324,7 @@ export default function NewProductPage() {
                   <input
                     {...register('name')}
                     placeholder="Ej. Medialunas de manteca — docena / Pan flauta 1kg"
-                    className="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus:bg-gray-900"
+                    className="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
                   />
                   {errors.name && (
                     <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
@@ -314,23 +334,21 @@ export default function NewProductPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      <span className="flex items-center justify-between">
-                        <span>Precio de Venta</span>
-                      </span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                      <span>Precio de Venta</span>
+                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                         <span className="font-bold text-gray-400">$</span>
                         <input
                           {...register('salePrice')}
                           onChange={(e) => {
                             register('salePrice').onChange(e)
-                            // Si el usuario edita a mano con el teclado, se resetea la botonera al estado Objetivo
+                            // Al tipear a mano con el teclado, la botonera activa vuelve a Objetivo
                             setActiveStrategy('target')
                           }}
                           inputMode="decimal"
                           type="number"
                           step="any"
                           placeholder="0.00"
-                          className="no-spinners w-full bg-transparent px-2 text-base font-bold outline-none"
+                          className="no-spinners w-full bg-transparent px-2 text-base font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
                       </div>
                     </label>
@@ -345,14 +363,14 @@ export default function NewProductPage() {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                       <span>Margen Mínimo (%)</span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                         <input
                           {...register('minMarginPercent')}
                           inputMode="decimal"
                           type="number"
                           step="any"
                           placeholder="30"
-                          className="no-spinners w-full bg-transparent text-right font-bold outline-none"
+                          className="no-spinners w-full bg-transparent text-right font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
                         <span className="ml-1 font-bold text-gray-400">%</span>
                       </div>
@@ -379,8 +397,8 @@ export default function NewProductPage() {
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <div>
-                    <h2 className="text-base font-bold">2. Composición / Receta</h2>
-                    <p className="text-xs text-gray-500">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">2. Composición / Receta</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Sumá insumos con cantidades dinámicas para costear la elaboración.
                     </p>
                   </div>
@@ -398,7 +416,7 @@ export default function NewProductPage() {
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     disabled={isLoadingSupplies || supplies.length === 0}
-                    className="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 cursor-pointer"
+                    className="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer"
                   >
                     <span className="truncate">
                       {selectedSupply
@@ -423,7 +441,7 @@ export default function NewProductPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Filtrar por nombre..."
                             autoFocus
-                            className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                            className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                           />
                           {searchQuery && (
                             <button
@@ -477,7 +495,7 @@ export default function NewProductPage() {
                         inputMode="decimal"
                         type="number"
                         step="any"
-                        className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                        className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div className="w-28 sm:w-36">
@@ -487,7 +505,7 @@ export default function NewProductPage() {
                       <select
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
-                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       >
                         {availableUnits.map((u) => (
                           <option key={u} value={u}>
@@ -563,7 +581,7 @@ export default function NewProductPage() {
                                   handleItemQuantityChange(item.ingredientId, e.target.value)
                                 }
                                 aria-label={`Cantidad de ${item.name}`}
-                                className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none"
+                                className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
                               />
                               <span className="text-xs font-bold text-gray-500">
                                 {item.recipeUnit ?? item.unit}
@@ -601,7 +619,7 @@ export default function NewProductPage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                     Simulador Financiero
                   </p>
-                  <h3 className="text-xl font-black mt-1">Análisis de Rentabilidad</h3>
+                  <h3 className="text-xl font-black mt-1 text-gray-900 dark:text-white">Análisis de Rentabilidad</h3>
                 </div>
 
                 <div>
@@ -621,7 +639,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado ({Number(watchedMinMargin) || 0}%).
+                        El margen está por debajo del umbral personalizado ({targetMargin}%).
                       </p>
                     </div>
                   ) : (
@@ -635,7 +653,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({Number(watchedMinMargin) || 0}%).
+                        Cumple o supera el objetivo de rentabilidad ({targetMargin}%).
                       </p>
                     </div>
                   )}
@@ -643,18 +661,18 @@ export default function NewProductPage() {
 
                 <div className="space-y-2 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Costo Total de Elaboración:</span>
-                    <strong className="font-extrabold">{money(totalCost)}</strong>
+                    <span className="text-gray-500 dark:text-gray-400">Costo Total de Elaboración:</span>
+                    <strong className="font-extrabold text-gray-900 dark:text-white">{money(totalCost)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Precio de Venta al Público:</span>
-                    <strong className="font-extrabold">{money(Number(watchedSalePrice) || 0)}</strong>
+                    <span className="text-gray-500 dark:text-gray-400">Precio de Venta al Público:</span>
+                    <strong className="font-extrabold text-gray-900 dark:text-white">{money(Number(watchedSalePrice) || 0)}</strong>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-                    <span className="text-gray-500">Ganancia Bruta en Pesos:</span>
+                    <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
                     <strong
                       className={`font-black ${
-                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600'
+                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {money(marginAmount)}
@@ -662,60 +680,46 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {totalCost > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-gray-500">Ajuste Rápido de Precio</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const suggested = Math.round(totalCost * 1.5)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                          setActiveStrategy('33')
-                        }}
-                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                          activeStrategy === '33'
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                        }`}
-                      >
-                        Margen 33%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const suggested = Math.round(totalCost * 2)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                          setActiveStrategy('50')
-                        }}
-                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                          activeStrategy === '50'
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                        }`}
-                      >
-                        Margen 50%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = Number(watchedMinMargin) || 30
-                          const factor = target < 100 ? 1 - target / 100 : 0.5
-                          const suggested = Math.round(totalCost / factor)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                          setActiveStrategy('target')
-                        }}
-                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                          activeStrategy === 'target'
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                            : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
-                        }`}
-                      >
-                        Objetivo ({String(watchedMinMargin)}%)
-                      </button>
-                    </div>
+                {/* BOTONERA DE AJUSTE RÁPIDO CON ESTADO ACTIVO */}
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.05, '5')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                        activeStrategy === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +5%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.10, '10')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                        activeStrategy === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +10%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={items.length === 0 || totalCost <= 0}
+                      onClick={() => applySuggestedMargin(targetMargin)}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                        activeStrategy === 'target'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
+                      }`}
+                    >
+                      Sugerir {targetMargin}%
+                    </button>
                   </div>
-                )}
+                </div>
 
                 <button
                   type="submit"
@@ -734,8 +738,8 @@ export default function NewProductPage() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500">Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong></span>
-                <span className="text-gray-500">Ganancia: <strong className={marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(marginAmount)}</strong></span>
+                <span className="text-gray-500 dark:text-gray-400">Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong></span>
+                <span className="text-gray-500 dark:text-gray-400">Ganancia: <strong className={marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(marginAmount)}</strong></span>
               </div>
               <div className="flex items-center gap-2">
                 {items.length === 0 ? (
