@@ -65,6 +65,9 @@ export default function ProductDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
 
+  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
+  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
+
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
 
@@ -115,6 +118,9 @@ export default function ProductDetailPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
+  // Protección contra pérdida de datos por navegación accidental
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(isDirty && !isSaving)
+
   useEffect(() => {
     setSalePrice(Number(watchedSalePrice) || 0)
   }, [watchedSalePrice, setSalePrice])
@@ -122,9 +128,6 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
-
-  // Protección contra pérdida de datos por navegación accidental
-  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(isDirty && !isSaving)
 
   useEffect(() => {
     if (!id) return
@@ -206,15 +209,17 @@ export default function ProductDetailPage() {
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
     const suggestedPrice = Math.round(cost / factor)
     setValue('salePrice', String(suggestedPrice), { shouldValidate: true, shouldDirty: true })
+    setActiveStrategy('target')
   }
 
-  const adjustPriceFactor = (factor: number) => {
+  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
     const sale = Number(watchedSalePrice) || 0
     if (sale <= 0) return
     setValue('salePrice', String(Math.round(sale * factor)), {
       shouldValidate: true,
       shouldDirty: true,
     })
+    setActiveStrategy(strategy)
   }
 
   const handleSelectSupply = (supply: Ingredient) => {
@@ -516,6 +521,11 @@ export default function ProductDetailPage() {
                   </label>
                   <input
                     {...register('salePrice')}
+                    onChange={(e) => {
+                      register('salePrice').onChange(e)
+                      // Al tipear a mano, el selector vuelve a Objetivo
+                      setActiveStrategy('target')
+                    }}
                     inputMode="decimal"
                     type="number"
                     step="any"
@@ -699,22 +709,34 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => adjustPriceFactor(1.05)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                    onClick={() => adjustPriceFactor(1.05, '5')}
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                      activeStrategy === '5'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    }`}
                   >
                     +5%
                   </button>
                   <button
                     type="button"
-                    onClick={() => adjustPriceFactor(1.10)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                    onClick={() => adjustPriceFactor(1.10, '10')}
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                      activeStrategy === '10'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    }`}
                   >
                     +10%
                   </button>
                   <button
                     type="button"
                     disabled={!hasRecipe || cost <= 0}
-                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:scale-95 active:bg-indigo-100 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:active:bg-indigo-900 cursor-pointer disabled:opacity-50 transition-all"
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                      activeStrategy === 'target'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
+                    }`}
                     onClick={() => applySuggestedMargin(targetMargin)}
                   >
                     Sugerir {targetMargin}%
@@ -728,12 +750,14 @@ export default function ProductDetailPage() {
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), {
                         shouldValidate: true,
                         shouldDirty: true,
                       })
-                    }
+                      // Al tipear a mano, el selector vuelve a Objetivo
+                      setActiveStrategy('target')
+                    }}
                     inputMode="decimal"
                     type="number"
                     step="any"
@@ -831,15 +855,23 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => adjustPriceFactor(1.05)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                    onClick={() => adjustPriceFactor(1.05, '5')}
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                      activeStrategy === '5'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    }`}
                   >
                     +5%
                   </button>
                   <button
                     type="button"
-                    onClick={() => adjustPriceFactor(1.10)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                    onClick={() => adjustPriceFactor(1.10, '10')}
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                      activeStrategy === '10'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    }`}
                   >
                     +10%
                   </button>
@@ -847,7 +879,11 @@ export default function ProductDetailPage() {
                     type="button"
                     disabled={!hasRecipe || cost <= 0}
                     onClick={() => applySuggestedMargin(targetMargin)}
-                    className="min-h-11 rounded-xl border border-indigo-600 bg-transparent py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:scale-95 active:bg-indigo-100 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:active:bg-indigo-900 cursor-pointer disabled:opacity-50 transition-all"
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                      activeStrategy === 'target'
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
+                    }`}
                   >
                     Sugerir {targetMargin}%
                   </button>
@@ -860,7 +896,10 @@ export default function ProductDetailPage() {
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
-                    onChange={(e) => setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), { shouldValidate: true, shouldDirty: true })}
+                    onChange={(e) => {
+                      setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), { shouldValidate: true, shouldDirty: true })
+                      setActiveStrategy('target')
+                    }}
                     inputMode="decimal" type="number" step="any"
                     className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white"
                   />

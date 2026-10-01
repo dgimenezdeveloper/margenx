@@ -59,6 +59,9 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
 
+  // Estado del botón activo en la botonera de ajuste rápido
+  const [activeStrategy, setActiveStrategy] = useState<'33' | '50' | 'target'>('target')
+
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
@@ -318,6 +321,11 @@ export default function NewProductPage() {
                         <span className="font-bold text-gray-400">$</span>
                         <input
                           {...register('salePrice')}
+                          onChange={(e) => {
+                            register('salePrice').onChange(e)
+                            // Si el usuario edita a mano con el teclado, se resetea la botonera al estado Objetivo
+                            setActiveStrategy('target')
+                          }}
                           inputMode="decimal"
                           type="number"
                           step="any"
@@ -663,8 +671,13 @@ export default function NewProductPage() {
                         onClick={() => {
                           const suggested = Math.round(totalCost * 1.5)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
+                          setActiveStrategy('33')
                         }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                          activeStrategy === '33'
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        }`}
                       >
                         Margen 33%
                       </button>
@@ -673,8 +686,13 @@ export default function NewProductPage() {
                         onClick={() => {
                           const suggested = Math.round(totalCost * 2)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
+                          setActiveStrategy('50')
                         }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:active:bg-indigo-950 cursor-pointer transition-all"
+                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                          activeStrategy === '50'
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        }`}
                       >
                         Margen 50%
                       </button>
@@ -685,8 +703,13 @@ export default function NewProductPage() {
                           const factor = target < 100 ? 1 - target / 100 : 0.5
                           const suggested = Math.round(totalCost / factor)
                           setValue('salePrice', String(suggested), { shouldValidate: true })
+                          setActiveStrategy('target')
                         }}
-                        className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-95 active:bg-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900 cursor-pointer transition-all"
+                        className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                          activeStrategy === 'target'
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                            : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
+                        }`}
                       >
                         Objetivo ({String(watchedMinMargin)}%)
                       </button>
