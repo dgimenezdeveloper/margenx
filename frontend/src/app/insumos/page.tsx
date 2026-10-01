@@ -11,9 +11,11 @@ import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ToastAlert } from '@/components/ToastAlert'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 const MAX_INGREDIENT_COST = 99_999_999.99
@@ -32,6 +34,8 @@ export default function SuppliesPage() {
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useBodyScrollLock(newOpen || selected !== null)
 
   useEffect(() => {
     let active = true
@@ -160,11 +164,10 @@ export default function SuppliesPage() {
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
-              <p className="mt-1 text-sm text-gray-500">Administra los costos de tus materias primas.</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Administra los costos de tus materias primas.</p>
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              {/* Contenedor del Buscador: Desvinculado de estados condicionales y con tamaño rígido */}
               <div className="relative w-full md:w-72 lg:w-80 shrink-0">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                   <Search className="size-4 text-gray-400" />
@@ -174,7 +177,7 @@ export default function SuppliesPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar insumos..."
-                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition-colors focus:border-indigo-600 dark:border-gray-800 dark:bg-gray-900"
+                  className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>
 
@@ -251,7 +254,6 @@ export default function SuppliesPage() {
 
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
-                {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((supply) => (
                     <button
@@ -262,19 +264,18 @@ export default function SuppliesPage() {
                     >
                       <div className="flex w-full items-start justify-between gap-2">
                         <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{supply.name}</strong>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           Unidad: {supply.unit}
                         </span>
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">
-                        <span className="text-[10px] font-bold text-indigo-600">Tocar para editar</span>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">Tocar para editar</span>
                         <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.currentCost)}</strong>
                       </div>
                     </button>
                   ))}
                 </div>
 
-                {/* VERSIÓN DESKTOP */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -320,10 +321,9 @@ export default function SuppliesPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={handleCloseSheet} />
 
-          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
-            {/* RENDERIZADO CONDICIONAL: Confirmación de Borrado vs Formulario */}
             {showDeleteConfirm ? (
               <div className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 py-4">
                 <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
@@ -337,14 +337,14 @@ export default function SuppliesPage() {
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+                    className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
                     onClick={confirmDelete}
-                    className="flex-1 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700"
+                    className="flex-1 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition"
                   >
                     Sí, eliminar
                   </button>
@@ -354,10 +354,10 @@ export default function SuppliesPage() {
               <form onSubmit={handleSubmit(handleSave)} noValidate>
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs font-bold uppercase text-indigo-600">
+                    <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">
                       {selected ? selected.name : 'Despensa'}
                     </p>
-                    <h2 className="mt-1 text-2xl font-bold">
+                    <h2 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
                       {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
                     </h2>
                   </div>
@@ -372,7 +372,7 @@ export default function SuppliesPage() {
                         <Trash2 className="size-5" />
                       </button>
                     )}
-                    <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
                       <X className="size-5" />
                     </button>
                   </div>
@@ -381,7 +381,11 @@ export default function SuppliesPage() {
                 {!selected && (
                   <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
                     Nombre del insumo
-                    <input {...register('name')} placeholder="Ej. Harina 0000" className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800" />
+                    <input
+                      {...register('name')}
+                      placeholder="Ej. Harina 0000"
+                      className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                    />
                     {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
                   </label>
                 )}
@@ -391,7 +395,16 @@ export default function SuppliesPage() {
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
                     <div className="flex flex-wrap gap-2">
                       {ingredientUnits.map((u) => (
-                        <button key={u} type="button" onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })} className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${selectedUnit === u ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'}`}>
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
+                          className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
+                            selectedUnit === u
+                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                          }`}
+                        >
                           {u}
                         </button>
                       ))}
@@ -402,23 +415,27 @@ export default function SuppliesPage() {
 
                 <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
                   Costo unitario ({selected ? selected.unit : selectedUnit})
-                  <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                     <span className="text-lg font-bold text-gray-400">$</span>
                     <input
                       {...register('currentCost')}
+                      onKeyDown={handleNumericKeyDown}
+                      onChange={(e) => {
+                        const clean = sanitizeDecimal(e.target.value)
+                        setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
+                      }}
                       inputMode="decimal"
-                      type="number"
-                      step="any"
+                      type="text"
                       placeholder="0.00"
-                      className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none"
+                      className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                     />
                   </div>
                   {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
                 </label>
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Cancelar</button>
-                  <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+                  <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">Cancelar</button>
+                  <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
                 </div>
               </form>
             )}

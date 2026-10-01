@@ -18,13 +18,18 @@ import {
   X,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
+import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -54,12 +59,16 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
+  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
+  const isNavigatingAfterSaveRef = useRef(false)
+
+  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
+  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
 
-  // Cada toast nuevo reinicia el conteo; el cleanup cancela el timer anterior y también al desmontar
   useEffect(() => {
     if (!toast) return
     const id = window.setTimeout(() => setToast(null), 4000)
@@ -75,7 +84,6 @@ export default function NewProductPage() {
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
 
-  // Conexión a Zustand
   const items = useRecipeStore((s: RecipeState) => s.items)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
@@ -98,17 +106,29 @@ export default function NewProductPage() {
     control,
     setValue,
     setError,
-    formState: { errors },
+    reset,
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
     mode: 'onChange',
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
+  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
+  const hasUnsavedChanges =
+    (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
+
+  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
+  useBodyScrollLock(isDropdownOpen)
+
+  // Protección contra pérdida de datos por navegación accidental
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
+
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Jerarquía de Margen: inicializar con el Margen Global de la cuenta
+  const targetMargin = Number(watchedMinMargin) || defaultMinMarginPercent || 30
+
   useEffect(() => {
     if (!isLoadingUser && defaultMinMarginPercent !== undefined) {
       setValue('minMarginPercent', String(defaultMinMarginPercent), { shouldValidate: true })
@@ -137,7 +157,7 @@ export default function NewProductPage() {
         }
       })
       .catch((err: unknown) => {
-        notify(err instanceof ApiError ? err.message : 'No se pudieron cargar los insumos.')
+        notify(err instanceof ApiError ? err.message : 'No se pudieron cargar los insumos.', 'error')
       })
       .finally(() => setIsLoadingSupplies(false))
 
@@ -208,6 +228,24 @@ export default function NewProductPage() {
     notify(`"${itemName}" eliminado de la receta`)
   }
 
+  const applySuggestedMargin = (percentage: number) => {
+    if (items.length === 0 || totalCost <= 0) return
+    const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
+    const suggested = Math.round(totalCost / factor)
+    setValue('salePrice', String(suggested), { shouldValidate: true })
+    setActiveStrategy('target')
+  }
+
+  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+    const currentSale = Number(watchedSalePrice) || 0
+    if (currentSale > 0) {
+      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
+    } else if (totalCost > 0) {
+      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
+    }
+    setActiveStrategy(strategy)
+  }
+
   const handleSaveProduct = async (data: ProductFormValues) => {
     if (submitLockRef.current) return
     submitLockRef.current = true
@@ -231,9 +269,12 @@ export default function NewProductPage() {
           ? 'Producto guardado en estado borrador (Sin Receta).'
           : 'Producto creado exitosamente con receta vinculada.'
       )
+      isNavigatingAfterSaveRef.current = true
+      reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
+      isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {
         const field =
           error.status === 409
@@ -285,7 +326,7 @@ export default function NewProductPage() {
             <div className="space-y-6 lg:col-span-7">
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-                  <h2 className="text-base font-bold">1. Datos Básicos</h2>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">1. Datos Básicos</h2>
                   <span className="text-xs text-gray-400 font-medium">Información comercial</span>
                 </div>
 
@@ -294,7 +335,7 @@ export default function NewProductPage() {
                   <input
                     {...register('name')}
                     placeholder="Ej. Medialunas de manteca — docena / Pan flauta 1kg"
-                    className="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus:bg-gray-900"
+                    className="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
                   />
                   {errors.name && (
                     <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
@@ -304,21 +345,21 @@ export default function NewProductPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      <span className="flex items-center justify-between">
-                        <span>Precio de Venta</span>
-                        <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
-                          Usar punto (.)
-                        </span>
-                      </span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                      <span>Precio de Venta</span>
+                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                         <span className="font-bold text-gray-400">$</span>
                         <input
                           {...register('salePrice')}
+                          onKeyDown={handleNumericKeyDown}
+                          onChange={(e) => {
+                            const clean = sanitizeDecimal(e.target.value)
+                            setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
+                            setActiveStrategy('target')
+                          }}
                           inputMode="decimal"
-                          type="number"
-                          step="any"
+                          type="text"
                           placeholder="0.00"
-                          className="no-spinners w-full bg-transparent px-2 text-base font-bold outline-none"
+                          className="no-spinners w-full bg-transparent px-2 text-base font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
                       </div>
                     </label>
@@ -333,14 +374,18 @@ export default function NewProductPage() {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                       <span>Margen Mínimo (%)</span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:bg-gray-900">
+                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                         <input
                           {...register('minMarginPercent')}
+                          onKeyDown={handleNumericKeyDown}
+                          onChange={(e) => {
+                            const clean = sanitizeDecimal(e.target.value)
+                            setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
+                          }}
                           inputMode="decimal"
-                          type="number"
-                          step="any"
+                          type="text"
                           placeholder="30"
-                          className="no-spinners w-full bg-transparent text-right font-bold outline-none"
+                          className="no-spinners w-full bg-transparent text-right font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
                         <span className="ml-1 font-bold text-gray-400">%</span>
                       </div>
@@ -367,8 +412,8 @@ export default function NewProductPage() {
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <div>
-                    <h2 className="text-base font-bold">2. Composición / Receta</h2>
-                    <p className="text-xs text-gray-500">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">2. Composición / Receta</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Sumá insumos con cantidades dinámicas para costear la elaboración.
                     </p>
                   </div>
@@ -386,7 +431,7 @@ export default function NewProductPage() {
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     disabled={isLoadingSupplies || supplies.length === 0}
-                    className="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 cursor-pointer"
+                    className="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer"
                   >
                     <span className="truncate">
                       {selectedSupply
@@ -411,7 +456,7 @@ export default function NewProductPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Filtrar por nombre..."
                             autoFocus
-                            className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                            className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                           />
                           {searchQuery && (
                             <button
@@ -460,12 +505,12 @@ export default function NewProductPage() {
                       </label>
                       <input
                         value={inputQty}
-                        onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
+                        onKeyDown={handleNumericKeyDown}
+                        onChange={(e) => setInputQty(sanitizeDecimal(e.target.value))}
                         placeholder="100"
                         inputMode="decimal"
-                        type="number"
-                        step="any"
-                        className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                        type="text"
+                        className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div className="w-28 sm:w-36">
@@ -475,7 +520,7 @@ export default function NewProductPage() {
                       <select
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
-                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
                       >
                         {availableUnits.map((u) => (
                           <option key={u} value={u}>
@@ -499,7 +544,7 @@ export default function NewProductPage() {
                     type="button"
                     onClick={handleAddIngredient}
                     disabled={isLoadingSupplies || !selectedSupply || previewNumericQty <= 0}
-                    className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+                    className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                   >
                     {isLoadingSupplies ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -543,15 +588,15 @@ export default function NewProductPage() {
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
                             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
                               <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={displayQty}
+                                onKeyDown={handleNumericKeyDown}
                                 onChange={(e) =>
-                                  handleItemQuantityChange(item.ingredientId, e.target.value)
+                                  handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
                                 }
+                                value={displayQty}
+                                inputMode="decimal"
+                                type="text"
                                 aria-label={`Cantidad de ${item.name}`}
-                                className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none"
+                                className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
                               />
                               <span className="text-xs font-bold text-gray-500">
                                 {item.recipeUnit ?? item.unit}
@@ -583,13 +628,13 @@ export default function NewProductPage() {
               </section>
             </div>
 
-            <div className="hidden lg:col-span-5 lg:sticky lg:top-6 lg:block">
+            <div className="lg:col-span-5 lg:sticky lg:top-6">
               <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-6">
                 <div className="border-b border-gray-100 pb-4 dark:border-gray-800">
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                     Simulador Financiero
                   </p>
-                  <h3 className="text-xl font-black mt-1">Análisis de Rentabilidad</h3>
+                  <h3 className="text-xl font-black mt-1 text-gray-900 dark:text-white">Análisis de Rentabilidad</h3>
                 </div>
 
                 <div>
@@ -623,7 +668,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({Number(watchedMinMargin) || 0}%).
+                        Cumple o supera el objetivo de rentabilidad ({targetMargin}%).
                       </p>
                     </div>
                   ) : (
@@ -645,18 +690,18 @@ export default function NewProductPage() {
 
                 <div className="space-y-2 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Costo Total de Elaboración:</span>
-                    <strong className="font-extrabold">{money(totalCost)}</strong>
+                    <span className="text-gray-500 dark:text-gray-400">Costo Total de Elaboración:</span>
+                    <strong className="font-extrabold text-gray-900 dark:text-white">{money(totalCost)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Precio de Venta al Público:</span>
-                    <strong className="font-extrabold">{money(Number(watchedSalePrice) || 0)}</strong>
+                    <span className="text-gray-500 dark:text-gray-400">Precio de Venta al Público:</span>
+                    <strong className="font-extrabold text-gray-900 dark:text-white">{money(Number(watchedSalePrice) || 0)}</strong>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-                    <span className="text-gray-500">Ganancia Bruta en Pesos:</span>
+                    <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
                     <strong
                       className={`font-black ${
-                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600'
+                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {money(marginAmount)}
@@ -664,50 +709,51 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {totalCost > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-gray-500">Ajuste Rápido de Precio</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const suggested = Math.round(totalCost * 1.5)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                        }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
-                      >
-                        Margen 33%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const suggested = Math.round(totalCost * 2)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                        }}
-                        className="min-h-11 rounded-xl border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
-                      >
-                        Margen 50%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = Number(watchedMinMargin) || 30
-                          const factor = target < 100 ? 1 - target / 100 : 0.5
-                          const suggested = Math.round(totalCost / factor)
-                          setValue('salePrice', String(suggested), { shouldValidate: true })
-                        }}
-                        className="min-h-11 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 cursor-pointer"
-                      >
-                        Objetivo ({String(watchedMinMargin)}%)
-                      </button>
-                    </div>
+                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE CON ESTADO ACTIVO */}
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.05, '5')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                        activeStrategy === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +5%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.10, '10')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
+                        activeStrategy === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +10%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={items.length === 0 || totalCost <= 0}
+                      onClick={() => applySuggestedMargin(targetMargin)}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                        activeStrategy === 'target'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
+                      }`}
+                    >
+                      Sugerir {targetMargin}%
+                    </button>
                   </div>
-                )}
+                </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
+                  className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                 >
                   {isSubmitting && <LoaderCircle className="size-4 animate-spin" />}
                   {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
@@ -717,15 +763,16 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+        <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-gray-500">
-                Costo: <strong className="text-gray-900 dark:text-gray-100">{money(totalCost)}</strong>
-              </p>
-              <div className="mt-0.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-gray-500 dark:text-gray-400">Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong></span>
+                <span className="text-gray-500 dark:text-gray-400">Ganancia: <strong className={marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(marginAmount)}</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
                 {items.length === 0 ? (
-                  <span className="text-xs font-bold text-gray-500">Modo Borrador</span>
+                  <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                     <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent}%)
@@ -741,7 +788,7 @@ export default function NewProductPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
+              className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
             >
               {isSubmitting && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
               {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
@@ -749,6 +796,14 @@ export default function NewProductPage() {
           </div>
         </footer>
       </form>
+      <BottomNav />
+
+      {/* Diálogo de confirmación para cambios no guardados */}
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </main>
   )
 }
