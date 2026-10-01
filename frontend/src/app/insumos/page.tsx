@@ -14,6 +14,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 
@@ -32,7 +33,6 @@ export default function SuppliesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
-  // Bloquea el scroll del body cuando un modal/bottom-sheet está abierto
   useBodyScrollLock(newOpen || selected !== null)
 
   useEffect(() => {
@@ -67,22 +67,6 @@ export default function SuppliesPage() {
   })
 
   const selectedUnit = useWatch({ control, name: 'unit' })
-
-  // Bloquea físicamente que se ingresen letras en inputs numéricos
-  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
-      (e.ctrlKey || e.metaKey)
-    ) {
-      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
-        e.preventDefault()
-      }
-      return
-    }
-    if (!/^[0-9]$/.test(e.key)) {
-      e.preventDefault()
-    }
-  }
 
   const notify = (msg: string) => {
     setToast(msg)
@@ -433,7 +417,7 @@ export default function SuppliesPage() {
                       {...register('currentCost')}
                       onKeyDown={handleNumericKeyDown}
                       onChange={(e) => {
-                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        const clean = sanitizeDecimal(e.target.value)
                         setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
                       }}
                       inputMode="decimal"
