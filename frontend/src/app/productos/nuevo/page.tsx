@@ -58,6 +58,8 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
+  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
+  const isNavigatingAfterSaveRef = useRef(false)
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
@@ -97,6 +99,7 @@ export default function NewProductPage() {
     control,
     setValue,
     setError,
+    reset,
     formState: { errors, isDirty },
   } = useForm<z.input<typeof productSchema>, undefined, ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -104,8 +107,9 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  // Considera "sucio" si el formulario tiene cambios O si se agregaron insumos a la receta
-  const hasUnsavedChanges = (isDirty || items.length > 0) && !isSubmitting
+  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
+  const hasUnsavedChanges =
+    (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
   // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
   useBodyScrollLock(isDropdownOpen)
@@ -238,9 +242,13 @@ export default function NewProductPage() {
           ? 'Producto guardado en estado borrador (Sin Receta).'
           : 'Producto creado exitosamente con receta vinculada.'
       )
+      // Fix bloqueante: Silenciar blocker, resetear react-hook-form y vaciar receta
+      isNavigatingAfterSaveRef.current = true
+      reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
       setTimeout(() => router.push('/productos'), 800)
     } catch (error: unknown) {
+      isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {
         const field =
           error.status === 409

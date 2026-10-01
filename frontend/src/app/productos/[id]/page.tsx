@@ -115,6 +115,11 @@ export default function ProductDetailPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
+  // Fix bloqueante: Se excluye isDeleting para que el borrado no dispare el diálogo
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(
+    isDirty && !isSaving && !isDeleting
+  )
+
   useEffect(() => {
     setSalePrice(Number(watchedSalePrice) || 0)
   }, [watchedSalePrice, setSalePrice])
@@ -122,9 +127,6 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setMinMarginPercent(Number(watchedMinMargin) || 0)
   }, [watchedMinMargin, setMinMarginPercent])
-
-  // Protección contra pérdida de datos por navegación accidental
-  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(isDirty && !isSaving)
 
   useEffect(() => {
     if (!id) return

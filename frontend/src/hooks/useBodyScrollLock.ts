@@ -3,20 +3,24 @@ import { useEffect } from 'react'
 /**
  * Bloquea el scroll del body cuando `isLocked` es `true`.
  *
- * Útil para modales, bottom sheets y overlays que necesitan evitar
- * que el contenido de fondo se desplace al interactuar en mobile.
+ * Aplica `overflow: hidden` y `touchAction: none` para prevenir scroll
+ * parásito y rebote táctil en dispositivos móviles (incluido iOS Safari).
  *
- * Restaura `overflow` al cerrarse o al desmontarse el componente.
+ * Restaura los estilos originales al cerrarse o al desmontarse el componente.
  */
 export function useBodyScrollLock(isLocked: boolean): void {
   useEffect(() => {
-    if (isLocked) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    if (!isLocked) return
+
+    const originalOverflow = document.body.style.overflow
+    const originalTouchAction = document.body.style.touchAction
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+
     return () => {
-      document.body.style.overflow = ''
+      document.body.style.overflow = originalOverflow
+      document.body.style.touchAction = originalTouchAction
     }
   }, [isLocked])
 }
