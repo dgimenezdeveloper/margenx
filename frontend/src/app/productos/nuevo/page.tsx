@@ -107,6 +107,22 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
+  // Bloquea físicamente que se ingresen letras en inputs numéricos
+  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
+        e.preventDefault()
+      }
+      return
+    }
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault()
+    }
+  }
+
   // Considera "sucio" si el formulario tiene cambios O si se agregaron insumos a la receta
   const hasUnsavedChanges = (isDirty || items.length > 0) && !isSubmitting
 
@@ -224,16 +240,16 @@ export default function NewProductPage() {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
     const suggested = Math.round(totalCost / factor)
-    setValue('salePrice', String(suggested), { shouldValidate: true })
+    setValue('salePrice', String(suggested), { shouldValidate: true, shouldDirty: true })
     setActiveStrategy('target')
   }
 
   const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
     const currentSale = Number(watchedSalePrice) || 0
     if (currentSale > 0) {
-      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
+      setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true, shouldDirty: true })
     } else if (totalCost > 0) {
-      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
+      setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true, shouldDirty: true })
     }
     setActiveStrategy(strategy)
   }
@@ -339,14 +355,14 @@ export default function NewProductPage() {
                         <span className="font-bold text-gray-400">$</span>
                         <input
                           {...register('salePrice')}
+                          onKeyDown={handleNumericKeyDown}
                           onChange={(e) => {
-                            register('salePrice').onChange(e)
-                            // Al tipear a mano con el teclado, la botonera activa vuelve a Objetivo
+                            const clean = e.target.value.replace(/[^0-9.]/g, '')
+                            setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                             setActiveStrategy('target')
                           }}
                           inputMode="decimal"
-                          type="number"
-                          step="any"
+                          type="text"
                           placeholder="0.00"
                           className="no-spinners w-full bg-transparent px-2 text-base font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
@@ -366,9 +382,13 @@ export default function NewProductPage() {
                       <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                         <input
                           {...register('minMarginPercent')}
+                          onKeyDown={handleNumericKeyDown}
+                          onChange={(e) => {
+                            const clean = e.target.value.replace(/[^0-9.]/g, '')
+                            setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
+                          }}
                           inputMode="decimal"
-                          type="number"
-                          step="any"
+                          type="text"
                           placeholder="30"
                           className="no-spinners w-full bg-transparent text-right font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                         />
@@ -490,11 +510,11 @@ export default function NewProductPage() {
                       </label>
                       <input
                         value={inputQty}
+                        onKeyDown={handleNumericKeyDown}
                         onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
                         placeholder="100"
                         inputMode="decimal"
-                        type="number"
-                        step="any"
+                        type="text"
                         className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
@@ -573,13 +593,13 @@ export default function NewProductPage() {
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
                             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
                               <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={displayQty}
+                                onKeyDown={handleNumericKeyDown}
                                 onChange={(e) =>
-                                  handleItemQuantityChange(item.ingredientId, e.target.value)
+                                  handleItemQuantityChange(item.ingredientId, e.target.value.replace(/[^0-9.]/g, ''))
                                 }
+                                value={displayQty}
+                                inputMode="decimal"
+                                type="text"
                                 aria-label={`Cantidad de ${item.name}`}
                                 className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
                               />
@@ -680,7 +700,7 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* BOTONERA DE AJUSTE RÁPIDO CON ESTADO ACTIVO */}
+                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE CON ESTADO ACTIVO */}
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
                   <div className="grid grid-cols-3 gap-2">

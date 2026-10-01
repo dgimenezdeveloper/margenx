@@ -115,6 +115,22 @@ export default function ProductDetailPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
+  // Bloquea físicamente que se ingresen letras en inputs numéricos
+  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
+        e.preventDefault()
+      }
+      return
+    }
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault()
+    }
+  }
+
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
@@ -214,11 +230,17 @@ export default function ProductDetailPage() {
 
   const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
     const sale = Number(watchedSalePrice) || 0
-    if (sale <= 0) return
-    setValue('salePrice', String(Math.round(sale * factor)), {
-      shouldValidate: true,
-      shouldDirty: true,
-    })
+    if (sale <= 0 && cost > 0) {
+      setValue('salePrice', String(Math.round(cost * factor)), {
+        shouldValidate: true,
+        shouldDirty: true,
+      })
+    } else if (sale > 0) {
+      setValue('salePrice', String(Math.round(sale * factor)), {
+        shouldValidate: true,
+        shouldDirty: true,
+      })
+    }
     setActiveStrategy(strategy)
   }
 
@@ -493,7 +515,7 @@ export default function ProductDetailPage() {
               noValidate
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-                <h2 className="text-base font-bold">Datos del Producto</h2>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del Producto</h2>
                 {isDirty && (
                   <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                     Cambios sin guardar
@@ -507,7 +529,7 @@ export default function ProductDetailPage() {
                 </label>
                 <input
                   {...register('name')}
-                  className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
+                  className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
@@ -519,18 +541,22 @@ export default function ProductDetailPage() {
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                     Precio de Venta ($)
                   </label>
-                  <input
-                    {...register('salePrice')}
-                    onChange={(e) => {
-                      register('salePrice').onChange(e)
-                      // Al tipear a mano, el selector vuelve a Objetivo
-                      setActiveStrategy('target')
-                    }}
-                    inputMode="decimal"
-                    type="number"
-                    step="any"
-                    className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
-                  />
+                  <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                    <span className="font-bold text-gray-400">$</span>
+                    <input
+                      {...register('salePrice')}
+                      onKeyDown={handleNumericKeyDown}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
+                        setActiveStrategy('target')
+                      }}
+                      inputMode="decimal"
+                      type="text"
+                      placeholder="0.00"
+                      className="no-spinners w-full bg-transparent px-2 text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
+                    />
+                  </div>
                   {errors.salePrice && (
                     <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
                   )}
@@ -540,13 +566,21 @@ export default function ProductDetailPage() {
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                     Margen Mínimo (%)
                   </label>
-                  <input
-                    {...register('minMarginPercent')}
-                    inputMode="decimal"
-                    type="number"
-                    step="any"
-                    className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800"
-                  />
+                  <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                    <input
+                      {...register('minMarginPercent')}
+                      onKeyDown={handleNumericKeyDown}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
+                      }}
+                      inputMode="decimal"
+                      type="text"
+                      placeholder="30"
+                      className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
+                    />
+                    <span className="ml-1 font-bold text-gray-400">%</span>
+                  </div>
                   {errors.minMarginPercent && (
                     <p className="mt-1 text-xs font-bold text-rose-500">
                       {errors.minMarginPercent.message}
@@ -573,7 +607,7 @@ export default function ProductDetailPage() {
 
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold">Composición / Receta</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
                 <span className="text-xs font-semibold text-gray-400">
                   {items.length} ingredientes
                 </span>
@@ -612,15 +646,15 @@ export default function ProductDetailPage() {
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
                           <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
                             <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              value={displayQty}
+                              onKeyDown={handleNumericKeyDown}
                               onChange={(e) =>
-                                handleItemQuantityChange(item.ingredientId, e.target.value)
+                                handleItemQuantityChange(item.ingredientId, e.target.value.replace(/[^0-9.]/g, ''))
                               }
+                              value={displayQty}
+                              inputMode="decimal"
+                              type="text"
                               aria-label={`Cantidad de ${item.name}`}
-                              className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none"
+                              className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
                             />
                             <span className="text-xs font-bold text-gray-500">
                               {item.recipeUnit ?? item.unit}
@@ -696,8 +730,8 @@ export default function ProductDetailPage() {
                     !hasRecipe
                       ? 'text-gray-400 dark:text-gray-500'
                       : gain >= 0
-                        ? 'text-emerald-700'
-                        : 'text-rose-700'
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-rose-700 dark:text-rose-400'
                   }`}
                 >
                   Ganancia: {!hasRecipe ? '$0' : money(gain)}
@@ -705,7 +739,7 @@ export default function ProductDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-2">Ajustes Rápidos</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Ajustes Rápidos</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -713,7 +747,7 @@ export default function ProductDetailPage() {
                     className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
                       activeStrategy === '5'
                         ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +5%
@@ -724,7 +758,7 @@ export default function ProductDetailPage() {
                     className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
                       activeStrategy === '10'
                         ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +10%
@@ -745,23 +779,25 @@ export default function ProductDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Precio de Venta</label>
-                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Precio de Venta</label>
+                {/* Contenedor sin fondo blanco en Dark Mode */}
+                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
+                    onKeyDown={handleNumericKeyDown}
                     onChange={(e) => {
-                      setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), {
+                      const clean = e.target.value.replace(/[^0-9.]/g, '')
+                      setValue('salePrice', clean, {
                         shouldValidate: true,
                         shouldDirty: true,
                       })
-                      // Al tipear a mano, el selector vuelve a Objetivo
                       setActiveStrategy('target')
                     }}
                     inputMode="decimal"
-                    type="number"
-                    step="any"
-                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white"
+                    type="text"
+                    placeholder="0.00"
+                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
                   />
                 </div>
               </div>
@@ -771,8 +807,8 @@ export default function ProductDetailPage() {
                   !hasRecipe
                     ? 'text-gray-500 dark:text-gray-400'
                     : margin >= targetMargin
-                      ? 'text-emerald-700'
-                      : 'text-rose-700'
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-rose-700 dark:text-rose-400'
                 }`}
               >
                 {!hasRecipe
@@ -798,15 +834,15 @@ export default function ProductDetailPage() {
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong>
               </span>
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong>
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-500">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
                 Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
               </span>
               {!hasRecipe ? (
@@ -836,8 +872,8 @@ export default function ProductDetailPage() {
       {isSimulatorOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setIsSimulatorOpen(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
               <div>
@@ -845,7 +881,7 @@ export default function ProductDetailPage() {
                   Simulador de Precio (Costo: {money(cost)})
                 </p>
               </div>
-              <span className={`text-sm font-black ${!hasRecipe ? 'text-gray-400' : gain >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <span className={`text-sm font-black ${!hasRecipe ? 'text-gray-400' : gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                 Ganancia: {!hasRecipe ? '$0' : money(gain)}
               </span>
             </div>
@@ -859,7 +895,7 @@ export default function ProductDetailPage() {
                     className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
                       activeStrategy === '5'
                         ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +5%
@@ -870,7 +906,7 @@ export default function ProductDetailPage() {
                     className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
                       activeStrategy === '10'
                         ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +10%
@@ -892,21 +928,26 @@ export default function ProductDetailPage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Precio de Venta</label>
-                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800">
+                {/* Contenedor sin fondo blanco en Dark Mode */}
+                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
                     value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
+                    onKeyDown={handleNumericKeyDown}
                     onChange={(e) => {
-                      setValue('salePrice', e.target.value.replace(/[^0-9.]/g, ''), { shouldValidate: true, shouldDirty: true })
+                      const clean = e.target.value.replace(/[^0-9.]/g, '')
+                      setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                       setActiveStrategy('target')
                     }}
-                    inputMode="decimal" type="number" step="any"
-                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white"
+                    inputMode="decimal"
+                    type="text"
+                    placeholder="0.00"
+                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
                   />
                 </div>
               </div>
 
-              <p className={`text-xs font-bold ${!hasRecipe ? 'text-gray-500' : margin >= targetMargin ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <p className={`text-xs font-bold ${!hasRecipe ? 'text-gray-500 dark:text-gray-400' : margin >= targetMargin ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                 {!hasRecipe ? 'Proyección: 0.0% (Sin Receta)' : `Proyección: Nuevo margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
               </p>
 
@@ -914,7 +955,7 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsSimulatorOpen(false)}
-                  className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer active:scale-95 transition-all"
+                  className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer active:scale-95 transition-all"
                 >
                   Cancelar
                 </button>
@@ -952,7 +993,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setShowDeleteModal(false)}
-                className="min-h-11 flex-1 rounded-xl border border-gray-200 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer disabled:opacity-50 transition"
               >
                 Cancelar
               </button>
@@ -960,7 +1001,7 @@ export default function ProductDetailPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteProduct}
-                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition"
               >
                 {isDeleting && <LoaderCircle className="size-3.5 animate-spin" />}
                 {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
@@ -973,17 +1014,17 @@ export default function ProductDetailPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setShowAddModal(false)} />
-          <section className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl md:rounded-3xl dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
+          <section className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold uppercase text-indigo-600">Despensa</p>
-                <h2 className="mt-1 text-xl font-bold">Sumar Insumo a la Receta</h2>
+                <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Despensa</p>
+                <h2 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">Sumar Insumo a la Receta</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-gray-400 cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
               >
                 <X className="size-5" />
               </button>
@@ -996,7 +1037,7 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 cursor-pointer"
+                  className="mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white cursor-pointer"
                 >
                   <span className="truncate">
                     {currentSupply
@@ -1022,7 +1063,7 @@ export default function ProductDetailPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Filtrar por nombre..."
                         autoFocus
-                        className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900"
+                        className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                       />
                       {searchQuery && (
                         <button
@@ -1071,12 +1112,12 @@ export default function ProductDetailPage() {
                   </label>
                   <input
                     value={inputQty}
+                    onKeyDown={handleNumericKeyDown}
                     onChange={(e) => setInputQty(e.target.value.replace(/[^0-9.]/g, ''))}
                     inputMode="decimal"
-                    type="number"
-                    step="any"
+                    type="text"
                     placeholder="50"
-                    className="no-spinners min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
+                    className="no-spinners min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
                   />
                 </div>
                 <div className="w-28">
@@ -1086,7 +1127,7 @@ export default function ProductDetailPage() {
                   <select
                     value={recipeUnit}
                     onChange={(e) => setRecipeUnit(e.target.value)}
-                    className="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold dark:border-gray-700 dark:bg-gray-800 outline-none focus:border-indigo-600"
+                    className="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
                   >
                     {availableUnits.map((u) => (
                       <option key={u} value={u}>
@@ -1122,14 +1163,14 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="min-h-11 flex-1 rounded-2xl border border-gray-200 py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 cursor-pointer"
+                className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleAddIngredient}
-                className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer"
+                className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition cursor-pointer"
               >
                 Agregar
               </button>

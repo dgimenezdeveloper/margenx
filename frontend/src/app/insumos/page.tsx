@@ -68,6 +68,22 @@ export default function SuppliesPage() {
 
   const selectedUnit = useWatch({ control, name: 'unit' })
 
+  // Bloquea físicamente que se ingresen letras en inputs numéricos
+  const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      if (e.key === '.' && (e.currentTarget.value.includes('.') || e.currentTarget.value === '')) {
+        e.preventDefault()
+      }
+      return
+    }
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault()
+    }
+  }
+
   const notify = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 3000)
@@ -250,7 +266,6 @@ export default function SuppliesPage() {
 
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
-                {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((supply) => (
                     <button
@@ -273,7 +288,6 @@ export default function SuppliesPage() {
                   ))}
                 </div>
 
-                {/* VERSIÓN DESKTOP */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -417,9 +431,13 @@ export default function SuppliesPage() {
                     <span className="text-lg font-bold text-gray-400">$</span>
                     <input
                       {...register('currentCost')}
+                      onKeyDown={handleNumericKeyDown}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/[^0-9.]/g, '')
+                        setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
+                      }}
                       inputMode="decimal"
-                      type="number"
-                      step="any"
+                      type="text"
                       placeholder="0.00"
                       className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                     />
