@@ -10,6 +10,9 @@ export interface RecipeItem {
   inputQty?: number // Cantidad numérica escrita por el usuario
 }
 
+const MAX_SALE_PRICE = 99_999_999.99
+const MAX_MIN_MARGIN_PERCENT = 999.99999
+
 export interface RecipeState {
   items: RecipeItem[]
   salePrice: number
@@ -99,13 +102,17 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   },
 
   setSalePrice: (salePrice: number) => {
-    set({ salePrice: Number.isFinite(salePrice) ? Math.max(0, salePrice) : 0 })
+    set({
+      salePrice: Number.isFinite(salePrice)
+        ? Math.min(Math.max(0, salePrice), MAX_SALE_PRICE)
+        : 0,
+    })
   },
 
   setMinMarginPercent: (minMarginPercent: number) => {
     set({
       minMarginPercent: Number.isFinite(minMarginPercent)
-        ? Math.max(0, minMarginPercent)
+        ? Math.min(Math.max(0, minMarginPercent), MAX_MIN_MARGIN_PERCENT)
         : 0,
     })
   },
@@ -134,9 +141,11 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   marginPercent: () => {
     const { salePrice, totalCost, items } = get()
     if (items.length === 0 || salePrice <= 0) return 0
+
     const cost = totalCost()
     const rawMargin = ((salePrice - cost) / salePrice) * 100
-    return Math.round(rawMargin * 10) / 10
+
+    return Number(rawMargin.toFixed(1))
   },
 
   isUnderMargin: () => {
@@ -161,9 +170,11 @@ export const selectMarginAmount = (state: RecipeState) => {
 
 export const selectMarginPercent = (state: RecipeState) => {
   if (state.items.length === 0 || state.salePrice <= 0) return 0
+
   const cost = selectTotalCost(state)
   const rawMargin = ((state.salePrice - cost) / state.salePrice) * 100
-  return Math.round(rawMargin * 10) / 10
+
+  return Number(rawMargin.toFixed(1))
 }
 
 export const selectIsUnderMargin = (state: RecipeState) => {

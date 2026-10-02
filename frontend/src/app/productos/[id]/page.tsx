@@ -97,6 +97,9 @@ export default function ProductDetailPage() {
   const gain = useRecipeStore((s: RecipeState) => s.marginAmount())
   const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
+  const hasCriticalMargin = margin < -100
+  const hasHealthyMargin = margin > 100
+
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
     window.setTimeout(() => setToast(null), 3000)
@@ -458,26 +461,9 @@ export default function ProductDetailPage() {
               Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.
             </p>
           </section>
-        ) : isHealthy ? (
-          <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
-            <div className="flex justify-between items-start">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                <ShieldCheck className="size-3.5" /> Margen Saludable
-              </span>
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                Objetivo: {targetMargin}%
-              </span>
-            </div>
-            <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
-              {margin}%
-            </p>
-            <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              Cumple con el umbral personalizado ({targetMargin}%).
-            </p>
-          </section>
-        ) : (
+        ) : hasCriticalMargin ? (
           <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
                 <AlertTriangle className="size-3.5" /> Margen Bajo
               </span>
@@ -487,6 +473,40 @@ export default function ProductDetailPage() {
             </div>
             <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
               {margin}%
+            </p>
+            <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
+              ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(gain).toLocaleString('es-AR')} por unidad.
+            </p>
+          </section>
+        ) : hasHealthyMargin || isHealthy ? (
+          <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
+            <div className="flex justify-between items-start gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                <ShieldCheck className="size-3.5" /> Margen Saludable
+              </span>
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                Objetivo: {targetMargin}%
+              </span>
+            </div>
+            <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
+              {margin.toFixed(1)}%
+            </p>
+            <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+              Cumple con el umbral personalizado ({targetMargin}%).
+            </p>
+          </section>
+        ) : (
+          <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
+            <div className="flex justify-between items-start gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
+                <AlertTriangle className="size-3.5" /> Margen Bajo
+              </span>
+              <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
+                Objetivo: {targetMargin}%
+              </span>
+            </div>
+            <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
+              {margin.toFixed(1)}%
             </p>
             <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
               Por debajo del mínimo ({targetMargin}%)

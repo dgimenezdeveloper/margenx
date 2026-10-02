@@ -5,11 +5,12 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, Boxes, Check, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Boxes, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ToastAlert } from '@/components/ToastAlert'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -17,6 +18,7 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
+const MAX_INGREDIENT_COST = 99_999_999.99
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 const sortIngredients = (ingredients: Ingredient[]) =>
@@ -31,7 +33,7 @@ export default function SuppliesPage() {
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useBodyScrollLock(newOpen || selected !== null)
 
@@ -68,8 +70,8 @@ export default function SuppliesPage() {
 
   const selectedUnit = useWatch({ control, name: 'unit' })
 
-  const notify = (msg: string) => {
-    setToast(msg)
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type })
     window.setTimeout(() => setToast(null), 3000)
   }
 
@@ -106,10 +108,17 @@ export default function SuppliesPage() {
   }
 
   const handleSave = async (data: IngredientFormValues) => {
+    const numericCost = Number(data.currentCost)
+
+    if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
+      notify('El insumo no puede superar $99.999.999,99.', 'error')
+      return
+    }
+
     const input = {
       name: selected?.name ?? data.name,
       unit: data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit,
-      currentCost: data.currentCost,
+      currentCost: numericCost,
     }
     try {
       const ingredient = selected
@@ -127,7 +136,7 @@ export default function SuppliesPage() {
       )
       handleCloseSheet()
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.')
+      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
     }
   }
 
@@ -139,19 +148,14 @@ export default function SuppliesPage() {
       notify(`Insumo "${selected.name}" eliminado correctamente`)
       handleCloseSheet()
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.')
+      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.', 'error')
       setShowDeleteConfirm(false)
     }
   }
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5" />
-          {toast}
-        </div>
-      )}
+      {toast && <ToastAlert message={toast.message} type={toast.type} />}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">

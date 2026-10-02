@@ -167,7 +167,7 @@ export default function DashboardPage() {
                                 : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
                             }`}
                           >
-                            Margen {product.marginPercent}%
+                            Margen {Number(product.marginPercent).toFixed(1)}%
                           </span>
                         )}
                       </div>
