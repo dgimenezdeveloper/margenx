@@ -92,7 +92,7 @@ En cumplimiento de las pautas del manual operativo de MargenX, al completarse el
 
 - [x] **Tablero Limpio:** 16 issues del Sprint 2 en estado `Done`, sin tareas huérfanas ni bloqueos pendientes.
 - [x] **Ambientes en Producción:** `https://margenx.tech` y `https://dev.margenx.tech` con status 200 OK y certificados SSL activos.
-- [x] **Release de Producción Publicado:** Tag `v0.2.0` creado formalmente en GitHub Web y desplegado vía pipeline `deploy.yml`.
+- [x] **Release de Producción Publicado:** Tag `v0.3.0` creado formalmente en GitHub Web y desplegado vía pipeline `deploy.yml`.
 - [x] **Backlog Refinado para Sprint 3:** Historias de Dashboard, RBAC y Multi-proveedor desglosadas con criterios Gherkin y prioridades asignadas (P1/P2).
 - [x] **Secretos e Infraestructura de VPS:** Variables de entorno y llaves de Clerk verificadas en `/opt/margenx-infra/.env`.
 
