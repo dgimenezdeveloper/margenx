@@ -59,7 +59,19 @@ describe('authMiddleware', () => {
     await authMiddleware(req, res, next);
     expect(findUniqueMock).toHaveBeenCalledWith({
       where: { authProviderId: 'clerk-user-1' },
-      select: { id: true, accountId: true, email: true, role: true },
+      select: {
+        id: true,
+        accountId: true,
+        email: true,
+        role: true,
+        account: {
+          select: {
+            id: true,
+            businessName: true,
+            defaultMinMarginPercent: true,
+          },
+        },
+      },
     });
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({ error: 'No autorizado' });
@@ -68,7 +80,17 @@ describe('authMiddleware', () => {
 
   it('setea req.user y llama next() si el token y el usuario son válidos', async () => {
     verifyTokenMock.mockResolvedValue({ sub: 'clerk-user-1' });
-    const user = { id: 'u1', accountId: 'a1', email: 'x@x.com', role: 'ADMIN' };
+    const user = {
+      id: 'u1',
+      accountId: 'a1',
+      email: 'x@x.com',
+      role: 'ADMIN',
+      account: {
+        id: 'a1',
+        businessName: 'Panadería Central',
+        defaultMinMarginPercent: { toString: () => '15.5' },
+      },
+    };
     findUniqueMock.mockResolvedValue(user);
     const { req, res, next } = buildReqRes('Bearer good-token');
     await authMiddleware(req, res, next);

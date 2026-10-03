@@ -1,13 +1,42 @@
 
 # Changelog — MargenX
 
-
-
 ## Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+
+## [0.3.0] - 2026-10-02 (Sprint 2: MVP Core — Recetas Compuestas, Cálculo en Vivo y Despliegue en Producción)
+
+### Added
+
+- **DevOps:** Puesta a punto y despliegue del entorno oficial de Producción (`https://margenx.tech`) bajo HTTPS con Nginx, Docker Compose y base aislada `margenx_prod` (`#81`).
+- **DevOps:** Integración de la suite de pruebas E2E de Playwright en GitHub Actions (`ci.yml`) con bloqueo de PRs defectuosos y reportes HTML como artefactos (`#80`).
+- **Backend:** Motor de cálculo financiero con tipos `Prisma.Decimal` para costos unitarios, costo total de receta y porcentaje de margen, respaldado por tests unitarios (`#75`).
+- **Frontend:** Editor interactivo de recetas compuestas (BOM) con selector dinámico de insumos y cálculo reactivo en memoria ($<50\text{ ms}$) mediante Zustand (`#76`).
+- **Frontend:** Vista dinámica de Detalle, Edición y Eliminación de Producto en `/productos/:id` con soporte de fichas con y sin receta (`#78`).
+- **Frontend:** Conexión de API REST para persistencia de productos y recetas con manejo de skeletons y estados de error (`#79`).
+- **Frontend:** Persistencia de margen global en perfil de comercio y sistema de jerarquía de margen por producto individual (`#91`).
+- **Frontend:** Modal de confirmación de abandono de pantalla ante cambios no guardados para prevenir pérdidas de datos (`#99`).
+- **QA:** Dataset oficial de 20 productos con recetas compuestas complejas (BOM) integrado al script de seed idempotente (`#90`).
+- **QA:** Suite automatizada de pruebas E2E de recálculo de margen en cascada y aislamiento de datos en Playwright (`#47`).
+- **QA:** Batería de validación de precisión aritmética en fórmulas financieras y análisis de casos borde (división por cero y costos nulos) (`#77`).
+
+### Changed
+
+- **Frontend:** Simulador financiero y selector de insumos adaptados para viewports tablet y mobile (`<1024px` con base en `360px`) (`#98`).
+- **Frontend:** Hardening de rendimiento, persistencia de estado local y optimización de renderizado en vistas críticas (`#94`).
+- **Frontend:** UI Polish general, integración del logotipo vectorizado de MargenX, toasts interactivos y estilización de inputs bajo Dark Mode (`#100`).
+
+### Fixed
+
+- **Backend:** Persistencia transaccional atómica de recetas compuestas con `prisma.$transaction` y mecanismo anti-double submit para evitar duplicaciones (`#92`).
+
+### Security
+
+- **Backend:** Validación de límites numéricos decimales máximos en DTOs con Zod para prevenir desbordes numéricos en PostgreSQL/Prisma ante entradas anómalas (`#102`).
 
 ## [0.2.0] - 2026-09-18 (Sprint 1: Insumos, Productos Base y Hardening)
 
 ### Added (Terminado y Mergeado)
+
 - **DevOps:** Runner headless de Playwright (Chromium) en GitHub Actions (`ci.yml`) y preconfiguración SSL de producción (Nginx/Certbot) en VPS Donweb (`#68`).
 - **QA:** Suite global de autenticación persistente con Clerk y smoke test E2E en Playwright (`#69`).
 - **Backend:** Endpoints CRUD de Productos y Recetas con soporte borrador y transacciones ACID (`#65`).
@@ -28,7 +57,9 @@
 ---
 
 ## [0.1.0] - 2026-09-04 (Sprint 0: Setup y Fundaciones)
+
 ### Added (Agregado)
+
 - **DevOps:** Configuración de entorno aislado con VS Code DevContainers (Node 20, TypeScript, PostgreSQL 16 local).
 - **DevOps:** Pipeline de Integración Continua (CI) en GitHub Actions (`ci.yml`) con verificación de lint, typecheck y compilación.
 - **DevOps:** Automatización de tablero Kanban mediante GraphQL API (`auto-move-issues.yml`).

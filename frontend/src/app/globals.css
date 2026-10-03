@@ -153,6 +153,11 @@
   }
 }
 
+/* Transforma los logos a color blanco puro en modo oscuro conservando transparencia */
+.dark .logo-adaptive {
+  filter: brightness(0) invert(1) !important;
+}
+
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button,
 .no-spinners::-webkit-inner-spin-button,
@@ -183,8 +188,6 @@ input[type='number'],
 .dark .border-gray-200 { border-color: #374151 !important; }
 .dark input { color: #f9fafb; }
 .dark input::placeholder { color: #9ca3af; }
-
-
 
 /* El simulador cerrado es una barra compacta; al abrirse recupera el bottom sheet completo. */
 .simulator-closed { height: 4rem; min-height: 4rem; overflow: hidden; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 0 1.25rem; }
@@ -226,6 +229,10 @@ div.fixed.inset-0.z-30:not(:has([role='dialog'])) > * { width: 100%; max-width: 
 @layer base {
   :root {
     color-scheme: light;
+  }
+
+  html {
+    scrollbar-gutter: stable;
   }
 
   * {

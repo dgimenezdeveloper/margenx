@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
+import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
 const router = Router();
 router.use(authMiddleware);
@@ -49,25 +50,41 @@ interface ProductIngredientBody {
   quantity?: unknown;
 }
 
+const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
+const MAX_PERCENT_VALUE = new Prisma.Decimal('999.99');
+
 function decimal(value: unknown, field: string, allowZero = false): Prisma.Decimal {
   if (typeof value !== 'number' && typeof value !== 'string') {
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const text = String(value).trim();
-  if (!/^\d+(\.\d+)?$/.test(text)) {
+  if (!/^-?\d+(\.\d+)?$/.test(text)) {
     throw new AppError(`El campo "${field}" debe ser numérico.`, 400);
   }
   const result = new Prisma.Decimal(text);
   if (allowZero ? result.lessThan(0) : result.lessThanOrEqualTo(0)) {
     throw new AppError(`El campo "${field}" debe ser ${allowZero ? 'mayor o igual a' : 'mayor a'} cero.`, 400);
   }
+
+  if (field === 'salePrice' && result.abs().greaterThan(MAX_MONEY_VALUE)) {
+    throw new AppError('El campo "salePrice" no puede superar $99.999.999,99.', 400);
+  }
+
+  if (field === 'minMarginPercent' && result.abs().greaterThan(MAX_PERCENT_VALUE)) {
+    throw new AppError('El campo "minMarginPercent" no puede superar el 999.99%.', 400);
+  }
+
+  if (field === 'quantity' && result.abs().greaterThan(MAX_MONEY_VALUE)) {
+    throw new AppError('El campo "quantity" excede la capacidad máxima permitida.', 400);
+  }
+
   return result;
 }
 
 function parseBody(body: ProductBody) {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) throw new AppError('El campo "name" es obligatorio.', 400);
-  const salePrice = decimal(body.salePrice, 'salePrice');
+  const salePrice = decimal(body.salePrice, 'salePrice', true); // ← allowZero
   const minMarginPercent = decimal(body.minMarginPercent, 'minMarginPercent', true);
   if (!Array.isArray(body.ingredients)) throw new AppError('El campo "ingredients" debe ser un array.', 400);
 
@@ -120,7 +137,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const payload = req.body && typeof req.body === 'object' && 'product' in req.body
     ? (req.body as { product?: unknown }).product
-    : req.body;  const input = parseBody(payload as ProductBody);
+    : req.body; const input = parseBody(payload as ProductBody);
   const accountId = req.user!.accountId;
 
   // Ejecutar la creación de forma atómica en una transacción.
@@ -132,23 +149,27 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     });
     if (ingredientRows.length !== ingredientIds.length) throw new AppError('Una receta contiene un insumo inexistente.', 400);
 
-    const hasIngredients = input.ingredients.length > 0;
-    const cost = hasIngredients
-      ? input.ingredients.reduce((total, item) => {
-          const ingredient = ingredientRows.find((row) => row.id === item.ingredientId);
-          return total.add((ingredient?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
-        }, new Prisma.Decimal(0))
-      : new Prisma.Decimal(0);
+    const cost = calculateRecipeTotal(
+      input.ingredients.map((item) => ({
+        quantity: item.quantity,
+        unitCost: ingredientRows.find((row) => row.id === item.ingredientId)?.currentCost ?? new Prisma.Decimal(0),
+      }))
+    );
+    const marginAmount = calculateMarginAmount(input.salePrice, cost);
+    const marginPercent = calculateMarginPercent(input.salePrice, cost);
 
-    const marginAmount = hasIngredients ? input.salePrice.sub(cost) : new Prisma.Decimal(0);
-    const marginPercent = (!hasIngredients || input.salePrice.isZero())
-      ? new Prisma.Decimal(0)
-      : marginAmount.div(input.salePrice).mul(100);
+    // Validar unicidad de nombre (case-insensitive) dentro de la misma cuenta
+    const existingByName = await tx.product.findFirst({
+      where: { accountId, name: { equals: input.name, mode: 'insensitive' } },
+    });
+    if (existingByName) throw new AppError('Ya existe un producto con ese nombre.', 400);
 
     const created = await tx.product.create({
       data: {
         accountId,
-        name: input.name,
+        // Guardamos el nombre en minúsculas en la base de datos para
+        // normalizar y facilitar comparaciones case-insensitive.
+        name: input.name.toLowerCase(),
         salePrice: input.salePrice,
         minMarginPercent: input.minMarginPercent,
         cost,
@@ -206,7 +227,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     : req.body;  // Validación de payload parcial
   const body = payload as Partial<ProductBody>;
   const name = typeof body.name === 'string' ? body.name.trim() : undefined;
-  const salePrice = body.salePrice !== undefined ? decimal(body.salePrice, 'salePrice') : undefined;
+  const salePrice = body.salePrice !== undefined ? decimal(body.salePrice, 'salePrice', true) : undefined;
   const minMarginPercent = body.minMarginPercent !== undefined ? decimal(body.minMarginPercent, 'minMarginPercent', true) : undefined;
 
   const ingredientsProvided = body.ingredients !== undefined;
@@ -223,85 +244,75 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-  const existing = await tx.product.findFirst({ where: { id, accountId } });
-  if (!existing) throw new AppError('Producto no encontrado.', 404);
+    const existing = await tx.product.findFirst({ where: { id, accountId } });
+    if (!existing) throw new AppError('Producto no encontrado.', 404);
 
-  const finalSalePrice = salePrice ?? existing.salePrice;
-  const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
+    const finalSalePrice = salePrice ?? existing.salePrice;
+    const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
 
-  let finalCost = existing.cost;
-  let hasFinalIngredients: boolean;
+    let finalCost = existing.cost;
 
-  if (ingredientsProvided) {
-    hasFinalIngredients = !!ingredients && ingredients.length > 0;
-
-    if (!hasFinalIngredients) {
-      finalCost = new Prisma.Decimal(0);
-    } else {
-      const ingredientIds = ingredients!.map((i) => i.ingredientId);
-      const ingredientRows = await tx.ingredient.findMany({
-        where: { accountId, id: { in: ingredientIds } },
-        select: { id: true, currentCost: true },
-      });
-      if (ingredientRows.length !== ingredientIds.length) {
-        throw new AppError('Una receta contiene un insumo inexistente.', 400);
+    if (ingredientsProvided) {
+      if (ingredients && ingredients.length > 0) {
+        const ingredientIds = ingredients.map((i) => i.ingredientId);
+        const ingredientRows = await tx.ingredient.findMany({
+          where: { accountId, id: { in: ingredientIds } },
+          select: { id: true, currentCost: true },
+        });
+        if (ingredientRows.length !== ingredientIds.length) {
+          throw new AppError('Una receta contiene un insumo inexistente.', 400);
+        }
+        finalCost = calculateRecipeTotal(
+          ingredients.map((item) => ({
+            quantity: item.quantity,
+            unitCost: ingredientRows.find((row) => row.id === item.ingredientId)?.currentCost ?? new Prisma.Decimal(0),
+          }))
+        );
+      } else {
+        finalCost = new Prisma.Decimal(0);
       }
-
-      finalCost = ingredients!.reduce((total, item) => {
-        const ing = ingredientRows.find((r) => r.id === item.ingredientId);
-        return total.add((ing?.currentCost ?? new Prisma.Decimal(0)).mul(item.quantity));
-      }, new Prisma.Decimal(0));
     }
-  } else {
-    // No vino "ingredients" en el body: la receta no cambia, pero
-    // igual necesitamos saber si el producto YA tiene receta para
-    // decidir si corresponde recalcular el margen o mantenerlo en 0.
-    const existingIngredientsCount = await tx.productIngredient.count({
-      where: { productId: id },
-    });
-    hasFinalIngredients = existingIngredientsCount > 0;
-  }
+    // Si no vino "ingredients" en el body, finalCost = existing.cost (la receta no cambió).
 
-  // Se recalcula SIEMPRE que salePrice o cost puedan haber cambiado,
-  // no solo cuando cambia la receta — esto es lo que corrige el bug
-  // reportado por QA (Issue #27 vs. PR #65).
-  const finalMarginAmount = hasFinalIngredients
-    ? finalSalePrice.sub(finalCost)
-    : new Prisma.Decimal(0);
-  const finalMarginPercent = (!hasFinalIngredients || finalSalePrice.isZero())
-    ? new Prisma.Decimal(0)
-    : finalMarginAmount.div(finalSalePrice).mul(100);
+    const finalMarginAmount = calculateMarginAmount(finalSalePrice, finalCost);
+    const finalMarginPercent = calculateMarginPercent(finalSalePrice, finalCost);
 
-  if (ingredientsProvided) {
-    await tx.productIngredient.deleteMany({ where: { productId: id } });
+    // Si se está actualizando el nombre, validar unicidad case-insensitive
+    if (name && name.toLowerCase() !== existing.name.toLowerCase()) {
+      const found = await tx.product.findFirst({ where: { accountId, name: { equals: name, mode: 'insensitive' } } });
+      if (found) throw new AppError('Ya existe un producto con ese nombre.', 400);
+    }
+
+    if (ingredientsProvided) {
+      await tx.productIngredient.deleteMany({ where: { productId: id } });
+      return tx.product.update({
+        where: { id },
+        data: {
+          name: name ? name.toLowerCase() : existing.name,
+          salePrice: finalSalePrice,
+          minMarginPercent: finalMinMargin,
+          cost: finalCost,
+          marginAmount: finalMarginAmount,
+          marginPercent: finalMarginPercent,
+          ingredients: ingredients && ingredients.length > 0 ? { create: ingredients } : undefined,
+        },
+        include: { ingredients: { select: { ingredientId: true, quantity: true } } },
+      });
+    }
+
     return tx.product.update({
       where: { id },
       data: {
-        name: name ?? existing.name,
+        name: name ? name.toLowerCase() : existing.name,
         salePrice: finalSalePrice,
         minMarginPercent: finalMinMargin,
         cost: finalCost,
         marginAmount: finalMarginAmount,
         marginPercent: finalMarginPercent,
-        ingredients: ingredients && ingredients.length > 0 ? { create: ingredients } : undefined,
       },
       include: { ingredients: { select: { ingredientId: true, quantity: true } } },
     });
-  }
-
-  return tx.product.update({
-    where: { id },
-    data: {
-      name: name ?? existing.name,
-      salePrice: finalSalePrice,
-      minMarginPercent: finalMinMargin,
-      cost: finalCost,
-      marginAmount: finalMarginAmount,
-      marginPercent: finalMarginPercent,
-    },
-    include: { ingredients: { select: { ingredientId: true, quantity: true } } },
   });
-});
 
   return res.status(200).json({ product: updated });
 });
