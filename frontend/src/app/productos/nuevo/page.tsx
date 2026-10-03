@@ -68,6 +68,8 @@ export default function NewProductPage() {
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
+  const [supplies, setSupplies] = useState<Ingredient[]>([])
+  const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
 
   useEffect(() => {
     if (!toast) return

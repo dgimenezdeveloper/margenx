@@ -186,7 +186,7 @@ export default function SuppliesPage() {
                 onClick={handleOpenNew}
                 className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4" /> Nuevo Insumo
+                <Plus className="size-4 " /> Nuevo Insumo
               </button>
             </div>
           </section>
