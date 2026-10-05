@@ -13,12 +13,13 @@ model Account {
   subscriptionPlan        String    @default("FREE")
   trialEndsAt             DateTime?
   isActive                Boolean   @default(true)
-  defaultMinMarginPercent Decimal   @default(30) @db.Decimal(5, 2) // <-- NUEVO CAMPO
+  defaultMinMarginPercent Decimal   @default(30) @db.Decimal(5, 2)
   createdAt               DateTime  @default(now())
 
   users       User[]
   ingredients Ingredient[]
   products    Product[]
+  suppliers   Supplier[]
 }
 
 enum Role {
@@ -37,14 +38,53 @@ model User {
 }
 
 model Ingredient {
-  id          String              @id @default(uuid())
-  accountId   String
-  name        String
-  unit        String // kg, l, unit
-  currentCost Decimal             @db.Decimal(10, 2)
-  updatedAt   DateTime            @updatedAt
-  account     Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  products    ProductIngredient[]
+  id            String              @id @default(uuid())
+  accountId     String
+  name          String
+  unit          String // kg, l, unit
+  currentCost   Decimal             @db.Decimal(10, 2)
+  updatedAt     DateTime            @updatedAt
+  account       Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  products      ProductIngredient[]
+  suppliers     SupplierIngredient[]
+  priceHistory  PriceHistory[]
+}
+
+model Supplier {
+  id            String              @id @default(uuid())
+  accountId     String
+  name          String
+  contactPhone  String?
+  email         String?
+  address       String?
+  isActive      Boolean             @default(true)
+  account       Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ingredients   SupplierIngredient[]
+
+  @@unique([accountId, name])
+}
+
+model SupplierIngredient {
+  id          String     @id @default(uuid())
+  supplierId  String
+  ingredientId String
+  packageSize Decimal    @db.Decimal(10, 3)
+  packageUnit String
+  packagePrice Decimal    @db.Decimal(10, 2)
+  isDefault   Boolean    @default(false)
+  supplier    Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  ingredient  Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, ingredientId])
+}
+
+model PriceHistory {
+  id         String    @id @default(uuid())
+  ingredientId String
+  oldCost    Decimal   @db.Decimal(10, 2)
+  newCost    Decimal   @db.Decimal(10, 2)
+  changedAt  DateTime  @default(now())
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 }
 
 model Product {

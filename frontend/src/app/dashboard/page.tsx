@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
 import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus, LoaderCircle } from 'lucide-react'
@@ -56,6 +56,30 @@ export default function DashboardPage() {
           products.length
         ).toFixed(1)
       : '0.0'
+
+  // Algoritmo de ordenamiento prioritario memoizado
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      const aHasRecipe = a.ingredients.length > 0
+      const bHasRecipe = b.ingredients.length > 0
+
+      // 1. Priorizar productos con receta sobre los borradores (sin receta)
+      if (aHasRecipe && !bHasRecipe) return -1
+      if (!aHasRecipe && bHasRecipe) return 1
+
+      // 2. Si ambos no tienen receta, desempatar alfabéticamente
+      if (!aHasRecipe && !bHasRecipe) {
+        return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+      }
+
+      // 3. Si ambos tienen receta, ordenar por margen porcentual ascendente (menor a mayor)
+      const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
+      if (marginDiff !== 0) return marginDiff
+
+      // 4. Criterio de desempate final: orden alfabético
+      return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+    })
+  }, [products])
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -135,13 +159,13 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-12 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <LoaderCircle className="mr-2 size-5 animate-spin text-indigo-600" /> Cargando catálogo...
               </div>
-            ) : products.length === 0 ? (
+            ) : sortedProducts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
                 Aún no tienes productos registrados. Crea uno nuevo para comenzar a monitorear.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {products.map((product) => {
+                {sortedProducts.map((product) => {
                   const hasRecipe = product.ingredients.length > 0
                   const isRisk = hasRecipe && product.marginPercent < product.minMarginPercent
 
