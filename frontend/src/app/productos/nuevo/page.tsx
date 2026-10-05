@@ -62,13 +62,24 @@ export default function NewProductPage() {
   // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
-  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
-  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
+  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
+  const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
+
+  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
+  const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerFlash = (key: '5' | '10') => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlashingKey(key)
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingKey(null)
+    }, 180)
+  }
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
-
 
   useEffect(() => {
     if (!toast) return
@@ -96,7 +107,7 @@ export default function NewProductPage() {
   const marginAmount = useRecipeStore((s: RecipeState) => s.marginAmount())
   const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
   const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
-
+  const isHealthy = !isUnderMargin;
   const hasCriticalMargin = marginPercent < -100
   const hasHealthyMargin = marginPercent > 100
 
@@ -162,6 +173,7 @@ export default function NewProductPage() {
       .finally(() => setIsLoadingSupplies(false))
 
     return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
   }, [getToken, resetStore])
@@ -219,19 +231,20 @@ export default function NewProductPage() {
   const applySuggestedMargin = (percentage: number) => {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
-    const suggested = Math.round(totalCost / factor)
+    const suggested = Math.ceil(totalCost / factor)
     setValue('salePrice', String(suggested), { shouldValidate: true })
     setActiveStrategy('target')
   }
 
-  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+  const adjustPriceFactor = (factor: number, key?: '5' | '10') => {
+    if (key) triggerFlash(key)
     const currentSale = Number(watchedSalePrice) || 0
     if (currentSale > 0) {
       setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
     } else if (totalCost > 0) {
       setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
     }
-    setActiveStrategy(strategy)
+    setActiveStrategy('custom')
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
@@ -269,12 +282,12 @@ export default function NewProductPage() {
             ? 'name'
             : error.status === 400
               ? (() => {
-                  const msg = error.message.toLowerCase()
-                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
-                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
-                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
-                  return null
-                })()
+                const msg = error.message.toLowerCase()
+                if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                return null
+              })()
               : null
 
         if (field) {
@@ -342,7 +355,7 @@ export default function NewProductPage() {
                           onChange={(e) => {
                             const clean = sanitizeDecimal(e.target.value)
                             setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                            setActiveStrategy('target')
+                            setActiveStrategy('custom')
                           }}
                           inputMode="decimal"
                           type="text"
@@ -427,9 +440,8 @@ export default function NewProductPage() {
                         : 'Buscar insumo...'}
                     </span>
                     <ChevronDown
-                      className={`size-4 text-gray-400 transition-transform duration-200 ${
-                        isDropdownOpen ? 'rotate-180' : ''
-                      }`}
+                      className={`size-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''
+                        }`}
                     />
                   </button>
 
@@ -469,11 +481,10 @@ export default function NewProductPage() {
                               key={supply.id}
                               type="button"
                               onClick={() => handleSelectSupply(supply)}
-                              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${
-                                supply.id === selectedSupplyId
+                              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${supply.id === selectedSupplyId
                                   ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                                   : 'text-gray-800 dark:text-gray-200'
-                              }`}
+                                }`}
                             >
                               <span className="truncate">{supply.name}</span>
                               <span className="ml-2 shrink-0 text-gray-400">
@@ -634,10 +645,10 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
+                        Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
                       </p>
                     </div>
-                  ) : hasHealthyMargin ? (
+                  ) : isHealthy || hasHealthyMargin ? (
                     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 animate-in fade-in">
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
@@ -680,38 +691,35 @@ export default function NewProductPage() {
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
                     <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
                     <strong
-                      className={`font-black ${
-                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
-                      }`}
+                      className={`font-black ${marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
+                        }`}
                     >
                       {money(marginAmount)}
                     </strong>
                   </div>
                 </div>
 
-                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE CON ESTADO ACTIVO */}
+                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE */}
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.05, '5')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '5'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                      }`}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${flashingKey === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                        }`}
                     >
                       +5%
                     </button>
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.10, '10')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '10'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                      }`}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${flashingKey === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                        }`}
                     >
                       +10%
                     </button>
@@ -719,11 +727,10 @@ export default function NewProductPage() {
                       type="button"
                       disabled={items.length === 0 || totalCost <= 0}
                       onClick={() => applySuggestedMargin(targetMargin)}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
-                        activeStrategy === 'target'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${activeStrategy === 'target'
                           ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                           : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
-                      }`}
+                        }`}
                     >
                       Sugerir {targetMargin}%
                     </button>
