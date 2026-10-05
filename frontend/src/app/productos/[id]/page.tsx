@@ -87,7 +87,6 @@ export default function ProductDetailPage() {
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
   const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
   const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
   const resetStore = useRecipeStore((s: RecipeState) => s.reset)
@@ -275,34 +274,6 @@ export default function ProductDetailPage() {
         notify(`"${currentSupply.name}" sumado a la receta`)
       } catch {
         notify('Error al actualizar la receta')
-      }
-    }
-  }
-
-  const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i: RecipeItem) => i.ingredientId === ingredientId)
-    if (!targetItem) return
-
-    const val = Number(rawVal)
-    if (val >= 0) {
-      const activeUnit = targetItem.recipeUnit ?? targetItem.unit
-      const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
-      updateQuantity(ingredientId, baseQty, val, activeUnit)
-
-      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
-      try {
-        await productService.update(
-          id!,
-          {
-            ingredients: updatedItems.map((r: RecipeItem) => ({
-              ingredientId: r.ingredientId,
-              quantity: r.quantity,
-            })),
-          },
-          getToken
-        )
-      } catch {
-        notify('Error al actualizar la cantidad')
       }
     }
   }
@@ -651,19 +622,11 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
-                          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
-                            <input
-                              onKeyDown={handleNumericKeyDown}
-                              onChange={(e) =>
-                                handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
-                              }
-                              value={displayQty}
-                              inputMode="decimal"
-                              type="text"
-                              aria-label={`Cantidad de ${item.name}`}
-                              className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
-                            />
-                            <span className="text-xs font-bold text-gray-500">
+                          <div className="flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5 dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60">
+                            <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                              {displayQty}
+                            </span>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
                               {item.recipeUnit ?? item.unit}
                             </span>
                           </div>
