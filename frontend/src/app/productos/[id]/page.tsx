@@ -66,8 +66,20 @@ export default function ProductDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
 
-  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
-  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
+  // Estado del botón activo ('target' cuando coincide con margen sugerido, 'custom' al desviarse)
+  const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
+
+  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
+  const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerFlash = (key: '5' | '10') => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlashingKey(key)
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingKey(null)
+    }, 180)
+  }
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
@@ -182,6 +194,7 @@ export default function ProductDetailPage() {
 
     return () => {
       active = false
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
   }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore])
@@ -213,12 +226,13 @@ export default function ProductDetailPage() {
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
-    const suggestedPrice = Math.round(cost / factor)
+    const suggestedPrice = Math.ceil(cost / factor)
     setValue('salePrice', String(suggestedPrice), { shouldValidate: true, shouldDirty: true })
     setActiveStrategy('target')
   }
 
-  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+  const adjustPriceFactor = (factor: number, key?: '5' | '10') => {
+    if (key) triggerFlash(key)
     const sale = Number(watchedSalePrice) || 0
     if (sale <= 0 && cost > 0) {
       setValue('salePrice', String(Math.round(cost * factor)), {
@@ -231,7 +245,7 @@ export default function ProductDetailPage() {
         shouldDirty: true,
       })
     }
-    setActiveStrategy(strategy)
+    setActiveStrategy('custom')
   }
 
   const handleSelectSupply = (supply: Ingredient) => {
@@ -556,7 +570,7 @@ export default function ProductDetailPage() {
                       onChange={(e) => {
                         const clean = sanitizeDecimal(e.target.value)
                         setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                        setActiveStrategy('target')
+                        setActiveStrategy('custom')
                       }}
                       inputMode="decimal"
                       type="text"
@@ -751,10 +765,10 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.05, '5')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                      activeStrategy === '5'
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      flashingKey === '5'
+                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +5%
@@ -762,10 +776,10 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.10, '10')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                      activeStrategy === '10'
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      flashingKey === '10'
+                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +10%
@@ -799,7 +813,7 @@ export default function ProductDetailPage() {
                         shouldValidate: true,
                         shouldDirty: true,
                       })
-                      setActiveStrategy('target')
+                      setActiveStrategy('custom')
                     }}
                     inputMode="decimal"
                     type="text"
@@ -899,10 +913,10 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.05, '5')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                      activeStrategy === '5'
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      flashingKey === '5'
+                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +5%
@@ -910,10 +924,10 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => adjustPriceFactor(1.10, '10')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                      activeStrategy === '10'
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      flashingKey === '10'
+                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     +10%
@@ -944,7 +958,7 @@ export default function ProductDetailPage() {
                     onChange={(e) => {
                       const clean = sanitizeDecimal(e.target.value)
                       setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                      setActiveStrategy('target')
+                      setActiveStrategy('custom')
                     }}
                     inputMode="decimal"
                     type="text"

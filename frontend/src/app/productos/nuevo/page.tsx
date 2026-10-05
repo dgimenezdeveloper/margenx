@@ -62,13 +62,24 @@ export default function NewProductPage() {
   // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
-  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
-  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
+  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
+  const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
+
+  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
+  const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerFlash = (key: '5' | '10') => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlashingKey(key)
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingKey(null)
+    }, 180)
+  }
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
-  
 
   useEffect(() => {
     if (!toast) return
@@ -163,6 +174,7 @@ export default function NewProductPage() {
       .finally(() => setIsLoadingSupplies(false))
 
     return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
   }, [getToken, resetStore])
@@ -232,19 +244,20 @@ export default function NewProductPage() {
   const applySuggestedMargin = (percentage: number) => {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
-    const suggested = Math.round(totalCost / factor)
+    const suggested = Math.ceil(totalCost / factor)
     setValue('salePrice', String(suggested), { shouldValidate: true })
     setActiveStrategy('target')
   }
 
-  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+  const adjustPriceFactor = (factor: number, key?: '5' | '10') => {
+    if (key) triggerFlash(key)
     const currentSale = Number(watchedSalePrice) || 0
     if (currentSale > 0) {
       setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
     } else if (totalCost > 0) {
       setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
     }
-    setActiveStrategy(strategy)
+    setActiveStrategy('custom')
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
@@ -355,7 +368,7 @@ export default function NewProductPage() {
                           onChange={(e) => {
                             const clean = sanitizeDecimal(e.target.value)
                             setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                            setActiveStrategy('target')
+                            setActiveStrategy('custom')
                           }}
                           inputMode="decimal"
                           type="text"
@@ -710,17 +723,17 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE CON ESTADO ACTIVO */}
+                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE */}
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.05, '5')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '5'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       +5%
@@ -728,10 +741,10 @@ export default function NewProductPage() {
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.10, '10')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '10'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       +10%
