@@ -66,10 +66,10 @@ export default function ProductDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
 
-  // Estado del botón activo ('target' cuando coincide con margen sugerido, 'custom' al desviarse)
+  // Estado del botón activo en la botonera de ajuste rápido
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
 
-  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
+  // Feedback táctil transitorio para botones incrementales (+5%, +10%)
   const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -99,7 +99,7 @@ export default function ProductDetailPage() {
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
+  
   const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
   const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
   const resetStore = useRecipeStore((s: RecipeState) => s.reset)
@@ -110,7 +110,7 @@ export default function ProductDetailPage() {
   const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
   const hasCriticalMargin = margin < -100
-  const hasHealthyMargin = margin > 100
+  const hasHealthyMargin = margin >= 100
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
@@ -134,7 +134,7 @@ export default function ProductDetailPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Fix bloqueante: Se excluye isDeleting para que el borrado no dispare el diálogo
+  // Protección de navegación ante cambios no guardados
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(
     isDirty && !isSaving && !isDeleting
   )
@@ -223,6 +223,7 @@ export default function ProductDetailPage() {
       ? parsedWatchedMargin
       : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
+  // Cálculo de margen sugerido redondeado hacia arriba con Math.ceil
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
@@ -288,35 +289,7 @@ export default function ProductDetailPage() {
         setShowAddModal(false)
         notify(`"${currentSupply.name}" sumado a la receta`)
       } catch {
-        notify('Error al actualizar la receta')
-      }
-    }
-  }
-
-  const handleItemQuantityChange = async (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i: RecipeItem) => i.ingredientId === ingredientId)
-    if (!targetItem) return
-
-    const val = Number(rawVal)
-    if (val >= 0) {
-      const activeUnit = targetItem.recipeUnit ?? targetItem.unit
-      const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
-      updateQuantity(ingredientId, baseQty, val, activeUnit)
-
-      const updatedItems = useRecipeStore.getState().items as RecipeItem[]
-      try {
-        await productService.update(
-          id!,
-          {
-            ingredients: updatedItems.map((r: RecipeItem) => ({
-              ingredientId: r.ingredientId,
-              quantity: r.quantity,
-            })),
-          },
-          getToken
-        )
-      } catch {
-        notify('Error al actualizar la cantidad')
+        notify('Error al actualizar la receta', 'error')
       }
     }
   }
@@ -337,7 +310,7 @@ export default function ProductDetailPage() {
       )
       notify('Insumo eliminado de la receta')
     } catch {
-      notify('Error al actualizar la receta')
+      notify('Error al actualizar la receta', 'error')
     }
   }
 
@@ -364,7 +337,7 @@ export default function ProductDetailPage() {
         salePrice: String(updated.salePrice),
         minMarginPercent: String(updated.minMarginPercent),
       })
-      notify('Datos del producto guardados exitosamente', 'success')
+      notify('Producto guardado exitosamente', 'success')
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         const field =
@@ -393,7 +366,8 @@ export default function ProductDetailPage() {
     }
   }
 
-  const handleSavePriceFromSheet = async () => {
+  // Guardado unificado desde el Bottom Sheet móvil
+  const handleSaveFromBottomSheet = async () => {
     await handleSubmit(async (data) => {
       await handleFormSubmit(data)
       setIsSimulatorOpen(false)
@@ -407,7 +381,7 @@ export default function ProductDetailPage() {
       notify('Producto eliminado correctamente.')
       setTimeout(() => navigate('/productos'), 600)
     } catch (err: unknown) {
-      notify(err instanceof ApiError ? err.message : 'No se pudo eliminar el producto.')
+      notify(err instanceof ApiError ? err.message : 'No se pudo eliminar el producto.', 'error')
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
@@ -463,6 +437,7 @@ export default function ProductDetailPage() {
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
 
+        {/* Banner de Estado Financiero */}
         {!hasRecipe ? (
           <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -489,10 +464,10 @@ export default function ProductDetailPage() {
               {margin}%
             </p>
             <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-              ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(gain).toLocaleString('es-AR')} por unidad.
+              Venta a pérdida: Estás perdiendo ${Math.abs(gain).toLocaleString('es-AR')} por unidad.
             </p>
           </section>
-        ) : hasHealthyMargin || isHealthy ? (
+        ) : isHealthy || hasHealthyMargin ? (
           <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
             <div className="flex justify-between items-start gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
@@ -529,12 +504,10 @@ export default function ProductDetailPage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+          {/* Columna Izquierda: Datos Maestros y Composición */}
           <div className="space-y-6 lg:col-span-7">
-            <form
-              onSubmit={handleSubmit(handleFormSubmit)}
-              className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4"
-              noValidate
-            >
+            {/* 1. Datos Maestros (Sin inputs duplicados ni botones intermedios) */}
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                 <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del Producto</h2>
                 {isDirty && (
@@ -546,7 +519,7 @@ export default function ProductDetailPage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                  Nombre
+                  Nombre del producto
                 </label>
                 <input
                   {...register('name')}
@@ -557,75 +530,34 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                    Precio de Venta ($)
-                  </label>
-                  <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                    <span className="font-bold text-gray-400">$</span>
-                    <input
-                      {...register('salePrice')}
-                      onKeyDown={handleNumericKeyDown}
-                      onChange={(e) => {
-                        const clean = sanitizeDecimal(e.target.value)
-                        setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                        setActiveStrategy('custom')
-                      }}
-                      inputMode="decimal"
-                      type="text"
-                      placeholder="0.00"
-                      className="no-spinners w-full bg-transparent px-2 text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                    />
-                  </div>
-                  {errors.salePrice && (
-                    <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
-                  )}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Margen Mínimo Objetivo (%)
+                </label>
+                <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                  <input
+                    {...register('minMarginPercent')}
+                    onKeyDown={handleNumericKeyDown}
+                    onChange={(e) => {
+                      const clean = sanitizeDecimal(e.target.value)
+                      setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
+                    }}
+                    inputMode="decimal"
+                    type="text"
+                    placeholder="30"
+                    className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
+                  />
+                  <span className="ml-1 font-bold text-gray-400">%</span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                    Margen Mínimo (%)
-                  </label>
-                  <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                    <input
-                      {...register('minMarginPercent')}
-                      onKeyDown={handleNumericKeyDown}
-                      onChange={(e) => {
-                        const clean = sanitizeDecimal(e.target.value)
-                        setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
-                      }}
-                      inputMode="decimal"
-                      type="text"
-                      placeholder="30"
-                      className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                    />
-                    <span className="ml-1 font-bold text-gray-400">%</span>
-                  </div>
-                  {errors.minMarginPercent && (
-                    <p className="mt-1 text-xs font-bold text-rose-500">
-                      {errors.minMarginPercent.message}
-                    </p>
-                  )}
-                </div>
+                {errors.minMarginPercent && (
+                  <p className="mt-1 text-xs font-bold text-rose-500">
+                    {errors.minMarginPercent.message}
+                  </p>
+                )}
               </div>
+            </section>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  Guardar Cambios
-                </button>
-              </div>
-            </form>
-
+            {/* 2. Composición / Receta (Solo lectura protegida) */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
@@ -636,7 +568,7 @@ export default function ProductDetailPage() {
 
               {!hasRecipe ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
-                  Sin insumos cargados. Suma ingredientes para costear el producto.
+                  Sin insumos cargados. Suma materias primas para costear la elaboración.
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -665,19 +597,12 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
-                          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
-                            <input
-                              onKeyDown={handleNumericKeyDown}
-                              onChange={(e) =>
-                                handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
-                              }
-                              value={displayQty}
-                              inputMode="decimal"
-                              type="text"
-                              aria-label={`Cantidad de ${item.name}`}
-                              className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
-                            />
-                            <span className="text-xs font-bold text-gray-500">
+                          {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
+                          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
+                            <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                              {displayQty}
+                            </span>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
                               {item.recipeUnit ?? item.unit}
                             </span>
                           </div>
@@ -714,6 +639,7 @@ export default function ProductDetailPage() {
               </button>
             </section>
 
+            {/* 3. Zona de Peligro */}
             <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -735,12 +661,13 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
+          {/* Columna Derecha: Cockpit Financiero Sticky (Único lugar canónico de precio y guardado en Desktop) */}
           <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">
-                    Simulador de Precio
+                    Simulador Financiero
                   </h3>
                   <p className="text-base font-black text-gray-900 dark:text-white mt-1">
                     Costo Total: {money(cost)}
@@ -760,7 +687,9 @@ export default function ProductDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Ajustes Rápidos</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
+                  Ajustes Rápidos de Precio
+                </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -800,8 +729,9 @@ export default function ProductDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Precio de Venta</label>
-                {/* Contenedor sin fondo blanco en Dark Mode */}
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                  Precio de Venta al Público ($)
+                </label>
                 <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
@@ -809,10 +739,7 @@ export default function ProductDetailPage() {
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => {
                       const clean = sanitizeDecimal(e.target.value)
-                      setValue('salePrice', clean, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
+                      setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
                       setActiveStrategy('custom')
                     }}
                     inputMode="decimal"
@@ -821,6 +748,9 @@ export default function ProductDetailPage() {
                     className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
                   />
                 </div>
+                {errors.salePrice && (
+                  <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
+                )}
               </div>
 
               <p
@@ -834,16 +764,17 @@ export default function ProductDetailPage() {
               >
                 {!hasRecipe
                   ? 'Proyección: 0.0% (Sin Receta)'
-                  : `Proyección: Margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
+                  : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
               </p>
 
+              {/* ÚNICO BOTÓN PRINCIPAL DE GUARDADO EN DESKTOP */}
               <button
                 type="button"
                 onClick={handleSubmit(handleFormSubmit)}
                 disabled={isSaving}
-                className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
+                className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
               >
-                {isSaving && <LoaderCircle className="size-4 animate-spin" />}
+                {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
                 {isSaving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
@@ -851,6 +782,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
+      {/* FOOTER FLOTANTE PERMANENTE EN MOBILE (<1024px) */}
       <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -870,26 +802,43 @@ export default function ProductDetailPage() {
                 <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
               ) : isHealthy ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  <ShieldCheck className="size-3" /> {margin}%
+                  <ShieldCheck className="size-3" /> {margin.toFixed(1)}%
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                  <AlertTriangle className="size-3" /> {margin}%
+                  <AlertTriangle className="size-3" /> {margin.toFixed(1)}%
                 </span>
               )}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsSimulatorOpen(true)}
-            className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
-          >
-            <Pencil className="size-3.5" /> Ajustar Precio
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Botón de acceso directo al Bottom Sheet */}
+            <button
+              type="button"
+              onClick={() => setIsSimulatorOpen(true)}
+              className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              title="Ajustar precio y simular"
+            >
+              <Pencil className="size-3.5" />
+              <span>Ajustar</span>
+            </button>
+
+            {/* Botón principal de guardado unificado en mobile */}
+            <button
+              type="button"
+              onClick={handleSubmit(handleFormSubmit)}
+              disabled={isSaving}
+              className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+            >
+              {isSaving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+              <span>Guardar</span>
+            </button>
+          </div>
         </div>
       </footer>
 
+      {/* BOTTOM SHEET MÓVIL DEL SIMULADOR */}
       {isSimulatorOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setIsSimulatorOpen(false)} />
@@ -948,8 +897,9 @@ export default function ProductDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Precio de Venta</label>
-                {/* Contenedor sin fondo blanco en Dark Mode */}
+                <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">
+                  Precio de Venta al Público ($)
+                </label>
                 <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
@@ -969,7 +919,7 @@ export default function ProductDetailPage() {
               </div>
 
               <p className={`text-xs font-bold ${!hasRecipe ? 'text-gray-500 dark:text-gray-400' : margin >= targetMargin ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                {!hasRecipe ? 'Proyección: 0.0% (Sin Receta)' : `Proyección: Nuevo margen ${margin}% ${margin >= targetMargin ? '✅' : '⚠️'}`}
+                {!hasRecipe ? 'Proyección: 0.0% (Sin Receta)' : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
               </p>
 
               <div className="mt-6 flex gap-3">
@@ -982,12 +932,12 @@ export default function ProductDetailPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleSavePriceFromSheet}
+                  onClick={handleSaveFromBottomSheet}
                   disabled={isSaving}
                   className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                  {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : null}
-                  Guardar Precio
+                  {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  Guardar
                 </button>
               </div>
             </div>
@@ -995,6 +945,7 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* MODAL DE ELIMINACIÓN DE PRODUCTO */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="fixed inset-0" onClick={() => !isDeleting && setShowDeleteModal(false)} />
@@ -1032,6 +983,7 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* MODAL BOTTOM SHEET DE AGREGAR INSUMO */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setShowAddModal(false)} />
