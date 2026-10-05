@@ -213,7 +213,7 @@ export default function ProductDetailPage() {
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
-    const suggestedPrice = Math.round(cost / factor)
+    const suggestedPrice = Math.ceil(cost / factor)
     setValue('salePrice', String(suggestedPrice), { shouldValidate: true, shouldDirty: true })
     setActiveStrategy('target')
   }

@@ -232,7 +232,7 @@ export default function NewProductPage() {
   const applySuggestedMargin = (percentage: number) => {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
-    const suggested = Math.round(totalCost / factor)
+    const suggested = Math.ceil(totalCost / factor)
     setValue('salePrice', String(suggested), { shouldValidate: true })
     setActiveStrategy('target')
   }
