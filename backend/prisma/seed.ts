@@ -21,6 +21,32 @@ const accounts = [
       { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
       { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
     ],
+    suppliers: [
+      {
+        id: "30e00001-0000-4000-8000-000000000001",
+        name: "Distribuidora Mayorista Molinera",
+        contactPhone: "+54 11 4000-1001",
+        email: "ventas@distribuidoramolinera.com.ar",
+        address: "Av. Cabildo 1250, CABA",
+        isActive: true,
+        ingredients: [
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000001",
+            packageSize: "25.000",
+            packageUnit: "kg",
+            packagePrice: "18000.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000008",
+            packageSize: "20.000",
+            packageUnit: "l",
+            packagePrice: "30000.00",
+            isDefault: false,
+          },
+        ],
+      },
+    ],
     ingredients: [
       { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "742.98" },
       { id: "30b00001-0000-4000-8000-000000000002", name: "Harina de trigo 0000 Olavarriense", unit: "kg", currentCost: "868.77" },
@@ -179,6 +205,32 @@ const accounts = [
     users: [
       { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
       { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
+    ],
+    suppliers: [
+      {
+        id: "30e00002-0000-4000-8000-000000000001",
+        name: "Distribuidora Industrial Química Sur",
+        contactPhone: "+54 11 5000-2202",
+        email: "compras@quimicasur.com.ar",
+        address: "Calle 7 N° 240, Córdoba",
+        isActive: true,
+        ingredients: [
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000001",
+            packageSize: "20.000",
+            packageUnit: "kg",
+            packagePrice: "28000.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000006",
+            packageSize: "30.000",
+            packageUnit: "l",
+            packagePrice: "62000.00",
+            isDefault: false,
+          },
+        ],
+      },
     ],
     ingredients: [
       { id: "30b00002-0000-4000-8000-000000000001", name: "Pasta suavi", unit: "kg", currentCost: "15400.00" },
@@ -434,6 +486,80 @@ async function main() {
         });
       }
 
+      for (const supplier of account.suppliers) {
+        const matchingSuppliers = await tx.supplier.findMany({
+          where: {
+            OR: [
+              { id: supplier.id },
+              { accountId: account.id, name: supplier.name },
+            ],
+          },
+        });
+
+        if (matchingSuppliers.some((row) =>
+          row.id !== supplier.id ||
+          row.accountId !== account.id ||
+          row.name !== supplier.name
+        )) {
+          throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
+        }
+
+        await tx.supplier.upsert({
+          where: { id: supplier.id },
+          create: {
+            id: supplier.id,
+            accountId: account.id,
+            name: supplier.name,
+            contactPhone: supplier.contactPhone,
+            email: supplier.email,
+            address: supplier.address,
+            isActive: supplier.isActive,
+          },
+          update: {
+            name: supplier.name,
+            contactPhone: supplier.contactPhone,
+            email: supplier.email,
+            address: supplier.address,
+            isActive: supplier.isActive,
+          },
+        });
+
+        for (const item of supplier.ingredients) {
+          const ingredientExists = await tx.ingredient.findUnique({
+            where: { id: item.ingredientId },
+          });
+
+          if (!ingredientExists) {
+            throw new Error(
+              "Proveedor " + supplier.name + " referencia un insumo inexistente: " + item.ingredientId,
+            );
+          }
+
+          await tx.supplierIngredient.upsert({
+            where: {
+              supplierId_ingredientId: {
+                supplierId: supplier.id,
+                ingredientId: item.ingredientId,
+              },
+            },
+            create: {
+              supplierId: supplier.id,
+              ingredientId: item.ingredientId,
+              packageSize: new Prisma.Decimal(item.packageSize),
+              packageUnit: item.packageUnit,
+              packagePrice: new Prisma.Decimal(item.packagePrice),
+              isDefault: item.isDefault,
+            },
+            update: {
+              packageSize: new Prisma.Decimal(item.packageSize),
+              packageUnit: item.packageUnit,
+              packagePrice: new Prisma.Decimal(item.packagePrice),
+              isDefault: item.isDefault,
+            },
+          });
+        }
+      }
+
       // Costo unitario vigente de cada insumo de la cuenta, para calcular las recetas.
       const ingredientCostById = new Map(
         account.ingredients.map((ingredient) => [ingredient.id, new Prisma.Decimal(ingredient.currentCost)]),
@@ -514,12 +640,15 @@ async function main() {
       { tabla: "Account", total: await tx.account.count() },
       { tabla: "User", total: await tx.user.count() },
       { tabla: "Ingredient", total: await tx.ingredient.count() },
+      { tabla: "Supplier", total: await tx.supplier.count() },
+      { tabla: "SupplierIngredient", total: await tx.supplierIngredient.count() },
+      { tabla: "PriceHistory", total: await tx.priceHistory.count() },
       { tabla: "Product", total: await tx.product.count() },
       { tabla: "ProductIngredient", total: await tx.productIngredient.count() },
     ];
   }, { timeout: 30000 });
 
-  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos, 20 productos y sus recetas (BOM).");
+  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos, 2 proveedores, 4 presentaciones mayoristas, 20 productos y sus recetas (BOM).");
   console.table(counts);
 }
 
