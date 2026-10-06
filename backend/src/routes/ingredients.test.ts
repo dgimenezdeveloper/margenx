@@ -23,6 +23,7 @@ const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+const priceHistoryCreateMock = vi.fn();
 
 // $transaction real de Prisma recibe un callback (tx) => {...} y lo ejecuta
 // pasándole un cliente con los mismos modelos. Acá reutilizamos los mocks
@@ -32,6 +33,7 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
     ingredient: { update: updateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
     product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+    priceHistory: { create: priceHistoryCreateMock },
   });
 });
 
@@ -52,6 +54,9 @@ vi.mock('../lib/prisma', () => ({
     product: {
       findUnique: (...args: unknown[]) => productFindUniqueMock(...args),
       update: (...args: unknown[]) => productUpdateMock(...args),
+    },
+    priceHistory: {
+      create: (...args: unknown[]) => priceHistoryCreateMock(...args),
     },
   },
 }));
@@ -77,6 +82,7 @@ beforeEach(() => {
   productIngredientFindManyMock.mockReset();
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
+  priceHistoryCreateMock.mockReset();
   transactionMock.mockClear();
 });
 
@@ -280,6 +286,48 @@ describe('PUT /api/ingredients/:id', () => {
     });
     expect(productFindUniqueMock).not.toHaveBeenCalled();
     expect(productUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('registra un PriceHistory cuando el costo cambia', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1', currentCost: new Prisma.Decimal('8000.00') });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('9500.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+    priceHistoryCreateMock.mockResolvedValue({ id: 'ph-1' });
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Manteca', unit: 'kg', currentCost: '9500.00' });
+
+    expect(res.status).toBe(200);
+    expect(priceHistoryCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        ingredientId: 'ing-1',
+        oldCost: new Prisma.Decimal('8000.00'),
+        newCost: new Prisma.Decimal('9500.00'),
+      }),
+    });
+  });
+
+  it('no crea PriceHistory si el costo no cambia', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1', currentCost: new Prisma.Decimal('120.00') });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('120.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '120.00' });
+
+    expect(priceHistoryCreateMock).not.toHaveBeenCalled();
   });
 
   it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {
