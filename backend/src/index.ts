@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import ingredientsRoutes from './routes/ingredients';
 import productsRoutes from './routes/products';
+import dashboardRoutes from './routes/dashboard';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -17,6 +18,7 @@ app.use(express.json());  // Permite recibir y procesar JSON en el body de las p
 app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenticación.
 app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de insumos (protegidas por authMiddleware).
 app.use('/api/products', productsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 /*
   Health check de la API.
