@@ -62,6 +62,9 @@ export default function NewProductPage() {
   // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
+  // Estado de intercepción para eliminar insumo de la receta
+  const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
+
   // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
 
@@ -107,9 +110,10 @@ export default function NewProductPage() {
   const marginAmount = useRecipeStore((s: RecipeState) => s.marginAmount())
   const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
   const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
-  const isHealthy = !isUnderMargin;
+
+  const isHealthy = !isUnderMargin
   const hasCriticalMargin = marginPercent < -100
-  const hasHealthyMargin = marginPercent > 100
+  const hasHealthyMargin = marginPercent >= 100
 
   const {
     register,
@@ -129,8 +133,8 @@ export default function NewProductPage() {
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
-  useBodyScrollLock(isDropdownOpen)
+  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado o el modal de confirmación está abierto
+  useBodyScrollLock(isDropdownOpen || Boolean(ingredientToDelete))
 
   // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
@@ -223,9 +227,12 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
-  const handleRemoveItem = (ingredientId: string, itemName: string) => {
-    removeIngredient(ingredientId)
-    notify(`"${itemName}" eliminado de la receta`)
+  // Ejecución diferida de la eliminación (Confirmación Controlada)
+  const confirmRemoveItem = () => {
+    if (!ingredientToDelete) return
+    removeIngredient(ingredientToDelete.id)
+    notify(`"${ingredientToDelete.name}" eliminado de la receta`)
+    setIngredientToDelete(null)
   }
 
   const applySuggestedMargin = (percentage: number) => {
@@ -282,12 +289,12 @@ export default function NewProductPage() {
             ? 'name'
             : error.status === 400
               ? (() => {
-                const msg = error.message.toLowerCase()
-                if (msg.includes('name') || msg.includes('nombre')) return 'name'
-                if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
-                if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
-                return null
-              })()
+                  const msg = error.message.toLowerCase()
+                  if (msg.includes('name') || msg.includes('nombre')) return 'name'
+                  if (msg.includes('saleprice') || msg.includes('precio')) return 'salePrice'
+                  if (msg.includes('minmarginpercent') || msg.includes('margen')) return 'minMarginPercent'
+                  return null
+                })()
               : null
 
         if (field) {
@@ -392,9 +399,7 @@ export default function NewProductPage() {
                       </div>
                     </label>
                     {errors.minMarginPercent && (
-                      <p className="mt-1 text-xs font-bold text-rose-500">
-                        {errors.minMarginPercent.message}
-                      </p>
+                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.minMarginPercent.message}</p>
                     )}
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Margen personalizado para este producto.
@@ -440,8 +445,9 @@ export default function NewProductPage() {
                         : 'Buscar insumo...'}
                     </span>
                     <ChevronDown
-                      className={`size-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''
-                        }`}
+                      className={`size-4 text-gray-400 transition-transform duration-200 ${
+                        isDropdownOpen ? 'rotate-180' : ''
+                      }`}
                     />
                   </button>
 
@@ -481,10 +487,11 @@ export default function NewProductPage() {
                               key={supply.id}
                               type="button"
                               onClick={() => handleSelectSupply(supply)}
-                              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${supply.id === selectedSupplyId
+                              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${
+                                supply.id === selectedSupplyId
                                   ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                                   : 'text-gray-800 dark:text-gray-200'
-                                }`}
+                              }`}
                             >
                               <span className="truncate">{supply.name}</span>
                               <span className="ml-2 shrink-0 text-gray-400">
@@ -585,7 +592,8 @@ export default function NewProductPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            <div className="flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5 dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60">
+                            {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
+                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
                               <span className="text-xs font-black text-gray-900 dark:text-gray-100">
                                 {displayQty}
                               </span>
@@ -603,7 +611,7 @@ export default function NewProductPage() {
 
                             <button
                               type="button"
-                              onClick={() => handleRemoveItem(item.ingredientId, item.name)}
+                              onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
                               className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
                               title="Remover insumo"
                               aria-label={`Eliminar ${item.name}`}
@@ -691,8 +699,9 @@ export default function NewProductPage() {
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
                     <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
                     <strong
-                      className={`font-black ${marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
-                        }`}
+                      className={`font-black ${
+                        marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
+                      }`}
                     >
                       {money(marginAmount)}
                     </strong>
@@ -706,20 +715,22 @@ export default function NewProductPage() {
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.05, '5')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${flashingKey === '5'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '5'
                           ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                        }`}
+                      }`}
                     >
                       +5%
                     </button>
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.10, '10')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${flashingKey === '10'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '10'
                           ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                        }`}
+                      }`}
                     >
                       +10%
                     </button>
@@ -727,10 +738,11 @@ export default function NewProductPage() {
                       type="button"
                       disabled={items.length === 0 || totalCost <= 0}
                       onClick={() => applySuggestedMargin(targetMargin)}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${activeStrategy === 'target'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                        activeStrategy === 'target'
                           ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                           : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
-                        }`}
+                      }`}
                     >
                       Sugerir {targetMargin}%
                     </button>
@@ -762,11 +774,11 @@ export default function NewProductPage() {
                   <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent}%)
+                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent.toFixed(1)}%)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({marginPercent}%)
+                    <ShieldCheck className="size-3" /> Saludable ({marginPercent.toFixed(1)}%)
                   </span>
                 )}
               </div>
@@ -784,6 +796,40 @@ export default function NewProductPage() {
         </footer>
       </form>
       <BottomNav />
+
+      {/* MODAL DE CONFIRMACIÓN PARA QUITAR INSUMO */}
+      {ingredientToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="fixed inset-0" onClick={() => setIngredientToDelete(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-gray-900 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="size-7" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              ¿Quitar insumo de la receta?
+            </h3>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Estás a punto de remover <strong>{ingredientToDelete.name}</strong> de la preparación. El costo total y el margen se recalcularán automáticamente.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIngredientToDelete(null)}
+                className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoveItem}
+                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer inline-flex items-center justify-center gap-1.5 transition"
+              >
+                Sí, quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Diálogo de confirmación para cambios no guardados */}
       <UnsavedChangesDialog
