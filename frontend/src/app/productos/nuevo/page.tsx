@@ -114,7 +114,6 @@ export default function NewProductPage() {
   const isHealthy = !isUnderMargin
   const hasCriticalMargin = marginPercent < -100
   const hasHealthyMargin = marginPercent >= 100
-  const hasRecipe = items.length > 0
 
   const {
     register,
@@ -333,72 +332,6 @@ export default function NewProductPage() {
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
             <div className="space-y-6 lg:col-span-7">
-              {/* Banner de Estado Financiero */}
-              {!hasRecipe ? (
-                <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Estado del producto
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-gray-700 dark:text-gray-300">
-                    Borrador (Sin Receta)
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.
-                  </p>
-                </section>
-              ) : hasCriticalMargin ? (
-                <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
-                  <div className="flex justify-between items-start gap-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                      <AlertTriangle className="size-3.5" /> Margen Bajo
-                    </span>
-                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
-                      Objetivo: {targetMargin}%
-                    </span>
-                  </div>
-                  <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
-                    {marginPercent.toFixed(1)}%
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-                    ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
-                  </p>
-                </section>
-              ) : isHealthy || hasHealthyMargin ? (
-                <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
-                  <div className="flex justify-between items-start gap-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                      <ShieldCheck className="size-3.5" /> Margen Saludable
-                    </span>
-                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                      Objetivo: {targetMargin}%
-                    </span>
-                  </div>
-                  <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
-                    {marginPercent.toFixed(1)}%
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                    Cumple o supera el objetivo de rentabilidad ({targetMargin}%).
-                  </p>
-                </section>
-              ) : (
-                <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
-                  <div className="flex justify-between items-start gap-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                      <AlertTriangle className="size-3.5" /> Margen Bajo
-                    </span>
-                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
-                      Objetivo: {targetMargin}%
-                    </span>
-                  </div>
-                  <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
-                    {marginPercent.toFixed(1)}%
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-                    Por debajo del mínimo ({targetMargin}%)
-                  </p>
-                </section>
-              )}
-
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <h2 className="text-base font-bold text-gray-900 dark:text-white">1. Datos Básicos</h2>
@@ -466,9 +399,7 @@ export default function NewProductPage() {
                       </div>
                     </label>
                     {errors.minMarginPercent && (
-                      <p className="mt-1 text-xs font-bold text-rose-500">
-                        {errors.minMarginPercent.message}
-                      </p>
+                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.minMarginPercent.message}</p>
                     )}
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Margen personalizado para este producto.
@@ -722,7 +653,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
+                        Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
                       </p>
                     </div>
                   ) : isHealthy || hasHealthyMargin ? (
@@ -843,11 +774,11 @@ export default function NewProductPage() {
                   <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent}%)
+                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent.toFixed(1)}%)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({marginPercent}%)
+                    <ShieldCheck className="size-3" /> Saludable ({marginPercent.toFixed(1)}%)
                   </span>
                 )}
               </div>
