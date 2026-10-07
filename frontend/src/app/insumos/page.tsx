@@ -5,13 +5,14 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, Boxes, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Boxes, LoaderCircle, Plus, Search, Trash2, X, History } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { PriceHistoryModal } from '@/components/price-history-modal'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -35,9 +36,10 @@ export default function SuppliesPage() {
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null)
+  useBodyScrollLock(newOpen || selected !== null || showHistoryModal)
 
   useEffect(() => {
     let active = true
@@ -107,7 +109,7 @@ export default function SuppliesPage() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
-    reset() // Restablece el formulario a sus valores originales
+    reset({ name: '', unit: 'kg', currentCost: '' })
   }
 
   const requestCloseSheet = () => {
@@ -197,7 +199,7 @@ export default function SuppliesPage() {
                 onClick={handleOpenNew}
                 className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4 " /> Nuevo Insumo
+                <Plus className="size-4" /> Nuevo Insumo
               </button>
             </div>
           </section>
@@ -374,14 +376,24 @@ export default function SuppliesPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     {selected && (
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                        title="Eliminar insumo"
-                      >
-                        <Trash2 className="size-5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowHistoryModal(true)}
+                          className="cursor-pointer rounded-full p-2 text-indigo-500 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                          title="Ver historial de precios"
+                        >
+                          <History className="size-5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                          title="Eliminar insumo"
+                        >
+                          <Trash2 className="size-5" />
+                        </button>
+                      </>
                     )}
                     <button type="button" onClick={requestCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
                       <X className="size-5" />
@@ -454,7 +466,6 @@ export default function SuppliesPage() {
         </div>
       )}
 
-      {/* Diálogo de confirmación para descartar cambios */}
       <UnsavedChangesDialog
         open={showDiscardConfirm}
         onConfirm={() => {
@@ -463,6 +474,15 @@ export default function SuppliesPage() {
         }}
         onCancel={() => setShowDiscardConfirm(false)}
       />
+
+      {selected && (
+        <PriceHistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => setShowHistoryModal(false)}
+          ingredientId={selected.id}
+          ingredientName={selected.name}
+        />
+      )}
     </main>
   )
 }
