@@ -54,10 +54,26 @@ describe('GET /api/dashboard/metrics', () => {
   it('devuelve métricas consolidadas para la cuenta del administrador', async () => {
     ingredientCountMock.mockResolvedValue(10);
     productFindManyMock.mockResolvedValue([
-      { marginPercent: new Prisma.Decimal('15.00'), minMarginPercent: new Prisma.Decimal('20.00') },
-      { marginPercent: new Prisma.Decimal('25.00'), minMarginPercent: new Prisma.Decimal('20.00') },
-      { marginPercent: new Prisma.Decimal('18.00'), minMarginPercent: new Prisma.Decimal('20.00') },
-      { marginPercent: new Prisma.Decimal('30.00'), minMarginPercent: new Prisma.Decimal('20.00') },
+      {
+        marginPercent: new Prisma.Decimal('15.00'),
+        minMarginPercent: new Prisma.Decimal('20.00'),
+        _count: { ingredients: 1 },
+      },
+      {
+        marginPercent: new Prisma.Decimal('25.00'),
+        minMarginPercent: new Prisma.Decimal('20.00'),
+        _count: { ingredients: 1 },
+      },
+      {
+        marginPercent: new Prisma.Decimal('18.00'),
+        minMarginPercent: new Prisma.Decimal('20.00'),
+        _count: { ingredients: 1 },
+      },
+      {
+        marginPercent: new Prisma.Decimal('30.00'),
+        minMarginPercent: new Prisma.Decimal('20.00'),
+        _count: { ingredients: 1 },
+      },
     ]);
     productAggregateMock.mockResolvedValue({ _avg: { marginPercent: new Prisma.Decimal('22.50') } });
     priceHistoryGroupByMock.mockResolvedValue([
@@ -76,8 +92,23 @@ describe('GET /api/dashboard/metrics', () => {
       averageMarginPercent: 22.5,
       recentCostVariationsCount: 2,
     });
+    expect(productFindManyMock).toHaveBeenCalledWith({
+      where: {
+        accountId: 'account-1',
+        ingredients: { some: {} },
+      },
+      select: {
+        marginPercent: true,
+        minMarginPercent: true,
+        _count: { select: { ingredients: true } },
+      },
+    });
     expect(productAggregateMock).toHaveBeenCalledWith({
-      where: { accountId: 'account-1' },
+      where: {
+        accountId: 'account-1',
+        ingredients: { some: {} },
+        cost: { gt: 0 },
+      },
       _avg: { marginPercent: true },
     });
     expect(priceHistoryGroupByMock).toHaveBeenCalledWith({
@@ -86,6 +117,49 @@ describe('GET /api/dashboard/metrics', () => {
         ingredient: { accountId: 'account-1' },
         changedAt: { gte: expect.any(Date) },
       },
+    });
+  });
+
+  it('excluye productos sin receta del cálculo de críticos, saludables y promedio', async () => {
+    ingredientCountMock.mockResolvedValue(10);
+    productFindManyMock.mockResolvedValue([
+      { marginPercent: new Prisma.Decimal('15.00'), minMarginPercent: new Prisma.Decimal('20.00'), _count: { ingredients: 1 } },
+      { marginPercent: new Prisma.Decimal('25.00'), minMarginPercent: new Prisma.Decimal('20.00'), _count: { ingredients: 1 } },
+      { marginPercent: new Prisma.Decimal('18.00'), minMarginPercent: new Prisma.Decimal('20.00'), _count: { ingredients: 1 } },
+      { marginPercent: new Prisma.Decimal('30.00'), minMarginPercent: new Prisma.Decimal('20.00'), _count: { ingredients: 1 } },
+      { marginPercent: new Prisma.Decimal('0.00'), minMarginPercent: new Prisma.Decimal('20.00'), _count: { ingredients: 0 } },
+    ]);
+    productAggregateMock.mockResolvedValue({ _avg: { marginPercent: new Prisma.Decimal('22.50') } });
+    priceHistoryGroupByMock.mockResolvedValue([{ ingredientId: 'ing-1' }, { ingredientId: 'ing-2' }, { ingredientId: 'ing-1' }]);
+
+    const res = await request(buildApp()).get('/api/dashboard/metrics');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      activeIngredientsCount: 10,
+      criticalProductsCount: 2,
+      healthyProductsCount: 2,
+      averageMarginPercent: 22.5,
+      recentCostVariationsCount: 2,
+    });
+    expect(productFindManyMock).toHaveBeenCalledWith({
+      where: {
+        accountId: 'account-1',
+        ingredients: { some: {} },
+      },
+      select: {
+        marginPercent: true,
+        minMarginPercent: true,
+        _count: { select: { ingredients: true } },
+      },
+    });
+    expect(productAggregateMock).toHaveBeenCalledWith({
+      where: {
+        accountId: 'account-1',
+        ingredients: { some: {} },
+        cost: { gt: 0 },
+      },
+      _avg: { marginPercent: true },
     });
   });
 

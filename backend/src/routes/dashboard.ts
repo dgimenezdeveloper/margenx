@@ -26,14 +26,22 @@ router.get('/metrics', requireRole(['ADMIN']), async (req: AuthenticatedRequest,
   const [activeIngredientsCount, productRows, productAverageMargin, recentCostVariations] = await Promise.all([
     prisma.ingredient.count({ where: { accountId } }),
     prisma.product.findMany({
-      where: { accountId },
+      where: {
+        accountId,
+        ingredients: { some: {} },
+      },
       select: {
         marginPercent: true,
         minMarginPercent: true,
+        _count: { select: { ingredients: true } },
       },
     }),
     prisma.product.aggregate({
-      where: { accountId },
+      where: {
+        accountId,
+        ingredients: { some: {} },
+        cost: { gt: 0 },
+      },
       _avg: {
         marginPercent: true,
       },
@@ -47,8 +55,9 @@ router.get('/metrics', requireRole(['ADMIN']), async (req: AuthenticatedRequest,
     }),
   ]);
 
-  const criticalProductsCount = productRows.filter((product) => Number(product.marginPercent) < Number(product.minMarginPercent)).length;
-  const healthyProductsCount = productRows.filter((product) => Number(product.marginPercent) >= Number(product.minMarginPercent)).length;
+  const activeProducts = productRows.filter((product) => (product._count?.ingredients ?? 0) > 0);
+  const criticalProductsCount = activeProducts.filter((product) => Number(product.marginPercent) < Number(product.minMarginPercent)).length;
+  const healthyProductsCount = activeProducts.filter((product) => Number(product.marginPercent) >= Number(product.minMarginPercent)).length;
   const averageMarginPercent = Number(productAverageMargin._avg.marginPercent ?? 0);
 
   const recentCostVariationsCount = new Set(
