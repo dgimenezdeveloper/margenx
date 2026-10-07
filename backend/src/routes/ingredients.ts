@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
 import { parsePaginationParams } from '../utils/pagination';
 import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
@@ -12,6 +13,8 @@ const router = Router();
 // Por eso `req.user!` se usa sin chequeo adicional en cada handler: si
 // authMiddleware llamó a next(), req.user está garantizado seteado.
 router.use(authMiddleware);
+router.use(blockCollaboratorMutations);
+router.use(sanitizeFinancialData);
 
 /**
  * Express 5 (path-to-regexp v7+) tipa los parámetros de ruta como
@@ -146,9 +149,16 @@ function parseIngredientInput(body: IngredientInputDTO): ValidatedIngredientInpu
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
-  const { page, limit, sortBy, order } = parsePaginationParams(
-    req.query as Record<string, unknown>
-  );
+  const query = { ...(req.query as Record<string, unknown>) };
+
+  if (req.user!.role === 'COLLABORATOR') {
+    const rawSortBy = typeof query.sortBy === 'string' ? query.sortBy : '';
+    if (!['name', 'updatedAt'].includes(rawSortBy)) {
+      query.sortBy = 'name';
+    }
+  }
+
+  const { page, limit, sortBy, order } = parsePaginationParams(query);
 
   const skip = (page - 1) * limit;
 
@@ -197,7 +207,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   return res.status(200).json({ ingredient });
 });
 
-router.get('/:id/history', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/history', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id);
   if (!id) {
@@ -226,7 +236,7 @@ router.get('/:id/history', async (req: AuthenticatedRequest, res: Response) => {
 /* Crea un insumo asignando accountId automáticamente.                 */
 /* 201 Created | 400 Validación fallida | 401 No autenticado | 500     */
 /* ------------------------------------------------------------------ */
-router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   // req.body es `any` por diseño de Express; el cast a IngredientInputDTO es
   // seguro porque cada campo del DTO es `unknown` (no asume estructura) y se
@@ -251,7 +261,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 /* 200 OK | 400 Validación fallida | 401 No autenticado                */
 /* 404 No encontrado/ajeno | 500                                       */
 /* ------------------------------------------------------------------ */
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   if (!req.is('application/json')) {
     throw new AppError('El header Content-Type debe ser application/json.', 400);
   }
@@ -342,7 +352,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 /* 200 OK | 401 No autenticado | 404 No encontrado/ajeno               */
 /* 409 Conflicto (insumo usado en una o más recetas activas) | 500     */
 /* ------------------------------------------------------------------ */
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id);
   if (!id) {

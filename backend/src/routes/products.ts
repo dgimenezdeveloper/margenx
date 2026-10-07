@@ -3,13 +3,17 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
 import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(blockCollaboratorMutations);
+router.use(sanitizeFinancialData);
 
 const SORTABLE_FIELDS = ['name', 'salePrice', 'cost', 'marginPercent', 'updatedAt'] as const;
+const SAFE_SORTABLE_FIELDS = ['name', 'salePrice', 'updatedAt'] as const;
 type SortableField = (typeof SORTABLE_FIELDS)[number];
 
 interface ProductPaginationParams {
@@ -19,7 +23,7 @@ interface ProductPaginationParams {
   order: 'asc' | 'desc';
 }
 
-function parseProductPaginationParams(query: Record<string, unknown>): ProductPaginationParams {
+function parseProductPaginationParams(query: Record<string, unknown>, userRole?: 'ADMIN' | 'COLLABORATOR'): ProductPaginationParams {
   const rawPage = Number(query.page);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
 
@@ -27,8 +31,9 @@ function parseProductPaginationParams(query: Record<string, unknown>): ProductPa
   const limit =
     Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
 
+  const allowedSortFields = userRole === 'COLLABORATOR' ? SAFE_SORTABLE_FIELDS : SORTABLE_FIELDS;
   const rawSortBy = typeof query.sortBy === 'string' ? query.sortBy : '';
-  const sortBy = (SORTABLE_FIELDS as readonly string[]).includes(rawSortBy)
+  const sortBy = (allowedSortFields as readonly string[]).includes(rawSortBy)
     ? (rawSortBy as SortableField)
     : 'name';
 
@@ -105,7 +110,8 @@ function parseBody(body: ProductBody) {
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const { page, limit, sortBy, order } = parseProductPaginationParams(
-    req.query as Record<string, unknown>
+    req.query as Record<string, unknown>,
+    req.user!.role
   );
 
   const skip = (page - 1) * limit;
@@ -134,7 +140,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 /* POST /api/products                                                 */
 /* Crea un producto calculando costos/márgenes o en modo borrador.   */
 /* ------------------------------------------------------------------ */
-router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const payload = req.body && typeof req.body === 'object' && 'product' in req.body
     ? (req.body as { product?: unknown }).product
     : req.body; const input = parseBody(payload as ProductBody);
@@ -214,7 +220,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 /* PUT /api/products/:id — actualizar (datos y/o receta)               */
 /* ------------------------------------------------------------------ */
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   if (!req.is('application/json')) throw new AppError('Se requiere Content-Type: application/json', 415);
 
   const accountId = req.user!.accountId;
@@ -320,7 +326,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 /* DELETE /api/products/:id — elimina producto (filtrado por cuenta)   */
 /* ------------------------------------------------------------------ */
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id as unknown as string | string[] | undefined);
   if (!id) throw new AppError('ID de producto inválido.', 400);
