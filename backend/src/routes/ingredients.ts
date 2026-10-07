@@ -197,6 +197,30 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   return res.status(200).json({ ingredient });
 });
 
+router.get('/:id/history', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+  if (!id) {
+    throw new AppError('Insumo no encontrado.', 404);
+  }
+
+  const ingredient = await prisma.ingredient.findFirst({
+    where: { id, accountId },
+    select: { id: true },
+  });
+
+  if (!ingredient) {
+    throw new AppError('Insumo no encontrado.', 404);
+  }
+
+  const history = await prisma.priceHistory.findMany({
+    where: { ingredientId: id },
+    orderBy: { changedAt: 'asc' },
+  });
+
+  return res.status(200).json({ history });
+});
+
 /* ------------------------------------------------------------------ */
 /* POST /api/ingredients                                               */
 /* Crea un insumo asignando accountId automáticamente.                 */
@@ -240,7 +264,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const existing = await prisma.ingredient.findFirst({
     where: { id, accountId },
-    select: { id: true },
+    select: { id: true, currentCost: true },
   });
 
   if (!existing) {
@@ -248,6 +272,9 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
+  const nextCost = new Prisma.Decimal(currentCost.toString());
+  const previousCost = existing.currentCost ?? null;
+  const costChanged = previousCost ? !previousCost.equals(nextCost) : false;
 
   // Transacción: actualiza el insumo y recalcula en cascada el costo/margen
   // de todos los productos que lo usan en su receta.
@@ -256,6 +283,16 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       where: { id },
       data: { name, unit, currentCost },
     });
+
+    if (previousCost && costChanged) {
+      await tx.priceHistory.create({
+        data: {
+          ingredientId: id,
+          oldCost: previousCost,
+          newCost: nextCost,
+        },
+      });
+    }
 
     const affected = await tx.productIngredient.findMany({
       where: { ingredientId: id },

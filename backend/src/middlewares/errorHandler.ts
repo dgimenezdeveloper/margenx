@@ -45,6 +45,9 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
       case 'P2002': {
         const targets = Array.isArray(err.meta?.target) ? err.meta.target : [];
         if (targets.includes('accountId') && targets.includes('name')) {
+          if (err.meta?.modelName === 'Supplier') {
+            return res.status(409).json({ error: 'Ya existe un proveedor con ese nombre.' });
+          }
           return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
         }
         return res.status(409).json({ error: 'Ya existe un registro con esos datos únicos.' });
