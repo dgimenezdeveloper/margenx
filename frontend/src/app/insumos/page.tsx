@@ -11,6 +11,7 @@ import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ToastAlert } from '@/components/ToastAlert'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -33,6 +34,7 @@ export default function SuppliesPage() {
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useBodyScrollLock(newOpen || selected !== null)
@@ -61,7 +63,7 @@ export default function SuppliesPage() {
     reset,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof ingredientSchema>, undefined, IngredientFormValues>({
     resolver: zodResolver(ingredientSchema),
     mode: 'onChange',
@@ -105,6 +107,15 @@ export default function SuppliesPage() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
+    reset() // Restablece el formulario a sus valores originales
+  }
+
+  const requestCloseSheet = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true)
+    } else {
+      handleCloseSheet()
+    }
   }
 
   const handleSave = async (data: IngredientFormValues) => {
@@ -319,7 +330,7 @@ export default function SuppliesPage() {
       {/* Modal / Bottom Sheet */}
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
-          <div className="fixed inset-0" onClick={handleCloseSheet} />
+          <div className="fixed inset-0" onClick={requestCloseSheet} />
 
           <div className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
@@ -372,7 +383,7 @@ export default function SuppliesPage() {
                         <Trash2 className="size-5" />
                       </button>
                     )}
-                    <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <button type="button" onClick={requestCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
                       <X className="size-5" />
                     </button>
                   </div>
@@ -434,7 +445,7 @@ export default function SuppliesPage() {
                 </label>
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">Cancelar</button>
+                  <button type="button" onClick={requestCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">Cancelar</button>
                   <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
                 </div>
               </form>
@@ -442,6 +453,16 @@ export default function SuppliesPage() {
           </div>
         </div>
       )}
+
+      {/* Diálogo de confirmación para descartar cambios */}
+      <UnsavedChangesDialog
+        open={showDiscardConfirm}
+        onConfirm={() => {
+          setShowDiscardConfirm(false)
+          handleCloseSheet()
+        }}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
     </main>
   )
 }

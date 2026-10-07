@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
 import { usePathname } from 'next/navigation'
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useTheme } from '@/hooks/useTheme'
+import { LogoutDialog } from '@/components/logout-dialog'
 
 export function ThemeToggle() {
   const { isDark, toggleTheme } = useTheme()
@@ -49,6 +51,7 @@ export function Navbar({
   const pathname = usePathname()
   const { signOut } = useAuth()
   const { businessName, isLoading } = useCurrentUser()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const displayedCompanyName = companyName || businessName
 
@@ -58,6 +61,13 @@ export function Navbar({
     { label: 'Productos', href: '/productos', icon: Package },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ]
+
+  const handleConfirmSignOut = () => {
+    sessionStorage.removeItem('margenx_active_session')
+    document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    localStorage.removeItem('margenx_last_active')
+    void signOut({ redirectUrl: '/' })
+  }
 
   return (
     <header className="relative flex min-h-12 w-full items-center justify-between gap-4 border-b border-gray-100/80 pb-3 md:border-b-0 md:pb-0 dark:border-gray-800">
@@ -140,18 +150,19 @@ export function Navbar({
         <ThemeToggle />
         <button
           type="button"
-          onClick={() => {
-            sessionStorage.removeItem('margenx_active_session')
-            document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-            localStorage.removeItem('margenx_last_active')
-            void signOut({ redirectUrl: '/' })
-          }}
+          onClick={() => setShowLogoutModal(true)}
           className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-rose-50 hover:text-rose-700 md:inline-flex dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-950 dark:hover:text-rose-300"
         >
           <LogOut className="size-5" />
           Salir
         </button>
       </div>
+
+      <LogoutDialog
+        open={showLogoutModal}
+        onConfirm={handleConfirmSignOut}
+        onCancel={() => setShowLogoutModal(false)}
+      />
     </header>
   )
 }

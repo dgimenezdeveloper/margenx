@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import ingredientsRoutes from './routes/ingredients';
 import productsRoutes from './routes/products';
 import dashboardRoutes from './routes/dashboard';
+import suppliersRoutes from './routes/suppliers';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenti
 app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de insumos (protegidas por authMiddleware).
 app.use('/api/products', productsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/suppliers', suppliersRoutes);
 
 /*
   Health check de la API.
