@@ -58,7 +58,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getToken } = useAuth()
-  const { isCollaborator } = useUserRole()
+  const { isCollaborator, isLoading: isRoleLoading } = useUserRole()
 
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -152,14 +152,14 @@ export default function ProductDetailPage() {
   }, [watchedMinMargin, setMinMarginPercent])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || isRoleLoading) return
 
     let active = true
 
     // Si es colaborador, no necesitamos cargar los insumos de la despensa
     Promise.all([
       productService.getById(id, getToken),
-      isCollaborator ? Promise.resolve(undefined) : ingredientService.getAll(getToken)
+      isCollaborator ? Promise.resolve(undefined) : ingredientService.getAll(getToken),
     ])
       .then(([prodData, ingredientsData]) => {
         if (!active) return
@@ -169,10 +169,11 @@ export default function ProductDetailPage() {
           setAvailablePantry(ingredientsData)
         }
 
+        // Corrección: se utiliza ?? para no pisar un 0 configurado por el usuario
         reset({
           name: prodData.name,
           salePrice: String(prodData.salePrice),
-          minMarginPercent: String(prodData.minMarginPercent || 30),
+          minMarginPercent: String(prodData.minMarginPercent ?? 30),
         })
 
         const mappedRecipe: RecipeItem[] = prodData.ingredients.map((pi) => ({
@@ -187,7 +188,8 @@ export default function ProductDetailPage() {
 
         setItems(mappedRecipe)
         setSalePrice(prodData.salePrice)
-        setMinMarginPercent(prodData.minMarginPercent || 30)
+        // Corrección: se utiliza ?? para no pisar el 0 en el store
+        setMinMarginPercent(Number(prodData.minMarginPercent ?? 30))
 
         if (!isCollaborator && ingredientsData && ingredientsData.length > 0 && ingredientsData[0]) {
           setSelectedSupplyId(ingredientsData[0].id)
@@ -206,7 +208,7 @@ export default function ProductDetailPage() {
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
-  }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore, isCollaborator])
+  }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore, isCollaborator, isRoleLoading])
 
   const currentSupply = useMemo(
     () => availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0],
@@ -344,10 +346,11 @@ export default function ProductDetailPage() {
     try {
       const updated = await productService.update(id!, payload, getToken)
       setProduct(updated)
+      // Corrección: se utiliza ?? para no pisar el 0 retornado tras guardar
       reset({
         name: updated.name,
         salePrice: String(updated.salePrice),
-        minMarginPercent: String(updated.minMarginPercent),
+        minMarginPercent: String(updated.minMarginPercent ?? 30),
       })
       notify('Producto guardado exitosamente', 'success')
     } catch (err: unknown) {
@@ -398,7 +401,8 @@ export default function ProductDetailPage() {
     }
   }
 
-  if (isLoading) {
+  // Se espera tanto el producto como el rol del usuario para evitar cualquier parpadeo de datos financieros
+  if (isLoading || isRoleLoading) {
     return (
       <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6">
@@ -1234,6 +1238,9 @@ export default function ProductDetailPage() {
         onConfirm={confirmNavigation}
         onCancel={cancelNavigation}
       />
+
+      {/* Reincorporado: Barra de navegación inferior móvil */}
+      <BottomNav />
     </main>
   )
 }

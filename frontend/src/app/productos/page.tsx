@@ -18,7 +18,7 @@ const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 export default function ProductsPage() {
   const router = useRouter()
   const { getToken } = useAuth()
-  const { isCollaborator } = useUserRole()
+  const { isCollaborator, isLoading: isRoleLoading } = useUserRole()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -53,8 +53,11 @@ export default function ProductsPage() {
     [products, query]
   )
 
-  const isTotalEmpty = !isLoading && products.length === 0
-  const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
+  // Unificamos el estado de carga para esperar tanto los productos como el rol del usuario
+  const isPageLoading = isLoading || isRoleLoading
+
+  const isTotalEmpty = !isPageLoading && products.length === 0
+  const isSearchEmpty = !isPageLoading && filtered.length === 0 && !isTotalEmpty
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -83,7 +86,7 @@ export default function ProductsPage() {
                 />
               </div>
 
-              {!isCollaborator && (
+              {!isPageLoading && !isCollaborator && (
                 <Link
                   href="/productos/nuevo"
                   className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
@@ -97,7 +100,7 @@ export default function ProductsPage() {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">Catálogo completo</h2>
-              {!isCollaborator && (
+              {!isPageLoading && !isCollaborator && (
                 <Link
                   href="/productos/nuevo"
                   className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
@@ -107,19 +110,19 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {isLoading && (
+            {isPageLoading && (
               <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando productos...
               </div>
             )}
 
-            {!isLoading && loadError && (
+            {!isPageLoading && loadError && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
                 {loadError}
               </div>
             )}
 
-            {!isLoading && !loadError && isTotalEmpty && (
+            {!isPageLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Package className="size-6" />}
                 title="Aún no tienes productos cargados"
@@ -133,7 +136,7 @@ export default function ProductsPage() {
               />
             )}
 
-            {!isLoading && !loadError && isSearchEmpty && (
+            {!isPageLoading && !loadError && isSearchEmpty && (
               <EmptyState
                 icon={<Search className="size-6" />}
                 title="No se encontraron resultados"
@@ -141,7 +144,7 @@ export default function ProductsPage() {
               />
             )}
 
-            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
+            {!isPageLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
                 {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
