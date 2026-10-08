@@ -11,12 +11,14 @@ import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
+import { useUserRole } from '@/hooks/useUserRole'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function ProductsPage() {
   const router = useRouter()
   const { getToken } = useAuth()
+  const { isCollaborator } = useUserRole()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -81,24 +83,28 @@ export default function ProductsPage() {
                 />
               </div>
 
-              <Link
-                href="/productos/nuevo"
-                className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
-              >
-                <Plus className="size-4" /> Nuevo Producto
-              </Link>
+              {!isCollaborator && (
+                <Link
+                  href="/productos/nuevo"
+                  className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+                >
+                  <Plus className="size-4" /> Nuevo Producto
+                </Link>
+              )}
             </div>
           </section>
 
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">Catálogo completo</h2>
-              <Link
-                href="/productos/nuevo"
-                className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                + Nuevo
-              </Link>
+              {!isCollaborator && (
+                <Link
+                  href="/productos/nuevo"
+                  className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                  + Nuevo
+                </Link>
+              )}
             </div>
 
             {isLoading && (
@@ -117,9 +123,13 @@ export default function ProductsPage() {
               <EmptyState
                 icon={<Package className="size-6" />}
                 title="Aún no tienes productos cargados"
-                description="Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas."
-                actionLabel="Crear mi primer producto"
-                onAction={() => router.push('/productos/nuevo')}
+                description={
+                  isCollaborator
+                    ? "El catálogo de productos se encuentra vacío."
+                    : "Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas."
+                }
+                actionLabel={isCollaborator ? undefined : "Crear mi primer producto"}
+                onAction={isCollaborator ? undefined : () => router.push('/productos/nuevo')}
               />
             )}
 
@@ -145,25 +155,29 @@ export default function ProductsPage() {
                         <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
                           {product.name}
                         </h3>
-                        {product.cost === 0 || product.ingredients.length === 0 ? (
-                          <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                            Sin Receta
-                          </span>
-                        ) : (
-                          <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              product.marginPercent < product.minMarginPercent
-                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                            }`}
-                          >
-                            Margen {Number(product.marginPercent).toFixed(1)}%
-                          </span>
+                        {!isCollaborator && (
+                          product.cost === 0 || product.ingredients.length === 0 ? (
+                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                              Sin Receta
+                            </span>
+                          ) : (
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                                product.marginPercent < product.minMarginPercent
+                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                              }`}
+                            >
+                              Margen {Number(product.marginPercent).toFixed(1)}%
+                            </span>
+                          )
                         )}
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
                         <span>
-                          Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                          {!isCollaborator && (
+                            <>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></>
+                          )}
                         </span>
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: <span className="text-sm">{money(product.salePrice)}</span>
@@ -180,9 +194,9 @@ export default function ProductsPage() {
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
                       <tr>
                         <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del Producto</th>
-                        <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (Receta)</th>
+                        {!isCollaborator && <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (Receta)</th>}
                         <th className="px-5 py-4 font-bold whitespace-nowrap">Precio de Venta</th>
-                        <th className="px-5 py-4 font-bold whitespace-nowrap">Margen</th>
+                        {!isCollaborator && <th className="px-5 py-4 font-bold whitespace-nowrap">Margen</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -195,27 +209,29 @@ export default function ProductsPage() {
                           <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
                             {product.name}
                           </td>
-                          <td className="px-5 py-4 font-medium">{money(product.cost)}</td>
+                          {!isCollaborator && <td className="px-5 py-4 font-medium">{money(product.cost)}</td>}
                           <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">
                             {money(product.salePrice)}
                           </td>
-                          <td className="px-5 py-4">
-                            {product.cost === 0 || product.ingredients.length === 0 ? (
-                              <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                Sin Receta
-                              </span>
-                            ) : (
-                              <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-                                  product.marginPercent < product.minMarginPercent
-                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                                }`}
-                              >
-                                {Number(product.marginPercent).toFixed(1)}%
-                              </span>
-                            )}
-                          </td>
+                          {!isCollaborator && (
+                            <td className="px-5 py-4">
+                              {product.cost === 0 || product.ingredients.length === 0 ? (
+                                <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                  Sin Receta
+                                </span>
+                              ) : (
+                                <span
+                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                                    product.marginPercent < product.minMarginPercent
+                                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
+                                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
+                                  }`}
+                                >
+                                  {Number(product.marginPercent).toFixed(1)}%
+                                </span>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
