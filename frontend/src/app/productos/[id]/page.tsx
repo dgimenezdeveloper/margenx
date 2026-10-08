@@ -23,6 +23,7 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { EmptyState } from '@/components/empty-state'
+import { MarginBadge } from '@/components/MarginBadge'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
@@ -225,7 +226,6 @@ export default function ProductDetailPage() {
       ? parsedWatchedMargin
       : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
-  // Cálculo de margen sugerido redondeado hacia arriba con Math.ceil
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
@@ -296,7 +296,6 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Ejecución diferida de la eliminación (Confirmación Controlada)
   const confirmRemoveIngredient = async () => {
     if (!ingredientToDelete) return
 
@@ -373,7 +372,6 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Guardado unificado desde el Bottom Sheet móvil
   const handleSaveFromBottomSheet = async () => {
     await handleSubmit(async (data) => {
       await handleFormSubmit(data)
@@ -511,9 +509,7 @@ export default function ProductDetailPage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-          {/* Columna Izquierda: Datos Maestros y Composición */}
           <div className="space-y-6 lg:col-span-7">
-            {/* 1. Datos Maestros (Sin inputs duplicados ni botones intermedios) */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                 <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del Producto</h2>
@@ -564,7 +560,6 @@ export default function ProductDetailPage() {
               </div>
             </section>
 
-            {/* 2. Composición / Receta (Solo lectura protegida) */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
@@ -604,7 +599,6 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
-                          {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
                           <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
                             <span className="text-xs font-black text-gray-900 dark:text-gray-100">
                               {displayQty}
@@ -646,7 +640,6 @@ export default function ProductDetailPage() {
               </button>
             </section>
 
-            {/* 3. Zona de Peligro */}
             <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -668,7 +661,6 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
-          {/* Columna Derecha: Cockpit Financiero Sticky (Único lugar canónico de precio y guardado en Desktop) */}
           <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -774,7 +766,6 @@ export default function ProductDetailPage() {
                   : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
               </p>
 
-              {/* ÚNICO BOTÓN PRINCIPAL DE GUARDADO EN DESKTOP */}
               <button
                 type="button"
                 onClick={handleSubmit(handleFormSubmit)}
@@ -789,7 +780,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* FOOTER FLOTANTE PERMANENTE EN MOBILE (<1024px) */}
+      {/* FOOTER FLOTANTE PERMANENTE EN MOBILE */}
       <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -805,22 +796,16 @@ export default function ProductDetailPage() {
               <span className="text-[11px] text-gray-500 dark:text-gray-400">
                 Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
               </span>
-              {!hasRecipe ? (
-                <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
-              ) : isHealthy ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  <ShieldCheck className="size-3" /> {margin.toFixed(1)}%
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                  <AlertTriangle className="size-3" /> {margin.toFixed(1)}%
-                </span>
-              )}
+              <MarginBadge
+                marginPercent={margin}
+                minMarginPercent={targetMargin}
+                hasRecipe={hasRecipe}
+                size="sm"
+              />
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Botón de acceso directo al Bottom Sheet */}
             <button
               type="button"
               onClick={() => setIsSimulatorOpen(true)}
@@ -831,7 +816,6 @@ export default function ProductDetailPage() {
               <span>Ajustar</span>
             </button>
 
-            {/* Botón principal de guardado unificado en mobile */}
             <button
               type="button"
               onClick={handleSubmit(handleFormSubmit)}

@@ -9,6 +9,7 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { MarginBadge } from '@/components/MarginBadge'
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
 
@@ -67,7 +68,6 @@ export default function ProductsPage() {
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              {/* Contenedor del Buscador: Desvinculado de estados condicionales y con tamaño rígido */}
               <div className="relative w-full md:w-72 lg:w-80 shrink-0">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                   <Search className="size-4 text-gray-400" />
@@ -145,21 +145,12 @@ export default function ProductsPage() {
                         <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
                           {product.name}
                         </h3>
-                        {product.cost === 0 || product.ingredients.length === 0 ? (
-                          <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                            Sin Receta
-                          </span>
-                        ) : (
-                          <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              product.marginPercent < product.minMarginPercent
-                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                            }`}
-                          >
-                            Margen {Number(product.marginPercent).toFixed(1)}%
-                          </span>
-                        )}
+                        <MarginBadge
+                          marginPercent={product.marginPercent}
+                          minMarginPercent={product.minMarginPercent}
+                          hasRecipe={product.cost > 0 && product.ingredients.length > 0}
+                          size="sm"
+                        />
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
                         <span>
@@ -200,21 +191,12 @@ export default function ProductsPage() {
                             {money(product.salePrice)}
                           </td>
                           <td className="px-5 py-4">
-                            {product.cost === 0 || product.ingredients.length === 0 ? (
-                              <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                Sin Receta
-                              </span>
-                            ) : (
-                              <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-                                  product.marginPercent < product.minMarginPercent
-                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                                }`}
-                              >
-                                {Number(product.marginPercent).toFixed(1)}%
-                              </span>
-                            )}
+                            <MarginBadge
+                              marginPercent={product.marginPercent}
+                              minMarginPercent={product.minMarginPercent}
+                              hasRecipe={product.cost > 0 && product.ingredients.length > 0}
+                              size="sm"
+                            />
                           </td>
                         </tr>
                       ))}
