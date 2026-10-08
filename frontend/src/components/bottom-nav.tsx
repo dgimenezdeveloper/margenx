@@ -3,16 +3,18 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Boxes, CircleUserRound, LayoutDashboard, Package } from 'lucide-react'
+import { useUserRole } from '@/hooks/useUserRole'
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { isCollaborator } = useUserRole()
 
   const tabs = [
     { label: 'Inicio', icon: LayoutDashboard, href: '/dashboard' },
     { label: 'Insumos', icon: Boxes, href: '/insumos' },
     { label: 'Productos', icon: Package, href: '/productos' },
     { label: 'Perfil', icon: CircleUserRound, href: '/perfil' },
-  ]
+  ].filter(tab => !(isCollaborator && tab.href === '/insumos'))
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-100 bg-white/95 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur md:hidden dark:border-gray-800 dark:bg-gray-900/95">

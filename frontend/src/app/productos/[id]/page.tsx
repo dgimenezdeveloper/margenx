@@ -32,6 +32,7 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 import { ApiError } from '@/services/api'
 import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { useUserRole } from '@/hooks/useUserRole'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -57,6 +58,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getToken } = useAuth()
+  const { isCollaborator, isLoading: isRoleLoading } = useUserRole()
 
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -136,9 +138,9 @@ export default function ProductDetailPage() {
   const watchedSalePrice = useWatch({ control, name: 'salePrice' })
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
 
-  // Protección de navegación ante cambios no guardados
+  // Protección de navegación ante cambios no guardados (solo si no es colaborador)
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(
-    isDirty && !isSaving && !isDeleting
+    !isCollaborator && isDirty && !isSaving && !isDeleting
   )
 
   useEffect(() => {
@@ -150,22 +152,28 @@ export default function ProductDetailPage() {
   }, [watchedMinMargin, setMinMarginPercent])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || isRoleLoading) return
 
     let active = true
+
+    // Si es colaborador, no necesitamos cargar los insumos de la despensa
     Promise.all([
       productService.getById(id, getToken),
-      ingredientService.getAll(getToken),
+      isCollaborator ? Promise.resolve(undefined) : ingredientService.getAll(getToken),
     ])
       .then(([prodData, ingredientsData]) => {
         if (!active) return
         setProduct(prodData)
-        setAvailablePantry(ingredientsData)
 
+        if (!isCollaborator && ingredientsData) {
+          setAvailablePantry(ingredientsData)
+        }
+
+        // Corrección: se utiliza ?? para no pisar un 0 configurado por el usuario
         reset({
           name: prodData.name,
           salePrice: String(prodData.salePrice),
-          minMarginPercent: String(prodData.minMarginPercent),
+          minMarginPercent: String(prodData.minMarginPercent ?? 30),
         })
 
         const mappedRecipe: RecipeItem[] = prodData.ingredients.map((pi) => ({
@@ -180,9 +188,10 @@ export default function ProductDetailPage() {
 
         setItems(mappedRecipe)
         setSalePrice(prodData.salePrice)
-        setMinMarginPercent(prodData.minMarginPercent)
+        // Corrección: se utiliza ?? para no pisar el 0 en el store
+        setMinMarginPercent(Number(prodData.minMarginPercent ?? 30))
 
-        if (ingredientsData.length > 0 && ingredientsData[0]) {
+        if (!isCollaborator && ingredientsData && ingredientsData.length > 0 && ingredientsData[0]) {
           setSelectedSupplyId(ingredientsData[0].id)
           setRecipeUnit(getAvailableRecipeUnits(ingredientsData[0].unit)[0] || 'kg')
         }
@@ -199,7 +208,7 @@ export default function ProductDetailPage() {
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
-  }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore])
+  }, [id, getToken, reset, setItems, setSalePrice, setMinMarginPercent, resetStore, isCollaborator, isRoleLoading])
 
   const currentSupply = useMemo(
     () => availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0],
@@ -225,7 +234,6 @@ export default function ProductDetailPage() {
       ? parsedWatchedMargin
       : (product?.minMarginPercent != null ? Number(product.minMarginPercent) : 30)
 
-  // Cálculo de margen sugerido redondeado hacia arriba con Math.ceil
   const applySuggestedMargin = (targetPercentage: number) => {
     if (!hasRecipe || cost <= 0) return
     const factor = targetPercentage < 100 ? 1 - targetPercentage / 100 : 0.5
@@ -296,7 +304,6 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Ejecución diferida de la eliminación (Confirmación Controlada)
   const confirmRemoveIngredient = async () => {
     if (!ingredientToDelete) return
 
@@ -330,7 +337,7 @@ export default function ProductDetailPage() {
       name: data.name,
       salePrice: Number(data.salePrice),
       minMarginPercent: Number(data.minMarginPercent),
-      ingredients: items.map((item: { ingredientId: string; quantity: number }) => ({
+      ingredients: items.map((item: RecipeItem) => ({
         ingredientId: item.ingredientId,
         quantity: Number(item.quantity),
       })),
@@ -339,10 +346,11 @@ export default function ProductDetailPage() {
     try {
       const updated = await productService.update(id!, payload, getToken)
       setProduct(updated)
+      // Corrección: se utiliza ?? para no pisar el 0 retornado tras guardar
       reset({
         name: updated.name,
         salePrice: String(updated.salePrice),
-        minMarginPercent: String(updated.minMarginPercent),
+        minMarginPercent: String(updated.minMarginPercent ?? 30),
       })
       notify('Producto guardado exitosamente', 'success')
     } catch (err: unknown) {
@@ -373,7 +381,6 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Guardado unificado desde el Bottom Sheet móvil
   const handleSaveFromBottomSheet = async () => {
     await handleSubmit(async (data) => {
       await handleFormSubmit(data)
@@ -394,7 +401,8 @@ export default function ProductDetailPage() {
     }
   }
 
-  if (isLoading) {
+  // Se espera tanto el producto como el rol del usuario para evitar cualquier parpadeo de datos financieros
+  if (isLoading || isRoleLoading) {
     return (
       <main className="min-h-screen bg-gray-50 px-4 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6">
@@ -444,127 +452,144 @@ export default function ProductDetailPage() {
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
 
-        {/* Banner de Estado Financiero */}
-        {!hasRecipe ? (
-          <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Estado del producto
-            </p>
-            <p className="mt-1 text-2xl font-black text-gray-700 dark:text-gray-300">
-              Borrador (Sin Receta)
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.
-            </p>
-          </section>
-        ) : hasCriticalMargin ? (
-          <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
-            <div className="flex justify-between items-start gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                <AlertTriangle className="size-3.5" /> Margen Bajo
-              </span>
-              <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
-                Objetivo: {targetMargin}%
-              </span>
-            </div>
-            <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
-              {margin}%
-            </p>
-            <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-              Venta a pérdida: Estás perdiendo ${Math.abs(gain).toLocaleString('es-AR')} por unidad.
-            </p>
-          </section>
-        ) : isHealthy || hasHealthyMargin ? (
-          <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
-            <div className="flex justify-between items-start gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                <ShieldCheck className="size-3.5" /> Margen Saludable
-              </span>
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                Objetivo: {targetMargin}%
-              </span>
-            </div>
-            <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
-              {margin.toFixed(1)}%
-            </p>
-            <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              Cumple con el umbral personalizado ({targetMargin}%).
-            </p>
-          </section>
-        ) : (
-          <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
-            <div className="flex justify-between items-start gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                <AlertTriangle className="size-3.5" /> Margen Bajo
-              </span>
-              <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
-                Objetivo: {targetMargin}%
-              </span>
-            </div>
-            <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
-              {margin.toFixed(1)}%
-            </p>
-            <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
-              Por debajo del mínimo ({targetMargin}%)
-            </p>
-          </section>
+        {/* Banner de Estado Financiero (Oculto para colaboradores) */}
+        {!isCollaborator && (
+          !hasRecipe ? (
+            <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Estado del producto
+              </p>
+              <p className="mt-1 text-2xl font-black text-gray-700 dark:text-gray-300">
+                Borrador (Sin Receta)
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.
+              </p>
+            </section>
+          ) : hasCriticalMargin ? (
+            <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
+              <div className="flex justify-between items-start gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
+                  <AlertTriangle className="size-3.5" /> Margen Bajo
+                </span>
+                <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
+                  Objetivo: {targetMargin}%
+                </span>
+              </div>
+              <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
+                {margin}%
+              </p>
+              <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
+                Venta a pérdida: Estás perdiendo ${Math.abs(gain).toLocaleString('es-AR')} por unidad.
+              </p>
+            </section>
+          ) : isHealthy || hasHealthyMargin ? (
+            <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm transition-all duration-300 dark:border-emerald-900/60 dark:bg-emerald-950/40">
+              <div className="flex justify-between items-start gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                  <ShieldCheck className="size-3.5" /> Margen Saludable
+                </span>
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  Objetivo: {targetMargin}%
+                </span>
+              </div>
+              <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
+                {margin.toFixed(1)}%
+              </p>
+              <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                Cumple con el umbral personalizado ({targetMargin}%).
+              </p>
+            </section>
+          ) : (
+            <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm transition-all duration-300 dark:border-rose-900/60 dark:bg-rose-950/40">
+              <div className="flex justify-between items-start gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
+                  <AlertTriangle className="size-3.5" /> Margen Bajo
+                </span>
+                <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
+                  Objetivo: {targetMargin}%
+                </span>
+              </div>
+              <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">
+                {margin.toFixed(1)}%
+              </p>
+              <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
+                Por debajo del mínimo ({targetMargin}%)
+              </p>
+            </section>
+          )
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
           {/* Columna Izquierda: Datos Maestros y Composición */}
-          <div className="space-y-6 lg:col-span-7">
-            {/* 1. Datos Maestros (Sin inputs duplicados ni botones intermedios) */}
+          <div className={`space-y-6 ${isCollaborator ? 'lg:col-span-12 max-w-3xl mx-auto w-full' : 'lg:col-span-7'}`}>
+            {/* 1. Datos Básicos */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                 <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del Producto</h2>
-                {isDirty && (
+                {!isCollaborator && isDirty && (
                   <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                     Cambios sin guardar
                   </span>
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                  Nombre del producto
-                </label>
-                <input
-                  {...register('name')}
-                  className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                  Margen Mínimo Objetivo (%)
-                </label>
-                <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                  <input
-                    {...register('minMarginPercent')}
-                    onKeyDown={handleNumericKeyDown}
-                    onChange={(e) => {
-                      const clean = sanitizeDecimal(e.target.value)
-                      setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
-                    }}
-                    inputMode="decimal"
-                    type="text"
-                    placeholder="30"
-                    className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                  />
-                  <span className="ml-1 font-bold text-gray-400">%</span>
+              {isCollaborator ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Nombre del producto</label>
+                    <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">{product.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Precio de Venta al Público</label>
+                    <p className="mt-1 text-lg font-black text-gray-900 dark:text-white">{money(product.salePrice)}</p>
+                  </div>
                 </div>
-                {errors.minMarginPercent && (
-                  <p className="mt-1 text-xs font-bold text-rose-500">
-                    {errors.minMarginPercent.message}
-                  </p>
-                )}
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                      Nombre del producto
+                    </label>
+                    <input
+                      {...register('name')}
+                      className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                      Margen Mínimo Objetivo (%)
+                    </label>
+                    <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                      <input
+                        {...register('minMarginPercent')}
+                        onKeyDown={handleNumericKeyDown}
+                        onChange={(e) => {
+                          const clean = sanitizeDecimal(e.target.value)
+                          setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
+                        }}
+                        inputMode="decimal"
+                        type="text"
+                        placeholder="30"
+                        className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
+                      />
+                      <span className="ml-1 font-bold text-gray-400">%</span>
+                    </div>
+                    {errors.minMarginPercent && (
+                      <p className="mt-1 text-xs font-bold text-rose-500">
+                        {errors.minMarginPercent.message}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
             </section>
 
-            {/* 2. Composición / Receta (Solo lectura protegida) */}
+            {/* 2. Composición / Receta */}
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
@@ -575,7 +600,7 @@ export default function ProductDetailPage() {
 
               {!hasRecipe ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
-                  Sin insumos cargados. Suma materias primas para costear la elaboración.
+                  Sin insumos cargados.
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -598,13 +623,14 @@ export default function ProductDetailPage() {
                           <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                             {item.name}
                           </strong>
-                          <p className="text-xs text-gray-400">
-                            Costo base: {money(item.unitCost)} por {item.unit}
-                          </p>
+                          {!isCollaborator && (
+                            <p className="text-xs text-gray-400">
+                              Costo base: {money(item.unitCost)} por {item.unit}
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
-                          {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
                           <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
                             <span className="text-xs font-black text-gray-900 dark:text-gray-100">
                               {displayQty}
@@ -614,22 +640,26 @@ export default function ProductDetailPage() {
                             </span>
                           </div>
 
-                          <div className="text-right min-w-20">
-                            <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
-                              {money(itemSubtotal)}
-                            </span>
-                            <span className="text-[10px] text-gray-400">subtotal</span>
-                          </div>
+                          {!isCollaborator && (
+                            <>
+                              <div className="text-right min-w-20">
+                                <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
+                                  {money(itemSubtotal)}
+                                </span>
+                                <span className="text-[10px] text-gray-400">subtotal</span>
+                              </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
-                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
-                            title="Remover insumo"
-                            aria-label={`Eliminar ${item.name}`}
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
+                              <button
+                                type="button"
+                                onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
+                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
+                                title="Remover insumo"
+                                aria-label={`Eliminar ${item.name}`}
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )
@@ -637,155 +667,160 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 cursor-pointer"
-              >
-                <Plus className="size-4" /> Agregar Insumo a la Receta
-              </button>
-            </section>
-
-            {/* 3. Zona de Peligro */}
-            <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">
-                    Eliminar este producto
-                  </h3>
-                  <p className="text-xs text-rose-600 dark:text-rose-400">
-                    Se borrará la ficha técnica y todas sus relaciones en el catálogo.
-                  </p>
-                </div>
+              {!isCollaborator && (
                 <button
                   type="button"
-                  onClick={() => setShowDeleteModal(true)}
-                  className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"
+                  onClick={() => setShowAddModal(true)}
+                  className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 cursor-pointer"
                 >
-                  <Trash2 className="size-4" /> Eliminar Producto
+                  <Plus className="size-4" /> Agregar Insumo a la Receta
                 </button>
-              </div>
+              )}
             </section>
+
+            {/* 3. Zona de Peligro (Oculta para colaboradores) */}
+            {!isCollaborator && (
+              <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">
+                      Eliminar este producto
+                    </h3>
+                    <p className="text-xs text-rose-600 dark:text-rose-400">
+                      Se borrará la ficha técnica y todas sus relaciones en el catálogo.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"
+                  >
+                    <Trash2 className="size-4" /> Eliminar Producto
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
 
-          {/* Columna Derecha: Cockpit Financiero Sticky (Único lugar canónico de precio y guardado en Desktop) */}
-          <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-6">
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">
-                    Simulador Financiero
-                  </h3>
-                  <p className="text-base font-black text-gray-900 dark:text-white mt-1">
-                    Costo Total: {money(cost)}
-                  </p>
+          {/* Columna Derecha: Cockpit Financiero Sticky (Oculto para colaboradores) */}
+          {!isCollaborator && (
+            <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-6">
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-5">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">
+                      Simulador Financiero
+                    </h3>
+                    <p className="text-base font-black text-gray-900 dark:text-white mt-1">
+                      Costo Total: {money(cost)}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-sm font-black ${
+                      !hasRecipe
+                        ? 'text-gray-400 dark:text-gray-500'
+                        : gain >= 0
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-rose-700 dark:text-rose-400'
+                    }`}
+                  >
+                    Ganancia: {!hasRecipe ? '$0' : money(gain)}
+                  </span>
                 </div>
-                <span
-                  className={`text-sm font-black ${
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
+                    Ajustes Rápidos de Precio
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.05, '5')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +5%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustPriceFactor(1.10, '10')}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      +10%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!hasRecipe || cost <= 0}
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                        activeStrategy === 'target'
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
+                      }`}
+                      onClick={() => applySuggestedMargin(targetMargin)}
+                    >
+                      Sugerir {targetMargin}%
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                    Precio de Venta al Público ($)
+                  </label>
+                  <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                    <span className="text-lg font-bold text-gray-400">$</span>
+                    <input
+                      value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
+                      onKeyDown={handleNumericKeyDown}
+                      onChange={(e) => {
+                        const clean = sanitizeDecimal(e.target.value)
+                        setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
+                        setActiveStrategy('custom')
+                      }}
+                      inputMode="decimal"
+                      type="text"
+                      placeholder="0.00"
+                      className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
+                    />
+                  </div>
+                  {errors.salePrice && (
+                    <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
+                  )}
+                </div>
+
+                <p
+                  className={`text-xs font-bold ${
                     !hasRecipe
-                      ? 'text-gray-400 dark:text-gray-500'
-                      : gain >= 0
+                      ? 'text-gray-500 dark:text-gray-400'
+                      : margin >= targetMargin
                         ? 'text-emerald-700 dark:text-emerald-400'
                         : 'text-rose-700 dark:text-rose-400'
                   }`}
                 >
-                  Ganancia: {!hasRecipe ? '$0' : money(gain)}
-                </span>
+                  {!hasRecipe
+                    ? 'Proyección: 0.0% (Sin Receta)'
+                    : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit(handleFormSubmit)}
+                  disabled={isSaving}
+                  className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                >
+                  {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
-                  Ajustes Rápidos de Precio
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => adjustPriceFactor(1.05, '5')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
-                      flashingKey === '5'
-                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    +5%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => adjustPriceFactor(1.10, '10')}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
-                      flashingKey === '10'
-                        ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    +10%
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!hasRecipe || cost <= 0}
-                    className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
-                      activeStrategy === 'target'
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
-                    }`}
-                    onClick={() => applySuggestedMargin(targetMargin)}
-                  >
-                    Sugerir {targetMargin}%
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
-                  Precio de Venta al Público ($)
-                </label>
-                <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                  <span className="text-lg font-bold text-gray-400">$</span>
-                  <input
-                    value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
-                    onKeyDown={handleNumericKeyDown}
-                    onChange={(e) => {
-                      const clean = sanitizeDecimal(e.target.value)
-                      setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                      setActiveStrategy('custom')
-                    }}
-                    inputMode="decimal"
-                    type="text"
-                    placeholder="0.00"
-                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
-                  />
-                </div>
-                {errors.salePrice && (
-                  <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
-                )}
-              </div>
-
-              <p
-                className={`text-xs font-bold ${
-                  !hasRecipe
-                    ? 'text-gray-500 dark:text-gray-400'
-                    : margin >= targetMargin
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-rose-700 dark:text-rose-400'
-                }`}
-              >
-                {!hasRecipe
-                  ? 'Proyección: 0.0% (Sin Receta)'
-                  : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
-              </p>
-
-              {/* ÚNICO BOTÓN PRINCIPAL DE GUARDADO EN DESKTOP */}
-              <button
-                type="button"
-                onClick={handleSubmit(handleFormSubmit)}
-                disabled={isSaving}
-                className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
-              >
-                {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -797,56 +832,60 @@ export default function ProductDetailPage() {
               <span className="text-gray-500 dark:text-gray-400">
                 Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong>
               </span>
-              <span className="text-gray-500 dark:text-gray-400">
-                Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
-              </span>
-              {!hasRecipe ? (
-                <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
-              ) : isHealthy ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  <ShieldCheck className="size-3" /> {margin.toFixed(1)}%
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                  <AlertTriangle className="size-3" /> {margin.toFixed(1)}%
+              {!isCollaborator && (
+                <span className="text-gray-500 dark:text-gray-400">
+                  Ganancia: <strong className={gain >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(gain)}</strong>
                 </span>
               )}
             </div>
+            {!isCollaborator && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
+                </span>
+                {!hasRecipe ? (
+                  <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
+                ) : isHealthy ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <ShieldCheck className="size-3" /> {margin.toFixed(1)}%
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                    <AlertTriangle className="size-3" /> {margin.toFixed(1)}%
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Botón de acceso directo al Bottom Sheet */}
-            <button
-              type="button"
-              onClick={() => setIsSimulatorOpen(true)}
-              className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              title="Ajustar precio y simular"
-            >
-              <Pencil className="size-3.5" />
-              <span>Ajustar</span>
-            </button>
+          {!isCollaborator && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsSimulatorOpen(true)}
+                className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                title="Ajustar precio y simular"
+              >
+                <Pencil className="size-3.5" />
+                <span>Ajustar</span>
+              </button>
 
-            {/* Botón principal de guardado unificado en mobile */}
-            <button
-              type="button"
-              onClick={handleSubmit(handleFormSubmit)}
-              disabled={isSaving}
-              className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
-            >
-              {isSaving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-              <span>Guardar</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleSubmit(handleFormSubmit)}
+                disabled={isSaving}
+                className="flex min-h-11 h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+              >
+                {isSaving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                <span>Guardar</span>
+              </button>
+            </div>
+          )}
         </div>
       </footer>
 
-      {/* BOTTOM SHEET MÓVIL DEL SIMULADOR */}
-      {isSimulatorOpen && (
+      {/* BOTTOM SHEET MÓVIL DEL SIMULADOR (Oculto para colaboradores) */}
+      {!isCollaborator && isSimulatorOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setIsSimulatorOpen(false)} />
           <div className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
@@ -1025,7 +1064,7 @@ export default function ProductDetailPage() {
       )}
 
       {/* MODAL BOTTOM SHEET DE AGREGAR INSUMO */}
-      {showAddModal && (
+      {showAddModal && !isCollaborator && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={() => setShowAddModal(false)} />
           <section className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
@@ -1051,6 +1090,7 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  disabled={availablePantry.length === 0}
                   className="mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white cursor-pointer"
                 >
                   <span className="truncate">
@@ -1193,13 +1233,13 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Diálogo de confirmación para cambios no guardados */}
       <UnsavedChangesDialog
         open={showDialog}
         onConfirm={confirmNavigation}
         onCancel={cancelNavigation}
       />
 
+      {/* Reincorporado: Barra de navegación inferior móvil */}
       <BottomNav />
     </main>
   )
