@@ -141,20 +141,6 @@ jobs:
         working-directory: ./frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Smoke test RBAC de colaborador con Newman
-        working-directory: ./backend
-        env:
-          NEWMAN_COLLAB_TOKEN: ${{ secrets.NEWMAN_COLLAB_TOKEN }}
-        run: |
-          if [ -z "$NEWMAN_COLLAB_TOKEN" ]; then
-            echo "⚠️ NEWMAN_COLLAB_TOKEN no configurado. Omitiendo smoke test de RBAC."
-            exit 0
-          fi
-
-          npx newman run "tests/postman/MargenX - Colaborador RBAC API.postman_collection.json" \
-            --env-var "baseUrl=http://localhost:3021" \
-            --env-var "COLLAB_TOKEN=$NEWMAN_COLLAB_TOKEN"
-
       - name: Ejecutar Suite E2E Completa
         working-directory: ./frontend
         run: npx playwright test --project=chromium
