@@ -1,21 +1,11 @@
-import { Router, Response, NextFunction } from 'express';
+import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
-import { AppError } from '../middlewares/errorHandler';
+import { requireRole } from '../middlewares/rbac';
 
 const router = Router();
 
 router.use(authMiddleware);
-
-function requireRole(allowedRoles: Array<'ADMIN' | 'COLLABORATOR'>) {
-  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return next(new AppError('Acceso denegado. Se requiere rol ADMIN.', 403));
-    }
-
-    return next();
-  };
-}
 
 router.get('/metrics', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;

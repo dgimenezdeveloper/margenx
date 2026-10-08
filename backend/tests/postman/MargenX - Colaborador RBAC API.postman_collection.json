@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "MargenX - Colaborador RBAC API",
+    "description": "Smoke tests para validar que un colaborador consulta catálogo pero no expone datos financieros ni puede mutar recursos protegidos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "56b100bc-1d1e-4a67-bb39-8ed6b2d05640"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3021", "type": "string" },
+    { "key": "COLLAB_TOKEN", "value": "", "type": "string" },
+    { "key": "productId", "value": "product-test-1", "type": "string" },
+    { "key": "ingredientId", "value": "ingredient-test-1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "GET /api/products - colaborador consulta catálogo sin datos financieros",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{COLLAB_TOKEN}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/products",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "products"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('sin datos financieros', function () { pm.expect(pm.response.text()).to.not.match(/cost|margin|oldCost|newCost|defaultMinMarginPercent/i); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/ingredients - colaborador consulta catálogo sin currentCost",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{COLLAB_TOKEN}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('sin currentCost en payload', function () { pm.expect(pm.response.text()).to.not.match(/currentCost|cost|margin/i); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /api/ingredients - colaborador recibe 403",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{COLLAB_TOKEN}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina test\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"10\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('rol admin requerido', function () { pm.expect(pm.response.json().error).to.match(/Se requiere rol ADMIN/i); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT /api/ingredients/:id - colaborador recibe 403",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{COLLAB_TOKEN}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina test\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"12\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients", "{{ingredientId}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('rol admin requerido', function () { pm.expect(pm.response.json().error).to.match(/Se requiere rol ADMIN/i); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "DELETE /api/products/:id - colaborador recibe 403",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{COLLAB_TOKEN}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/products/{{productId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "products", "{{productId}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('rol admin requerido', function () { pm.expect(pm.response.json().error).to.match(/Se requiere rol ADMIN/i); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
