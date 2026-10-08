@@ -9,6 +9,7 @@ import NewProductPage from './app/productos/nuevo/page'
 import ProductDetailPage from './app/productos/[id]/page'
 import ProfilePage from './app/perfil/page'
 import { ProtectedRoute } from './components/protected-route'
+import { AdminOnlyRoute } from './components/admin-only-route'
 
 export const router = createBrowserRouter([
   {
@@ -25,7 +26,13 @@ export const router = createBrowserRouter([
   },
   {
     path: '/insumos',
-    element: <ProtectedRoute><SuppliesPage /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <AdminOnlyRoute>
+          <SuppliesPage />
+        </AdminOnlyRoute>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/productos',

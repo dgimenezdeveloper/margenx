@@ -50,6 +50,11 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
           }
           return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
         }
+        if (targets.includes('supplierId') && targets.includes('ingredientId')) {
+          return res.status(409).json({
+            error: 'Ya existe una asociación de este insumo con el proveedor.',
+          });
+        }
         return res.status(409).json({ error: 'Ya existe un registro con esos datos únicos.' });
       }
       case 'P2003': // Violación de clave foránea (ej. borrar algo referenciado)

@@ -1,5 +1,6 @@
 // src/routes/suppliers.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Prisma } from '@prisma/client';
 import request from 'supertest';
 import express from 'express';
 
@@ -18,15 +19,52 @@ const findFirstMock = vi.fn();
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
+const supplierIngredientCreateMock = vi.fn();
+const supplierIngredientFindFirstMock = vi.fn();
+const ingredientFindFirstMock = vi.fn();
+const ingredientUpdateMock = vi.fn();
+const priceHistoryCreateMock = vi.fn();
+const productIngredientFindManyMock = vi.fn();
+const productFindUniqueMock = vi.fn();
+const productUpdateMock = vi.fn();
+const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
+  return callback({
+    supplierIngredient: { create: supplierIngredientCreateMock },
+    supplierIngredientFindFirst: supplierIngredientFindFirstMock,
+    ingredient: { findFirst: ingredientFindFirstMock, update: ingredientUpdateMock },
+    productIngredient: { findMany: productIngredientFindManyMock },
+    product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+    priceHistory: { create: priceHistoryCreateMock },
+  });
+});
 
 vi.mock('../lib/prisma', () => ({
   prisma: {
+    $transaction: (callback: (tx: unknown) => unknown) => transactionMock(callback),
     supplier: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       findFirst: (...args: unknown[]) => findFirstMock(...args),
       create: (...args: unknown[]) => createMock(...args),
       update: (...args: unknown[]) => updateMock(...args),
       delete: (...args: unknown[]) => deleteMock(...args),
+    },
+    supplierIngredient: {
+      create: (...args: unknown[]) => supplierIngredientCreateMock(...args),
+      findFirst: (...args: unknown[]) => supplierIngredientFindFirstMock(...args),
+    },
+    ingredient: {
+      findFirst: (...args: unknown[]) => ingredientFindFirstMock(...args),
+      update: (...args: unknown[]) => ingredientUpdateMock(...args),
+    },
+    productIngredient: {
+      findMany: (...args: unknown[]) => productIngredientFindManyMock(...args),
+    },
+    product: {
+      findUnique: (...args: unknown[]) => productFindUniqueMock(...args),
+      update: (...args: unknown[]) => productUpdateMock(...args),
+    },
+    priceHistory: {
+      create: (...args: unknown[]) => priceHistoryCreateMock(...args),
     },
   },
 }));
@@ -48,6 +86,15 @@ beforeEach(() => {
   createMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  supplierIngredientCreateMock.mockReset();
+  supplierIngredientFindFirstMock.mockReset();
+  ingredientFindFirstMock.mockReset();
+  ingredientUpdateMock.mockReset();
+  priceHistoryCreateMock.mockReset();
+  productIngredientFindManyMock.mockReset();
+  productFindUniqueMock.mockReset();
+  productUpdateMock.mockReset();
+  transactionMock.mockClear();
 });
 
 describe('GET /api/suppliers', () => {
@@ -426,5 +473,131 @@ describe('DELETE /api/suppliers/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: 'Proveedor eliminado correctamente.' });
     expect(deleteMock).toHaveBeenCalledWith({ where: { id: 's-1' } });
+  });
+});
+
+describe('POST /api/suppliers/:id/ingredients', () => {
+  it('crea la asociación y actualiza el insumo cuando es predeterminado', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-1',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('35000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    priceHistoryCreateMock.mockResolvedValue({ id: 'ph-1' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: true });
+
+    expect(res.status).toBe(201);
+    expect(res.body.unitCost.toString()).toBe('700');
+    expect(res.body.supplierIngredient).toEqual(expect.objectContaining({ isDefault: true }));
+    expect(ingredientUpdateMock).toHaveBeenCalled();
+    expect(priceHistoryCreateMock).toHaveBeenCalled();
+  });
+
+  it('si isDefault es false no actualiza ingredient ni crea historial ni recalcula productos', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({ id: 'si-1' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: false });
+
+    expect(res.status).toBe(201);
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+    expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+    expect(productUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve 400 si packageUnit no coincide con la unidad del insumo', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'l', packagePrice: '35000' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/packageUnit/i);
+  });
+
+  it('devuelve 400 si el costo unitario calculado redondea a 0.00 o supera el máximo', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '100', packageUnit: 'kg', packagePrice: '0.01' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/costo unitario|mayor a cero|superar/i);
+  });
+
+  it('devuelve 404 si el proveedor es ajeno', async () => {
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-ajeno/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Proveedor no encontrado.');
+  });
+
+  it('devuelve 409 si la asociación ya existe', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe una asociación de este insumo con el proveedor.');
+  });
+
+  it('ignora accountId enviado en el body', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({ id: 'si-1' });
+
+    await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', accountId: 'account-2' });
+
+    expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ supplierId: 's-1', ingredientId: 'ing-1' }),
+    });
   });
 });

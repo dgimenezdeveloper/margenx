@@ -16,6 +16,7 @@ import {
   Sun,
 } from 'lucide-react'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { useUserRole } from '@/hooks/useUserRole'
 import { useTheme } from '@/hooks/useTheme'
 import { LogoutDialog } from '@/components/logout-dialog'
 
@@ -51,6 +52,7 @@ export function Navbar({
   const pathname = usePathname()
   const { signOut } = useAuth()
   const { businessName, isLoading } = useCurrentUser()
+  const { isCollaborator } = useUserRole()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const displayedCompanyName = companyName || businessName
@@ -60,7 +62,7 @@ export function Navbar({
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
-  ]
+  ].filter(link => !(isCollaborator && link.href === '/insumos'))
 
   const handleConfirmSignOut = () => {
     sessionStorage.removeItem('margenx_active_session')

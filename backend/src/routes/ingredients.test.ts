@@ -304,6 +304,7 @@ describe('PUT /api/ingredients/:id', () => {
       .send({ name: 'Manteca', unit: 'kg', currentCost: '9500.00' });
 
     expect(res.status).toBe(200);
+    expect(priceHistoryCreateMock).toHaveBeenCalledTimes(1);
     expect(priceHistoryCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         ingredientId: 'ing-1',
