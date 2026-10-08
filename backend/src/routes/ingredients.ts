@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { parsePaginationParams } from '../utils/pagination';
-import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
+import { applyIngredientCostChange } from '../services/marginCalculator';
 
 const router = Router();
 
@@ -274,7 +274,6 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
   const nextCost = new Prisma.Decimal(currentCost.toString());
   const previousCost = existing.currentCost ?? null;
-  const costChanged = previousCost ? !previousCost.equals(nextCost) : false;
 
   // Transacción: actualiza el insumo y recalcula en cascada el costo/margen
   // de todos los productos que lo usan en su receta.
@@ -284,45 +283,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       data: { name, unit, currentCost },
     });
 
-    if (previousCost && costChanged) {
-      await tx.priceHistory.create({
-        data: {
-          ingredientId: id,
-          oldCost: previousCost,
-          newCost: nextCost,
-        },
-      });
-    }
-
-    const affected = await tx.productIngredient.findMany({
-      where: { ingredientId: id },
-      select: { productId: true },
-    });
-    const productIds = [...new Set(affected.map((a) => a.productId))];
-
-    for (const productId of productIds) {
-      const product = await tx.product.findUnique({
-        where: { id: productId },
-        include: { ingredients: { include: { ingredient: { select: { currentCost: true } } } } },
-      });
-      if (!product) continue;
-
-      const cost = calculateRecipeTotal(
-        product.ingredients.map((pi) => ({
-          quantity: pi.quantity,
-          unitCost: pi.ingredient.currentCost,
-        }))
-      );
-
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          cost,
-          marginAmount: calculateMarginAmount(product.salePrice, cost),
-          marginPercent: calculateMarginPercent(product.salePrice, cost),
-        },
-      });
-    }
+    await applyIngredientCostChange(tx, id, previousCost, nextCost);
 
     return ingredient;
   });

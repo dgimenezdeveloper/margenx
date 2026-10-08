@@ -36,6 +36,30 @@ export function calculateItemCost(quantity: DecimalType, unitCost: DecimalType):
 }
 
 /**
+ * Costo unitario derivado de la presentación mayorista del proveedor.
+ * packagePrice / packageSize, redondeado a 2 decimales con ROUND_HALF_UP.
+ */
+export function calculateUnitCost(packagePrice: DecimalType, packageSize: DecimalType): DecimalType {
+  if (packageSize.lte(0)) {
+    throw new Error('El campo "packageSize" debe ser mayor a cero.');
+  }
+
+  if (packagePrice.lte(0)) {
+    throw new Error('El campo "packagePrice" debe ser mayor a cero.');
+  }
+
+  const unitCost = packagePrice.div(packageSize).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  if (unitCost.lte(0)) {
+    throw new Error('El costo unitario calculado debe ser mayor a cero.');
+  }
+  if (unitCost.greaterThan(MAX_MONEY_VALUE)) {
+    throw new Error('El costo unitario calculado no puede superar $99.999.999,99.');
+  }
+
+  return unitCost;
+}
+
+/**
  * Costo total de una receta = suma de calculateItemCost de cada ítem.
  * Sin ítems (producto sin ingredientes) => 0.00.
  */
@@ -75,9 +99,68 @@ export function calculateMarginPercent(salePrice: DecimalType, totalCost: Decima
   return clampDecimal(percent, MIN_PERCENT_VALUE, MAX_PERCENT_VALUE);
 }
 
+export async function applyIngredientCostChange(
+  tx: any,
+  ingredientId: string,
+  previousCost: DecimalType | null,
+  newCost: DecimalType
+): Promise<void> {
+  const ingredientFinder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
+  const oldCost =
+    previousCost ??
+    (ingredientFinder && typeof ingredientFinder === 'function'
+      ? (await ingredientFinder.call(tx.ingredient, {
+          where: { id: ingredientId },
+          select: { currentCost: true },
+        }))?.currentCost ?? null
+      : null);
+
+  if (oldCost && !oldCost.equals(newCost)) {
+    await tx.priceHistory.create({
+      data: {
+        ingredientId,
+        oldCost,
+        newCost,
+      },
+    });
+  }
+
+  const affected = await tx.productIngredient.findMany({
+    where: { ingredientId },
+    select: { productId: true },
+  });
+  const productIds = [...new Set(affected.map((a: { productId: string }) => a.productId))];
+
+  for (const productId of productIds) {
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      include: { ingredients: { include: { ingredient: { select: { currentCost: true } } } } },
+    });
+    if (!product) continue;
+
+    const cost = calculateRecipeTotal(
+      product.ingredients.map((pi: { quantity: DecimalType; ingredient: { currentCost: DecimalType } }) => ({
+        quantity: pi.quantity,
+        unitCost: pi.ingredient.currentCost,
+      }))
+    );
+
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        cost,
+        marginAmount: calculateMarginAmount(product.salePrice, cost),
+        marginPercent: calculateMarginPercent(product.salePrice, cost),
+      },
+    });
+  }
+}
+
 export default {
   calculateItemCost,
   calculateRecipeTotal,
   calculateMarginAmount,
   calculateMarginPercent,
+  calculateUnitCost,
+  applyIngredientCostChange,
 };
