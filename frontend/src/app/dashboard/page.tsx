@@ -73,14 +73,17 @@ export default function DashboardPage() {
         return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
       }
 
-      // 3. Si ambos tienen receta, ordenar por margen porcentual ascendente (menor a mayor)
-      const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
-      if (marginDiff !== 0) return marginDiff
+      // 3. Si es ADMIN, ordenar por margen porcentual ascendente (menor a mayor)
+      // Los colaboradores NO deben ver el catálogo ordenado por margen para evitar deducir rentabilidad.
+      if (!isCollaborator) {
+        const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
+        if (marginDiff !== 0) return marginDiff
+      }
 
-      // 4. Criterio de desempate final: orden alfabético
+      // 4. Criterio de desempate final (o principal para colaboradores): orden alfabético
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
     })
-  }, [products])
+  }, [products, isCollaborator])
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
