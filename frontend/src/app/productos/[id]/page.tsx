@@ -23,6 +23,7 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { EmptyState } from '@/components/empty-state'
+import { MarginBadge } from '@/components/MarginBadge'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
@@ -169,7 +170,6 @@ export default function ProductDetailPage() {
           setAvailablePantry(ingredientsData)
         }
 
-        // Corrección: se utiliza ?? para no pisar un 0 configurado por el usuario
         reset({
           name: prodData.name,
           salePrice: String(prodData.salePrice),
@@ -188,7 +188,6 @@ export default function ProductDetailPage() {
 
         setItems(mappedRecipe)
         setSalePrice(prodData.salePrice)
-        // Corrección: se utiliza ?? para no pisar el 0 en el store
         setMinMarginPercent(Number(prodData.minMarginPercent ?? 30))
 
         if (!isCollaborator && ingredientsData && ingredientsData.length > 0 && ingredientsData[0]) {
@@ -346,7 +345,6 @@ export default function ProductDetailPage() {
     try {
       const updated = await productService.update(id!, payload, getToken)
       setProduct(updated)
-      // Corrección: se utiliza ?? para no pisar el 0 retornado tras guardar
       reset({
         name: updated.name,
         salePrice: String(updated.salePrice),
@@ -824,7 +822,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* FOOTER FLOTANTE PERMANENTE EN MOBILE (<1024px) */}
+      {/* FOOTER FLOTANTE PERMANENTE EN MOBILE */}
       <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -843,17 +841,12 @@ export default function ProductDetailPage() {
                 <span className="text-[11px] text-gray-500 dark:text-gray-400">
                   Costo: <strong className="text-gray-800 dark:text-gray-200">{money(cost)}</strong>
                 </span>
-                {!hasRecipe ? (
-                  <span className="text-[10px] font-bold text-gray-400">Sin Receta</span>
-                ) : isHealthy ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> {margin.toFixed(1)}%
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> {margin.toFixed(1)}%
-                  </span>
-                )}
+                <MarginBadge
+                  marginPercent={margin}
+                  minMarginPercent={targetMargin}
+                  ingredientsCount={items.length}
+                  size="sm"
+                />
               </div>
             )}
           </div>
@@ -1239,7 +1232,6 @@ export default function ProductDetailPage() {
         onCancel={cancelNavigation}
       />
 
-      {/* Reincorporado: Barra de navegación inferior móvil */}
       <BottomNav />
     </main>
   )

@@ -9,16 +9,19 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { MarginBadge } from '@/components/MarginBadge'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
-import { useUserRole } from '@/hooks/useUserRole'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function ProductsPage() {
   const router = useRouter()
   const { getToken } = useAuth()
-  const { isCollaborator, isLoading: isRoleLoading } = useUserRole()
+  const { user } = useCurrentUser()
+  const isCollaborator = user?.role === 'COLLABORATOR'
+
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -46,18 +49,15 @@ export default function ProductsPage() {
       active = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Solo se ejecuta una vez al montar, evitando el bucle infinito con getToken
+  }, [])
 
   const filtered = useMemo(
     () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
     [products, query]
   )
 
-  // Unificamos el estado de carga para esperar tanto los productos como el rol del usuario
-  const isPageLoading = isLoading || isRoleLoading
-
-  const isTotalEmpty = !isPageLoading && products.length === 0
-  const isSearchEmpty = !isPageLoading && filtered.length === 0 && !isTotalEmpty
+  const isTotalEmpty = !isLoading && products.length === 0
+  const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -68,11 +68,14 @@ export default function ProductsPage() {
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold md:text-3xl">Productos</h1>
-              <p className="mt-1 text-sm text-gray-500">Rendimiento de tu catálogo.</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {isCollaborator
+                  ? 'Catálogo de precios de venta al público.'
+                  : 'Rendimiento y costos de tu catálogo.'}
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              {/* Contenedor del Buscador: Desvinculado de estados condicionales y con tamaño rígido */}
               <div className="relative w-full md:w-72 lg:w-80 shrink-0">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                   <Search className="size-4 text-gray-400" />
@@ -86,7 +89,7 @@ export default function ProductsPage() {
                 />
               </div>
 
-              {!isPageLoading && !isCollaborator && (
+              {!isCollaborator && (
                 <Link
                   href="/productos/nuevo"
                   className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
@@ -100,7 +103,7 @@ export default function ProductsPage() {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">Catálogo completo</h2>
-              {!isPageLoading && !isCollaborator && (
+              {!isCollaborator && (
                 <Link
                   href="/productos/nuevo"
                   className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
@@ -110,33 +113,33 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {isPageLoading && (
+            {isLoading && (
               <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando productos...
               </div>
             )}
 
-            {!isPageLoading && loadError && (
+            {!isLoading && loadError && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
                 {loadError}
               </div>
             )}
 
-            {!isPageLoading && !loadError && isTotalEmpty && (
+            {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Package className="size-6" />}
                 title="Aún no tienes productos cargados"
                 description={
                   isCollaborator
-                    ? "El catálogo de productos se encuentra vacío."
-                    : "Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas."
+                    ? 'No hay productos disponibles en el catálogo.'
+                    : 'Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas.'
                 }
-                actionLabel={isCollaborator ? undefined : "Crear mi primer producto"}
-                onAction={isCollaborator ? undefined : () => router.push('/productos/nuevo')}
+                actionLabel={!isCollaborator ? 'Crear mi primer producto' : undefined}
+                onAction={!isCollaborator ? () => router.push('/productos/nuevo') : undefined}
               />
             )}
 
-            {!isPageLoading && !loadError && isSearchEmpty && (
+            {!isLoading && !loadError && isSearchEmpty && (
               <EmptyState
                 icon={<Search className="size-6" />}
                 title="No se encontraron resultados"
@@ -144,7 +147,7 @@ export default function ProductsPage() {
               />
             )}
 
-            {!isPageLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
+            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
                 {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
@@ -158,30 +161,25 @@ export default function ProductsPage() {
                         <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
                           {product.name}
                         </h3>
+                        {/* MarginBadge: SOLO ADMIN */}
                         {!isCollaborator && (
-                          product.cost === 0 || product.ingredients.length === 0 ? (
-                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                              Sin Receta
-                            </span>
-                          ) : (
-                            <span
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                                product.marginPercent < product.minMarginPercent
-                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                              }`}
-                            >
-                              Margen {Number(product.marginPercent).toFixed(1)}%
-                            </span>
-                          )
+                          <MarginBadge
+                            marginPercent={product.marginPercent}
+                            minMarginPercent={product.minMarginPercent}
+                            ingredientsCount={product.ingredients.length}
+                            size="sm"
+                          />
                         )}
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
-                        <span>
-                          {!isCollaborator && (
-                            <>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></>
-                          )}
-                        </span>
+                        {/* Costo: SOLO ADMIN */}
+                        {!isCollaborator ? (
+                          <span>
+                            Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-gray-400">Atención al público</span>
+                        )}
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: <span className="text-sm">{money(product.salePrice)}</span>
                           <ChevronRight className="size-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
@@ -197,9 +195,13 @@ export default function ProductsPage() {
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
                       <tr>
                         <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del Producto</th>
-                        {!isCollaborator && <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (Receta)</th>}
+                        {!isCollaborator && (
+                          <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (Receta)</th>
+                        )}
                         <th className="px-5 py-4 font-bold whitespace-nowrap">Precio de Venta</th>
-                        {!isCollaborator && <th className="px-5 py-4 font-bold whitespace-nowrap">Margen</th>}
+                        {!isCollaborator && (
+                          <th className="px-5 py-4 font-bold whitespace-nowrap">Margen</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -212,27 +214,20 @@ export default function ProductsPage() {
                           <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
                             {product.name}
                           </td>
-                          {!isCollaborator && <td className="px-5 py-4 font-medium">{money(product.cost)}</td>}
+                          {!isCollaborator && (
+                            <td className="px-5 py-4 font-medium">{money(product.cost)}</td>
+                          )}
                           <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">
                             {money(product.salePrice)}
                           </td>
                           {!isCollaborator && (
                             <td className="px-5 py-4">
-                              {product.cost === 0 || product.ingredients.length === 0 ? (
-                                <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                  Sin Receta
-                                </span>
-                              ) : (
-                                <span
-                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-                                    product.marginPercent < product.minMarginPercent
-                                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                                  }`}
-                                >
-                                  {Number(product.marginPercent).toFixed(1)}%
-                                </span>
-                              )}
+                              <MarginBadge
+                                marginPercent={product.marginPercent}
+                                minMarginPercent={product.minMarginPercent}
+                                ingredientsCount={product.ingredients.length}
+                                size="sm"
+                              />
                             </td>
                           )}
                         </tr>

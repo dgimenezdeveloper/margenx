@@ -1,37 +1,67 @@
-// frontend/src/app/dashboard/page.tsx
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
-import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus, Activity } from 'lucide-react'
+import {
+  AlertTriangle,
+  Boxes,
+  ChevronRight,
+  TrendingUp,
+  Plus,
+  LoaderCircle,
+  BarChart3,
+  FilterX,
+} from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
+import { MarginBadge } from '@/components/MarginBadge'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 import { productService, type Product } from '@/services/productService'
 import { dashboardService, type DashboardMetrics } from '@/services/dashboardService'
-import { useCurrentUser } from '@/lib/useCurrentUser'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+
+type HealthBucketKey = 'loss' | 'low' | 'healthy' | 'high'
+
+interface HealthBucket {
+  key: HealthBucketKey
+  title: string
+  shortTitle: string
+  rangeLabel: string
+  count: number
+  percentage: number
+  colorClass: string
+  bgHoverClass: string
+  borderClass: string
+  textClass: string
+}
 
 export default function DashboardPage() {
   const { getToken } = useAuth()
   const { user } = useCurrentUser()
+  const isCollaborator = user?.role === 'COLLABORATOR'
+
   const [products, setProducts] = useState<Product[]>([])
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
-
-  const isCollaborator = user?.role === 'COLLABORATOR'
+  const [selectedBucket, setSelectedBucket] = useState<HealthBucketKey | null>(null)
 
   useEffect(() => {
     let active = true
 
-    const loadData = async () => {
-      // Usamos Promise.allSettled para que el fallo en métricas (403 para colaboradores)
-      // no impida que se cargue el catálogo de productos.
+    const fetchDashboardData = async () => {
+      setIsLoading(true)
+
+      // Un colaborador jamás consulta /api/dashboard/metrics (evita 403 Forbidden y fuga de red)
+      const metricsPromise = isCollaborator
+        ? Promise.resolve(null)
+        : dashboardService.getMetrics(getToken)
+
       const [prodsResult, metricsResult] = await Promise.allSettled([
         productService.getAll(getToken),
-        dashboardService.getMetrics(getToken)
+        metricsPromise,
       ])
 
       if (!active) return
@@ -42,7 +72,7 @@ export default function DashboardPage() {
         setProducts([])
       }
 
-      if (metricsResult.status === 'fulfilled') {
+      if (metricsResult.status === 'fulfilled' && metricsResult.value) {
         setMetrics(metricsResult.value)
       } else {
         setMetrics(null)
@@ -51,39 +81,165 @@ export default function DashboardPage() {
       setIsLoading(false)
     }
 
-    void loadData()
+    void fetchDashboardData()
 
     return () => {
       active = false
     }
-  }, [getToken])
+  }, [getToken, isCollaborator])
 
-  // Algoritmo de ordenamiento prioritario memoizado
+  // Productos con receta activa para el histograma de administrador
+  const activeRecipeProducts = useMemo(() => {
+    return products.filter((p) => p.ingredients.length > 0)
+  }, [products])
+
+  const draftProductsCount = useMemo(() => {
+    return products.filter((p) => p.ingredients.length === 0).length
+  }, [products])
+
+  // Cálculo O(1) de los 4 intervalos de salud financiera (Solo ADMIN)
+  const healthBuckets = useMemo<HealthBucket[]>(() => {
+    if (isCollaborator) return []
+
+    const total = activeRecipeProducts.length
+
+    let lossCount = 0
+    let lowCount = 0
+    let healthyCount = 0
+    let highCount = 0
+
+    activeRecipeProducts.forEach((p) => {
+      const margin = Number(p.marginPercent)
+      const target = Number(p.minMarginPercent)
+
+      if (margin < 0) {
+        lossCount += 1
+      } else if (margin < target) {
+        lowCount += 1
+      } else if (margin <= 60) {
+        healthyCount += 1
+      } else {
+        highCount += 1
+      }
+    })
+
+    const calcPct = (cnt: number) => (total > 0 ? (cnt / total) * 100 : 0)
+
+    return [
+      {
+        key: 'loss',
+        title: 'Venta a Pérdida',
+        shortTitle: 'Pérdida',
+        rangeLabel: '< 0%',
+        count: lossCount,
+        percentage: calcPct(lossCount),
+        colorClass: 'bg-rose-600 dark:bg-rose-600',
+        bgHoverClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
+        borderClass: 'border-rose-200 dark:border-rose-900/60',
+        textClass: 'text-rose-700 dark:text-rose-300',
+      },
+      {
+        key: 'low',
+        title: 'En Riesgo',
+        shortTitle: 'Riesgo',
+        rangeLabel: '< Umbral',
+        count: lowCount,
+        percentage: calcPct(lowCount),
+        colorClass: 'bg-rose-400 dark:bg-rose-400',
+        bgHoverClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
+        borderClass: 'border-rose-200 dark:border-rose-900/60',
+        textClass: 'text-rose-600 dark:text-rose-400',
+      },
+      {
+        key: 'healthy',
+        title: 'En Objetivo',
+        shortTitle: 'Objetivo',
+        rangeLabel: '30%–60%',
+        count: healthyCount,
+        percentage: calcPct(healthyCount),
+        colorClass: 'bg-emerald-500 dark:bg-emerald-500',
+        bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
+        borderClass: 'border-emerald-200 dark:border-emerald-900/60',
+        textClass: 'text-emerald-700 dark:text-emerald-300',
+      },
+      {
+        key: 'high',
+        title: 'Superávit',
+        shortTitle: 'Óptimo',
+        rangeLabel: '> 60%',
+        count: highCount,
+        percentage: calcPct(highCount),
+        colorClass: 'bg-emerald-600 dark:bg-emerald-400',
+        bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
+        borderClass: 'border-emerald-200 dark:border-emerald-900/60',
+        textClass: 'text-emerald-800 dark:text-emerald-200',
+      },
+    ]
+  }, [activeRecipeProducts, isCollaborator])
+
+  const maxBucketCount = useMemo(() => {
+    return Math.max(1, ...healthBuckets.map((b) => b.count))
+  }, [healthBuckets])
+
+  // Algoritmo de ordenamiento: PROTEGIDO contra inferencias de canal lateral para colaboradores
   const sortedProducts = useMemo(() => {
+    // Si es colaborador: ORDEN ESTRICTAMENTE ALFABÉTICO (sin filtrar por margen)
+    if (isCollaborator) {
+      return [...products].sort((a, b) =>
+        a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+      )
+    }
+
+    // Si es Administrador: orden prioritario por margen
     return [...products].sort((a, b) => {
       const aHasRecipe = a.ingredients.length > 0
       const bHasRecipe = b.ingredients.length > 0
 
-      // 1. Priorizar productos con receta sobre los borradores (sin receta)
       if (aHasRecipe && !bHasRecipe) return -1
       if (!aHasRecipe && bHasRecipe) return 1
 
-      // 2. Si ambos no tienen receta, desempatar alfabéticamente
       if (!aHasRecipe && !bHasRecipe) {
         return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
       }
 
-      // 3. Si es ADMIN, ordenar por margen porcentual ascendente (menor a mayor)
-      // Los colaboradores NO deben ver el catálogo ordenado por margen para evitar deducir rentabilidad.
-      if (!isCollaborator) {
-        const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
-        if (marginDiff !== 0) return marginDiff
-      }
+      const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
+      if (marginDiff !== 0) return marginDiff
 
-      // 4. Criterio de desempate final (o principal para colaboradores): orden alfabético
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
     })
   }, [products, isCollaborator])
+
+  // Productos mostrados según filtrado activo del histograma
+  const displayedProducts = useMemo(() => {
+    if (!selectedBucket || isCollaborator) return sortedProducts
+
+    return sortedProducts.filter((p) => {
+      if (p.ingredients.length === 0) return false
+      const m = Number(p.marginPercent)
+      const target = Number(p.minMarginPercent)
+
+      switch (selectedBucket) {
+        case 'loss':
+          return m < 0
+        case 'low':
+          return m >= 0 && m < target
+        case 'healthy':
+          return m >= target && m <= 60
+        case 'high':
+          return m > 60 && m >= target
+        default:
+          return true
+      }
+    })
+  }, [sortedProducts, selectedBucket, isCollaborator])
+
+  const handleToggleBucket = (key: HealthBucketKey) => {
+    setSelectedBucket((current) => (current === key ? null : key))
+  }
+
+  const activeBucketMeta = useMemo(() => {
+    return healthBuckets.find((b) => b.key === selectedBucket)
+  }, [healthBuckets, selectedBucket])
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -98,10 +254,12 @@ export default function DashboardPage() {
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {isCollaborator
-                  ? 'Aquí tienes el catálogo de productos actualizado.'
+                  ? 'Consulta los precios de venta al público para atención de salón.'
                   : 'Aquí tienes el resumen de rentabilidad de tu negocio en tiempo real.'}
               </p>
             </div>
+
+            {/* Acciones de administración: Solo visibles para ADMIN */}
             {!isCollaborator && (
               <div className="hidden items-center gap-3 md:flex">
                 <Link
@@ -120,99 +278,230 @@ export default function DashboardPage() {
             )}
           </section>
 
-          {/* Tarjetas de métricas: Solo visibles para ADMIN */}
+          {/* Tarjetas resumen KPI: Protegidas por RBAC (Solo ADMIN) */}
           {!isCollaborator && (
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {isLoading ? (
-                <>
-                  <div className="col-span-2 lg:col-span-1 h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
-                  <div className="col-span-2 lg:col-span-1 h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
-                </>
-              ) : metrics ? (
-                <>
-                  <section className="col-span-2 lg:col-span-1 flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-800/80 dark:bg-rose-950/40">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-md shadow-rose-500/20">
-                      <AlertTriangle className="size-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
-                        {metrics.criticalProductsCount} {metrics.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
-                      </p>
-                      <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen bajo umbral</p>
-                    </div>
-                  </section>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <section className="flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-800/80 dark:bg-rose-950/40">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-md shadow-rose-500/20">
+                  <AlertTriangle className="size-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
+                    {metrics?.criticalProductsCount ?? 0}{' '}
+                    {metrics?.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
+                  </p>
+                  <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
+                    Margen por debajo del umbral mínimo
+                  </p>
+                </div>
+              </section>
 
-                  <div className="col-span-2 lg:col-span-1 flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      <TrendingUp className="size-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
-                      <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{metrics.averageMarginPercent.toFixed(1)}%</p>
-                    </div>
-                  </div>
+              <div className="hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex md:items-center md:gap-3.5 dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                  <Boxes className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
+                  <p className="text-xl font-black text-gray-900 dark:text-white">
+                    {metrics?.activeIngredientsCount ?? 0} Insumos
+                  </p>
+                </div>
+              </div>
 
-                  <div className="flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
-                      <Boxes className="size-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
-                      <p className="text-xl font-black text-gray-900 dark:text-white">{metrics.activeIngredientsCount}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300">
-                      <Activity className="size-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400">Variaciones (7d)</p>
-                      <p className="text-xl font-black text-gray-900 dark:text-white">{metrics.recentCostVariationsCount}</p>
-                    </div>
-                  </div>
-                </>
-              ) : null}
+              <div className="hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex md:items-center md:gap-3.5 dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <TrendingUp className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
+                  <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">
+                    {metrics?.averageMarginPercent != null
+                      ? Number(metrics.averageMarginPercent).toFixed(1)
+                      : '0.0'}
+                    %
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
+          {/* HISTOGRAMA DE SALUD FINANCIERA: Protegido por RBAC (Solo ADMIN) */}
+          {!isCollaborator && (
+            <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="size-4 text-indigo-600 dark:text-indigo-400" />
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white md:text-lg">
+                      Distribución de Salud Financiera
+                    </h2>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    Volumen del catálogo agrupado por rango de rentabilidad frente al costo.
+                  </p>
+                </div>
+
+                {selectedBucket && activeBucketMeta && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBucket(null)}
+                    className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-950/80 dark:text-indigo-300"
+                  >
+                    <FilterX className="size-3.5" />
+                    Filtrando: {activeBucketMeta.shortTitle} ({activeBucketMeta.count})
+                    <span className="text-[10px] underline ml-1">Restablecer</span>
+                  </button>
+                )}
+              </div>
+
+              {isLoading ? (
+                <div className="flex h-44 items-center justify-center text-xs font-semibold text-gray-400">
+                  <LoaderCircle className="mr-2 size-4 animate-spin text-indigo-600" />
+                  Analizando estructura de costos...
+                </div>
+              ) : activeRecipeProducts.length === 0 ? (
+                <div className="mt-4 flex h-36 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400 dark:border-gray-800">
+                  Aún no hay productos con receta activa para clasificar en el histograma.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                    {healthBuckets.map((bucket) => {
+                      const isSelected = selectedBucket === bucket.key
+                      const hasProducts = bucket.count > 0
+                      const heightPercent = hasProducts
+                        ? Math.max(18, (bucket.count / maxBucketCount) * 100)
+                        : 0
+
+                      return (
+                        <button
+                          key={bucket.key}
+                          type="button"
+                          onClick={() => handleToggleBucket(bucket.key)}
+                          disabled={!hasProducts}
+                          className={`group relative flex flex-col justify-end rounded-2xl border p-2 transition-all text-center cursor-pointer select-none sm:p-3.5 ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/40'
+                              : `${bucket.borderClass} ${hasProducts ? bucket.bgHoverClass : 'opacity-40 cursor-not-allowed'} bg-gray-50/50 dark:bg-gray-800/20`
+                          }`}
+                        >
+                          <div className="mb-1.5">
+                            <span className={`block text-base font-black sm:text-xl ${bucket.textClass}`}>
+                              {bucket.count}
+                            </span>
+                            <span className="block text-[10px] font-semibold text-gray-400 sm:text-xs">
+                              {bucket.percentage.toFixed(0)}%
+                            </span>
+                          </div>
+
+                          <div className="flex h-24 w-full items-end justify-center rounded-lg bg-gray-200/50 p-1 dark:bg-gray-800/60 sm:h-28">
+                            <div
+                              style={{ height: `${heightPercent}%` }}
+                              className={`w-full rounded-md transition-all duration-300 ${bucket.colorClass} ${
+                                isSelected ? 'brightness-110 shadow-sm' : 'group-hover:opacity-90'
+                              }`}
+                            />
+                          </div>
+
+                          <div className="mt-2 space-y-0.5">
+                            <p className="text-[11px] font-black leading-tight text-gray-900 dark:text-gray-100 sm:text-xs">
+                              <span className="sm:hidden">{bucket.shortTitle}</span>
+                              <span className="hidden sm:inline">{bucket.title}</span>
+                            </p>
+                            <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 sm:text-[10px]">
+                              {bucket.rangeLabel}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] text-gray-400 dark:border-gray-800/80">
+                    <span>
+                      {draftProductsCount > 0 ? (
+                        <>
+                          <strong className="text-gray-600 dark:text-gray-300">{draftProductsCount}</strong> en borrador (sin receta)
+                        </>
+                      ) : (
+                        '100% del catálogo costea con receta'
+                      )}
+                    </span>
+                    <span className="hidden sm:inline">
+                      Haz clic en una columna para filtrar los productos abajo
+                    </span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* CATÁLOGO MONITOREADO: Sanitizado por RBAC */}
           <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold tracking-tight md:text-xl">Catálogo Monitoreado</h2>
-              <Link
-                href="/productos"
-                className="text-right text-xs font-bold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                Ver catálogo completo ({products.length})
-              </Link>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-bold tracking-tight md:text-xl">
+                  {selectedBucket && activeBucketMeta && !isCollaborator ? (
+                    <span className="truncate block">
+                      Productos: {activeBucketMeta.title}{' '}
+                      <span className="text-xs font-semibold text-gray-400">
+                        ({displayedProducts.length} de {products.length})
+                      </span>
+                    </span>
+                  ) : (
+                    <span>Catálogo Monitoreado</span>
+                  )}
+                </h2>
+              </div>
+
+              <div className="shrink-0 text-right">
+                {selectedBucket && !isCollaborator && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBucket(null)}
+                    className="text-xs font-bold text-rose-600 transition hover:underline dark:text-rose-400"
+                  >
+                    <span className="sm:hidden">Restablecer</span>
+                    <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
+                  </button>
+                )}
+                {(!selectedBucket || isCollaborator) && (
+                  <Link
+                    href="/productos"
+                    className="text-xs font-bold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    <span className="sm:hidden">Ver todos ({products.length})</span>
+                    <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
+                  </Link>
+                )}
+              </div>
             </div>
 
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex justify-between">
-                      <div className="h-5 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-                      <div className="h-5 w-16 animate-pulse rounded-full bg-gray-200 dark:bg-gray-800" />
-                    </div>
-                    <div className="mt-4 flex justify-between border-t border-gray-50 pt-3 dark:border-gray-800">
-                      <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-                      <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-12 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <LoaderCircle className="mr-2 size-5 animate-spin text-indigo-600" /> Cargando catálogo...
               </div>
-            ) : sortedProducts.length === 0 ? (
+            ) : displayedProducts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
-                Aún no tienes productos registrados. Crea uno nuevo para comenzar a monitorear.
+                {selectedBucket && !isCollaborator ? (
+                  <>
+                    No hay productos que coincidan con la categoría de rentabilidad seleccionada.
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBucket(null)}
+                      className="mt-2 block mx-auto text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      Quitar filtro y ver todos
+                    </button>
+                  </>
+                ) : (
+                  'Aún no tienes productos registrados en el catálogo.'
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {sortedProducts.map((product) => {
+                {displayedProducts.map((product) => {
                   const hasRecipe = product.ingredients.length > 0
-                  const isRisk = hasRecipe && product.marginPercent < product.minMarginPercent
 
                   return (
                     <Link
@@ -224,33 +513,28 @@ export default function DashboardPage() {
                         <h3 className="text-base font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
                           {product.name}
                         </h3>
-                        {!hasRecipe ? (
-                          <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                            Sin Receta
-                          </span>
-                        ) : isCollaborator ? (
-                          <span className="shrink-0 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
-                            Activo
-                          </span>
-                        ) : (
-                          <span
-                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
-                              isRisk
-                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200'
-                            }`}
-                          >
-                            Margen {Number(product.marginPercent).toFixed(1)}%
-                          </span>
+                        {/* MarginBadge: SOLO ADMIN (confidencial para colaboradores) */}
+                        {!isCollaborator && (
+                          <MarginBadge
+                            marginPercent={product.marginPercent}
+                            minMarginPercent={product.minMarginPercent}
+                            hasRecipe={hasRecipe}
+                            size="md"
+                          />
                         )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                        <span>
-                          {!isCollaborator && (
-                            <>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></>
-                          )}
-                        </span>
+                        {/* Costo: SOLO ADMIN (el backend ya lo censura, la UI no lo renderiza) */}
+                        {!isCollaborator ? (
+                          <span>
+                            Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-gray-400">
+                            Atención al público
+                          </span>
+                        )}
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: {money(product.salePrice)}
                           <ChevronRight className="size-4 text-gray-400 transition-transform group-hover:translate-x-0.5" />
