@@ -2,9 +2,12 @@ import { AlertTriangle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface MarginBadgeProps {
-  marginPercent: number
-  minMarginPercent: number
-  hasRecipe: boolean
+  marginPercent?: number | null
+  minMarginPercent?: number | null
+  hasRecipe?: boolean
+  ingredientsCount?: number
+  ingredients?: unknown[]
+  isCollaborator?: boolean
   className?: string
   showValue?: boolean
   size?: 'sm' | 'md'
@@ -14,14 +17,31 @@ export function MarginBadge({
   marginPercent,
   minMarginPercent,
   hasRecipe,
+  ingredientsCount,
+  ingredients,
+  isCollaborator = false,
   className,
   showValue = true,
   size = 'sm',
 }: MarginBadgeProps) {
+  // 1. Blindaje RBAC: si el usuario es colaborador, no renderiza margen en el DOM
+  if (isCollaborator) {
+    return null
+  }
+
+  // 2. Encapsulación de receta: un producto tiene receta si y solo si tiene insumos cargados
+  const recipeExists =
+    hasRecipe ??
+    (ingredientsCount !== undefined
+      ? ingredientsCount > 0
+      : Array.isArray(ingredients)
+        ? ingredients.length > 0
+        : true)
+
   const sizeClasses = size === 'md' ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[11px]'
   const iconSizeClasses = size === 'md' ? 'size-3.5 shrink-0' : 'size-3 shrink-0'
 
-  if (!hasRecipe) {
+  if (!recipeExists) {
     return (
       <span
         className={cn(
@@ -34,6 +54,11 @@ export function MarginBadge({
         Sin Receta
       </span>
     )
+  }
+
+  // 3. Guarda defensiva contra datos financieros sanitizados o ausentes (evita NaN% o fugas)
+  if (marginPercent == null || minMarginPercent == null) {
+    return null
   }
 
   const isCritical = Number(marginPercent) < Number(minMarginPercent)

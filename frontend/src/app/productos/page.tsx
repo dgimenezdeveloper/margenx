@@ -148,7 +148,7 @@ export default function ProductsPage() {
                         <MarginBadge
                           marginPercent={product.marginPercent}
                           minMarginPercent={product.minMarginPercent}
-                          hasRecipe={product.cost > 0 && product.ingredients.length > 0}
+                          ingredientsCount={product.ingredients.length}
                           size="sm"
                         />
                       </div>
@@ -194,7 +194,7 @@ export default function ProductsPage() {
                             <MarginBadge
                               marginPercent={product.marginPercent}
                               minMarginPercent={product.minMarginPercent}
-                              hasRecipe={product.cost > 0 && product.ingredients.length > 0}
+                              ingredientsCount={product.ingredients.length}
                               size="sm"
                             />
                           </td>
