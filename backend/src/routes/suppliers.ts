@@ -4,9 +4,11 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { applyIngredientCostChange, calculateUnitCost } from '../services/marginCalculator';
+import { requireRole } from '../middlewares/rbac';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requireRole(['ADMIN']));
 
 function getIdParam(rawId: string | string[] | undefined): string {
   if (Array.isArray(rawId)) {

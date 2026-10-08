@@ -1,61 +1,62 @@
+// frontend/src/app/dashboard/page.tsx
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
-import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus, LoaderCircle } from 'lucide-react'
+import { AlertTriangle, Boxes, ChevronRight, TrendingUp, Plus, Activity } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { productService, type Product } from '@/services/productService'
-import { ingredientService } from '@/services/ingredientService'
+import { dashboardService, type DashboardMetrics } from '@/services/dashboardService'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
 export default function DashboardPage() {
   const { getToken } = useAuth()
+  const { user } = useCurrentUser()
   const [products, setProducts] = useState<Product[]>([])
-  const [totalSuppliesCount, setTotalSuppliesCount] = useState<number>(0)
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  const isCollaborator = user?.role === 'COLLABORATOR'
 
   useEffect(() => {
     let active = true
 
-    Promise.all([
-      productService.getAll(getToken),
-      ingredientService.getAll(getToken),
-    ])
-      .then(([prods, supplies]) => {
-        if (!active) return
-        setProducts(prods)
-        setTotalSuppliesCount(supplies.length)
-      })
-      .catch(() => {
-        if (!active) return
+    const loadData = async () => {
+      // Usamos Promise.allSettled para que el fallo en métricas (403 para colaboradores)
+      // no impida que se cargue el catálogo de productos.
+      const [prodsResult, metricsResult] = await Promise.allSettled([
+        productService.getAll(getToken),
+        dashboardService.getMetrics(getToken)
+      ])
+
+      if (!active) return
+
+      if (prodsResult.status === 'fulfilled') {
+        setProducts(prodsResult.value)
+      } else {
         setProducts([])
-        setTotalSuppliesCount(0)
-      })
-      .finally(() => {
-        if (active) setIsLoading(false)
-      })
+      }
+
+      if (metricsResult.status === 'fulfilled') {
+        setMetrics(metricsResult.value)
+      } else {
+        setMetrics(null)
+      }
+
+      setIsLoading(false)
+    }
+
+    void loadData()
 
     return () => {
       active = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const riskProductsCount = products.filter(
-    (p) => p.ingredients.length > 0 && p.marginPercent < p.minMarginPercent
-  ).length
-
-  const avgMargin =
-    products.length > 0
-      ? (
-          products.reduce((acc, p) => acc + (p.ingredients.length > 0 ? p.marginPercent : 0), 0) /
-          products.length
-        ).toFixed(1)
-      : '0.0'
+  }, [getToken])
 
   // Algoritmo de ordenamiento prioritario memoizado
   const sortedProducts = useMemo(() => {
@@ -72,14 +73,17 @@ export default function DashboardPage() {
         return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
       }
 
-      // 3. Si ambos tienen receta, ordenar por margen porcentual ascendente (menor a mayor)
-      const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
-      if (marginDiff !== 0) return marginDiff
+      // 3. Si es ADMIN, ordenar por margen porcentual ascendente (menor a mayor)
+      // Los colaboradores NO deben ver el catálogo ordenado por margen para evitar deducir rentabilidad.
+      if (!isCollaborator) {
+        const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
+        if (marginDiff !== 0) return marginDiff
+      }
 
-      // 4. Criterio de desempate final: orden alfabético
+      // 4. Criterio de desempate final (o principal para colaboradores): orden alfabético
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
     })
-  }, [products])
+  }, [products, isCollaborator])
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -89,60 +93,90 @@ export default function DashboardPage() {
 
           <section className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Hola, Administrador</h1>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Hola, {isCollaborator ? 'Colaborador' : 'Administrador'}
+              </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Aquí tienes el resumen de rentabilidad de tu negocio en tiempo real.
+                {isCollaborator
+                  ? 'Aquí tienes el catálogo de productos actualizado.'
+                  : 'Aquí tienes el resumen de rentabilidad de tu negocio en tiempo real.'}
               </p>
             </div>
-            <div className="hidden items-center gap-3 md:flex">
-              <Link
-                href="/insumos"
-                className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-              >
-                Actualizar Insumos
-              </Link>
-              <Link
-                href="/productos/nuevo"
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700"
-              >
-                <Plus className="size-4" /> Nuevo Producto
-              </Link>
-            </div>
+            {!isCollaborator && (
+              <div className="hidden items-center gap-3 md:flex">
+                <Link
+                  href="/insumos"
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  Actualizar Insumos
+                </Link>
+                <Link
+                  href="/productos/nuevo"
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700"
+                >
+                  <Plus className="size-4" /> Nuevo Producto
+                </Link>
+              </div>
+            )}
           </section>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <section className="flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-800/80 dark:bg-rose-950/40">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-md shadow-rose-500/20">
-                <AlertTriangle className="size-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
-                  {riskProductsCount} {riskProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
-                </p>
-                <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen por debajo del umbral mínimo</p>
-              </div>
-            </section>
+          {/* Tarjetas de métricas: Solo visibles para ADMIN */}
+          {!isCollaborator && (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {isLoading ? (
+                <>
+                  <div className="col-span-2 lg:col-span-1 h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+                  <div className="col-span-2 lg:col-span-1 h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-24 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+                </>
+              ) : metrics ? (
+                <>
+                  <section className="col-span-2 lg:col-span-1 flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-800/80 dark:bg-rose-950/40">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-md shadow-rose-500/20">
+                      <AlertTriangle className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
+                        {metrics.criticalProductsCount} {metrics.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
+                      </p>
+                      <p className="text-xs font-medium text-rose-700 dark:text-rose-300">Margen bajo umbral</p>
+                    </div>
+                  </section>
 
-            <div className="hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex md:items-center md:gap-3.5 dark:border-gray-800 dark:bg-gray-900">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
-                <Boxes className="size-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
-                <p className="text-xl font-black text-gray-900 dark:text-white">{totalSuppliesCount} Insumos</p>
-              </div>
-            </div>
+                  <div className="col-span-2 lg:col-span-1 flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      <TrendingUp className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
+                      <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{metrics.averageMarginPercent.toFixed(1)}%</p>
+                    </div>
+                  </div>
 
-            <div className="hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex md:items-center md:gap-3.5 dark:border-gray-800 dark:bg-gray-900">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                <TrendingUp className="size-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
-                <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{avgMargin}%</p>
-              </div>
+                  <div className="flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                      <Boxes className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
+                      <p className="text-xl font-black text-gray-900 dark:text-white">{metrics.activeIngredientsCount}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300">
+                      <Activity className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400">Variaciones (7d)</p>
+                      <p className="text-xl font-black text-gray-900 dark:text-white">{metrics.recentCostVariationsCount}</p>
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </div>
-          </div>
+          )}
 
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -156,8 +190,19 @@ export default function DashboardPage() {
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-12 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <LoaderCircle className="mr-2 size-5 animate-spin text-indigo-600" /> Cargando catálogo...
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex justify-between">
+                      <div className="h-5 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                      <div className="h-5 w-16 animate-pulse rounded-full bg-gray-200 dark:bg-gray-800" />
+                    </div>
+                    <div className="mt-4 flex justify-between border-t border-gray-50 pt-3 dark:border-gray-800">
+                      <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                      <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : sortedProducts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
@@ -183,6 +228,10 @@ export default function DashboardPage() {
                           <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                             Sin Receta
                           </span>
+                        ) : isCollaborator ? (
+                          <span className="shrink-0 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                            Activo
+                          </span>
                         ) : (
                           <span
                             className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
@@ -198,7 +247,9 @@ export default function DashboardPage() {
 
                       <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
                         <span>
-                          Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
+                          {!isCollaborator && (
+                            <>Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong></>
+                          )}
                         </span>
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: {money(product.salePrice)}
