@@ -38,8 +38,6 @@ export function MarginBadge({
 
   const isCritical = Number(marginPercent) < Number(minMarginPercent)
   const formattedValue = Number(marginPercent).toFixed(1).replace(/\.0$/, '')
-  const label = isCritical ? 'Crítico' : 'Saludable'
-  const text = showValue ? `${label} (${formattedValue}%)` : label
 
   if (isCritical) {
     return (
@@ -52,7 +50,16 @@ export function MarginBadge({
         )}
       >
         <AlertTriangle className={iconSizeClasses} aria-hidden="true" />
-        <span>{text}</span>
+        <span>
+          <span>Crítico</span>
+          {showValue && (
+            <>
+              {' ('}
+              <span>{formattedValue}%</span>
+              {')'}
+            </>
+          )}
+        </span>
       </span>
     )
   }
@@ -67,7 +74,16 @@ export function MarginBadge({
       )}
     >
       <ShieldCheck className={iconSizeClasses} aria-hidden="true" />
-      <span>{text}</span>
+      <span>
+        <span>Saludable</span>
+        {showValue && (
+          <>
+            {' ('}
+            <span>{formattedValue}%</span>
+            {')'}
+          </>
+        )}
+      </span>
     </span>
   )
 }
