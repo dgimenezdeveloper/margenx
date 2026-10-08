@@ -5,6 +5,7 @@ import {
   calculateRecipeTotal,
   calculateMarginAmount,
   calculateMarginPercent,
+  calculateUnitCost,
 } from './marginCalculator';
 
 const D = (v: string | number) => new Prisma.Decimal(v);
@@ -114,5 +115,32 @@ describe('calculateMarginPercent', () => {
   it('soporta márgenes negativos y positivos extremos sin romper el parseo', () => {
     expect(calculateMarginPercent(D('2'), D('100')).toFixed(2)).toBe('-4900.00');
     expect(calculateMarginPercent(D('1000000'), D('200000')).toFixed(2)).toBe('80.00');
+  });
+});
+
+describe('calculateUnitCost', () => {
+  it('calcula 35000 / 50 = 700', () => {
+    expect(calculateUnitCost(D('35000'), D('50')).toString()).toBe('700');
+  });
+
+  it('calcula 18500 / 25 = 740', () => {
+    expect(calculateUnitCost(D('18500'), D('25')).toString()).toBe('740');
+  });
+
+  it('redondea 10000 / 3 con HALF_UP a 3333.33', () => {
+    expect(calculateUnitCost(D('10000'), D('3')).toString()).toBe('3333.33');
+  });
+
+  it('resuelve presentación fraccionaria 0.5 kg por $1.250 = 2500', () => {
+    expect(calculateUnitCost(D('1250'), D('0.5')).toString()).toBe('2500');
+  });
+
+  it('lanza un error si packageSize es 0 o negativo', () => {
+    expect(() => calculateUnitCost(D('100'), D('0'))).toThrow(/mayor a cero/i);
+    expect(() => calculateUnitCost(D('100'), D('-1'))).toThrow(/mayor a cero/i);
+  });
+
+  it('lanza un error si el resultado redondeado queda en 0.00', () => {
+    expect(() => calculateUnitCost(D('0.01'), D('100'))).toThrow(/mayor a cero/i);
   });
 });
