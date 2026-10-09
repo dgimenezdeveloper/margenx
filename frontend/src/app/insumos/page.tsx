@@ -5,7 +5,17 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, Boxes, LoaderCircle, Plus, Search, Trash2, X, History } from 'lucide-react'
+import {
+  AlertTriangle,
+  Boxes,
+  LoaderCircle,
+  Plus,
+  Search,
+  Trash2,
+  X,
+  History,
+  Truck,
+} from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -13,6 +23,7 @@ import { EmptyState } from '@/components/empty-state'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { PriceHistoryModal } from '@/components/price-history-modal'
+import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -37,9 +48,10 @@ export default function SuppliesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [showPackagingModal, setShowPackagingModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null || showHistoryModal)
+  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
   useEffect(() => {
     let active = true
@@ -76,7 +88,7 @@ export default function SuppliesPage() {
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
-    window.setTimeout(() => setToast(null), 3000)
+    window.setTimeout(() => setToast(null), 3500)
   }
 
   const filtered = useMemo(
@@ -166,6 +178,25 @@ export default function SuppliesPage() {
     }
   }
 
+  const handlePackagingSuccess = (newCost?: number) => {
+    if (newCost !== undefined && selected) {
+      setSupplies((current) =>
+        sortIngredients(
+          current.map((item) =>
+            item.id === selected.id ? { ...item, currentCost: newCost } : item
+          )
+        )
+      )
+      setSelected((prev) => (prev ? { ...prev, currentCost: newCost } : null))
+      setValue('currentCost', String(newCost), { shouldDirty: false })
+      notify(
+        `Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`
+      )
+    } else {
+      notify('Presentación mayorista asociada correctamente al proveedor.')
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {toast && <ToastAlert message={toast.message} type={toast.type} />}
@@ -177,7 +208,9 @@ export default function SuppliesPage() {
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Administra los costos de tus materias primas.</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Administra los costos de tus materias primas y empaques mayoristas.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -219,7 +252,7 @@ export default function SuppliesPage() {
             </div>
             <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
-              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">4 Productos</p>
+              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
             </div>
           </div>
 
@@ -267,6 +300,7 @@ export default function SuppliesPage() {
 
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
+                {/* Vista Mobile-First (360px cards) */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((supply) => (
                     <button
@@ -276,19 +310,26 @@ export default function SuppliesPage() {
                       className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
                     >
                       <div className="flex w-full items-start justify-between gap-2">
-                        <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{supply.name}</strong>
+                        <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
+                          {supply.name}
+                        </strong>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           Unidad: {supply.unit}
                         </span>
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">
-                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">Tocar para editar</span>
-                        <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.currentCost)}</strong>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                          Tocar para editar o ver proveedores
+                        </span>
+                        <strong className="text-sm font-black text-gray-900 dark:text-white">
+                          {money(supply.currentCost)}
+                        </strong>
                       </div>
                     </button>
                   ))}
                 </div>
 
+                {/* Vista Desktop (Tabla completa) */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -313,7 +354,9 @@ export default function SuppliesPage() {
                               {supply.unit}
                             </span>
                           </td>
-                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(supply.currentCost)}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">
+                            {money(supply.currentCost)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -329,7 +372,7 @@ export default function SuppliesPage() {
 
       <BottomNav />
 
-      {/* Modal / Bottom Sheet */}
+      {/* Modal / Bottom Sheet de Edición y Alta */}
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
           <div className="fixed inset-0" onClick={requestCloseSheet} />
@@ -350,14 +393,14 @@ export default function SuppliesPage() {
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
                     onClick={confirmDelete}
-                    className="flex-1 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition"
                   >
                     Sí, eliminar
                   </button>
@@ -379,9 +422,19 @@ export default function SuppliesPage() {
                       <>
                         <button
                           type="button"
+                          onClick={() => setShowPackagingModal(true)}
+                          className="cursor-pointer rounded-full p-2 text-indigo-600 transition hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
+                          title="Asociar empaque de proveedor"
+                          aria-label="Asociar empaque de proveedor"
+                        >
+                          <Truck className="size-5" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setShowHistoryModal(true)}
                           className="cursor-pointer rounded-full p-2 text-indigo-500 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                           title="Ver historial de precios"
+                          aria-label="Ver historial de precios"
                         >
                           <History className="size-5" />
                         </button>
@@ -390,16 +443,46 @@ export default function SuppliesPage() {
                           onClick={() => setShowDeleteConfirm(true)}
                           className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
                           title="Eliminar insumo"
+                          aria-label="Eliminar insumo"
                         >
                           <Trash2 className="size-5" />
                         </button>
                       </>
                     )}
-                    <button type="button" onClick={requestCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <button
+                      type="button"
+                      onClick={requestCloseSheet}
+                      className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                      aria-label="Cerrar modal"
+                    >
                       <X className="size-5" />
                     </button>
                   </div>
                 </div>
+
+                {/* Banner de Proveedores para insumos existentes */}
+                {selected && (
+                  <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
+                        <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                          Proveedores y Empaques
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPackagingModal(true)}
+                        className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 cursor-pointer shadow-xs inline-flex items-center gap-1"
+                      >
+                        <Plus className="size-3" /> Empaque
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                      Calcula el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
+                    </p>
+                  </div>
+                )}
 
                 {!selected && (
                   <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
@@ -457,8 +540,19 @@ export default function SuppliesPage() {
                 </label>
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" onClick={requestCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">Cancelar</button>
-                  <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+                  <button
+                    type="button"
+                    onClick={requestCloseSheet}
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition"
+                  >
+                    {selected ? 'Guardar Costo' : 'Crear Insumo'}
+                  </button>
                 </div>
               </form>
             )}
@@ -466,6 +560,7 @@ export default function SuppliesPage() {
         </div>
       )}
 
+      {/* Diálogo de descarte de cambios */}
       <UnsavedChangesDialog
         open={showDiscardConfirm}
         onConfirm={() => {
@@ -475,12 +570,23 @@ export default function SuppliesPage() {
         onCancel={() => setShowDiscardConfirm(false)}
       />
 
+      {/* Modal de Historial de Precios */}
       {selected && (
         <PriceHistoryModal
           isOpen={showHistoryModal}
           onClose={() => setShowHistoryModal(false)}
           ingredientId={selected.id}
           ingredientName={selected.name}
+        />
+      )}
+
+      {/* Modal de Proveedores y Empaque Mayorista */}
+      {selected && (
+        <SupplierPackagingModal
+          isOpen={showPackagingModal}
+          onClose={() => setShowPackagingModal(false)}
+          ingredient={selected}
+          onSuccess={handlePackagingSuccess}
         />
       )}
     </main>
