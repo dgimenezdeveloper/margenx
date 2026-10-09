@@ -214,8 +214,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 /* ------------------------------------------------------------------ */
 /* POST /api/suppliers/:id/ingredients                                  */
-/* Asocia un insumo a un proveedor con presentación mayorista.         */
-/* 201 Created | 400 Validación fallida | 401 No autenticado | 404 ajeno | 409 duplicado | 500 */
+/* Asocia o actualiza un insumo con presentación mayorista (Upsert).    */
+/* 200 OK (actualizado) | 201 Created (nuevo) | 400 | 401 | 404 | 500  */
 /* ------------------------------------------------------------------ */
 router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
@@ -278,14 +278,14 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     throw new AppError(`El campo "packageUnit" debe coincidir con la unidad del insumo (${ingredient.unit}).`, 400);
   }
 
-  const duplicate = await prisma.supplierIngredient.findFirst({
+  // Comportamiento de Upsert: verificamos si ya existía la presentación
+  const existingAssociation = await prisma.supplierIngredient.findFirst({
     where: { supplierId, ingredientId },
-    select: { id: true },
+    select: { id: true, isDefault: true },
   });
 
-  if (duplicate) {
-    throw new AppError('Ya existe una asociación de este insumo con el proveedor.', 409);
-  }
+  const isUpdate = Boolean(existingAssociation);
+  const statusCode = isUpdate ? 200 : 201;
 
   let unitCost: Prisma.Decimal;
   try {
@@ -298,8 +298,6 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   }
 
   const associationData = {
-    supplierId,
-    ingredientId,
     packageSize: parsedPackageSize,
     packageUnit: normalizedPackageUnit,
     packagePrice: parsedPackagePrice,
@@ -307,21 +305,39 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   };
 
   if (!isDefault) {
-    const supplierIngredient = await prisma.supplierIngredient.create({
-      data: associationData,
-    });
+    const supplierIngredient = existingAssociation
+      ? await prisma.supplierIngredient.update({
+          where: { id: existingAssociation.id },
+          data: associationData,
+        })
+      : await prisma.supplierIngredient.create({
+          data: {
+            supplierId,
+            ingredientId,
+            ...associationData,
+          },
+        });
 
-    return res.status(201).json({ supplierIngredient, unitCost });
+    return res.status(statusCode).json({ supplierIngredient, unitCost, ingredient });
   }
 
   const result = await prisma.$transaction(async (tx: any) => {
-    const created = await tx.supplierIngredient.create({
-      data: associationData,
-    });
+    const supplierIngredient = existingAssociation
+      ? await tx.supplierIngredient.update({
+          where: { id: existingAssociation.id },
+          data: associationData,
+        })
+      : await tx.supplierIngredient.create({
+          data: {
+            supplierId,
+            ingredientId,
+            ...associationData,
+          },
+        });
 
     if (typeof tx.supplierIngredient.updateMany === 'function') {
       await tx.supplierIngredient.updateMany({
-        where: { ingredientId, id: { not: created.id } },
+        where: { ingredientId, id: { not: supplierIngredient.id } },
         data: { isDefault: false },
       });
     }
@@ -345,13 +361,13 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     await applyIngredientCostChange(tx, ingredientId, previousCost, unitCost);
 
     return {
-      supplierIngredient: created,
+      supplierIngredient,
       ingredient: updatedIngredient,
       unitCost,
     };
   });
 
-  return res.status(201).json({
+  return res.status(statusCode).json({
     supplierIngredient: result.supplierIngredient,
     unitCost: result.unitCost,
     ingredient: result.ingredient,
@@ -360,7 +376,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
 
 /* ------------------------------------------------------------------ */
 /* DELETE /api/suppliers/:id                                            */
-/* Elimina un proveedor. SupplierIngredient se elimina en cascada (onDelete: Cascade) pero los insumos NO. */
+/* Elimina un proveedor. SupplierIngredient se elimina en cascada pero los insumos NO. */
 /* 200 OK | 401 No autenticado | 404 No encontrado/ajeno | 500         */
 /* ------------------------------------------------------------------ */
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
