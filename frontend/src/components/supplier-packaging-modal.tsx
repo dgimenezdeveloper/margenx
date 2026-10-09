@@ -20,7 +20,7 @@ import {
   supplierPackagingSchema,
   type SupplierPackagingFormValues,
 } from '@/schemas/supplierPackagingSchema'
-import { supplierService, type Supplier } from '@/services/supplierService'
+import { supplierService, type Supplier, type SupplierIngredient } from '@/services/supplierService'
 import type { Ingredient } from '@/services/ingredientService'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { ApiError } from '@/services/api'
@@ -29,7 +29,8 @@ interface SupplierPackagingModalProps {
   isOpen: boolean
   onClose: () => void
   ingredient: Ingredient
-  onSuccess: (newUnitCost?: number) => void
+  existingConnection?: SupplierIngredient
+  onSuccess: (newUnitCost?: number, connection?: SupplierIngredient) => void
 }
 
 const money = (val: number) =>
@@ -39,6 +40,7 @@ export function SupplierPackagingModal({
   isOpen,
   onClose,
   ingredient,
+  existingConnection,
   onSuccess,
 }: SupplierPackagingModalProps) {
   const { getToken } = useAuth()
@@ -47,12 +49,10 @@ export function SupplierPackagingModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorBanner, setErrorBanner] = useState<string | null>(null)
 
-  // Alta en caliente de proveedor si no existe ninguno
   const [isAddingQuickSupplier, setIsAddingQuickSupplier] = useState(false)
   const [quickSupplierName, setQuickSupplierName] = useState('')
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false)
 
-  // Normalización de la unidad según contrato de backend ('kg' | 'l' | 'u')
   const normalizedBaseUnit = useMemo<'kg' | 'l' | 'u'>(() => {
     const raw = ingredient.unit.toLowerCase()
     if (raw === 'litro' || raw === 'l') return 'l'
@@ -76,11 +76,11 @@ export function SupplierPackagingModal({
   } = useForm<z.input<typeof supplierPackagingSchema>, undefined, SupplierPackagingFormValues>({
     resolver: zodResolver(supplierPackagingSchema),
     defaultValues: {
-      supplierId: '',
-      packageSize: '',
-      packageUnit: normalizedBaseUnit,
-      packagePrice: '',
-      isDefault: false,
+      supplierId: existingConnection?.supplierId || '',
+      packageSize: existingConnection ? String(existingConnection.packageSize) : '',
+      packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
+      packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
+      isDefault: existingConnection?.isDefault || false,
     },
   })
 
@@ -88,23 +88,33 @@ export function SupplierPackagingModal({
   const watchedPrice = useWatch({ control, name: 'packagePrice' })
   const watchedIsDefault = useWatch({ control, name: 'isDefault' })
 
-  // Cierre y reseteo ordenado desde eventos para evitar renders en cascada
   const handleClose = () => {
     setErrorBanner(null)
     setIsLoadingSuppliers(true)
     setIsAddingQuickSupplier(false)
     setQuickSupplierName('')
     reset({
-      supplierId: '',
-      packageSize: '',
-      packageUnit: normalizedBaseUnit,
-      packagePrice: '',
-      isDefault: false,
+      supplierId: existingConnection?.supplierId || '',
+      packageSize: existingConnection ? String(existingConnection.packageSize) : '',
+      packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
+      packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
+      isDefault: existingConnection?.isDefault || false,
     })
     onClose()
   }
 
-  // Carga asíncrona de proveedores de la cuenta
+  useEffect(() => {
+    if (isOpen) {
+      reset({
+        supplierId: existingConnection?.supplierId || '',
+        packageSize: existingConnection ? String(existingConnection.packageSize) : '',
+        packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
+        packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
+        isDefault: existingConnection?.isDefault || false,
+      })
+    }
+  }, [isOpen, existingConnection, normalizedBaseUnit, reset])
+
   useEffect(() => {
     if (!isOpen) return
     let active = true
@@ -114,7 +124,7 @@ export function SupplierPackagingModal({
       .then((data) => {
         if (!active) return
         setSuppliers(data)
-        if (data.length > 0 && data[0]) {
+        if (data.length > 0 && !existingConnection) {
           setValue('supplierId', data[0].id)
         }
       })
@@ -128,9 +138,8 @@ export function SupplierPackagingModal({
     return () => {
       active = false
     }
-  }, [isOpen, getToken, setValue])
+  }, [isOpen, getToken, setValue, existingConnection])
 
-  // Calculadora reactiva de costo unitario
   const numericSize = Number(watchedSize) || 0
   const numericPrice = Number(watchedPrice) || 0
 
@@ -141,7 +150,6 @@ export function SupplierPackagingModal({
     return null
   }, [numericSize, numericPrice])
 
-  // Comparativa contra costo actual del insumo
   const costDifference = useMemo(() => {
     if (calculatedUnitCost === null) return null
     const diff = calculatedUnitCost - ingredient.currentCost
@@ -193,7 +201,13 @@ export function SupplierPackagingModal({
           ? result.unitCost
           : Number(result.unitCost)
 
-      onSuccess(data.isDefault ? finalCost : undefined)
+      const selectedSupplier = suppliers.find(s => s.id === data.supplierId)
+      const newConnection: SupplierIngredient = {
+        ...result.supplierIngredient,
+        supplier: selectedSupplier ? { id: selectedSupplier.id, name: selectedSupplier.name } : undefined
+      }
+
+      onSuccess(data.isDefault ? finalCost : undefined, newConnection)
       handleClose()
     } catch (err: unknown) {
       setErrorBanner(
@@ -217,7 +231,6 @@ export function SupplierPackagingModal({
         aria-labelledby="packaging-modal-title"
         className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom md:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
       >
-        {/* Tirador para vista Mobile-First (360px) */}
         <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
         <div className="flex shrink-0 items-start justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -250,7 +263,6 @@ export function SupplierPackagingModal({
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-4 space-y-4">
-          {/* Selector de Proveedor con soporte Dark y Light mode */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label
@@ -259,7 +271,7 @@ export function SupplierPackagingModal({
               >
                 Proveedor mayorista
               </label>
-              {!isAddingQuickSupplier && (
+              {!isAddingQuickSupplier && !existingConnection && (
                 <button
                   type="button"
                   onClick={() => setIsAddingQuickSupplier(true)}
@@ -320,7 +332,8 @@ export function SupplierPackagingModal({
                 <select
                   id="supplier-select"
                   {...register('supplierId')}
-                  className="min-h-11 h-12 w-full appearance-none rounded-2xl border border-gray-200 bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                  disabled={!!existingConnection}
+                  className="min-h-11 h-12 w-full appearance-none rounded-2xl border border-gray-200 bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {suppliers.map((s) => (
                     <option
@@ -342,7 +355,6 @@ export function SupplierPackagingModal({
             )}
           </div>
 
-          {/* Formato y Tamaño de Empaque */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label
@@ -392,7 +404,6 @@ export function SupplierPackagingModal({
             </div>
           </div>
 
-          {/* Precio del Empaque */}
           <div>
             <label
               htmlFor="package-price-input"
@@ -425,7 +436,6 @@ export function SupplierPackagingModal({
             )}
           </div>
 
-          {/* CALCULADORA REACTIVA EN TIEMPO REAL */}
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/40">
             <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 mb-1.5">
               <Calculator className="size-4" />
@@ -484,7 +494,6 @@ export function SupplierPackagingModal({
             )}
           </div>
 
-          {/* Checkbox: Proveedor Predeterminado */}
           <label className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3.5 cursor-pointer dark:border-gray-800 dark:bg-gray-800/40">
             <input
               type="checkbox"
@@ -525,7 +534,7 @@ export function SupplierPackagingModal({
               ) : (
                 <Sparkles className="size-4" />
               )}
-              {isSubmitting ? 'Guardando...' : 'Asociar Empaque'}
+              {isSubmitting ? 'Guardando...' : existingConnection ? 'Actualizar Empaque' : 'Asociar Empaque'}
             </button>
           </div>
         </form>
