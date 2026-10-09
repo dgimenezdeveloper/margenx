@@ -85,9 +85,19 @@ function attachAuditListeners(page: Page) {
   })
 
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      consoleErrors.push(msg.text())
-    }
+    if (msg.type() !== 'error') return
+
+    // Chrome genera este mensaje sintético para CUALQUIER respuesta no-2xx
+    // (XHR/fetch, CSS, imágenes), independientemente de si la app lo maneja
+    // bien o no. En esta suite es ruido esperado: el 403 de /api/dashboard/metrics
+    // para un colaborador es el comportamiento RBAC correcto que estamos
+    // auditando (ver TC-RBAC-03), no un bug — la app ya lo atrapa con
+    // Promise.allSettled (dashboard/page.tsx) y no rompe el render. No
+    // enmascara errores reales: cualquier excepción de JS no controlada
+    // sigue cubierta por separado en pageErrors (listener 'pageerror' abajo).
+    if (/^Failed to load resource:/.test(msg.text())) return
+
+    consoleErrors.push(msg.text())
   })
 
   page.on('pageerror', (err) => {
