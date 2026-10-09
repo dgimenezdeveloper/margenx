@@ -84,6 +84,10 @@ jobs:
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       E2E_CLERK_TEST_EMAIL: ${{ secrets.E2E_CLERK_TEST_EMAIL }}
       E2E_CLERK_TEST_PASSWORD: ${{ secrets.E2E_CLERK_TEST_PASSWORD }}
+      # Usuario COLLABORATOR de Panadería Central — issue #127. Mismo criterio
+      # que E2E_CLERK_TEST_EMAIL arriba: va como secret (no hardcodeado) para
+      # mantener un único lugar de verdad si el equipo rota la cuenta de prueba.
+      E2E_CLERK_COLLAB_EMAIL: ${{ secrets.E2E_CLERK_COLLAB_EMAIL }}
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
@@ -143,7 +147,11 @@ jobs:
 
       - name: Ejecutar Suite E2E Completa
         working-directory: ./frontend
-        run: npx playwright test --project=chromium
+        # chromium-collaborator corre rbac-security.spec.ts autenticado como
+        # COLLABORATOR (issue #127); chromium corre el resto, autenticado
+        # como ADMIN. Son proyectos separados porque cada uno depende de un
+        # storageState de Clerk distinto (ver playwright.config.ts).
+        run: npx playwright test --project=chromium --project=chromium-collaborator
 
       - name: Subir reporte Playwright en caso de fallo
         uses: actions/upload-artifact@v4
