@@ -516,20 +516,21 @@ export default function DashboardPage() {
                         <h3 className="text-base font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
                           {product.name}
                         </h3>
-                        {/* MarginBadge: Renderizado seguro basado en datos */}
-                        {product.cost !== undefined && (
+                        {/* MarginBadge: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined && (
                           <MarginBadge
                             marginPercent={product.marginPercent}
                             minMarginPercent={product.minMarginPercent}
                             hasRecipe={hasRecipe}
                             size="md"
+                            isCollaborator={isCollaborator}
                           />
                         )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                        {/* Costo: Renderizado seguro basado en datos */}
-                        {product.cost !== undefined ? (
+                        {/* Costo: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined ? (
                           <span>
                             Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
                           </span>

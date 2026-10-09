@@ -161,19 +161,20 @@ export default function ProductsPage() {
                         <h3 className="text-sm font-bold leading-5 text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
                           {product.name}
                         </h3>
-                        {/* MarginBadge: Renderizado seguro basado en datos */}
-                        {product.cost !== undefined && (
+                        {/* MarginBadge: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined && (
                           <MarginBadge
                             marginPercent={product.marginPercent}
                             minMarginPercent={product.minMarginPercent}
                             ingredientsCount={product.ingredients.length}
                             size="sm"
+                            isCollaborator={isCollaborator}
                           />
                         )}
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between gap-2 border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800">
-                        {/* Costo: Renderizado seguro basado en datos */}
-                        {product.cost !== undefined ? (
+                        {/* Costo: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined ? (
                           <span>
                             Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
                           </span>
@@ -230,6 +231,7 @@ export default function ProductsPage() {
                                   minMarginPercent={product.minMarginPercent}
                                   ingredientsCount={product.ingredients.length}
                                   size="sm"
+                                  isCollaborator={isCollaborator}
                                 />
                               )}
                             </td>
