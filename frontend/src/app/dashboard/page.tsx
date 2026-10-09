@@ -109,8 +109,8 @@ export default function DashboardPage() {
     let highCount = 0
 
     activeRecipeProducts.forEach((p) => {
-      const margin = Number(p.marginPercent)
-      const target = Number(p.minMarginPercent)
+      const margin = p.marginPercent ?? 0
+      const target = p.minMarginPercent ?? 30
 
       if (margin < 0) {
         lossCount += 1
@@ -202,7 +202,8 @@ export default function DashboardPage() {
         return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
       }
 
-      const marginDiff = Number(a.marginPercent) - Number(b.marginPercent)
+      // Uso seguro de nullish coalescing para evitar NaN
+      const marginDiff = (a.marginPercent ?? 0) - (b.marginPercent ?? 0)
       if (marginDiff !== 0) return marginDiff
 
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
@@ -215,8 +216,10 @@ export default function DashboardPage() {
 
     return sortedProducts.filter((p) => {
       if (p.ingredients.length === 0) return false
-      const m = Number(p.marginPercent)
-      const target = Number(p.minMarginPercent)
+
+      // Uso seguro de nullish coalescing
+      const m = p.marginPercent ?? 0
+      const target = p.minMarginPercent ?? 30
 
       switch (selectedBucket) {
         case 'loss':
@@ -513,20 +516,21 @@ export default function DashboardPage() {
                         <h3 className="text-base font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
                           {product.name}
                         </h3>
-                        {/* MarginBadge: SOLO ADMIN (confidencial para colaboradores) */}
-                        {!isCollaborator && (
+                        {/* MarginBadge: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined && (
                           <MarginBadge
                             marginPercent={product.marginPercent}
                             minMarginPercent={product.minMarginPercent}
                             hasRecipe={hasRecipe}
                             size="md"
+                            isCollaborator={isCollaborator}
                           />
                         )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                        {/* Costo: SOLO ADMIN (el backend ya lo censura, la UI no lo renderiza) */}
-                        {!isCollaborator ? (
+                        {/* Costo: Renderizado seguro basado en rol y datos */}
+                        {!isCollaborator && product.cost !== undefined ? (
                           <span>
                             Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
                           </span>
