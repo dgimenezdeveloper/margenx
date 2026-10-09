@@ -16,6 +16,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config({ path: path.resolve(__dirname, '.env.test') });
 
 const authFile = path.join(__dirname, 'playwright/.auth/user.json');
+const collabAuthFile = path.join(__dirname, 'playwright/.auth/collaborator.json');
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -51,21 +52,43 @@ export default defineConfig({
     },
 
     {
+      /* Corre auth.collaborator.setup.ts, generando playwright/.auth/collaborator.json
+         con la sesión del usuario COLLABORATOR — issue #127. Separado del "setup"
+         de arriba para no pisar la sesión de ADMIN que usan el resto de las suites. */
+      name: 'setup-collaborator',
+      testMatch: /auth\.collaborator\.setup\.ts/,
+    },
+
+    {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: authFile },
       dependencies: ['setup'],
+      // rbac-security.spec.ts corre aparte, autenticado como colaborador (ver proyecto de abajo).
+      testIgnore: /rbac-security\.spec\.ts/,
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'], storageState: authFile },
       dependencies: ['setup'],
+      testIgnore: /rbac-security\.spec\.ts/,
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], storageState: authFile },
       dependencies: ['setup'],
+      testIgnore: /rbac-security\.spec\.ts/,
+    },
+
+    {
+      /* Única suite que corre autenticada como COLLABORATOR, no como ADMIN —
+         issue #127. Acotada a Chromium: alcanza para auditar ocultamiento de
+         datos financieros y no justifica triplicar el costo de CI en 3 browsers. */
+      name: 'chromium-collaborator',
+      use: { ...devices['Desktop Chrome'], storageState: collabAuthFile },
+      dependencies: ['setup-collaborator'],
+      testMatch: /rbac-security\.spec\.ts/,
     },
   ],
 
