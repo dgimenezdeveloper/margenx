@@ -108,11 +108,11 @@
 
 | Integrante | Rol en el Proyecto | Horas Sprint 0 (2 sem) | Horas Sprint 1 (2 sem) | Horas Sprint 2 (1ª sem) | Horas Sprint 3 (al corte) | Total Acumulado |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Darío Giménez** | DevOps & Automatización | 24 h | 24 h | 13 h | ~12 h | **73 h** |
-| **Federico Paal** | Lead Frontend & UX/UI Mobile-First | 22 h | 22 h | 12 h | ~12 h | **68 h** |
-| **Mauricio Barreras** | Lead Backend & Data Architect | 22 h | 22 h | 12 h | ~12 h | **68 h** |
-| **Leandro Herrera** | QA Engineer & Enlace Cliente / SM entrante | 20 h | 22 h | 12 h | ~12 h | **66 h** |
-| **TOTALES** | *(Horas acreditables de práctica)* | **88 h** | **90 h** | **49 h** | **~48 h** | **275 h** |
+| **Darío Giménez** | DevOps & Automatización | 24 h | 24 h | 13 h | 12 h | **73 h** |
+| **Federico Paal** | Lead Frontend & UX/UI Mobile-First | 22 h | 22 h | 12 h | 12 h | **68 h** |
+| **Mauricio Barreras** | Lead Backend & Data Architect | 22 h | 22 h | 12 h | 12 h | **68 h** |
+| **Leandro Herrera** | QA Engineer & Enlace Cliente / SM entrante | 20 h | 22 h | 12 h | 12 h | **66 h** |
+| **TOTALES** | *(Horas acreditables de práctica)* | **88 h** | **90 h** | **49 h** | **48 h** | **275 h** |
 
 *La columna "Horas Sprint 2 (1ª sem)" reproduce la cifra ya cerrada en `entrega-pps-sprint-2.md` (corte del día 8 de 14 de ese sprint) — es la última cifra oficial disponible para ese período, ya que la 2ª semana de Sprint 2 no quedó registrada en un entregable propio. "Horas Sprint 3" es estimación aproximada del equipo (no cronometrada), ~2-3 h diarias desde el lunes hasta este corte (10/10).*
 
