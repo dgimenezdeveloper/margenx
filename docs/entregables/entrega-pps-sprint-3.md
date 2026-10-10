@@ -5,14 +5,14 @@
 
 ---
 
-> ℹ️ **Nota sobre el corte de este reporte.**
-> El Sprint 3 arrancó el 03/10/2026 (commit `ab07bbf`, cierre del Sprint 2 / release `v0.3.0`) y cierra oficialmente el 17/10/2026 (15 días). Este envío es un **corte intermedio** (día 8 de 15, sprint todavía abierto): se adelanta a hoy 10/10 en lugar del sábado próximo, para incorporar los cambios de formato que pidió la cátedra antes de esa fecha. Una historia sigue sin cerrar al momento de este corte (`#152` en revisión); `#129` se mergeó esa misma tarde del 10/10 (PR #157), ya reflejado en este reporte.
+> ℹ️ **Nota sobre el cierre de este reporte.**
+> El Sprint 3 arrancó el 03/10/2026 (commit `ab07bbf`, cierre del Sprint 2 / release `v0.3.0`). La cátedra actualizó el cronograma académico y el equipo se acopló a esa estructura: el cierre de Sprint 3 se adelantó a hoy, 10/10/2026, para seguir el nuevo cronograma de la profesora. Este reporte es el **cierre formal de Sprint 3**. Una historia queda abierta al cierre (`#152`, en revisión); `#129` se mergeó esa misma tarde del 10/10 (PR #157), ya reflejado en este reporte.
 
 ---
 
 ### 1. Sprint, fechas e integrantes que participaron
 
-- **Sprint 3 (Gestión de Proveedores, RBAC y Blindaje Financiero):** 03/10/2026 al 17/10/2026 (15 días) · **Corte de este reporte: 10/10/2026 (día 8 de 15, corte intermedio adelantado — ver nota arriba).**
+- **Sprint 3 (Gestión de Proveedores, RBAC y Blindaje Financiero):** 03/10/2026 al 10/10/2026 (cierre adelantado por cambio de cronograma de la cátedra — ver nota arriba) · **Corte de este reporte: 10/10/2026 — cierre formal de Sprint 3.**
 - **Integrantes que participaron:**
   - **Darío Giménez:** Scrum Master (rol rotativo, Sprint 2) saliente · DevOps & Automatización.
   - **Federico Paal:** Lead Frontend & UX/UI Mobile-First.
@@ -98,7 +98,7 @@
 - **Resuelto:** El entorno local de QA tenía el Prisma Client y las migraciones desactualizadas respecto al schema con los nuevos modelos de proveedores, lo que bloqueaba validar la colección Postman del `#128` con un 401/error de cliente desactualizado → se resolvió corriendo `prisma generate` + `migrate deploy` + `db seed` antes de validar.
 - **Resuelto:** `#152` (PR #156) dependía de un comportamiento de backend (upsert sin error 409) que todavía no estaba en `develop` cuando se abrió el PR → quedó bloqueado hasta mergear `#153` (PR #155), que ya se mergeó hoy 10/10.
 - **Resuelto:** `#129` (PR #157) se aprobó y mergeó el 10/10 a pedido del SM. Queda como seguimiento técnico, no bloqueante para el cierre de la historia: el ítem del DoD de la issue sobre el webhook de n8n que alerte a Discord ante un uso de memoria de la VPS superior al 85% no se implementó en este PR — a cargar como tarea técnica aparte si el equipo decide sostener ese criterio.
-- **Resuelto:** el corte de este reporte (día 8 de 15) es un corte intermedio adelantado a pedido de la cátedra, para incorporar los cambios de formato solicitados antes del envío regular del sábado próximo — el cierre formal de Sprint 3 sigue siendo el 17/10.
+- **Resuelto:** el cierre de Sprint 3 se adelantó a hoy (10/10) porque la cátedra actualizó el cronograma académico y el equipo se acopló a esa estructura — no por un adelanto o atraso del trabajo interno del equipo.
 - **Activo (interno):** `#152` en revisión, pendiente de aprobación final.
 - **Activo (interno):** la corrección del Sprint Review del 03/10 sobre "eliminar el deslogueo cada 15 minutos" todavía no tiene una issue abierta en el repositorio — pendiente de cargar y resolver.
 
@@ -124,7 +124,7 @@
 - **Evaluar el webhook de Discord** pendiente del DoD de `#129` (alerta de saturación de memoria de la VPS) y, si el equipo lo sostiene como criterio, cargarlo como tarea técnica aparte.
 - **Cargar y resolver la issue pendiente** sobre el deslogueo automático cada 15 minutos (corrección del Sprint Review 03/10).
 - **Ejecutar `#126` en terreno:** visita presencial a Panadería Central y Química GyJ siguiendo `docs/qa/protocolo-pruebas-insitu-sprint3.md`, completar la bitácora de evidencia y redactar + firmar el acta de conformidad en `docs/retrospectivas/`.
-- **Cierre formal de Sprint 3:** 17/10/2026 — entregable de cierre con el resto de las historias cerradas y el acta de `#126`.
+- **Iniciar Sprint 4** llevando como carry-over lo que queda abierto al cierre de Sprint 3: `#152` en revisión, el webhook de Discord pendiente, la issue del deslogueo y la ejecución en terreno de `#126`.
 
 ---
 <!-- SALTO DE PÁGINA PARA EXPORTAR A PDF -->
