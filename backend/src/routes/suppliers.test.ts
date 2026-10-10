@@ -20,6 +20,8 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
 const supplierIngredientCreateMock = vi.fn();
+const supplierIngredientUpdateMock = vi.fn();
+const supplierIngredientUpdateManyMock = vi.fn();
 const supplierIngredientFindFirstMock = vi.fn();
 const ingredientFindFirstMock = vi.fn();
 const ingredientUpdateMock = vi.fn();
@@ -29,8 +31,11 @@ const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
-    supplierIngredient: { create: supplierIngredientCreateMock },
-    supplierIngredientFindFirst: supplierIngredientFindFirstMock,
+    supplierIngredient: {
+      create: supplierIngredientCreateMock,
+      update: supplierIngredientUpdateMock,
+      updateMany: supplierIngredientUpdateManyMock,
+    },
     ingredient: { findFirst: ingredientFindFirstMock, update: ingredientUpdateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
     product: { findUnique: productFindUniqueMock, update: productUpdateMock },
@@ -50,6 +55,8 @@ vi.mock('../lib/prisma', () => ({
     },
     supplierIngredient: {
       create: (...args: unknown[]) => supplierIngredientCreateMock(...args),
+      update: (...args: unknown[]) => supplierIngredientUpdateMock(...args),
+      updateMany: (...args: unknown[]) => supplierIngredientUpdateManyMock(...args),
       findFirst: (...args: unknown[]) => supplierIngredientFindFirstMock(...args),
     },
     ingredient: {
@@ -87,6 +94,8 @@ beforeEach(() => {
   updateMock.mockReset();
   deleteMock.mockReset();
   supplierIngredientCreateMock.mockReset();
+  supplierIngredientUpdateMock.mockReset();
+  supplierIngredientUpdateManyMock.mockReset();
   supplierIngredientFindFirstMock.mockReset();
   ingredientFindFirstMock.mockReset();
   ingredientUpdateMock.mockReset();
@@ -476,8 +485,8 @@ describe('DELETE /api/suppliers/:id', () => {
   });
 });
 
-describe('POST /api/suppliers/:id/ingredients', () => {
-  it('crea la asociación y actualiza el insumo cuando es predeterminado', async () => {
+describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
+  it('crea la asociación y actualiza el insumo con status 201 Created cuando es predeterminado', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
     ingredientFindFirstMock.mockResolvedValue({
       id: 'ing-1',
@@ -512,11 +521,88 @@ describe('POST /api/suppliers/:id/ingredients', () => {
     expect(res.status).toBe(201);
     expect(res.body.unitCost.toString()).toBe('700');
     expect(res.body.supplierIngredient).toEqual(expect.objectContaining({ isDefault: true }));
+    expect(supplierIngredientCreateMock).toHaveBeenCalled();
     expect(ingredientUpdateMock).toHaveBeenCalled();
     expect(priceHistoryCreateMock).toHaveBeenCalled();
   });
 
-  it('si isDefault es false no actualiza ingredient ni crea historial ni recalcula productos', async () => {
+  it('actualiza una asociación existente respondiendo 200 OK (sin 409 Conflict) y registra PriceHistory', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Cañuelas' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({
+      id: 'si-existente',
+      isDefault: true,
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'si-existente',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('40000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('800.00'),
+    });
+    priceHistoryCreateMock.mockResolvedValue({ id: 'ph-nuevo' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '40000', isDefault: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.unitCost.toString()).toBe('800');
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'si-existente' },
+      })
+    );
+    expect(priceHistoryCreateMock).toHaveBeenCalled();
+  });
+
+  it('no crea PriceHistory en actualización si el costo unitario no varió', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Cañuelas' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({
+      id: 'si-existente',
+      isDefault: true,
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'si-existente',
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: true });
+
+    expect(res.status).toBe(200);
+    expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('si isDefault es false en nueva asociación no actualiza ingredient ni crea historial', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
     ingredientFindFirstMock.mockResolvedValue({
       id: 'ing-1',
@@ -536,6 +622,25 @@ describe('POST /api/suppliers/:id/ingredients', () => {
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
     expect(productUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('si isDefault es false en asociación existente responde 200 y no toca ingredient', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      unit: 'kg',
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1' });
+    supplierIngredientUpdateMock.mockResolvedValue({ id: 'si-1', isDefault: false });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: false });
+
+    expect(res.status).toBe(200);
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+    expect(priceHistoryCreateMock).not.toHaveBeenCalled();
   });
 
   it('devuelve 400 si packageUnit no coincide con la unidad del insumo', async () => {
@@ -562,7 +667,7 @@ describe('POST /api/suppliers/:id/ingredients', () => {
     expect(res.body.error).toMatch(/costo unitario|mayor a cero|superar/i);
   });
 
-  it('devuelve 404 si el proveedor es ajeno', async () => {
+  it('devuelve 404 si el proveedor es ajeno a la cuenta', async () => {
     findFirstMock.mockResolvedValue(null);
 
     const res = await request(buildApp())
@@ -571,19 +676,6 @@ describe('POST /api/suppliers/:id/ingredients', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Proveedor no encontrado.');
-  });
-
-  it('devuelve 409 si la asociación ya existe', async () => {
-    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
-    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
-    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1' });
-
-    const res = await request(buildApp())
-      .post('/api/suppliers/s-1/ingredients')
-      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000' });
-
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('Ya existe una asociación de este insumo con el proveedor.');
   });
 
   it('ignora accountId enviado en el body', async () => {

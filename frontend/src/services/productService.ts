@@ -9,10 +9,10 @@ export interface Product {
   id: string
   name: string
   salePrice: number
-  minMarginPercent: number
-  cost: number
-  marginAmount: number
-  marginPercent: number
+  minMarginPercent?: number
+  cost?: number
+  marginAmount?: number
+  marginPercent?: number
   ingredients: ProductIngredient[]
   updatedAt?: string
 }
@@ -24,7 +24,7 @@ export interface ProductIngredient {
     id: string
     name: string
     unit: string
-    currentCost: number
+    currentCost?: number
   }
 }
 
@@ -44,14 +44,14 @@ type RawProduct = Omit<
   'salePrice' | 'minMarginPercent' | 'cost' | 'marginAmount' | 'marginPercent' | 'ingredients'
 > & {
   salePrice: number | string
-  minMarginPercent: number | string
-  cost: number | string
-  marginAmount: number | string
-  marginPercent: number | string
+  minMarginPercent?: number | string
+  cost?: number | string
+  marginAmount?: number | string
+  marginPercent?: number | string
   ingredients?: Array<
     Omit<ProductIngredient, 'quantity' | 'ingredient'> & {
       quantity: number | string
-      ingredient?: { id: string; name: string; unit: string; currentCost: number | string }
+      ingredient?: { id: string; name: string; unit: string; currentCost?: number | string }
     }
   >
 }
@@ -76,17 +76,17 @@ function normalizeProduct(product: RawProduct): Product {
     ...product,
     name: typeof product.name === 'string' ? product.name.replace(/(^|\s)\S/g, (t) => t.toUpperCase()) : String(product.name),
     salePrice: Number(product.salePrice),
-    minMarginPercent: Number(product.minMarginPercent),
-    cost: Number(product.cost),
-    marginAmount: Number(product.marginAmount),
-    marginPercent: Number(product.marginPercent),
+    minMarginPercent: product.minMarginPercent !== undefined ? Number(product.minMarginPercent) : undefined,
+    cost: product.cost !== undefined ? Number(product.cost) : undefined,
+    marginAmount: product.marginAmount !== undefined ? Number(product.marginAmount) : undefined,
+    marginPercent: product.marginPercent !== undefined ? Number(product.marginPercent) : undefined,
     ingredients: (product.ingredients ?? []).map((item) => ({
       ...item,
       quantity: Number(item.quantity),
       ingredient: item.ingredient
         ? {
             ...item.ingredient,
-            currentCost: Number(item.ingredient.currentCost),
+            currentCost: item.ingredient.currentCost !== undefined ? Number(item.ingredient.currentCost) : undefined,
           }
         : undefined,
     })),
