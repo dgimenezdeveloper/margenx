@@ -131,15 +131,37 @@ describe('GET /api/ingredients - paginación', () => {
 });
 
 describe('GET /api/ingredients/:id', () => {
-  it('devuelve 200 con el insumo si pertenece a la cuenta', async () => {
-    const ingredient = { id: 'ing-1', accountId: 'account-1', name: 'Harina' };
+  it('devuelve 200 con el insumo incluyendo proveedores asociados si pertenece a la cuenta', async () => {
+    const ingredient = {
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina',
+      suppliers: [
+        {
+          id: 'si-1',
+          packageSize: '50.000',
+          packagePrice: '35000.00',
+          isDefault: true,
+          supplier: { id: 's-1', name: 'Molino Cañuelas' },
+        },
+      ],
+    };
     findFirstMock.mockResolvedValue(ingredient);
 
     const res = await request(buildApp()).get('/api/ingredients/ing-1');
 
     expect(res.status).toBe(200);
     expect(res.body.ingredient).toEqual(ingredient);
-    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: 'ing-1', accountId: 'account-1' } });
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1', accountId: 'account-1' },
+      include: {
+        suppliers: {
+          include: {
+            supplier: true,
+          },
+        },
+      },
+    });
   });
 
   it('devuelve 404 si el insumo no existe o es de otra cuenta', async () => {
@@ -271,7 +293,6 @@ describe('PUT /api/ingredients/:id', () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1' });
     const updated = { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '120.00' };
     updateMock.mockResolvedValue(updated);
-    // El insumo no está en la receta de ningún producto → no hay cascada que recalcular.
     productIngredientFindManyMock.mockResolvedValue([]);
 
     const res = await request(buildApp())
@@ -335,7 +356,6 @@ describe('PUT /api/ingredients/:id', () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1' });
     updateMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg', currentCost: '150.00' });
 
-    // El insumo aparece en la receta de dos productos distintos.
     productIngredientFindManyMock.mockResolvedValue([
       { productId: 'prod-1' },
       { productId: 'prod-2' },
@@ -357,18 +377,17 @@ describe('PUT /api/ingredients/:id', () => {
       .send({ name: 'Harina', unit: 'kg', currentCost: '150.00' });
 
     expect(res.status).toBe(200);
-    // cost = 2 * 150 = 300.00 ; margin = 200 - 300 = -100.00 ; marginPercent = (200-300)/200*100 = -50.00
     expect(productUpdateMock).toHaveBeenCalledTimes(2);
     expect(productUpdateMock).toHaveBeenCalledWith({
       where: { id: 'prod-1' },
       data: {
-        cost: expect.objectContaining({ d: expect.anything() }), // Prisma.Decimal
+        cost: expect.objectContaining({ d: expect.anything() }),
         marginAmount: expect.anything(),
         marginPercent: expect.anything(),
       },
     });
-    // Verifica los valores calculados en la primera llamada a productUpdateMock
-        const firstCall = productUpdateMock.mock.calls[0];
+
+    const firstCall = productUpdateMock.mock.calls[0];
     expect(firstCall).toBeDefined();
     const firstCallArgs = firstCall![0] as {
       data: { cost: Prisma.Decimal; marginAmount: Prisma.Decimal; marginPercent: Prisma.Decimal };
@@ -382,8 +401,6 @@ describe('PUT /api/ingredients/:id', () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1' });
     updateMock.mockResolvedValue({ id: 'ing-1' });
 
-    // Caso defensivo: mismo productId dos veces (no debería pasar con la FK real,
-    // pero el código dedupea con un Set — este test documenta ese comportamiento).
     productIngredientFindManyMock.mockResolvedValue([
       { productId: 'prod-1' },
       { productId: 'prod-1' },
