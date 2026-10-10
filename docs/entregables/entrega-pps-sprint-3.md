@@ -98,3 +98,112 @@
 - **Resuelto:** El entorno local de QA tenía el Prisma Client y las migraciones desactualizadas respecto al schema con los nuevos modelos de proveedores, lo que bloqueaba validar la colección Postman del `#128` con un 401/error de cliente desactualizado → se resolvió corriendo `prisma generate` + `migrate deploy` + `db seed` antes de validar.
 - **Resuelto:** `#152` (PR #156) dependía de un comportamiento de backend (upsert sin error 409) que todavía no estaba en `develop` cuando se abrió el PR → quedó bloqueado hasta mergear `#153` (PR #155), que ya se mergeó hoy 10/10.
 - **Resuelto:** `#129` (PR #157) se aprobó y mergeó el 10/10 a pedido del SM. Queda como seguimiento técnico, no bloqueante para el cierre de la historia: el ítem del DoD de la issue sobre el webhook de n8n que alerte a Discord ante un uso de memoria de la VPS superior al 85% no se implementó en este PR — a cargar como tarea técnica aparte si el equipo decide sostener ese criterio.
+- **Activo / requiere de la cátedra:** definir si el corte de este reporte (día 7-8 de 14) cuenta como cierre formal de Sprint 3 o como checkpoint intermedio — ver nota al inicio del documento.
+- **Activo (interno):** `#152` en revisión, pendiente de aprobación final.
+- **Activo (interno):** la corrección del Sprint Review del 03/10 sobre "eliminar el deslogueo cada 15 minutos" todavía no tiene una issue abierta en el repositorio — pendiente de cargar y resolver.
+
+---
+
+### 6. Horas dedicadas por integrante
+
+| Integrante | Rol en el Proyecto | Horas Sprint 0 (2 sem) | Horas Sprint 1 (2 sem) | Horas Sprint 2 (1ª sem) | Horas Sprint 3 (al corte) | Total Acumulado |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Darío Giménez** | DevOps & Automatización | 24 h | 24 h | 13 h | ~12 h | **73 h** |
+| **Federico Paal** | Lead Frontend & UX/UI Mobile-First | 22 h | 22 h | 12 h | ~12 h | **68 h** |
+| **Mauricio Barreras** | Lead Backend & Data Architect | 22 h | 22 h | 12 h | ~12 h | **68 h** |
+| **Leandro Herrera** | QA Engineer & Enlace Cliente / SM entrante | 20 h | 22 h | 12 h | ~12 h | **66 h** |
+| **TOTALES** | *(Horas acreditables de práctica)* | **88 h** | **90 h** | **49 h** | **~48 h** | **275 h** |
+
+*La columna "Horas Sprint 2 (1ª sem)" reproduce la cifra ya cerrada en `entrega-pps-sprint-2.md` (corte del día 8 de 14 de ese sprint) — es la última cifra oficial disponible para ese período, ya que la 2ª semana de Sprint 2 no quedó registrada en un entregable propio. "Horas Sprint 3" es estimación aproximada del equipo (no cronometrada), ~2-3 h diarias desde el lunes hasta este corte (10/10).*
+
+---
+
+### 7. Compromiso del próximo período
+
+- **Cerrar `#152`** (PR #156, ya desbloqueado tras mergear `#153`): re-ejecutar la validación manual contra `develop` actualizado y aprobar.
+- **Evaluar el webhook de Discord** pendiente del DoD de `#129` (alerta de saturación de memoria de la VPS) y, si el equipo lo sostiene como criterio, cargarlo como tarea técnica aparte.
+- **Cargar y resolver la issue pendiente** sobre el deslogueo automático cada 15 minutos (corrección del Sprint Review 03/10).
+- **Ejecutar `#126` en terreno:** visita presencial a Panadería Central y Química GyJ siguiendo `docs/qa/protocolo-pruebas-insitu-sprint3.md`, completar la bitácora de evidencia y redactar + firmar el acta de conformidad en `docs/retrospectivas/`.
+- **Confirmar con la cátedra** el encuadre del corte de este reporte (ver nota inicial) antes de planificar la fecha de cierre real de Sprint 3.
+
+---
+<!-- SALTO DE PÁGINA PARA EXPORTAR A PDF -->
+---
+
+### DOCUMENTACIÓN TÉCNICA DE BASE
+
+#### 1. Requerimientos Funcionales y No Funcionales
+
+Lista base (Sprint 1), vigente: **RF:** RF-01 (ABM Insumos), RF-02 (Alta Productos), RF-03 (Recetas compuestas BOM), RF-04 (Costo total elaboración), RF-05 (Cálculo de margen nominal en pesos y porcentaje), RF-06 (Umbral de margen mínimo), RF-07 (Semáforo visual: verde ≥ 30% y rojo < 30%), RF-08 (Recálculo en cascada), RF-09 (Sorting server-side), RF-10 (Multi-tenant estricto por `accountId`), RF-11 (Roles Admin/Colaborador), RF-12 (Ocultamiento de márgenes a Colaborador), RF-16 (Productos sin costear/borrador). **RNF:** RNF-01 (Carga < 2s), RNF-02 (Mobile-First 360px), RNF-03 (Auth JWT asimétrico Clerk), RNF-04 (Recálculo reactivo en cliente), RNF-05 (Validación Zod estricta), RNF-06 (Error handling uniforme `{"error": "..."}`), RNF-08 (Borrado seguro `409 Conflict` en insumos usados en recetas).
+
+**Extensión funcional del Sprint 3** *(sin numeración RF/RNF formal asignada todavía en la documentación base — pendiente de incorporar al listado oficial)*: gestión de proveedores y presentaciones de empaque mayorista con cálculo de costo unitario equivalente (`#116`–`#118`, `#124`, `#153`); registro automático de historial de precios (`#117`, `#125`); sanitización server-side de campos financieros para el rol `COLLABORATOR`, con doble barrera (backend + UI) (`#119`, `#123`, `#149`); endpoints consolidados de métricas para el Dashboard (`#120`, `#121`); límites de memoria y rotación de logs por contenedor en la VPS (`#129`).
+
+#### 2. Backlog y Estimación del Sprint 3
+
+🔗 **Tablero Oficial en Vivo:** [github.com/users/dgimenezdeveloper/projects/7](https://github.com/users/dgimenezdeveloper/projects/7)
+
+| Módulo / Área Técnica | Historias / Tareas del Sprint 3 | Estimación Total | Estado al corte |
+| :--- | :--- | :---: | :---: |
+| **Backend & Datos** | `#116`–`#120` Proveedores, empaques, RBAC, métricas · `#153` Upsert de precios | **19 SP** | 100% Done |
+| **Frontend & UX** | `#121`–`#125` Dashboard, semáforo, RBAC UI, proveedores, historial · `#149` Blindaje UI · `#152` Comparativa proveedores | **21 SP** | 86% Done / 14% En Revisión |
+| **QA & Testing** | `#126` Protocolo in-situ · `#127` E2E RBAC · `#128` Postman precisión | **8 SP** | 100% Done* |
+| **DevOps & Infra** | `#129` Optimización Docker/VPS | **3 SP** | 100% Done |
+| **TOTAL SPRINT 3** | **17 Historias priorizadas (P1 a P3)** | **51 SP** | **94.1% Completado al corte** |
+
+\* `#126` completo en su alcance documental; la ejecución presencial queda fuera de este corte (ver Sección 5).
+
+#### 3. Modelo de Datos (extendido en Sprint 3)
+
+```mermaid
+erDiagram
+    ACCOUNT ||--o{ USER : "posee"
+    ACCOUNT ||--o{ INGREDIENT : "gestiona"
+    ACCOUNT ||--o{ PRODUCT : "cataloga"
+    ACCOUNT ||--o{ SUPPLIER : "registra"
+    PRODUCT ||--o{ PRODUCT_INGREDIENT : "compone"
+    INGREDIENT ||--o{ PRODUCT_INGREDIENT : "utiliza"
+    INGREDIENT ||--o{ PRICE_HISTORY : "audita"
+    SUPPLIER ||--o{ SUPPLIER_INGREDIENT : "ofrece"
+    INGREDIENT ||--o{ SUPPLIER_INGREDIENT : "se_compra_como"
+
+    ACCOUNT { string id PK string businessName string subscriptionPlan boolean isActive datetime trialEndsAt decimal defaultMinMarginPercent }
+    USER { string id PK string accountId FK string email UK string role string authProviderId UK }
+    INGREDIENT { string id PK string accountId FK string name string unit decimal currentCost }
+    PRODUCT { string id PK string accountId FK string name decimal salePrice decimal minMarginPercent decimal cost decimal marginAmount decimal marginPercent }
+    PRODUCT_INGREDIENT { string id PK string productId FK string ingredientId FK decimal quantity }
+    SUPPLIER { string id PK string accountId FK string name string contactPhone string email string address boolean isActive }
+    SUPPLIER_INGREDIENT { string id PK string supplierId FK string ingredientId FK decimal packageSize string packageUnit decimal packagePrice boolean isDefault }
+    PRICE_HISTORY { string id PK string ingredientId FK decimal oldCost decimal newCost datetime changedAt }
+```
+
+#### 4. Diagrama de Arquitectura de Componentes (Producción)
+
+```mermaid
+graph LR
+    subgraph CLIENTE ["Frontend (React 19)"]
+        Browser["Móvil (360px) / Desktop"]
+    end
+    subgraph IDP ["Identidad"]
+        Clerk["Clerk Auth (JWT)"]
+    end
+    subgraph VPS ["VPS Donweb — Producción"]
+        Nginx["Nginx Host (SSL Let's Encrypt)"]
+        Front["frontend-prod"]
+        Back["backend-prod"]
+        DB[("PostgreSQL 16 — margenx_prod :5435")]
+        N8N["n8n Engine"]
+    end
+    Browser -->|"HTTPS margenx.tech"| Nginx
+    Browser -.->|Auth| Clerk
+    Nginx --> Front
+    Nginx -->|"api.margenx.tech"| Back
+    Back -->|Prisma| DB
+    Back -.->|Verify JWT| Clerk
+    Back -->|Webhooks| N8N
+```
+
+*Nota: diagrama actualizado tras el merge de `#129` (PR #157, 10/10) — refleja los límites de memoria efectivamente aplicados (Postgres 1 GB, n8n 512 MB, backend 512 MB c/u, frontend 128 MB c/u; techo del stack ~2.8 GB) y el puerto de Postgres ya no expuesto a internet (bindeado a `127.0.0.1:5435`).*
+
+#### 5. Definition of Done (DoD) del Equipo
+
+Una tarjeta se considera **DONE** únicamente cuando: (1) Cuenta con PR originado desde `develop` hacia `develop` con *Conventional Commits*; (2) Posee aprobación formal de al menos un par (Peer Review) y de QA; (3) 0 errores de compilación TypeScript y 0 advertencias de linter; (4) Pipeline de CI (`ci.yml`) en verde; (5) Criterios Gherkin cumplidos con datos verídicos; (6) Interfaz responsive Mobile-First verificada en 360px; (7) Consultas blindadas por `accountId` (multi-tenant); (8) Desplegado y verificado en Staging antes de promover a Producción; (9) *(incorporado en Sprint 3)* para toda respuesta de API que exponga datos financieros, verificar que el rol `COLLABORATOR` reciba el payload sanitizado tanto a nivel de red como de DOM.
