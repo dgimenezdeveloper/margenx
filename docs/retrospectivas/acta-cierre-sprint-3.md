@@ -58,19 +58,18 @@ Incorporar la **gestión de proveedores y presentaciones de empaque mayorista** 
 1. **Middleware RBAC de doble capa (backend + UI):** El acuerdo de la retro del Sprint 2 se cumplió tal cual se planificó — la sanitización en el servidor (Issue #119) y el blindaje defensivo en el cliente (Issues #123, #149) se verificaron juntos con la suite E2E (#127), sin fugas de datos financieros detectadas.
 2. **QA bloqueando merges por dependencias reales:** La revisión del PR #156 detectó correctamente que dependía de un comportamiento de backend (upsert) que todavía no estaba en `develop`, evitando que una funcionalidad rota llegara a Staging. El bloqueo se resolvió ordenadamente mergeando primero el PR #155.
 3. **Historial de precios automático:** Registrar cada variación de precio de proveedor como efecto colateral del CRUD (Issue #117) evitó tener que construir una auditoría manual después.
+4. **Flexibilidad de roles ante sobrecarga:** Frontend concentró más issues de las previstas en este Sprint; Darío (DevOps) se corrió a colaborar ahí (Issues #122, #125) y dejó la Issue #129 —simple y de bajo riesgo— para el final a propósito. Buena decisión de priorización del equipo, no un problema.
 
 ### 🔴 Qué nos generó fricción y debemos ELIMINAR (Stop)
 
-1. **Tarea de DevOps postergada hasta el final del Sprint:** La Issue #129 (optimización Docker/monitoreo VPS) quedó "Sin iniciar" hasta el último día del Sprint, lo que forzó una revisión y aprobación apuradas el mismo día del cierre. Consecuencia directa: el ítem del DoD de la Issue sobre el **webhook de alerta de Discord por saturación de memoria no se implementó**, y el PR #157 se aprobó igual por decisión del SM para no bloquear el cierre — queda como deuda técnica para el Sprint 4.
-2. **Ambiente local de QA desactualizado:** El Prisma Client y las migraciones locales de Leandro no reflejaban los nuevos modelos de proveedores, bloqueando la validación de la colección Postman del #128 con errores de cliente obsoleto. Falta un paso estándar de `prisma generate && migrate deploy && db seed` documentado para onboarding/retoma de entorno.
-3. **Dependencias entre PRs no señalizadas:** El PR #156 no dejaba explícito en su descripción que dependía del PR #155 sin mergear — el bloqueo se descubrió recién en la revisión de QA, no antes.
+1. **Ambiente local de QA desactualizado:** El Prisma Client y las migraciones locales de Leandro no reflejaban los nuevos modelos de proveedores, bloqueando la validación de la colección Postman del #128 con errores de cliente obsoleto. Falta un paso estándar de `prisma generate && migrate deploy && db seed` documentado para onboarding/retoma de entorno.
+2. **Dependencias entre PRs no señalizadas:** El PR #156 no dejaba explícito en su descripción que dependía del PR #155 sin mergear — el bloqueo se descubrió recién en la revisión de QA, no antes.
 
 ### 🟡 Qué acciones y acuerdos IMPLEMENTAREMOS en el Sprint 4 (Start)
 
-1. **No dejar tareas de DevOps/infraestructura para el cierre del Sprint:** Priorizarlas en la primera mitad para evitar aprobaciones apuradas sin cumplimiento completo del DoD.
-2. **Resolver la deuda técnica del webhook de Discord** (Issue #129, DoD pendiente) como tarea propia al inicio del Sprint 4, si el equipo sostiene ese criterio de monitoreo.
-3. **Señalizar dependencias entre PRs explícitamente** en la descripción ("Depende de #155") para que QA no las descubra recién en la revisión.
-4. **Ejecutar la validación presencial pendiente** del protocolo de pruebas in-situ (#126) en _Panadería Central_ y _Química GyJ_, con acta de conformidad firmada.
+1. **Resolver la deuda técnica del webhook de Discord** (Issue #129, ítem de DoD que quedó pendiente) como tarea propia al inicio del Sprint 4, si el equipo sostiene ese criterio de monitoreo.
+2. **Señalizar dependencias entre PRs explícitamente** en la descripción ("Depende de #155") para que QA no las descubra recién en la revisión.
+3. **Ejecutar la validación presencial pendiente** del protocolo de pruebas in-situ (#126) en _Panadería Central_ y _Química GyJ_, con acta de conformidad firmada.
 
 ---
 
@@ -91,7 +90,7 @@ Incorporar la **gestión de proveedores y presentaciones de empaque mayorista** 
 En cumplimiento de las pautas del manual operativo de MargenX, al completarse el Sprint 3 se formaliza la rotación del rol de Scrum Master.
 
 - **Scrum Master Saliente:** Leandro Herrera
-- **Scrum Master Entrante:** Federico Paal _(a confirmar)_
+- **Scrum Master Entrante:** Federico Paal
 
 ### Checklist de Traspaso Verificado:
 
