@@ -96,6 +96,8 @@ Este es el único flujo que debe funcionar de punta a punta, sin fricciones, err
 
 **Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n solo consume eventos/API y orquesta notificaciones — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
+> **Pendiente (Sprint 4):** la Issue #129 (Sprint 3) pedía además un script o webhook en n8n que alerte a Discord si el uso de memoria de la VPS supera el 85% — distinto del webhook de notificaciones de CI/CD de la Sección 0. No se implementó en el Sprint 3 (se priorizó el confinamiento de recursos en sí); queda como tarea técnica abierta.
+
 ---
 
 ## 3. Modelado y Diseño Orientado a Objetos (OOD)
@@ -104,6 +106,8 @@ Este es el único flujo que debe funcionar de punta a punta, sin fricciones, err
 [![Diagrama de Entidades](diagrama-entidades-db.png)](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
 
 [Clic sobre el diagrama o este link para abrirlo en alta resolución](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
+
+> **Extensión del modelo en Sprint 3 (pendiente de reflejar en el diagrama de Drive):** se agregaron las entidades `Supplier` (proveedor, con `accountId`, nombre, contacto, `isActive`), `SupplierIngredient` (relación N:M entre `Supplier` e `Ingredient`, con `packageSize`, `packageUnit`, `packagePrice` e `isDefault` para marcar la presentación activa que alimenta `Ingredient.currentCost`) y `PriceHistory` (auditoría de `oldCost`/`newCost`/`changedAt` por cada variación de costo de insumo). Ver `docs/entregables/entrega-pps-sprint-3.md` Sección "Documentación Técnica de Base" para el diagrama Mermaid actualizado mientras se regenera el diagrama oficial.
 
 ### Casos de Uso Principales con Manejo de Transacciones
 
@@ -149,6 +153,15 @@ Este es el único flujo que debe funcionar de punta a punta, sin fricciones, err
 7. **Job 6 — Reinicio de contenedores:** ejecuta `docker compose up -d --no-deps` sobre los servicios de frontend y backend del entorno correspondiente, sin afectar los contenedores de PostgreSQL ni n8n.
 
 **Regla de DevOps:** ningún cambio llega a `main` sin pasar por Pull Request con al menos una aprobación y el pipeline de Lint & Test en verde (ver Sección 7).
+
+### Confinamiento de Recursos en la VPS (Sprint 3, Issue #129)
+
+Para sostener los 6 contenedores de Staging y Producción dentro de los 4 GB de RAM de la VPS Donweb, se aplicaron las siguientes directivas en `infra/vps/docker-compose.prod.yml`:
+
+- **Límites de memoria** (`deploy.resources.limits.memory`): Postgres 1024 MB, n8n 512 MB, backend (prod y dev) 512 MB c/u, frontend (prod y dev) 128 MB c/u — techo total del stack ~2.8 GB, dentro del criterio Gherkin de 3.2 GB.
+- **Rotación de logs** (`json-file`, `max-size: 10m`, `max-file: 3`) en los 6 servicios, para evitar desbordes de disco.
+- **Postgres ya no expuesto a internet:** el puerto pasó de `${POSTGRES_PORT}:5432` (público) a `127.0.0.1:5435:5432` (solo loopback del host).
+- **`DATABASE_URL` por entorno:** en vez de armarse inline en el compose a partir de `POSTGRES_DB_PROD`/`POSTGRES_DB_DEV`, ahora cada servicio de backend la toma de su propio `env_file` (`.env.prod` / `.env.dev`). **Pendiente de verificar en la VPS real** que ambos archivos apuntan a bases de datos distintas (`margenx_prod` / `margenx_dev`), ya que esa separación dejó de ser visible en el archivo versionado.
 
 ---
 
@@ -269,25 +282,33 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [DEVOPS] Integración de Playwright en GitHub Actions con bloqueo de PRs defectuosos y reportes HTML (#71).
   * [DEVOPS] Puesta a punto y despliegue del entorno de Producción (`https://margenx.tech`) para la Demo oficial del MVP (#72).
 
-#### Sprint 3: Dashboard de Rentabilidad, Roles (RBAC) y Dominio Multi-Proveedor (03/10 al 16/10)
+#### Sprint 3: Dashboard de Rentabilidad, Roles (RBAC) y Dominio Multi-Proveedor (03/10 al 10/10) — [Completado*]
 * **Hito Cátedra:** Pruebas en clase con usuarios reales y QA (Clase 17/10).
-* **Entregable:** Dashboard con semáforo de rentabilidad, rol Colaborador restringido a nivel de API sin acceso a costos/márgenes, modelo de base de datos multi-proveedor con factores de conversión de empaque y protocolo de validación ejecutado con Panadería Central y Química GyJ.
+* **Nota de cierre:** el cierre se adelantó del 16/10 planificado al 10/10/2026 porque la cátedra actualizó el cronograma académico y el equipo se acopló a esa estructura (ver `docs/retrospectivas/acta-cierre-sprint-3.md`). Los números de issue reales (#116 en adelante) difieren de la numeración de placeholder de este plan original, porque el tablero de GitHub asignó los números en el orden real de carga, no en el orden planificado acá.
+* **Entregable:** Dashboard con semáforo de rentabilidad, rol Colaborador restringido a nivel de API y UI sin acceso a costos/márgenes, modelo de base de datos multi-proveedor con historial de precios y factores de conversión de empaque, y optimización de imágenes Docker con límites de memoria en la VPS. La ejecución presencial del protocolo de pruebas in-situ queda para el Sprint 4.
 * **Backend (Mauricio Barreras):**
-  * [BE] Middleware RBAC para sanitizar respuestas financieras al rol COLLABORATOR (#67 - RF-11, RF-12, RNF-09).
-  * [BE] Modelo Prisma y CRUD de Proveedores con Historial de Precios (`PriceHistory`) (#68A - RF-13, RNF-08).
-  * [BE] Lógica de Conversión de Empaques Mayoristas y Enlace a Proveedor Default (`isDefault` $\to$ `currentCost`) (#68B - RF-13).
-  * [BE] Endpoints de métricas agregadas para el Dashboard con filtros por estado de margen (#69 - RF-06, RF-09).
-* **Frontend (Federico Paal):**
-  * [FE] Semáforo de Margen con badges condicionales y gráficos comparativos con Recharts (#70 - RF-07).
-  * [FE] Adaptación de UI por Rol: ocultamiento estricto de columnas financieras a Colaboradores (#71 - RF-12).
-  * [FE] Interfaz de gestión de proveedores por insumo con calculadora de empaques mayoristas (#72A - RF-13).
-  * [FE] Componente de visualización de historial de variaciones de costo en el insumo (#72B - RF-13).
+  * [BE] Migración Prisma de los modelos `Supplier`, `SupplierIngredient` y `PriceHistory` (#116 - RF-13, Done).
+  * [BE] CRUD de Proveedores con registro automático de historial de precios (#117 - RF-13, RNF-08, Done).
+  * [BE] Lógica de conversión de empaques mayoristas a costo unitario equivalente (#118 - RF-13, Done).
+  * [BE] Middleware RBAC de sanitización financiera para el rol `COLLABORATOR` (#119 - RF-11, RF-12, RNF-09, Done).
+  * [BE] Endpoints de métricas agregadas para el Dashboard (#120 - RF-06, RF-09, Done).
+  * [BE] Upsert de precios de presentación de proveedor, reemplazando el `409 Conflict` al reasociar un insumo con un proveedor ya existente (#153 - RF-13, Done).
+* **Frontend (Federico Paal, con colaboración de Darío Giménez en #122 y #125):**
+  * [FE] Dashboard integrado con métricas reales de la API (#121 - RF-09, Done).
+  * [FE] Semáforo de Margen con Recharts y histograma de distribución de salud financiera (#122 - RF-07, Done — Darío Giménez).
+  * [FE] Adaptación de UI por Rol: ocultamiento estricto de columnas financieras a Colaboradores (#123 - RF-12, Done).
+  * [FE] Gestión de proveedores por insumo con calculadora de empaques mayoristas (#124 - RF-13, Done).
+  * [FE] Visualización del historial de variaciones de costo en el insumo (#125 - RF-13, Done — Darío Giménez).
+  * [FE] Blindaje defensivo de UI ante campos ausentes/sanitizados para `COLLABORATOR` (#149 - RNF-09, Done).
+  * [FE] Comparativa de proveedores y conmutación de predeterminado en la ficha de insumo (#152 - RF-13, **En revisión al cierre** — PR #156, desbloqueado por el upsert de #153, carry-over a Sprint 4).
 * **QA / PO (Leandro Herrera):**
-  * [QA/PO] Protocolo de pruebas in-situ con clientes reales en mobile 360px (#73).
-  * [QA] Colección Postman y tests E2E para verificación de seguridad RBAC (#74).
-  * [QA] Pruebas de precisión en factores de conversión mayorista y unidades (#74B).
+  * [QA/PO] Redacción del protocolo de pruebas in-situ con clientes reales en mobile 360px (#126 - documento mergeado; ejecución presencial pendiente para Sprint 4).
+  * [QA] Suite E2E en Playwright (`rbac-security.spec.ts`) para verificación de seguridad RBAC (#127, Done).
+  * [QA] Colección Postman/Newman de precisión en factores de conversión mayorista (#128, Done).
 * **DevOps / SM (Darío Giménez):**
-  * [DEVOPS] Optimización de imágenes Docker mediante Multi-stage builds y monitoreo de logs en VPS (#75).
+  * [DEVOPS] Optimización de imágenes Docker con multi-stage builds, límites de memoria por contenedor y rotación de logs en la VPS (#129 - RNF-01, Done — ver nota de DoD abajo).
+
+\* El ítem del DoD de la issue #129 sobre un webhook de n8n que alerte a Discord ante un uso de memoria de la VPS superior al 85% **no se implementó** en este Sprint; el PR #157 se aprobó igual por decisión del SM para no bloquear el cierre adelantado por la cátedra. Queda como deuda técnica explícita para el Sprint 4 (ver Sección 2).
 
 #### Sprint 4: Recálculo en Cascada y Automatización n8n "Zero-Click" (17/10 al 30/10)
 * **Hito Cátedra:** Presentación para el Product Owner y Pitch de venta comercial (Clase 31/10).
@@ -353,14 +374,14 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 | **RF-03** | Asociar receta de insumos a un producto. | #27, #62, #63 | **Sprint 2** |
 | **RF-04** | Cálculo de costo total según materias primas. | #27, #61, #62 | **Sprint 2** |
 | **RF-05** | Cálculo automático de margen ($ y %). | #27, #61, #64 | **Sprint 2** |
-| **RF-06** | Margen mínimo y sugerencia automática de precio de venta. | #69, #70 | **Sprint 3** |
-| **RF-07** | Alertas visuales por margen bajo (Semáforo). | #70 | **Sprint 3** |
+| **RF-06** | Margen mínimo y sugerencia automática de precio de venta. | #120, #121 | **Sprint 3** |
+| **RF-07** | Alertas visuales por margen bajo (Semáforo). | #122 | **Sprint 3** |
 | **RF-08** | Recálculo en cascada al cambiar costo de insumo. | #28, #78, #80, #81 | **Sprint 4** |
-| **RF-09** | Listado de productos ordenable por métricas. | #69, #70 | **Sprint 3** |
+| **RF-09** | Listado de productos ordenable por métricas. | #120, #121 | **Sprint 3** |
 | **RF-10** | Aislamiento multiempresa estricto. | Filtrado por `accountId` en Prisma + TC-SEC-01 | **Sprint 0 al 6** |
-| **RF-11** | Roles diferenciados (Admin vs. Colaborador). | #43, #67 | **Sprint 0 / 3** |
-| **RF-12** | Colaborador con acceso a precios de salón sin visibilidad de costos/márgenes. | #67, #71 | **Sprint 3** |
-| **RF-13** | Múltiples proveedores por insumo, mapeo SKU y factor de conversión. | #68A, #68B, #72A, #72B, #74B | **Sprint 3** |
+| **RF-11** | Roles diferenciados (Admin vs. Colaborador). | #43, #119 | **Sprint 0 / 3** |
+| **RF-12** | Colaborador con acceso a precios de salón sin visibilidad de costos/márgenes. | #119, #123, #149 | **Sprint 3** |
+| **RF-13** | Múltiples proveedores por insumo, mapeo SKU y factor de conversión. | #116, #117, #118, #124, #125, #152, #153 | **Sprint 3** |
 | **RF-14** | Ingesta masiva "Zero-Click" de listas de precios con descarte estricto. | #76A, #78B, #79, #82B | **Sprint 4** |
 | **RF-15** | Motor de compras inteligentes al proveedor de menor costo. | #83, #86, #89 | **Sprint 5** |
 | **RF-16** | Soporte de productos comerciales en estado Borrador / Sin Receta. | #27, #29, #55 | **Sprint 1 / 2** |
@@ -371,7 +392,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 
 | RNF | Criterio de Calidad | Mecanismo de Garantía en el Proyecto |
 | :---- | :---- | :---- |
-| **RNF-01** | Performance (< 2s de carga inicial). | Docker multi-stage (#75), índices relacionales en Postgres (#85) y auditoría Lighthouse (#88). |
+| **RNF-01** | Performance (< 2s de carga inicial). | Docker multi-stage con límites de memoria y rotación de logs en VPS (#129), índices relacionales en Postgres (#85) y auditoría Lighthouse (#88). |
 | **RNF-02** | Mobile-First responsive desde 360px. | Criterio obligatorio en la DoD de cada PR de Frontend + navegación BottomNav (#31, #70, #88). |
 | **RNF-03** | Autenticación y aislamiento de sesiones. | Verificación asimétrica de JWT con Clerk (#4, #29) y filtrado estricto por `accountId` (#10). |
 | **RNF-04** | Recálculo en vivo sin recargar (< 1s). | Estado reactivo con Zustand en cliente (#62, #78) para actualización instantánea sin roundtrip. |
