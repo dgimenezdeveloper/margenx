@@ -6,7 +6,7 @@
 ---
 
 > ⚠️ **Nota sobre el corte de este reporte — a resolver con la cátedra antes de entregar.**
-> El Sprint 3 arrancó el 03/10/2026 (commit `ab07bbf`, cierre del Sprint 2 / release `v0.3.0`) y las historias cargadas tienen fechas target hasta el 14–15/10/2026 — es decir, un sprint de ~14 días, igual que los anteriores. Si este reporte se entrega hoy 10/10, es el **día 7-8 de 14**: el mismo patrón de corte a mitad de sprint que la cátedra corrigió sobre la Entrega Sprint 2. Dos historias siguen sin cerrar al momento de este corte (`#129` sin iniciar, `#152` en revisión). El equipo/SM debe decidir si este envío se presenta explícitamente como **corte intermedio** (no como cierre de sprint) o si corresponde adelantar el cierre real de Sprint 3 antes de entregar.
+> El Sprint 3 arrancó el 03/10/2026 (commit `ab07bbf`, cierre del Sprint 2 / release `v0.3.0`) y las historias cargadas tienen fechas target hasta el 14–15/10/2026 — es decir, un sprint de ~14 días, igual que los anteriores. Si este reporte se entrega hoy 10/10, es el **día 7-8 de 14**: el mismo patrón de corte a mitad de sprint que la cátedra corrigió sobre la Entrega Sprint 2. Una historia sigue sin cerrar al momento de este corte (`#152` en revisión); `#129` se mergeó esa misma tarde del 10/10 (PR #157), ya reflejado en este reporte. El equipo/SM debe decidir si este envío se presenta explícitamente como **corte intermedio** (no como cierre de sprint) o si corresponde adelantar el cierre real de Sprint 3 antes de entregar.
 
 ---
 
@@ -26,7 +26,7 @@
 🔗 **Tablero oficial:** [GitHub Projects v2 MargenX](https://github.com/users/dgimenezdeveloper/projects/7)
 
 - **Compromiso total del Sprint 3:** 17 Historias / Tareas Técnicas · **51 Story Points (SP)**.
-- **Estado al corte (10/10):** 15 historias completadas (45 SP — 88.2%) · 1 historia en revisión (3 SP — 5.9%, PR abierto) · 1 historia sin iniciar (3 SP — 5.9%).
+- **Estado al corte (10/10):** 16 historias completadas (48 SP — 94.1%) · 1 historia en revisión (3 SP — 5.9%, PR abierto).
 
 | Issue | Responsable | Rol | SP | Estado | PR |
 | --- | --- | --- | --: | --- | --- |
@@ -43,12 +43,14 @@
 | `#126` SPRINT3-QA-01 Protocolo de Pruebas In-Situ (360px) | Leandro Herrera | QA | 3 | Done* | [PR #154](https://github.com/dgimenezdeveloper/margenx/pull/154) |
 | `#127` SPRINT3-QA-02 Suite E2E de Seguridad RBAC | Leandro Herrera | QA | 3 | Done | [PR #148](https://github.com/dgimenezdeveloper/margenx/pull/148) |
 | `#128` SPRINT3-QA-03 Colección Postman de Precisión de Conversión | Leandro Herrera | QA | 2 | Done | [PR #150](https://github.com/dgimenezdeveloper/margenx/pull/150) |
-| `#129` SPRINT3-DEVOPS-01 Optimización de Imágenes Docker y Monitoreo VPS | Darío Giménez | DevOps | 3 | Sin iniciar | — |
+| `#129` SPRINT3-DEVOPS-01 Optimización de Imágenes Docker y Monitoreo VPS | Darío Giménez | DevOps | 3 | Done** | [PR #157](https://github.com/dgimenezdeveloper/margenx/pull/157) |
 | `#149` SPRINT3-FE-06 Blindaje Defensivo UI ante Datos Sanitizados | Federico Paal | Frontend | 2 | Done | [PR #151](https://github.com/dgimenezdeveloper/margenx/pull/151) |
 | `#152` SPRINT3-FE-07 Comparativa de Proveedores y Conmutación de Predeterminado | Federico Paal | Frontend | 3 | En revisión | [PR #156](https://github.com/dgimenezdeveloper/margenx/pull/156) |
 | `#153` SPRINT3-BE-07 Upsert y Actualización de Precios de Proveedor | Mauricio Barreras | Backend | 2 | Done | [PR #155](https://github.com/dgimenezdeveloper/margenx/pull/155) |
 
 \* `#126` tiene el protocolo escrito mergeado, pero la ejecución presencial en los comercios piloto y el acta de conformidad siguen pendientes — ver Sección 5.
+
+\*\* `#129` quedó aprobado y mergeado el 10/10 a pedido del SM; el ítem del DoD de la issue sobre el webhook de alerta de Discord por saturación de memoria no se implementó en este PR — ver Sección 5.
 
 *Además de estas 17 historias formales, el período incluyó 8 ajustes técnicos menores de UI/UX previos al inicio formal del naming `SPRINT3-` (issues `#108`–`#115`: confirmaciones preventivas, normalización visual, redondeo de margen sugerido), ya cerrados — no se les asignó SP individual porque no siguieron el template de Historia de Usuario.*
 
@@ -63,6 +65,7 @@
   - **RBAC completo end a end:** un colaborador (`colab.panaderia@hotmail.com`) ve únicamente nombre y precio de venta en `/productos` y `/dashboard`, sin acceso a `/insumos` ni a ningún dato de costo/margen, ni en el DOM ni en la red (`#119`, `#123`, `#149`).
   - **Dashboard con métricas reales**: tarjetas de insumos activos, productos en riesgo y margen promedio calculadas sobre la cuenta real, más el histograma de distribución de salud financiera (`#120`, `#121`, `#122`).
   - **Historial de variaciones de costo** por insumo, con porcentaje de aumento/disminución (`#125`).
+  - **Límites de memoria y rotación de logs** en los 6 contenedores de la VPS, confinando el stack a ~2.8 GB (`#129`).
   - **Suite E2E de Playwright** (incluida `rbac-security.spec.ts`) y **colección Postman/Newman de precisión aritmética** corriendo en CI (`#127`, `#128`).
 
 ---
@@ -86,6 +89,7 @@
   - `b83a3aa` — Colección Postman/Newman de precisión de conversión (`#128`).
   - `4d72f15` — Blindaje defensivo UI ante datos financieros sanitizados (`#149`).
   - `aaee9b3` — Upsert y actualización de precios de presentación de proveedor (`#153`).
+  - `d939b3d` — Optimización de imágenes Docker y confinamiento de límites de memoria en VPS (`#129`).
 
 ---
 
@@ -93,8 +97,4 @@
 
 - **Resuelto:** El entorno local de QA tenía el Prisma Client y las migraciones desactualizadas respecto al schema con los nuevos modelos de proveedores, lo que bloqueaba validar la colección Postman del `#128` con un 401/error de cliente desactualizado → se resolvió corriendo `prisma generate` + `migrate deploy` + `db seed` antes de validar.
 - **Resuelto:** `#152` (PR #156) dependía de un comportamiento de backend (upsert sin error 409) que todavía no estaba en `develop` cuando se abrió el PR → quedó bloqueado hasta mergear `#153` (PR #155), que ya se mergeó hoy 10/10.
-- **Activo / requiere de la cátedra:** definir si el corte de este reporte (día 7-8 de 14) cuenta como cierre formal de Sprint 3 o como checkpoint intermedio — ver nota al inicio del documento.
-- **Activo (interno):** `#129` (optimización de imágenes Docker y monitoreo de recursos VPS) sin iniciar; `#152` en revisión, pendiente de aprobación final.
-- **Activo (interno):** la corrección del Sprint Review del 03/10 sobre "eliminar el deslogueo cada 15 minutos" todavía no tiene una issue abierta en el repositorio — pendiente de cargar y resolver.
-
----
+- **Resuelto:** `#129` (PR #157) se aprobó y mergeó el 10/10 a pedido del SM. Queda como seguimiento técnico, no bloqueante para el cierre de la historia: el ítem del DoD de la issue sobre el webhook de n8n que alerte a Discord ante un uso de memoria de la VPS superior al 85% no se implementó en este PR — a cargar como tarea técnica aparte si el equipo decide sostener ese criterio.
