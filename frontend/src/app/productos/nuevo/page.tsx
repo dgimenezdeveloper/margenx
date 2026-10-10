@@ -62,13 +62,27 @@ export default function NewProductPage() {
   // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
-  // Estado del botón activo en la botonera de ajuste rápido (+5%, +10%, target)
-  const [activeStrategy, setActiveStrategy] = useState<'5' | '10' | 'target'>('target')
+  // Estado de intercepción para eliminar insumo de la receta
+  const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
+
+  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
+  const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
+
+  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
+  const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerFlash = (key: '5' | '10') => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlashingKey(key)
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingKey(null)
+    }, 180)
+  }
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
   }
-  
 
   useEffect(() => {
     if (!toast) return
@@ -88,7 +102,6 @@ export default function NewProductPage() {
   const items = useRecipeStore((s: RecipeState) => s.items)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
-  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
   const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
   const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
   const resetStore = useRecipeStore((s: RecipeState) => s.reset)
@@ -98,8 +111,9 @@ export default function NewProductPage() {
   const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
   const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
 
+  const isHealthy = !isUnderMargin
   const hasCriticalMargin = marginPercent < -100
-  const hasHealthyMargin = marginPercent > 100
+  const hasHealthyMargin = marginPercent >= 100
 
   const {
     register,
@@ -119,8 +133,8 @@ export default function NewProductPage() {
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado
-  useBodyScrollLock(isDropdownOpen)
+  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado o el modal de confirmación está abierto
+  useBodyScrollLock(isDropdownOpen || Boolean(ingredientToDelete))
 
   // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
@@ -163,6 +177,7 @@ export default function NewProductPage() {
       .finally(() => setIsLoadingSupplies(false))
 
     return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
   }, [getToken, resetStore])
@@ -212,39 +227,31 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
-  const handleItemQuantityChange = (ingredientId: string, rawVal: string) => {
-    const targetItem = items.find((i: { ingredientId: string }) => i.ingredientId === ingredientId)
-    if (!targetItem) return
-
-    const val = Number(rawVal)
-    if (val >= 0) {
-      const activeUnit = targetItem.recipeUnit ?? targetItem.unit
-      const baseQty = convertToBaseQty(val, activeUnit, targetItem.unit)
-      updateQuantity(ingredientId, baseQty, val, activeUnit)
-    }
-  }
-
-  const handleRemoveItem = (ingredientId: string, itemName: string) => {
-    removeIngredient(ingredientId)
-    notify(`"${itemName}" eliminado de la receta`)
+  // Ejecución diferida de la eliminación (Confirmación Controlada)
+  const confirmRemoveItem = () => {
+    if (!ingredientToDelete) return
+    removeIngredient(ingredientToDelete.id)
+    notify(`"${ingredientToDelete.name}" eliminado de la receta`)
+    setIngredientToDelete(null)
   }
 
   const applySuggestedMargin = (percentage: number) => {
     if (items.length === 0 || totalCost <= 0) return
     const factor = percentage < 100 ? 1 - percentage / 100 : 0.5
-    const suggested = Math.round(totalCost / factor)
+    const suggested = Math.ceil(totalCost / factor)
     setValue('salePrice', String(suggested), { shouldValidate: true })
     setActiveStrategy('target')
   }
 
-  const adjustPriceFactor = (factor: number, strategy: '5' | '10') => {
+  const adjustPriceFactor = (factor: number, key?: '5' | '10') => {
+    if (key) triggerFlash(key)
     const currentSale = Number(watchedSalePrice) || 0
     if (currentSale > 0) {
       setValue('salePrice', String(Math.round(currentSale * factor)), { shouldValidate: true })
     } else if (totalCost > 0) {
       setValue('salePrice', String(Math.round(totalCost * factor)), { shouldValidate: true })
     }
-    setActiveStrategy(strategy)
+    setActiveStrategy('custom')
   }
 
   const handleSaveProduct = async (data: ProductFormValues) => {
@@ -355,7 +362,7 @@ export default function NewProductPage() {
                           onChange={(e) => {
                             const clean = sanitizeDecimal(e.target.value)
                             setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                            setActiveStrategy('target')
+                            setActiveStrategy('custom')
                           }}
                           inputMode="decimal"
                           type="text"
@@ -392,9 +399,7 @@ export default function NewProductPage() {
                       </div>
                     </label>
                     {errors.minMarginPercent && (
-                      <p className="mt-1 text-xs font-bold text-rose-500">
-                        {errors.minMarginPercent.message}
-                      </p>
+                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.minMarginPercent.message}</p>
                     )}
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Margen personalizado para este producto.
@@ -587,19 +592,12 @@ export default function NewProductPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800">
-                              <input
-                                onKeyDown={handleNumericKeyDown}
-                                onChange={(e) =>
-                                  handleItemQuantityChange(item.ingredientId, sanitizeDecimal(e.target.value))
-                                }
-                                value={displayQty}
-                                inputMode="decimal"
-                                type="text"
-                                aria-label={`Cantidad de ${item.name}`}
-                                className="no-spinners min-h-9 w-16 text-right text-xs font-bold outline-none text-gray-900 dark:text-white bg-transparent"
-                              />
-                              <span className="text-xs font-bold text-gray-500">
+                            {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
+                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
+                              <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                                {displayQty}
+                              </span>
+                              <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
                                 {item.recipeUnit ?? item.unit}
                               </span>
                             </div>
@@ -613,7 +611,7 @@ export default function NewProductPage() {
 
                             <button
                               type="button"
-                              onClick={() => handleRemoveItem(item.ingredientId, item.name)}
+                              onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
                               className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
                               title="Remover insumo"
                               aria-label={`Eliminar ${item.name}`}
@@ -655,10 +653,10 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        ⚠️ Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
+                        Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
                       </p>
                     </div>
-                  ) : hasHealthyMargin ? (
+                  ) : isHealthy || hasHealthyMargin ? (
                     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 animate-in fade-in">
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
@@ -710,17 +708,17 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE CON ESTADO ACTIVO */}
+                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE */}
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.05, '5')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '5'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '5'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       +5%
@@ -728,10 +726,10 @@ export default function NewProductPage() {
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.10, '10')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer ${
-                        activeStrategy === '10'
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                        flashingKey === '10'
+                          ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       +10%
@@ -776,11 +774,11 @@ export default function NewProductPage() {
                   <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent}%)
+                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent.toFixed(1)}%)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({marginPercent}%)
+                    <ShieldCheck className="size-3" /> Saludable ({marginPercent.toFixed(1)}%)
                   </span>
                 )}
               </div>
@@ -798,6 +796,40 @@ export default function NewProductPage() {
         </footer>
       </form>
       <BottomNav />
+
+      {/* MODAL DE CONFIRMACIÓN PARA QUITAR INSUMO */}
+      {ingredientToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="fixed inset-0" onClick={() => setIngredientToDelete(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-gray-900 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="size-7" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              ¿Quitar insumo de la receta?
+            </h3>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Estás a punto de remover <strong>{ingredientToDelete.name}</strong> de la preparación. El costo total y el margen se recalcularán automáticamente.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIngredientToDelete(null)}
+                className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoveItem}
+                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer inline-flex items-center justify-center gap-1.5 transition"
+              >
+                Sí, quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Diálogo de confirmación para cambios no guardados */}
       <UnsavedChangesDialog

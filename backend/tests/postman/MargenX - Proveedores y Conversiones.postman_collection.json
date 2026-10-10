@@ -1,0 +1,862 @@
+{
+  "info": {
+    "_postman_id": "f7a2c9e1-4b6d-4e3a-9c1f-7d2b8a5e6c30",
+    "name": "MargenX - Proveedores y Conversiones",
+    "description": "Colección automatizada de pruebas de API para el módulo de Proveedores y Empaques Mayoristas (issue #128 / #85). Cubre: alta de proveedor, asociación de insumo con cálculo exacto del costo unitario (packagePrice / packageSize), redondeo ROUND_HALF_UP al recalcular el proveedor predeterminado, inserción en PriceHistory, validaciones negativas de la fórmula y aislamiento multi-tenant entre dos cuentas.\n\nRequiere el backend corriendo localmente y dos tokens JWT de Clerk válidos (uno por cada cuenta piloto del seed) cargados en el environment antes de correr.\n\nVer README-ProveedoresConversiones.md en esta misma carpeta para instrucciones de ejecución con Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Setup (Cuenta A)",
+      "item": [
+        {
+          "name": "POST Crear insumo base en litros (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['ingredient'],",
+                  "    properties: {",
+                  "        ingredient: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'accountId', 'name', 'unit', 'currentCost', 'updatedAt'],",
+                  "            properties: {",
+                  "                id: { type: 'string' },",
+                  "                accountId: { type: 'string' },",
+                  "                unit: { type: 'string', enum: ['kg', 'l', 'u'] },",
+                  "                currentCost: { type: 'string' }",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de Ingredient', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El insumo pertenece a la Cuenta A', function () {",
+                  "    pm.expect(jsonData.ingredient.accountId).to.eql(pm.environment.get('accountId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.test('El insumo se creó en litros con el costo base enviado', function () {",
+                  "    pm.expect(jsonData.ingredient.unit).to.eql('l');",
+                  "    pm.expect(jsonData.ingredient.currentCost).to.eql('100');",
+                  "});",
+                  "",
+                  "// Se reutiliza en el resto de la colección (asociación, historial y limpieza).",
+                  "pm.environment.set('ingredientId_cuentaA', jsonData.ingredient.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aceite de Girasol QA {{$timestamp}}\",\n  \"unit\": \"l\",\n  \"currentCost\": \"100\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Crear proveedor válido - Distribuidora Uno (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso de prueba del alcance técnico: \"Creación de proveedor válida (201)\".",
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['supplier'],",
+                  "    properties: {",
+                  "        supplier: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'accountId', 'name', 'isActive'],",
+                  "            properties: {",
+                  "                id: { type: 'string' },",
+                  "                accountId: { type: 'string' },",
+                  "                name: { type: 'string' },",
+                  "                isActive: { type: 'boolean' }",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de Supplier', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El proveedor pertenece a la Cuenta A y queda activo por defecto', function () {",
+                  "    pm.expect(jsonData.supplier.accountId).to.eql(pm.environment.get('accountId_cuentaA'));",
+                  "    pm.expect(jsonData.supplier.isActive).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.environment.set('supplierId_cuentaA', jsonData.supplier.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Distribuidora Mayorista QA {{$timestamp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Crear segundo proveedor válido - Distribuidora Dos (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Segundo proveedor de la Cuenta A, usado más adelante para forzar un",
+                  "// cambio de proveedor predeterminado y encadenar un segundo PriceHistory.",
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El segundo proveedor también pertenece a la Cuenta A', function () {",
+                  "    pm.expect(jsonData.supplier.accountId).to.eql(pm.environment.get('accountId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.environment.set('supplierId_cuentaA_2', jsonData.supplier.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Distribuidora Industrial QA {{$timestamp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Asociacion y Calculo Exacto (Gherkin: 20 litros x $15.000 = $750,00)",
+      "item": [
+        {
+          "name": "POST Asociar insumo con empaque de 20L a $15.000, predeterminado (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Escenario Gherkin de la issue: empaque de 20 litros por $15.000 =>",
+                  "// costo unitario exacto de $750,00 (división exacta, sin redondeo).",
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['supplierIngredient', 'unitCost', 'ingredient'],",
+                  "    properties: {",
+                  "        supplierIngredient: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'supplierId', 'ingredientId', 'packageSize', 'packageUnit', 'packagePrice', 'isDefault']",
+                  "        },",
+                  "        unitCost: { type: 'string' },",
+                  "        ingredient: { type: 'object', required: ['id', 'currentCost'] }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de la asociación', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El costo unitario calculado es exactamente $750 (15000 / 20)', function () {",
+                  "    pm.expect(jsonData.unitCost).to.eql('750');",
+                  "});",
+                  "",
+                  "pm.test('La asociación conserva los valores enviados y queda marcada como predeterminada', function () {",
+                  "    pm.expect(jsonData.supplierIngredient.packageSize).to.eql('20');",
+                  "    pm.expect(jsonData.supplierIngredient.packagePrice).to.eql('15000');",
+                  "    pm.expect(jsonData.supplierIngredient.packageUnit).to.eql('l');",
+                  "    pm.expect(jsonData.supplierIngredient.isDefault).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('El costo activo del insumo se actualizó al valor calculado', function () {",
+                  "    pm.expect(jsonData.ingredient.currentCost).to.eql('750');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{ingredientId_cuentaA}}\",\n  \"packageSize\": \"20\",\n  \"packageUnit\": \"l\",\n  \"packagePrice\": \"15000\",\n  \"isDefault\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}", "ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Consultar el insumo vinculado - currentCost refleja $750,00 exacto (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Paso \"Cuando se consulta el insumo vinculado en la API\" del Gherkin.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El campo currentCost refleja exactamente $750,00', function () {",
+                  "    pm.expect(jsonData.ingredient.id).to.eql(pm.environment.get('ingredientId_cuentaA'));",
+                  "    pm.expect(jsonData.ingredient.currentCost).to.eql('750');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Historial de precios - primer cambio registrado 100 -> 750 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['history'],",
+                  "    properties: { history: { type: 'array' } }",
+                  "};",
+                  "",
+                  "pm.test('El body respeta el schema de historial', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const history = pm.response.json().history;",
+                  "",
+                  "pm.test('Se registró exactamente una entrada tras asociar el proveedor predeterminado', function () {",
+                  "    pm.expect(history.length).to.eql(1);",
+                  "});",
+                  "",
+                  "pm.test('La entrada refleja el cambio de costo 100 -> 750', function () {",
+                  "    pm.expect(history[0].oldCost).to.eql('100');",
+                  "    pm.expect(history[0].newCost).to.eql('750');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}", "history"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Precision Aritmetica (redondeo ROUND_HALF_UP al cambiar el predeterminado)",
+      "item": [
+        {
+          "name": "POST Asociar el mismo insumo al segundo proveedor: 40L a $67, predeterminado (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso de borde de precisión: 67 / 40 = 1,675 exacto. ROUND_HALF_UP debe",
+                  "// redondear el 3er decimal (5) hacia arriba -> 1,68 (no 1,67, que sería el",
+                  "// resultado de un redondeo bancario/half-even incorrecto).",
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El costo unitario redondea 1,675 hacia arriba a 1,68 (ROUND_HALF_UP)', function () {",
+                  "    pm.expect(jsonData.unitCost).to.eql('1.68');",
+                  "});",
+                  "",
+                  "pm.test('El costo activo del insumo refleja el redondeo correcto', function () {",
+                  "    pm.expect(jsonData.ingredient.currentCost).to.eql('1.68');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{ingredientId_cuentaA}}\",\n  \"packageSize\": \"40\",\n  \"packageUnit\": \"l\",\n  \"packagePrice\": \"67\",\n  \"isDefault\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA_2}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA_2}}", "ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Consultar el insumo - costo unitario ahora refleja el redondeo (1.68) (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('currentCost quedó en 1.68 tras el cambio de predeterminado', function () {",
+                  "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('1.68');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Historial de precios - segunda entrada encadenada 750 -> 1.68 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const history = pm.response.json().history;",
+                  "",
+                  "pm.test('Ahora hay dos entradas en orden cronológico', function () {",
+                  "    pm.expect(history.length).to.eql(2);",
+                  "});",
+                  "",
+                  "pm.test('La primera entrada sigue intacta (100 -> 750)', function () {",
+                  "    pm.expect(history[0].oldCost).to.eql('100');",
+                  "    pm.expect(history[0].newCost).to.eql('750');",
+                  "});",
+                  "",
+                  "pm.test('La segunda entrada encadena desde el costo anterior (750 -> 1.68)', function () {",
+                  "    pm.expect(history[1].oldCost).to.eql('750');",
+                  "    pm.expect(history[1].newCost).to.eql('1.68');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}", "history"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Validaciones Negativas de la Formula",
+      "item": [
+        {
+          "name": "POST Validacion - tamano de empaque en 0 (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que packageSize debe ser mayor a cero', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('packageSize');",
+                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ninguna asociación (sin campo supplierIngredient)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('supplierIngredient');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{ingredientId_cuentaA}}\",\n  \"packageSize\": \"0\",\n  \"packageUnit\": \"l\",\n  \"packagePrice\": \"100\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}", "ingredients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validacion - precio de empaque negativo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que packagePrice debe ser mayor a cero', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('packagePrice');",
+                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ninguna asociación (sin campo supplierIngredient)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('supplierIngredient');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{ingredientId_cuentaA}}\",\n  \"packageSize\": \"10\",\n  \"packageUnit\": \"l\",\n  \"packagePrice\": \"-500\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}", "ingredients"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Aislamiento Multi-Tenant (Cuenta A contra datos de Cuenta B)",
+      "item": [
+        {
+          "name": "POST Setup - Crear proveedor ajeno (Cuenta B) (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test('El proveedor pertenece a la Cuenta B, no a la Cuenta A', function () {",
+                  "    pm.expect(jsonData.supplier.accountId).to.eql(pm.environment.get('accountId_cuentaB'));",
+                  "    pm.expect(jsonData.supplier.accountId).to.not.eql(pm.environment.get('accountId_cuentaA'));",
+                  "});",
+                  "",
+                  "pm.environment.set('supplierId_cuentaB', jsonData.supplier.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Proveedor Ajeno QA {{$timestamp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Listar proveedores (Cuenta A) no incluye el proveedor de Cuenta B (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso de prueba del alcance técnico: \"Cuenta A no puede listar... proveedores de Cuenta B\".",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const ids = pm.response.json().suppliers.map((s) => s.id);",
+                  "",
+                  "pm.test('Control positivo: los proveedores propios de la Cuenta A sí aparecen', function () {",
+                  "    pm.expect(ids).to.include(pm.environment.get('supplierId_cuentaA'));",
+                  "    pm.expect(ids).to.include(pm.environment.get('supplierId_cuentaA_2'));",
+                  "});",
+                  "",
+                  "pm.test('El proveedor de la Cuenta B NO aparece en el listado de la Cuenta A', function () {",
+                  "    pm.expect(ids).to.not.include(pm.environment.get('supplierId_cuentaB'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Proveedor ajeno por id (Cuenta A contra Cuenta B) (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Proveedor no encontrado.');",
+                  "});",
+                  "",
+                  "pm.test('No se filtra información del proveedor ajeno', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('supplier');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaB}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaB}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Asociar insumo usando un proveedor ajeno (Cuenta A -> Cuenta B) (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso de prueba del alcance técnico: \"Cuenta A no puede... asociar proveedores de Cuenta B\".",
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200/201)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Proveedor no encontrado.');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ninguna asociación cruzada entre cuentas', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('supplierIngredient');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{ingredientId_cuentaA}}\",\n  \"packageSize\": \"10\",\n  \"packageUnit\": \"l\",\n  \"packagePrice\": \"500\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaB}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaB}}", "ingredients"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Limpieza (Cuenta A y Cuenta B)",
+      "item": [
+        {
+          "name": "DELETE Cleanup - Eliminar proveedor ajeno de Cuenta B (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaB}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaB}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Cleanup - Eliminar segundo proveedor de Cuenta A (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA_2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA_2}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Cleanup - Eliminar primer proveedor de Cuenta A (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Cleanup - Eliminar insumo de prueba, cascada PriceHistory (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Deja la base como estaba antes del run: borrar el insumo elimina en",
+                  "// cascada cualquier PriceHistory y SupplierIngredient remanente.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Confirma la eliminación', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('eliminado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -5,17 +5,33 @@ import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, Boxes, LoaderCircle, Plus, Search, Trash2, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Boxes,
+  LoaderCircle,
+  Plus,
+  Search,
+  Trash2,
+  X,
+  History,
+  Truck,
+  Pencil,
+} from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ToastAlert } from '@/components/ToastAlert'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { PriceHistoryModal } from '@/components/price-history-modal'
+import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 const MAX_INGREDIENT_COST = 99_999_999.99
@@ -26,6 +42,9 @@ const sortIngredients = (ingredients: Ingredient[]) =>
 
 export default function SuppliesPage() {
   const { getToken } = useAuth()
+  const { user } = useCurrentUser()
+  const isCollaborator = user?.role === 'COLLABORATOR'
+
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -33,9 +52,13 @@ export default function SuppliesPage() {
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [showPackagingModal, setShowPackagingModal] = useState(false)
+  const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null)
+  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
   useEffect(() => {
     let active = true
@@ -61,7 +84,7 @@ export default function SuppliesPage() {
     reset,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof ingredientSchema>, undefined, IngredientFormValues>({
     resolver: zodResolver(ingredientSchema),
     mode: 'onChange',
@@ -72,7 +95,7 @@ export default function SuppliesPage() {
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
-    window.setTimeout(() => setToast(null), 3000)
+    window.setTimeout(() => setToast(null), 3500)
   }
 
   const filtered = useMemo(
@@ -105,6 +128,15 @@ export default function SuppliesPage() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
+    reset({ name: '', unit: 'kg', currentCost: '' })
+  }
+
+  const requestCloseSheet = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true)
+    } else {
+      handleCloseSheet()
+    }
   }
 
   const handleSave = async (data: IngredientFormValues) => {
@@ -153,6 +185,77 @@ export default function SuppliesPage() {
     }
   }
 
+  const handlePackagingSuccess = (newCost?: number, newConnection?: SupplierIngredient) => {
+    if (selected) {
+      let updatedConnections = [...(selected.supplierConnections || [])]
+
+      if (newConnection) {
+        const existingIndex = updatedConnections.findIndex(c => c.supplierId === newConnection.supplierId)
+        if (existingIndex >= 0) {
+          updatedConnections[existingIndex] = newConnection
+        } else {
+          updatedConnections.push(newConnection)
+        }
+
+        if (newConnection.isDefault) {
+          updatedConnections = updatedConnections.map(c => ({
+            ...c,
+            isDefault: c.id === newConnection.id
+          }))
+        }
+      }
+
+      const updatedIngredient = {
+        ...selected,
+        currentCost: newCost !== undefined ? newCost : selected.currentCost,
+        supplierConnections: updatedConnections
+      }
+
+      setSupplies(current => sortIngredients(current.map(item => item.id === selected.id ? updatedIngredient : item)))
+      setSelected(updatedIngredient)
+
+      if (newCost !== undefined) {
+        setValue('currentCost', String(newCost), { shouldDirty: false })
+        notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`)
+      } else {
+        notify('Presentación mayorista asociada correctamente al proveedor.')
+      }
+    }
+  }
+
+  const handleMakeDefault = async (conn: SupplierIngredient) => {
+    try {
+      const result = await supplierService.addPackaging(getToken, conn.supplierId, {
+        ingredientId: selected!.id,
+        packageSize: conn.packageSize,
+        packageUnit: conn.packageUnit as 'kg' | 'l' | 'u',
+        packagePrice: conn.packagePrice,
+        isDefault: true,
+      })
+
+      const newCost = typeof result.unitCost === 'number' ? result.unitCost : Number(result.unitCost)
+
+      const updatedConnections = selected!.supplierConnections?.map(c => ({
+        ...c,
+        isDefault: c.id === conn.id
+      })) || []
+
+      const updatedIngredient = {
+        ...selected!,
+        currentCost: newCost,
+        supplierConnections: updatedConnections
+      }
+
+      setSupplies(current => sortIngredients(current.map(item => item.id === selected!.id ? updatedIngredient : item)))
+      setSelected(updatedIngredient)
+      setValue('currentCost', String(newCost), { shouldDirty: false })
+
+      notify(`Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`)
+    } catch (error: unknown) {
+      notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {toast && <ToastAlert message={toast.message} type={toast.type} />}
@@ -164,7 +267,9 @@ export default function SuppliesPage() {
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Administra los costos de tus materias primas.</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Administra los costos de tus materias primas y empaques mayoristas.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -186,7 +291,7 @@ export default function SuppliesPage() {
                 onClick={handleOpenNew}
                 className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4 " /> Nuevo Insumo
+                <Plus className="size-4" /> Nuevo Insumo
               </button>
             </div>
           </section>
@@ -206,7 +311,7 @@ export default function SuppliesPage() {
             </div>
             <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
-              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">4 Productos</p>
+              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
             </div>
           </div>
 
@@ -254,6 +359,7 @@ export default function SuppliesPage() {
 
             {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
               <>
+                {/* Vista Mobile-First (360px cards) */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filtered.map((supply) => (
                     <button
@@ -263,19 +369,26 @@ export default function SuppliesPage() {
                       className="group flex w-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition-all hover:border-indigo-200 dark:border-gray-800 dark:bg-gray-900"
                     >
                       <div className="flex w-full items-start justify-between gap-2">
-                        <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">{supply.name}</strong>
+                        <strong className="block text-sm font-bold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100">
+                          {supply.name}
+                        </strong>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           Unidad: {supply.unit}
                         </span>
                       </div>
                       <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">
-                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">Tocar para editar</span>
-                        <strong className="text-sm font-black text-gray-900 dark:text-white">{money(supply.currentCost)}</strong>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                          Tocar para editar o ver proveedores
+                        </span>
+                        <strong className="text-sm font-black text-gray-900 dark:text-white">
+                          {money(supply.currentCost)}
+                        </strong>
                       </div>
                     </button>
                   ))}
                 </div>
 
+                {/* Vista Desktop (Tabla completa) */}
                 <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
@@ -300,7 +413,9 @@ export default function SuppliesPage() {
                               {supply.unit}
                             </span>
                           </td>
-                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">{money(supply.currentCost)}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">
+                            {money(supply.currentCost)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -316,10 +431,10 @@ export default function SuppliesPage() {
 
       <BottomNav />
 
-      {/* Modal / Bottom Sheet */}
+      {/* Modal / Bottom Sheet de Edición y Alta */}
       {(selected || newOpen) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
-          <div className="fixed inset-0" onClick={handleCloseSheet} />
+          <div className="fixed inset-0" onClick={requestCloseSheet} />
 
           <div className="relative z-10 w-full max-w-md rounded-t-3xl border border-transparent bg-white p-6 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom duration-200">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
@@ -337,14 +452,14 @@ export default function SuppliesPage() {
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
                     onClick={confirmDelete}
-                    className="flex-1 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-rose-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition"
                   >
                     Sí, eliminar
                   </button>
@@ -363,20 +478,116 @@ export default function SuppliesPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     {selected && (
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                        title="Eliminar insumo"
-                      >
-                        <Trash2 className="size-5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowHistoryModal(true)}
+                          className="cursor-pointer rounded-full p-2 text-indigo-500 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                          title="Ver historial de precios"
+                          aria-label="Ver historial de precios"
+                        >
+                          <History className="size-5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                          title="Eliminar insumo"
+                          aria-label="Eliminar insumo"
+                        >
+                          <Trash2 className="size-5" />
+                        </button>
+                      </>
                     )}
-                    <button type="button" onClick={handleCloseSheet} className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <button
+                      type="button"
+                      onClick={requestCloseSheet}
+                      className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                      aria-label="Cerrar modal"
+                    >
                       <X className="size-5" />
                     </button>
                   </div>
                 </div>
+
+                {/* Sección de Proveedores y Empaques (Oculta para colaboradores) */}
+                {!isCollaborator && selected && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
+                        <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                          Proveedores y Empaques
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingConnection(undefined)
+                          setShowPackagingModal(true)
+                        }}
+                        className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 cursor-pointer shadow-xs inline-flex items-center gap-1"
+                      >
+                        <Plus className="size-3" /> Asociar otro empaque
+                      </button>
+                    </div>
+
+                    {selected.supplierConnections && selected.supplierConnections.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        {selected.supplierConnections.map(conn => {
+                          const unitCost = conn.packagePrice / conn.packageSize;
+                          return (
+                            <div key={conn.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {conn.supplier?.name || 'Proveedor Desconocido'}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Bulto {conn.packageSize} {conn.packageUnit} @ {money(conn.packagePrice)}
+                                </span>
+                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                                  Equivalente: {money(unitCost)} / {selected.unit}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                {conn.isDefault ? (
+                                  <span className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                                    Predeterminado
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMakeDefault(conn)}
+                                    className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+                                  >
+                                    Hacer Predeterminado
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingConnection(conn)
+                                    setShowPackagingModal(true)
+                                  }}
+                                  className="min-h-11 min-w-11 flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
+                                  title="Editar empaque"
+                                >
+                                  <Pencil className="size-4" />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                          No hay proveedores asociados. Calcula el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {!selected && (
                   <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
@@ -434,13 +645,55 @@ export default function SuppliesPage() {
                 </label>
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" onClick={handleCloseSheet} className="flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">Cancelar</button>
-                  <button type="submit" className="flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition">{selected ? 'Guardar Costo' : 'Crear Insumo'}</button>
+                  <button
+                    type="button"
+                    onClick={requestCloseSheet}
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition"
+                  >
+                    {selected ? 'Guardar Costo' : 'Crear Insumo'}
+                  </button>
                 </div>
               </form>
             )}
           </div>
         </div>
+      )}
+
+      {/* Diálogo de descarte de cambios */}
+      <UnsavedChangesDialog
+        open={showDiscardConfirm}
+        onConfirm={() => {
+          setShowDiscardConfirm(false)
+          handleCloseSheet()
+        }}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
+
+      {/* Modal de Historial de Precios */}
+      {selected && (
+        <PriceHistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => setShowHistoryModal(false)}
+          ingredientId={selected.id}
+          ingredientName={selected.name}
+        />
+      )}
+
+      {/* Modal de Proveedores y Empaque Mayorista */}
+      {selected && (
+        <SupplierPackagingModal
+          isOpen={showPackagingModal}
+          onClose={() => setShowPackagingModal(false)}
+          ingredient={selected}
+          existingConnection={editingConnection}
+          onSuccess={handlePackagingSuccess}
+        />
       )}
     </main>
   )

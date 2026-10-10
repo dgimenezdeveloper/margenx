@@ -67,6 +67,34 @@ describe('errorHandler', () => {
     });
   });
 
+  it('mapea P2002 de Prisma a 409 para Supplier con nombre duplicado', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['accountId', 'name'], modelName: 'Supplier' },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe un proveedor con ese nombre.',
+    });
+  });
+
+  it('mapea P2002 de Prisma a 409 para Product con nombre duplicado', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['accountId', 'name'], modelName: 'Product' },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe un producto con ese nombre.',
+    });
+  });
+
   it('mapea P2003 de Prisma a 409', () => {
     const res = buildRes();
     const err = new Prisma.PrismaClientKnownRequestError('FK violation', {
