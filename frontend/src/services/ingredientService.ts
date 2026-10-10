@@ -1,4 +1,5 @@
 import { fetchApi, type TokenGetter } from './api'
+import { type SupplierIngredient } from './supplierService'
 
 export interface Ingredient {
   id: string
@@ -6,6 +7,7 @@ export interface Ingredient {
   unit: string
   currentCost: number
   updatedAt?: string
+  supplierConnections?: SupplierIngredient[]
 }
 
 export interface PriceHistory {
@@ -16,7 +18,13 @@ export interface PriceHistory {
   changedAt: string
 }
 
-type RawIngredient = Omit<Ingredient, 'currentCost'> & { currentCost: number | string }
+type RawIngredient = Omit<Ingredient, 'currentCost' | 'supplierConnections'> & {
+  currentCost: number | string
+  supplierConnections?: Array<Omit<SupplierIngredient, 'packageSize' | 'packagePrice'> & {
+    packageSize: number | string
+    packagePrice: number | string
+  }>
+}
 type RawPriceHistory = Omit<PriceHistory, 'oldCost' | 'newCost'> & { oldCost: number | string; newCost: number | string }
 
 interface IngredientResponse {
@@ -45,7 +53,15 @@ export interface IngredientInput {
 }
 
 function normalizeIngredient(ingredient: RawIngredient): Ingredient {
-  return { ...ingredient, currentCost: Number(ingredient.currentCost) }
+  return {
+    ...ingredient,
+    currentCost: Number(ingredient.currentCost),
+    supplierConnections: ingredient.supplierConnections?.map(conn => ({
+      ...conn,
+      packageSize: Number(conn.packageSize),
+      packagePrice: Number(conn.packagePrice)
+    }))
+  }
 }
 
 function normalizeHistory(history: RawPriceHistory): PriceHistory {

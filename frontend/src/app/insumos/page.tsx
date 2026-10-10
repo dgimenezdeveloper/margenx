@@ -15,6 +15,7 @@ import {
   X,
   History,
   Truck,
+  Pencil,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
@@ -28,7 +29,9 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 
 const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
 const MAX_INGREDIENT_COST = 99_999_999.99
@@ -39,6 +42,9 @@ const sortIngredients = (ingredients: Ingredient[]) =>
 
 export default function SuppliesPage() {
   const { getToken } = useAuth()
+  const { user } = useCurrentUser()
+  const isCollaborator = user?.role === 'COLLABORATOR'
+
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -49,6 +55,7 @@ export default function SuppliesPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPackagingModal, setShowPackagingModal] = useState(false)
+  const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
@@ -178,22 +185,74 @@ export default function SuppliesPage() {
     }
   }
 
-  const handlePackagingSuccess = (newCost?: number) => {
-    if (newCost !== undefined && selected) {
-      setSupplies((current) =>
-        sortIngredients(
-          current.map((item) =>
-            item.id === selected.id ? { ...item, currentCost: newCost } : item
-          )
-        )
-      )
-      setSelected((prev) => (prev ? { ...prev, currentCost: newCost } : null))
+  const handlePackagingSuccess = (newCost?: number, newConnection?: SupplierIngredient) => {
+    if (selected) {
+      let updatedConnections = [...(selected.supplierConnections || [])]
+
+      if (newConnection) {
+        const existingIndex = updatedConnections.findIndex(c => c.supplierId === newConnection.supplierId)
+        if (existingIndex >= 0) {
+          updatedConnections[existingIndex] = newConnection
+        } else {
+          updatedConnections.push(newConnection)
+        }
+
+        if (newConnection.isDefault) {
+          updatedConnections = updatedConnections.map(c => ({
+            ...c,
+            isDefault: c.id === newConnection.id
+          }))
+        }
+      }
+
+      const updatedIngredient = {
+        ...selected,
+        currentCost: newCost !== undefined ? newCost : selected.currentCost,
+        supplierConnections: updatedConnections
+      }
+
+      setSupplies(current => sortIngredients(current.map(item => item.id === selected.id ? updatedIngredient : item)))
+      setSelected(updatedIngredient)
+
+      if (newCost !== undefined) {
+        setValue('currentCost', String(newCost), { shouldDirty: false })
+        notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`)
+      } else {
+        notify('Presentación mayorista asociada correctamente al proveedor.')
+      }
+    }
+  }
+
+  const handleMakeDefault = async (conn: SupplierIngredient) => {
+    try {
+      const result = await supplierService.addPackaging(getToken, conn.supplierId, {
+        ingredientId: selected!.id,
+        packageSize: conn.packageSize,
+        packageUnit: conn.packageUnit as 'kg' | 'l' | 'u',
+        packagePrice: conn.packagePrice,
+        isDefault: true,
+      })
+
+      const newCost = typeof result.unitCost === 'number' ? result.unitCost : Number(result.unitCost)
+
+      const updatedConnections = selected!.supplierConnections?.map(c => ({
+        ...c,
+        isDefault: c.id === conn.id
+      })) || []
+
+      const updatedIngredient = {
+        ...selected!,
+        currentCost: newCost,
+        supplierConnections: updatedConnections
+      }
+
+      setSupplies(current => sortIngredients(current.map(item => item.id === selected!.id ? updatedIngredient : item)))
+      setSelected(updatedIngredient)
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify(
-        `Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`
-      )
-    } else {
-      notify('Presentación mayorista asociada correctamente al proveedor.')
+
+      notify(`Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`)
+    } catch (error: unknown) {
+      notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
     }
   }
 
@@ -422,15 +481,6 @@ export default function SuppliesPage() {
                       <>
                         <button
                           type="button"
-                          onClick={() => setShowPackagingModal(true)}
-                          className="cursor-pointer rounded-full p-2 text-indigo-600 transition hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
-                          title="Asociar empaque de proveedor"
-                          aria-label="Asociar empaque de proveedor"
-                        >
-                          <Truck className="size-5" />
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setShowHistoryModal(true)}
                           className="cursor-pointer rounded-full p-2 text-indigo-500 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                           title="Ver historial de precios"
@@ -460,9 +510,9 @@ export default function SuppliesPage() {
                   </div>
                 </div>
 
-                {/* Banner de Proveedores para insumos existentes */}
-                {selected && (
-                  <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                {/* Sección de Proveedores y Empaques (Oculta para colaboradores) */}
+                {!isCollaborator && selected && (
+                  <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
@@ -472,15 +522,70 @@ export default function SuppliesPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowPackagingModal(true)}
+                        onClick={() => {
+                          setEditingConnection(undefined)
+                          setShowPackagingModal(true)
+                        }}
                         className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 cursor-pointer shadow-xs inline-flex items-center gap-1"
                       >
-                        <Plus className="size-3" /> Empaque
+                        <Plus className="size-3" /> Asociar otro empaque
                       </button>
                     </div>
-                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                      Calcula el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
-                    </p>
+
+                    {selected.supplierConnections && selected.supplierConnections.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        {selected.supplierConnections.map(conn => {
+                          const unitCost = conn.packagePrice / conn.packageSize;
+                          return (
+                            <div key={conn.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {conn.supplier?.name || 'Proveedor Desconocido'}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Bulto {conn.packageSize} {conn.packageUnit} @ {money(conn.packagePrice)}
+                                </span>
+                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                                  Equivalente: {money(unitCost)} / {selected.unit}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                {conn.isDefault ? (
+                                  <span className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                                    Predeterminado
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMakeDefault(conn)}
+                                    className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+                                  >
+                                    Hacer Predeterminado
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingConnection(conn)
+                                    setShowPackagingModal(true)
+                                  }}
+                                  className="min-h-11 min-w-11 flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
+                                  title="Editar empaque"
+                                >
+                                  <Pencil className="size-4" />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                          No hay proveedores asociados. Calcula el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -586,6 +691,7 @@ export default function SuppliesPage() {
           isOpen={showPackagingModal}
           onClose={() => setShowPackagingModal(false)}
           ingredient={selected}
+          existingConnection={editingConnection}
           onSuccess={handlePackagingSuccess}
         />
       )}

@@ -19,6 +19,10 @@ export interface SupplierIngredient {
   packageUnit: string
   packagePrice: number
   isDefault: boolean
+  supplier?: {
+    id: string
+    name: string
+  }
 }
 
 export interface SupplierPackagingInput {
