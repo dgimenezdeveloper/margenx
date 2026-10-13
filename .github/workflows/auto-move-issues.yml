@@ -1,7 +1,7 @@
 # ============================================================
 # auto-move-issues.yml — MargenX Project Board Automation
 #
-# CICLO COMPLETO DE ESTADOS:
+# FLUJO COMPLETO:
 #   BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE
 #                          ↑           |
 #                          |___QA______| (Changes Requested)
@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Número del PR a simular/probar (ej: 158)"
+        description: "Número del PR a probar/simular (ej: 125)"
         required: true
         type: string
       action_type:
@@ -81,28 +81,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          TO_DO_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and ((.name | ascii_downcase) == "to do" or (.name | ascii_downcase) == "ready")) | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          TO_DO_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and ((.name | ascii_downcase) == "to do" or (.name | ascii_downcase) == "ready")) | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -164,28 +150,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          BACKLOG_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "backlog") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "backlog") | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -255,28 +227,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          IN_PROGRESS_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json)
 
           ITEM_ID=$(gh api graphql -f query='
             mutation($project: ID!, $issue: ID!) {
@@ -347,28 +305,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          IN_REVIEW_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "in review") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_REVIEW_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in review") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -439,12 +383,11 @@ jobs:
             --remove-label "qa-rejected,qa-approved,ready-to-merge" \
             --repo ${{ github.repository }} 2>/dev/null || true
 
-          # Si fue un re-review solicitado, comentar y avisar a QA
           if [ "$EVENT_ACTION" = "review_requested" ]; then
             COMMENT="## 🔄 Re-Revisión de QA Solicitada
 
             @${AUTHOR} ha aplicado correcciones y solicita una nueva revisión de QA.
-            La issue ha regresado al estado **IN REVIEW**."
+            La issue vinculada ha regresado a **IN REVIEW**."
 
             gh pr comment $PR_NUMBER --body "$COMMENT" --repo ${{ github.repository }}
           fi
@@ -466,7 +409,6 @@ jobs:
         run: |
           echo "🔍 Reviewer: '$REVIEWER' | Estado: '$REVIEW_STATE'"
 
-          # Normalizar usuarios de QA
           NORMALIZED_USERS=$(echo "$QA_USERS" | tr ',;' ' ')
           IS_QA=false
           for USER in $NORMALIZED_USERS; do
@@ -478,7 +420,6 @@ jobs:
             fi
           done
 
-          # Si no hay usuarios de QA configurados en vars, permitir a miembros del equipo
           if [ -z "$QA_USERS" ]; then
             echo "⚠️ QA_GITHUB_USERS no configurado. Aceptando reviewer por defecto."
             IS_QA=true
@@ -518,28 +459,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          QA_APPROVED_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -651,28 +578,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          IN_PROGRESS_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -751,7 +664,7 @@ jobs:
 
           gh pr comment $PR_NUMBER --body "$COMMENT" --repo ${{ github.repository }}
 
-      # --- NOTIFICACIÓN EN DISCORD (SI APLICA) ---
+      # --- NOTIFICACIÓN EN DISCORD ---
       - name: Notificar Decisión en Discord
         if: |
           steps.check_reviewer.outputs.IS_QA == 'true' &&
@@ -842,28 +755,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          DONE_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "done") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          DONE_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "done") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -964,28 +863,14 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
-          BACKLOG_OPTION_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "backlog") | .id' project_data.json | head -1)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          BACKLOG_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "backlog") | .id' project_data.json)
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -1087,40 +972,26 @@ jobs:
                   }
                 }
               }
-              organization(login: $org) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
             }' \
             -f org="$ORGANIZATION" \
             -F number=$PROJECT_NUMBER \
             > project_data.json
 
-          PROJECT_ID=$(jq -r '(.data.user.projectV2.id // .data.organization.projectV2.id)' project_data.json)
-          STATUS_FIELD_ID=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].id' project_data.json)
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
 
           if [ "$ACTION_TYPE" = "qa_approved" ]; then
-            TARGET_OPT=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json | head -1)
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json)
             LABEL_ADD="qa-approved,ready-to-merge"
             LABEL_DEL="needs-qa,qa-rejected"
             TARGET_STATUS_NAME="QA APPROVED"
           elif [ "$ACTION_TYPE" = "qa_rejected" ]; then
-            TARGET_OPT=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json | head -1)
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json)
             LABEL_ADD="qa-rejected"
             LABEL_DEL="needs-qa,qa-approved,ready-to-merge"
             TARGET_STATUS_NAME="IN PROGRESS"
           else
-            TARGET_OPT=$(jq -r '[(.data.user.projectV2.fields.nodes // .data.organization.projectV2.fields.nodes)[] | select(.name != null and (.name | ascii_downcase) == "status")][0].options[] | select(.name != null and (.name | ascii_downcase) == "in review") | .id' project_data.json | head -1)
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in review") | .id' project_data.json)
             LABEL_ADD="needs-qa"
             LABEL_DEL="qa-rejected,qa-approved,ready-to-merge"
             TARGET_STATUS_NAME="IN REVIEW"
