@@ -6,6 +6,7 @@ import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
 import { parsePaginationParams } from '../utils/pagination';
 import { applyIngredientCostChange } from '../services/marginCalculator';
+import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
 
 const router = Router();
 
@@ -239,7 +240,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
   const existing = await prisma.ingredient.findFirst({
     where: { id, accountId },
-    select: { id: true, currentCost: true },
+    select: { id: true, name: true, unit: true, currentCost: true },
   });
 
   if (!existing) {
@@ -247,21 +248,46 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   }
 
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
-  const nextCost = new Prisma.Decimal(currentCost.toString());
+  const nextCost = new Prisma.Decimal(currentCost.toString()).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
+  const hasNoActualChange =
+    previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
+
+  if (hasNoActualChange) {
+    return res.status(200).json({ ingredient: existing });
+  }
+
   const previousCost = existing.currentCost ?? null;
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const ingredient = await tx.ingredient.update({
       where: { id },
-      data: { name, unit, currentCost },
+      data: { name, unit, currentCost: nextCost },
     });
 
-    await applyIngredientCostChange(tx, id, previousCost, nextCost);
+    const criticalProducts = await applyIngredientCostChange(tx, id, previousCost, nextCost);
 
-    return ingredient;
+    return { ingredient, criticalProducts };
   });
 
-  return res.status(200).json({ ingredient: updated });
+  if (result.criticalProducts.length > 0) {
+    void dispatchMarginAlertEvent({
+      accountId,
+      ingredientId: id,
+      ingredientName: name,
+      affectedProductsCount: result.criticalProducts.length,
+      criticalProducts: result.criticalProducts.map((product) => ({
+        productId: product.productId,
+        productName: product.productName,
+        previousCost: product.previousCost.toFixed(2),
+        newCost: product.newCost.toFixed(2),
+        currentMarginPercent: product.currentMarginPercent.toFixed(2),
+        minMarginPercent: product.minMarginPercent.toFixed(2),
+      })),
+    });
+  }
+
+  return res.status(200).json({ ingredient: result.ingredient });
 });
 
 /* ------------------------------------------------------------------ */

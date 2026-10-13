@@ -335,21 +335,91 @@ describe('PUT /api/ingredients/:id', () => {
     });
   });
 
-  it('no crea PriceHistory si el costo no cambia', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1', currentCost: new Prisma.Decimal('120.00') });
-    updateMock.mockResolvedValue({
+  it('no abre transacción ni crea PriceHistory cuando no hubo cambio real en costo, nombre ni unidad', async () => {
+    findFirstMock.mockResolvedValue({
       id: 'ing-1',
       name: 'Harina 000',
       unit: 'kg',
       currentCost: new Prisma.Decimal('120.00'),
     });
-    productIngredientFindManyMock.mockResolvedValue([]);
 
-    await request(buildApp())
+    const res = await request(buildApp())
       .put('/api/ingredients/ing-1')
       .send({ name: 'Harina 000', unit: 'kg', currentCost: '120.00' });
 
+    expect(res.status).toBe(200);
+    expect(res.body.ingredient).toEqual({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: '120',
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+    expect(productIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('dispara el evento margin.alert.triggered cuando un producto cae por debajo del margen mínimo', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('8000.00'),
+    });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('9500.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-1' }]);
+    productFindUniqueMock.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Pan flauta',
+      accountId: 'account-1',
+      salePrice: new Prisma.Decimal('100.00'),
+      minMarginPercent: new Prisma.Decimal('30.00'),
+      cost: new Prisma.Decimal('50.00'),
+      marginPercent: new Prisma.Decimal('50.00'),
+      ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('9500.00') } }],
+    });
+    productUpdateMock.mockResolvedValue({});
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '9500.00' });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://n8n.example.test/webhook/margins',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      })
+    );
+    const requestInit = fetchMock.mock.calls[0]?.[1] as { body?: string } | undefined;
+    expect(requestInit?.body).toBeDefined();
+    const body = JSON.parse(requestInit!.body!);
+    expect(body).toMatchObject({
+      accountId: 'account-1',
+      ingredientId: 'ing-1',
+      ingredientName: 'Harina 000',
+      affectedProductsCount: 1,
+      criticalProducts: [
+        expect.objectContaining({
+          productId: 'prod-1',
+          productName: 'Pan flauta',
+          previousCost: '50.00',
+          newCost: '9500.00',
+          currentMarginPercent: expect.any(String),
+          minMarginPercent: '30.00',
+        }),
+      ],
+    });
   });
 
   it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {
