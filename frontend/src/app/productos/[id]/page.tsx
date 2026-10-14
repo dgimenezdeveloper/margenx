@@ -374,11 +374,13 @@ export default function ProductDetailPage() {
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
 
+        {/* Banner de Estado Financiero con texto exacto para tests E2E */}
         {!isCollaborator && (
           !hasRecipe ? (
             <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Estado del producto</p>
               <p className="mt-1 text-2xl font-black text-gray-700 dark:text-gray-300">Borrador (Sin Receta)</p>
+              <p className="mt-1 text-xs text-gray-500">Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.</p>
             </section>
           ) : hasCriticalMargin ? (
             <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/40">
@@ -389,6 +391,9 @@ export default function ProductDetailPage() {
                 <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">Objetivo: {targetMargin}%</span>
               </div>
               <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">{margin}%</p>
+              <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
+                Por debajo del mínimo ({targetMargin}%)
+              </p>
             </section>
           ) : isHealthy || hasHealthyMargin ? (
             <section className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40">
@@ -399,6 +404,9 @@ export default function ProductDetailPage() {
                 <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Objetivo: {targetMargin}%</span>
               </div>
               <p className="mt-2 text-5xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">{margin.toFixed(1)}%</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                Cumple con el umbral personalizado ({targetMargin}%).
+              </p>
             </section>
           ) : (
             <section className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/40">
@@ -409,6 +417,9 @@ export default function ProductDetailPage() {
                 <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">Objetivo: {targetMargin}%</span>
               </div>
               <p className="mt-2 text-5xl font-black tracking-tight text-rose-700 dark:text-rose-300">{margin.toFixed(1)}%</p>
+              <p className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-400">
+                Por debajo del mínimo ({targetMargin}%)
+              </p>
             </section>
           )
         )}
@@ -439,7 +450,7 @@ export default function ProductDetailPage() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">Eliminar este producto</h3>
-                      <p className="text-xs text-rose-600 dark:text-rose-400">Se borrará la ficha técnica y todas sus relaciones en el catálogo.</p>
+                      <p className="text-xs text-rose-600 dark:text-rose-400">Se borrará la ficha técnica y todas sus relaciones.</p>
                     </div>
                     <button
                       type="button"
