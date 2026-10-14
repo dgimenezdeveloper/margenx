@@ -17,6 +17,7 @@ const accounts = [
   {
     id: "30a00000-0000-4000-8000-000000000001",
     businessName: "Panadería Central",
+    slug: "panaderia-central",
     users: [
       { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
       { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
@@ -202,6 +203,7 @@ const accounts = [
   {
     id: "30a00000-0000-4000-8000-000000000002",
     businessName: "Química GyJ",
+    slug: "quimica-gyj",
     users: [
       { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
       { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
@@ -425,9 +427,9 @@ async function main() {
 
       await tx.account.upsert({
         where: { id: account.id },
-        create: { id: account.id, businessName: account.businessName },
+        create: { id: account.id, businessName: account.businessName, slug: account.slug },
         // Conserva plan, estado y vencimiento de prueba existentes.
-        update: { businessName: account.businessName },
+        update: { businessName: account.businessName, slug: account.slug },
       });
 
       for (const user of account.users) {

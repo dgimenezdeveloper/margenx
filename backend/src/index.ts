@@ -6,6 +6,7 @@ import ingredientsRoutes from './routes/ingredients';
 import productsRoutes from './routes/products';
 import dashboardRoutes from './routes/dashboard';
 import suppliersRoutes from './routes/suppliers';
+import webhooksRoutes from './routes/webhooks';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -21,6 +22,7 @@ app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de in
 app.use('/api/products', productsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/webhooks', webhooksRoutes);
 
 /*
   Health check de la API.
