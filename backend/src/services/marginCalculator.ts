@@ -12,6 +12,15 @@ const MIN_MONEY_VALUE = new Decimal('-99999999.99');
 const MAX_PERCENT_VALUE = new Decimal('999999.99');
 const MIN_PERCENT_VALUE = new Decimal('-999999.99');
 
+export interface CriticalMarginProduct {
+  productId: string;
+  productName: string;
+  previousCost: DecimalType;
+  newCost: DecimalType;
+  currentMarginPercent: DecimalType;
+  minMarginPercent: DecimalType;
+}
+
 function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): DecimalType {
   if (value.lessThan(min)) return min;
   if (value.greaterThan(max)) return max;
@@ -104,7 +113,7 @@ export async function applyIngredientCostChange(
   ingredientId: string,
   previousCost: DecimalType | null,
   newCost: DecimalType
-): Promise<void> {
+): Promise<CriticalMarginProduct[]> {
   const ingredientFinder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
   const oldCost =
     previousCost ??
@@ -130,30 +139,57 @@ export async function applyIngredientCostChange(
     select: { productId: true },
   });
   const productIds = [...new Set(affected.map((a: { productId: string }) => a.productId))];
+  const criticalProducts: CriticalMarginProduct[] = [];
 
   for (const productId of productIds) {
     const product = await tx.product.findUnique({
       where: { id: productId },
-      include: { ingredients: { include: { ingredient: { select: { currentCost: true } } } } },
+      include: {
+        ingredients: {
+          include: { ingredient: { select: { currentCost: true } } },
+        },
+      },
     });
     if (!product) continue;
 
-    const cost = calculateRecipeTotal(
+    const safeMinMarginPercent = product.minMarginPercent ?? ZERO;
+    const previousProductCost = product.cost ?? ZERO;
+    const previousMarginPercent = product.marginPercent ?? ZERO;
+    const nextCost = calculateRecipeTotal(
       product.ingredients.map((pi: { quantity: DecimalType; ingredient: { currentCost: DecimalType } }) => ({
         quantity: pi.quantity,
         unitCost: pi.ingredient.currentCost,
       }))
     );
+    const nextMarginAmount = calculateMarginAmount(product.salePrice, nextCost);
+    const nextMarginPercent = calculateMarginPercent(product.salePrice, nextCost);
 
     await tx.product.update({
       where: { id: productId },
       data: {
-        cost,
-        marginAmount: calculateMarginAmount(product.salePrice, cost),
-        marginPercent: calculateMarginPercent(product.salePrice, cost),
+        cost: nextCost,
+        marginAmount: nextMarginAmount,
+        marginPercent: nextMarginPercent,
       },
     });
+
+    const crossedMinimumMargin =
+      previousMarginPercent.greaterThanOrEqualTo(safeMinMarginPercent) &&
+      nextMarginPercent.lessThan(safeMinMarginPercent);
+
+    if (crossedMinimumMargin) {
+      criticalProducts.push({
+        productId: product.id,
+        productName: product.name ?? 'Producto',
+        previousCost: previousProductCost,
+        newCost: nextCost,
+        currentMarginPercent: nextMarginPercent,
+        minMarginPercent: safeMinMarginPercent,
+      });
+    }
   }
+
+  return criticalProducts;
 }
 
 export default {

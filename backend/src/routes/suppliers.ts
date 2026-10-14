@@ -5,6 +5,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { applyIngredientCostChange, calculateUnitCost } from '../services/marginCalculator';
 import { requireRole } from '../middlewares/rbac';
+import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
 
 const router = Router();
 router.use(authMiddleware);
@@ -345,7 +346,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     const finder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
     const ingredientOnTx = await finder.call(tx.ingredient, {
       where: { id: ingredientId },
-      select: { id: true, currentCost: true },
+      select: { id: true, name: true, currentCost: true },
     });
 
     if (!ingredientOnTx) {
@@ -358,14 +359,32 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
       data: { currentCost: unitCost },
     });
 
-    await applyIngredientCostChange(tx, ingredientId, previousCost, unitCost);
+    const criticalProducts = await applyIngredientCostChange(tx, ingredientId, previousCost, unitCost);
 
     return {
       supplierIngredient,
       ingredient: updatedIngredient,
       unitCost,
+      criticalProducts,
     };
   });
+
+  if (result.criticalProducts.length > 0) {
+    void dispatchMarginAlertEvent({
+      accountId,
+      ingredientId,
+      ingredientName: result.ingredient.name ?? 'Insumo',
+      affectedProductsCount: result.criticalProducts.length,
+      criticalProducts: result.criticalProducts.map((product) => ({
+        productId: product.productId,
+        productName: product.productName,
+        previousCost: product.previousCost.toFixed(2),
+        newCost: product.newCost.toFixed(2),
+        currentMarginPercent: product.currentMarginPercent.toFixed(2),
+        minMarginPercent: product.minMarginPercent.toFixed(2),
+      })),
+    });
+  }
 
   return res.status(statusCode).json({
     supplierIngredient: result.supplierIngredient,
