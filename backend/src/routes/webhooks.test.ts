@@ -17,7 +17,7 @@ import { errorHandler } from '../middlewares/errorHandler';
 
 function buildApp() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
   app.use('/api/webhooks', webhooksRouter);
   app.use(errorHandler);
   return app;
@@ -69,6 +69,26 @@ describe('POST /api/webhooks/supplier-prices', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('No existe una cuenta activa para el slug indicado.');
+  });
+
+  it('rechaza un payload mayor a 5000 items con 400 Bad Request', async () => {
+    const items = Array.from({ length: 5001 }, (_, index) => ({
+      code: `SKU-${index + 1}`,
+      description: `Producto ${index + 1}`,
+      price: 15.5 + index,
+    }));
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('5000');
+    expect(accountFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it('acepta un payload válido para una cuenta activa y confirma el lote', async () => {

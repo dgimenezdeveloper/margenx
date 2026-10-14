@@ -1,12 +1,33 @@
-/*
-  Warnings:
+ALTER TABLE "Account" ADD COLUMN "slug" TEXT;
 
-  - A unique constraint covering the columns `[slug]` on the table `Account` will be added. If there are existing duplicate values, this will fail.
-  - Added the required column `slug` to the `Account` table without a default value. This is not possible if the table is not empty.
+UPDATE "Account"
+SET "slug" = CASE
+  WHEN "businessName" = 'Panadería Central' THEN 'panaderia-central'
+  WHEN "businessName" = 'Química GyJ' THEN 'quimica-gyj'
+  ELSE lower(
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(
+          trim("businessName"),
+          '[áàäâÁÀÄÂ]',
+          'a',
+          'g'
+        ),
+        '[éèëêÉÈËÊ]',
+        'e',
+        'g'
+      ),
+      '[^a-z0-9]+',
+      '-',
+      'g'
+    )
+  )
+END
+WHERE "slug" IS NULL;
 
-*/
--- AlterTable
-ALTER TABLE "Account" ADD COLUMN     "slug" TEXT NOT NULL;
+-- Asegura unicidad y no nulos para el uso del webhook por slug.
+CREATE UNIQUE INDEX "Account_slug_key"
+ON "Account"("slug");
 
--- CreateIndex
-CREATE UNIQUE INDEX "Account_slug_key" ON "Account"("slug");
+ALTER TABLE "Account"
+ALTER COLUMN "slug" SET NOT NULL;
