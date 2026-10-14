@@ -7,6 +7,12 @@ import { AppError } from '../middlewares/errorHandler';
 
 const router = Router();
 
+/* ------------------------------------------------------------------ */
+/* POST /api/webhooks/supplier-prices                                   */
+/* Recibe listas de precios desde servicio satélite autenticado por      */
+/* secreto interno. Rechaza solicitudes no autorizadas con 401.          */
+/* 200 OK | 400 Payload inválido | 401 No autorizado | 404 Slug inexistente/inactivo */
+/* ------------------------------------------------------------------ */
 export const supplierPricesIngestSchema = z.object({
   accountSlug: z.string().trim().min(2),
   items: z.array(
@@ -18,6 +24,10 @@ export const supplierPricesIngestSchema = z.object({
   ).min(1).max(5000),
 });
 
+/*
+  Valida la cabecera interna del servicio satélite. Se compara con timingSafeEqual
+  para evitar ataques de timing en la autenticación inter-servicio.
+*/
 function hasValidInternalSecret(req: Request): boolean {
   const expectedSecret = process.env.INTERNAL_WEBHOOK_SECRET ?? '';
   const incomingSecret = req.get('x-margenx-webhook-secret') ?? '';
