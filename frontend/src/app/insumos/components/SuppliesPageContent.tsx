@@ -290,6 +290,7 @@ export default function SuppliesPageContent() {
         onSubmit={handleSubmit(handleSave)}
         onClose={requestCloseSheet}
         onRequestClose={requestCloseSheet}
+        onRequestDelete={() => setShowDeleteConfirm(true)}
         onDeleteConfirm={confirmDelete}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         onOpenHistory={() => setShowHistoryModal(true)}

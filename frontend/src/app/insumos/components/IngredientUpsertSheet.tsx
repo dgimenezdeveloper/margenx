@@ -22,6 +22,7 @@ interface IngredientUpsertSheetProps {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   onClose: () => void
   onRequestClose: () => void
+  onRequestDelete: () => void
   onDeleteConfirm: () => void
   onCancelDelete: () => void
   onOpenHistory: () => void
@@ -50,6 +51,7 @@ export function IngredientUpsertSheet({
   onSubmit,
   onClose,
   onRequestClose,
+  onRequestDelete,
   onDeleteConfirm,
   onCancelDelete,
   onOpenHistory,
@@ -126,7 +128,7 @@ export function IngredientUpsertSheet({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onCancelDelete()}
+                      onClick={onRequestDelete}
                       className="cursor-pointer rounded-full p-2 text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/50"
                       title="Eliminar insumo"
                       aria-label="Eliminar insumo"
