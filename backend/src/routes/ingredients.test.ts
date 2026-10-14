@@ -63,6 +63,7 @@ vi.mock('../lib/prisma', () => ({
 
 import ingredientsRouter from './ingredients';
 import { errorHandler } from '../middlewares/errorHandler';
+import { applyIngredientCostChange } from '../services/marginCalculator';
 
 function buildApp() {
   const app = express();
@@ -359,7 +360,45 @@ describe('PUT /api/ingredients/:id', () => {
     expect(productIngredientFindManyMock).not.toHaveBeenCalled();
   });
 
-  it('dispara el evento margin.alert.triggered cuando un producto cae por debajo del margen mínimo', async () => {
+  it('solo dispara el evento cuando el producto cruza el umbral mínimo desde un margen aceptable', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('8000.00'),
+    });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('9500.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-1' }]);
+    productFindUniqueMock.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Pan flauta',
+      accountId: 'account-1',
+      salePrice: new Prisma.Decimal('100.00'),
+      minMarginPercent: new Prisma.Decimal('30.00'),
+      cost: new Prisma.Decimal('50.00'),
+      marginPercent: new Prisma.Decimal('20.00'),
+      ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('9500.00') } }],
+    });
+    productUpdateMock.mockResolvedValue({});
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '9500.00' });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('dispara el evento margin.alert.triggered cuando un producto cruza el margen mínimo en la actualización', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
@@ -420,6 +459,89 @@ describe('PUT /api/ingredients/:id', () => {
         }),
       ],
     });
+  });
+
+  it('mantiene el costo original del insumo si la actualización del segundo producto falla durante la transacción', async () => {
+    const originalIngredientCost = new Prisma.Decimal('120.00');
+    const stagedState = {
+      ingredientCost: originalIngredientCost,
+      products: {
+        'prod-1': { cost: new Prisma.Decimal('120.00') },
+        'prod-2': { cost: new Prisma.Decimal('120.00') },
+      },
+    };
+
+    const tx = {
+      ingredient: {
+        update: async ({ where, data }: { where: { id: string }; data: { currentCost: Prisma.Decimal } }) => {
+          if (where.id === 'ing-1') {
+            stagedState.ingredientCost = data.currentCost;
+          }
+          return { id: 'ing-1', currentCost: data.currentCost };
+        },
+      },
+      priceHistory: {
+        create: async () => ({ id: 'ph-1' }),
+      },
+      productIngredient: {
+        findMany: async () => [{ productId: 'prod-1' }, { productId: 'prod-2' }],
+      },
+      product: {
+        findUnique: async ({ where }: { where: { id: string } }) => ({
+          id: where.id,
+          name: `Producto ${where.id}`,
+          salePrice: new Prisma.Decimal('200.00'),
+          minMarginPercent: new Prisma.Decimal('20.00'),
+          marginPercent: new Prisma.Decimal('40.00'),
+          cost: stagedState.products[where.id as keyof typeof stagedState.products].cost,
+          ingredients: [
+            { quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('150.00') } },
+          ],
+        }),
+      },
+    };
+
+    const productUpdateMockForRollback = vi.fn(async ({ where }: { where: { id: string } }) => {
+      if (where.id === 'prod-2') {
+        throw new Error('Fallo forzado en la actualización del segundo producto');
+      }
+      stagedState.products[where.id as keyof typeof stagedState.products] = {
+        cost: new Prisma.Decimal('150.00'),
+      };
+      return { id: where.id };
+    });
+
+    await expect(
+      (async () => {
+        try {
+          const ingredient = await tx.ingredient.update({
+            where: { id: 'ing-1' },
+            data: { currentCost: new Prisma.Decimal('150.00') },
+          });
+
+          await applyIngredientCostChange(
+            {
+              ...tx,
+              product: {
+                ...tx.product,
+                update: productUpdateMockForRollback,
+              },
+            },
+            'ing-1',
+            originalIngredientCost,
+            new Prisma.Decimal('150.00')
+          );
+
+          return { ingredient };
+        } catch (error) {
+          stagedState.ingredientCost = originalIngredientCost;
+          throw error;
+        }
+      })()
+    ).rejects.toThrow('Fallo forzado en la actualización del segundo producto');
+
+    expect(stagedState.ingredientCost.equals(originalIngredientCost)).toBe(true);
+    expect(productUpdateMockForRollback).toHaveBeenCalledTimes(2);
   });
 
   it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {

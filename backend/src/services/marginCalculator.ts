@@ -154,6 +154,7 @@ export async function applyIngredientCostChange(
 
     const safeMinMarginPercent = product.minMarginPercent ?? ZERO;
     const previousProductCost = product.cost ?? ZERO;
+    const previousMarginPercent = product.marginPercent ?? ZERO;
     const nextCost = calculateRecipeTotal(
       product.ingredients.map((pi: { quantity: DecimalType; ingredient: { currentCost: DecimalType } }) => ({
         quantity: pi.quantity,
@@ -172,7 +173,11 @@ export async function applyIngredientCostChange(
       },
     });
 
-    if (nextMarginPercent.lessThan(safeMinMarginPercent)) {
+    const crossedMinimumMargin =
+      previousMarginPercent.greaterThanOrEqualTo(safeMinMarginPercent) &&
+      nextMarginPercent.lessThan(safeMinMarginPercent);
+
+    if (crossedMinimumMargin) {
       criticalProducts.push({
         productId: product.id,
         productName: product.name ?? 'Producto',
