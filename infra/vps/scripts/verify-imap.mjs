@@ -10,9 +10,16 @@ if (!pass) {
   process.exit(1);
 }
 
-console.log(`🔌 Conectando a ${host}:${port} vía TLS...`);
+console.log(`🔌 Conectando a ${host}:${port} vía TLS estricto (con SNI)...`);
 
-const socket = tls.connect(port, host, () => {
+// FIX: Objeto de opciones explícito con servername para que Google envíe el certificado real
+const options = {
+  host: host,
+  port: port,
+  servername: host // <-- ESTO ES LA CLAVE (Server Name Indication)
+};
+
+const socket = tls.connect(options, () => {
   console.log('✅ Conexión TLS establecida con éxito.');
 });
 
