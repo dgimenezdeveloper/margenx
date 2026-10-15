@@ -12,7 +12,7 @@ if (!pass) {
 
 console.log(`🔌 Conectando a ${host}:${port} vía TLS...`);
 
-const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {
+const socket = tls.connect(port, host, () => {
   console.log('✅ Conexión TLS establecida con éxito.');
 });
 
