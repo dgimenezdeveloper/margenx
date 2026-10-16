@@ -2,13 +2,13 @@
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
 **Versión:** 2.0 (Consolidada Sprint 4 — Arquitectura Multi-Proveedor y Automatización)  
-**Fecha de Actualización:** 15 de Octubre de 2026  
+**Fecha de Actualización:** 16 de Octubre de 2026  
 
 ---
 
 ## 0. Estructura del Equipo
 
-El equipo está compuesto por 4 personas. El Scrum Master ya asume los roles de **Scrum Master, DevOps y Arquitecto de Automatización (n8n)**. Los 3 roles restantes se asignan de forma estratégica para cubrir todo el ciclo de vida del producto sin solapamientos innecesarios ni cuellos de botella.
+El equipo está compuesto por 4 personas. El Scrum Master asume los roles de **Scrum Master, DevOps y Arquitecto de Automatización (n8n)**. Los 3 roles restantes se asignan de forma estratégica para cubrir todo el ciclo de vida del producto sin solapamientos innecesarios ni cuellos de botella.
 
 ### Rol 1 — Scrum Master, DevOps & Arquitecto de Automatización
 
@@ -47,26 +47,22 @@ El equipo está compuesto por 4 personas. El Scrum Master ya asume los roles de 
 - Autoría y actualización del script de seed de datos realistas basados en los comercios piloto (*Panadería Central* y *Química GyJ*).
 - Responsable de la documentación funcional (README, manual de usuario básico) y de mantener la Definition of Done como checklist activo en cada sprint review.
 
-> **Nota de diseño de equipo:** con 4 personas y un cronograma ajustado, se evita deliberadamente tener un rol de "Product Owner" 100% dedicado sin carga técnica — en un equipo de este tamaño, cada persona debe producir software. El rol de PO se reparte entre el Scrum Master (visión de producto y priorización) y el QA (validación de que lo construido cumple lo pedido).
-
 ---
 
 ## 1. Definición del MVP y Recorte de Alcance
 
 ### Problema real y modelo de negocio
 
-Los dueños de comercios gastronómicos chicos y emprendimientos de producción artesanal fijan precios de venta a partir de una estimación inicial de costos que rara vez actualizan. Cuando sube el precio de un insumo, el margen real de un producto puede caer por debajo de lo rentable sin que el dueño lo note, hasta que ya vendió varias unidades a pérdida. **Modelo de negocio:** SaaS B2B multiempresa, monetizable por suscripción mensual por cuenta/comercio (fuera del alcance técnico del MVP, pero es el marco de negocio que justifica las decisiones de arquitectura multiempresa).
+Los dueños de comercios gastronómicos chicos y emprendimientos de producción artesanal fijan precios de venta a partir de una estimación inicial de costos que rara vez actualizan. Cuando sube el precio de un insumo, el margen real de un producto puede caer por debajo de lo rentable sin que el dueño lo note, hasta que ya vendió varias unidades a pérdida. **Modelo de negocio:** SaaS B2B multiempresa, monetizable por suscripción mensual por cuenta/comercio.
 
 ### Flujo Principal Impecable (Camino Feliz)
 
 1. El usuario (Administrador o Colaborador) inicia sesión en su cuenta de comercio.
-2. Actualiza el costo de un insumo existente (ej. "Carne picada" de $3.500 a $4.200/kg).
+2. Actualiza el costo de un insumo existente (ej. "Harina 000" de $740 a $900/kg).
 3. El backend recalcula automáticamente el costo y margen de **todos** los productos cuya receta incluye ese insumo.
 4. El Dashboard refleja en vivo la tabla de productos ordenada por margen, marcando en rojo los que cruzaron el umbral mínimo.
 5. Se dispara un webhook hacia n8n, que envía una alerta por email al Administrador.
 6. El Administrador entra al detalle del producto en alerta, revisa el desglose de costos y decide ajustar el precio de venta.
-
-Este es el único flujo que debe funcionar de punta a punta, sin fricciones, errores ni estados intermedios rotos, para el Sprint 2 (MVP interno) y de forma pulida para el Sprint 6 (entrega final).
 
 ### Respuesta al Feedback Docente: Proveedores sin Sistemas Integrables
 Ante la observación de la cátedra respecto a que las PyMEs argentinas operan con distribuidores mayoristas sin sistemas integrables ni APIs estandarizadas, MargenX implementa una **estrategia de abastecimiento en dos tiempos**:
@@ -77,10 +73,9 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 
 - Lectura/OCR de remitos o facturas en papel — la carga se resuelve mediante plantilla simple de onboarding o reenvío digital de listas mayoristas (Excel/CSV).
 - Pasarela de cobros o pasarelas de pago de suscripción SaaS real.
-- Notificaciones mediante la API oficial comercial de WhatsApp Business (Meta) — descartada en la fase de MVP debido a su modelo tarifario por conversación; la comunicación crítica se resuelve a costo $0 mediante Web Push Notifications (PWA en pantalla de bloqueo del móvil), notificaciones In-App y correos electrónicos transaccionales vía n8n.
+- Notificaciones mediante la API comercial de WhatsApp Business (Meta) — descartada en la fase de MVP debido a su modelo tarifario por conversación; la comunicación crítica se resuelve a costo $0 mediante relay SMTP autenticado vía Brevo, notificaciones In-App y Web Push Notifications.
 - Multi-sucursal dentro de una misma cuenta de comercio.
-- Historial exhaustivo de auditoría de modificaciones (más allá de la trazabilidad de costos y fechas).
-- Funcionalidades de chat interno o mensajería colaborativa entre empleados.
+- Historial exhaustivo de auditoría de modificaciones de usuarios (más allá de la trazabilidad de costos e historial de precios).
 
 ---
 
@@ -92,7 +87,7 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 | :---- | :---- | :---- | :---- |
 | `margin.alert.triggered` | Backend, tras recalcular márgenes y detectar que un producto cruzó el umbral mínimo | `{ accountId, tradeName, ownerEmail, ingredient, criticalProducts }` | `POST /webhook/margin-alert` |
 | `report.weekly.requested` | Cron interno del backend (o cron nativo de n8n consultando la API) cada lunes 08:00 | `{ accountId, ownerEmail, periodStart, periodEnd }` | `POST /webhook/weekly-report` |
-| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | `POST /webhook/ingredient-updated` (uso interno/logging) |
+| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | `POST /webhook/ingredient-updated` |
 | `supplier.pricelist.received` | n8n al recibir lista mayorista adjunta por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` |
 
 ### Tareas resueltas por n8n
@@ -103,11 +98,11 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 
 **Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n solo consume eventos/API y orquesta notificaciones — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
-### Observabilidad de Infraestructura (Sprint 4)
+### Observabilidad de Infraestructura
 Para mitigar el riesgo de saturación de memoria RAM en el servidor ante procesos masivos de ingesta, se implementó en el host de la VPS Donweb un script centinela (`/opt/margenx-infra/scripts/monitor-memory.sh`) ejecutado vía `crontab` cada 5 minutos:
 - Evalúa el consumo real de memoria del host.
 - Si supera el umbral del **85%**, ejecuta `docker stats --no-stream` para identificar los contenedores que más demandan memoria.
-- Construye y despacha un mensaje Embed enriquecido a Discord con mención a DevOps, incorporando un periodo de bloqueo de 30 minutos para evitar spam.
+- Construye y despacha un mensaje Embed enriquecido a Discord con mención a DevOps, incorporando un periodo de bloqueo de 30 minutos para evitar saturación de notificaciones.
 
 ---
 
@@ -203,6 +198,10 @@ erDiagram
         decimal quantity "Decimal(10,3) Cantidad usada en receta"
     }
 ```
+
+> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama Entidad-Relación Consolidado en Google Drive](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
+
+---
 
 ### Diagrama de Clases UML del Dominio
 
@@ -312,6 +311,10 @@ classDiagram
     MarginAlertDispatcher ..> MarginCalculatorService : escucha eventos
 ```
 
+> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama de Clases UML del Dominio en Google Drive](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
+
+---
+
 ### Justificación de Integridad Relacional: DB Cascade vs. Aplicación 409 Conflict
 
 A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredient` se declara con `onDelete: Cascade`.
@@ -406,11 +409,15 @@ graph TB
     CronHost -.->|Supervisa RAM > 85%| Discord["Canal Discord Equipo"]
 ```
 
+> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama de Despliegue de Infraestructura en Google Drive](https://drive.google.com/file/d/1garCbrxJP0kF4VSgHnZsLmp_ZnlrMpTc/view?usp=sharing)
+
+---
+
 ### Flujo del Pipeline de GitHub Actions
 
 1. **Trigger:** push o merge a la rama `main` (despliegue a producción, `margenx.tech`) o `develop` (despliegue al entorno de staging, `dev.margenx.tech`).
 2. **Job 1 — Determinar entorno y tags:** según la rama de origen, resuelve dinámicamente el entorno destino (`production`/`staging`), el tag de imagen (`latest`/`dev`), los nombres de servicio (`backend-prod`/`backend-dev`, `frontend-prod`/`frontend-dev`) y la URL de API a inyectar en el build del frontend.
-3. **Job 2 — Lint & Test:** instala dependencias, corre linter (ESLint), corre tests unitarios del backend y, en ramas de release, la suite E2E de Playwright contra un entorno efímero con base de datos de prueba.
+3. **Job 2 — Lint & Test:** instala dependencias, corre linter (ESLint), corre tests unitarios del backend (`vitest run`) y la suite E2E de Playwright contra un entorno efímero con base de datos de prueba.
 4. **Job 3 — Build & Push a Docker Hub:** construye las imágenes Docker de frontend y backend, y las publica en Docker Hub (`dgimenezdeveloper/margenx-backend` y `margenx-frontend`) con el tag correspondiente al entorno.
 5. **Job 4 — Deploy vía SSH a la VPS:** se conecta por SSH seguro (puerto 5371) a la VPS y ejecuta `docker compose pull` sobre los servicios del entorno correspondiente. La VPS nunca clona código fuente ni corre `npm install`: solo descarga las imágenes ya construidas.
 6. **Job 5 — Migraciones:** ejecuta `docker compose run --rm <servicio-backend> npx prisma migrate deploy` contra la base de datos del entorno correspondiente (`margenx_dev` o `margenx_prod`), con mecanismo de fallo seguro, como paso previo al reinicio de contenedores.
@@ -420,7 +427,7 @@ graph TB
 
 ### Confinamiento de Recursos y Memoria en la VPS
 
-Para sostener los 6 contenedores de Staging y Producción dentro de los recursos de la VPS Donweb (8 GB de RAM total), se aplican las siguientes directivas en `/opt/margenx-infra/docker-compose.yml`:
+Para sostener los 6 contenedores de Staging y Producción dentro de los recursos de la VPS Donweb (8 GB de RAM total), se aplican las siguientes directivas en `/opt/margenx-infra/docker-compose.yml` e `infra/vps/docker-compose.prod.yml`:
 
 - **Límites de memoria** (`deploy.resources.limits.memory`):
   - Postgres: 1024 MB (`1024M`).
@@ -440,12 +447,12 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
 
 **Suite 1: Recálculo de márgenes en cascada**
 
-Escenario: Actualizar el costo de un insumo recalcula el margen de todos los productos relacionados
-  Dado que existe una cuenta con el producto "Hamburguesa Clásica" que usa el insumo "Carne picada" (200g, costo $3.500/kg)
-  Y el producto tiene un precio de venta de $4.500 y margen mínimo configurado en 30%
-  Cuando el Administrador actualiza el costo de "Carne picada" a $4.200/kg
-  Entonces el margen de "Hamburguesa Clásica" se recalcula automáticamente
-  Y el producto se muestra marcado visualmente como "en alerta" si su nuevo margen es menor al 30%
+Escenario: Actualizar el costo de un insumo recalcula el margen de todos los productos relacionados  
+  Dado que existe una cuenta con el producto "Hamburguesa Clásica" que usa el insumo "Carne picada" (200g, costo $3.500/kg)  
+  Y el producto tiene un precio de venta de $4.500 y margen mínimo configurado en 30%  
+  Cuando el Administrador actualiza el costo de "Carne picada" a $4.200/kg  
+  Entonces el margen de "Hamburguesa Clásica" se recalcula automáticamente  
+  Y el producto se muestra marcado visualmente como "en alerta" si su nuevo margen es menor al 30%  
   Y el Dashboard refleja el cambio sin necesidad de recargar la página
 
 **Suite 2: Control de acceso del rol Colaborador y protección financiera**
@@ -469,7 +476,7 @@ Estas 3 suites son las **mínimas obligatorias** para el DoD del proyecto. Se ej
 ### Estrategia del Script de Seed
 
 - Ubicado en `backend/prisma/seed.ts`, ejecutable con `npx prisma db seed`.
-- Genera al menos **2 cuentas distintas** (para poder demostrar y testear el aislamiento multiempresa) con datos de gastronomía realistas:
+- Genera al menos **2 cuentas distintas** (para demostrar y testear el aislamiento multiempresa) con datos realistas:
   - Cuenta 1 ("Panadería Central"): 10 insumos típicos y 4 productos con recetas cargadas.
   - Cuenta 2 ("Química GyJ"): 10 insumos y 4 productos de limpieza, para reforzar que los datos no se mezclan entre cuentas.
 - Al menos 2 productos quedan deliberadamente con margen bajo o negativo desde la carga inicial, para que las alertas y el estado "en riesgo" sean visibles sin necesidad de editar nada primero.
@@ -477,7 +484,7 @@ Estas 3 suites son las **mínimas obligatorias** para el DoD del proyecto. Se ej
 
 ---
 
-## 6. Backlog de Producto y Sprint Planning (Sprint 0 + 6 Sprints)
+## 6. Backlog de Producto y Sprint Planning (Sprint 0 al 6)
 
 Para mitigar riesgos técnicos, evitar dependencias bloqueantes y asegurar el cumplimiento de los hitos académicos exigidos tanto por la cátedra de Práctica Profesional Supervisada (Product Owner) como por Metodologías Ágiles (Cliente), el proyecto se estructura en un **Sprint 0 de fundaciones** y **6 Sprints de desarrollo de 2 semanas cada uno** (14 semanas en total).
 
@@ -702,7 +709,7 @@ Para garantizar la estabilidad del código en producción y permitir integració
 1. **Prohibición de Push Directo:** Ningún integrante del equipo (incluidos administradores) puede realizar push directo a main o develop. Todo cambio ingresa por Pull Request.
 2. **Revisión por Pares Obligatoria (Peer Review):** Todo Pull Request requiere la aprobación formal de al menos un compañero de equipo antes de habilitar su fusión (no se permite la autoaprobación).
 3. **Integración Continua Obligatoria (CI en Verde):** El pipeline automatizado de GitHub Actions (linters, typecheck estricto de TypeScript y compilación de producción) debe finalizar con éxito. El botón de merge permanece bloqueado si el CI falla.
-4. **Trazabilidad con el Backlog:** Todo Pull Request debe utilizar la plantilla estándar (`.github/PULL_REQUEST_TEMPLATE.md`) y vincular explícitamente el número de issue correspondiente mediante palabras clave de cierre (ej. `Closes #179`).
+4. **Trazabilidad con el Backlog:** Todo Pull Request debe utilizar la plantilla estándar (`.github/PULL_REQUEST_TEMPLATE.md`) y vincular explícitamente el número de issue correspondiente mediante palabras clave de cierre (ej. `Closes #<numero-issue>`).
 5. **Historial Limpio mediante Squash Merge:** Se utiliza obligatoriamente la estrategia de Squash and Merge hacia develop y main, condensando los commits intermedios de trabajo en un único commit descriptivo.
 6. **Convención de Commits Semánticos:** Los mensajes de commit siguen la convención internacional Conventional Commits con la estructura `tipo(módulo): descripción breve` (ej. `feat(ingredients): agregar paginación y ordenamiento`, `fix(auth): corregir expiración del token jwt`).
 
@@ -717,6 +724,3 @@ Para evitar la obsolescencia documental y garantizar que la arquitectura evoluci
 * **Contratos de API Vivos (Living Documentation):** La documentación de endpoints se mantiene sincronizada con el código mediante colecciones de Postman versionadas en `backend/tests/postman/` (formato JSON v2.1) y su posterior exportación a especificación OpenAPI / Swagger.
 * **Registro de Cambios y Versionado Semántico (CHANGELOG):** Se adopta el estándar Keep a Changelog en el archivo raíz `CHANGELOG.md` junto a versionado semántico (SemVer), etiquetando cada cierre de sprint con tags anotados en Git (ej. `v0.1.0`, `v0.4.0`, `v1.0.0`).
 * **README como Fuente Única de Onboarding:** El archivo `README.md` principal garantiza que cualquier desarrollador levante el stack local completo en menos de 10 minutos utilizando Docker DevContainers, documentando variables de entorno (`.env.example`), diagramas y comandos de test.
-
-
----
