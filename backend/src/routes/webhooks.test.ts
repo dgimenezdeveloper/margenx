@@ -1,17 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { Prisma } from '@prisma/client';
 
 const accountFindUniqueMock = vi.fn();
+const supplierIngredientFindManyMock = vi.fn();
+const supplierIngredientUpdateMock = vi.fn();
+const ingredientFindUniqueMock = vi.fn();
+const ingredientUpdateMock = vi.fn();
+const transactionMock = vi.fn(async (callback: (tx: any) => Promise<void>, _options?: unknown) => callback({
+  supplierIngredient: { update: supplierIngredientUpdateMock },
+  ingredient: {
+    findUnique: ingredientFindUniqueMock,
+    update: ingredientUpdateMock,
+  },
+}));
 
 vi.mock('../lib/prisma', () => ({
   prisma: {
     account: {
       findUnique: (...args: unknown[]) => accountFindUniqueMock(...args),
     },
+    supplierIngredient: {
+      findMany: (...args: unknown[]) => supplierIngredientFindManyMock(...args),
+    },
+    $transaction: (callback: (tx: any) => Promise<void>, options?: unknown) => transactionMock(callback, options),
   },
 }));
 
+vi.mock('../services/marginCalculator', () => ({
+  calculateUnitCost: (price: Prisma.Decimal, packageSize: Prisma.Decimal) => {
+    return price.div(packageSize).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  },
+  applyIngredientCostChange: vi.fn().mockResolvedValue([]),
+}));
+
+import * as marginCalculator from '../services/marginCalculator';
 import webhooksRouter from './webhooks';
 import { errorHandler } from '../middlewares/errorHandler';
 
@@ -27,6 +51,13 @@ describe('POST /api/webhooks/supplier-prices', () => {
   beforeEach(() => {
     process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
     accountFindUniqueMock.mockReset();
+    supplierIngredientFindManyMock.mockReset();
+    supplierIngredientUpdateMock.mockReset();
+    ingredientFindUniqueMock.mockReset();
+    ingredientUpdateMock.mockReset();
+    vi.mocked(marginCalculator.applyIngredientCostChange).mockReset();
+    vi.mocked(marginCalculator.applyIngredientCostChange).mockResolvedValue([]);
+    transactionMock.mockClear();
   });
 
   it('rechaza la solicitud si falta el secreto interno', async () => {
@@ -91,15 +122,28 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(accountFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it('acepta un payload válido para una cuenta activa y confirma el lote', async () => {
+  it('descarta silenciosamente los artículos no mapeados y actualiza solo los coincidentes', async () => {
     const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
     accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('1400') });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-1',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-1',
+        supplierCode: 'MC-990',
+        packageSize: new Prisma.Decimal('50'),
+        packagePrice: new Prisma.Decimal('70000'),
+        isDefault: true,
+        ingredient: { id: 'ing-1', accountId: 'acc-123', currentCost: new Prisma.Decimal('1400') },
+      },
+    ]);
 
-    const items = Array.from({ length: 100 }, (_, index) => ({
-      code: `SKU-${index + 1}`,
-      description: `Producto ${index + 1}`,
-      price: 15.5 + index,
-    }));
+    const items = [
+      { code: 'MC-990', description: 'Harina 50kg', price: 1750 },
+      { code: 'ART-001', description: 'Producto ajeno 1', price: 99 },
+      { code: 'ART-002', description: 'Producto ajeno 2', price: 150 },
+    ];
 
     const res = await request(buildApp())
       .post('/api/webhooks/supplier-prices')
@@ -110,11 +154,43 @@ describe('POST /api/webhooks/supplier-prices', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe('Lote de precios recibido correctamente.');
-    expect(res.body.accountId).toBe('acc-123');
-    expect(res.body.processedItems).toBe(100);
-    expect(accountFindUniqueMock).toHaveBeenCalledWith({
-      where: { slug: 'panaderia-central' },
+    expect(res.body).toEqual({
+      received: 3,
+      updated: 1,
+      discarded: 2,
+      criticalProductsAlerts: [],
     });
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
+      where: {
+        supplierCode: { in: ['MC-990', 'ART-001', 'ART-002'] },
+        ingredient: { accountId: 'acc-123' },
+      },
+      include: { ingredient: true },
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'si-1' },
+      data: { packagePrice: new Prisma.Decimal('1750') },
+    });
+    expect(ingredientFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      select: { currentCost: true },
+    });
+    expect(ingredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      data: { currentCost: new Prisma.Decimal('35') },
+    });
+    expect(marginCalculator.applyIngredientCostChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplierIngredient: { update: supplierIngredientUpdateMock },
+        ingredient: {
+          findUnique: ingredientFindUniqueMock,
+          update: ingredientUpdateMock,
+        },
+      }),
+      'ing-1',
+      new Prisma.Decimal('1400'),
+      new Prisma.Decimal('35')
+    );
   });
 });

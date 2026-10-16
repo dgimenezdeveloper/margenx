@@ -1,9 +1,11 @@
 import crypto from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
+import { applyIngredientCostChange, calculateUnitCost } from '../services/marginCalculator';
 
 const router = Router();
 
@@ -69,10 +71,77 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
     throw new AppError('No existe una cuenta activa para el slug indicado.', 404);
   }
 
+  const incomingCodes = items.map((item) => item.code);
+
+  const mappedItems = await prisma.supplierIngredient.findMany({
+    where: {
+      supplierCode: { in: incomingCodes },
+      ingredient: { accountId: account.id },
+    },
+    include: {
+      ingredient: true,
+    },
+  });
+
+  const incomingByCode = new Map(items.map((item) => [item.code, item]));
+  const criticalProductsAlerts: Array<{
+    productId?: string;
+    productName?: string;
+    previousCost?: string;
+    newCost?: string;
+    currentMarginPercent?: string;
+    minMarginPercent?: string;
+  }> = [];
+
+  await prisma.$transaction(
+    async (tx: any) => {
+      for (const mapped of mappedItems) {
+        const currentItem = incomingByCode.get(mapped.supplierCode ?? '');
+        if (!currentItem) continue;
+
+        const newUnitCost = calculateUnitCost(new Prisma.Decimal(String(currentItem.price)), mapped.packageSize);
+        const packagePrice = new Prisma.Decimal(String(currentItem.price));
+
+        await tx.supplierIngredient.update({
+          where: { id: mapped.id },
+          data: { packagePrice },
+        });
+
+        if (mapped.isDefault) {
+          const ingredientSnapshot = await tx.ingredient.findUnique({
+            where: { id: mapped.ingredientId },
+            select: { currentCost: true },
+          });
+          const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
+
+          await tx.ingredient.update({
+            where: { id: mapped.ingredientId },
+            data: { currentCost: newUnitCost },
+          });
+
+          const criticalProducts = await applyIngredientCostChange(tx, mapped.ingredientId, previousCost, newUnitCost);
+
+          criticalProductsAlerts.push(
+            ...criticalProducts.map((product) => ({
+              productId: product.productId,
+              productName: product.productName,
+              previousCost: product.previousCost.toFixed(2),
+              newCost: product.newCost.toFixed(2),
+              currentMarginPercent: product.currentMarginPercent.toFixed(2),
+              minMarginPercent: product.minMarginPercent.toFixed(2),
+            }))
+          );
+        }
+      }
+    },
+    { timeout: 30000 }
+  );
+
   return res.status(200).json({
-    message: 'Lote de precios recibido correctamente.',
-    accountId: account.id,
-    processedItems: items.length,
+    received: items.length,
+    updated: mappedItems.length,
+    discarded: items.length - mappedItems.length,
+    criticalProductsAlerts,
   });
 });
 
