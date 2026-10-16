@@ -1,5 +1,4 @@
 import { AlertTriangle, LoaderCircle } from 'lucide-react'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 interface ProductDeleteDialogProps {
   isOpen: boolean
@@ -16,8 +15,6 @@ export function ProductDeleteDialog({
   onClose,
   onConfirm,
 }: ProductDeleteDialogProps) {
-  useBodyScrollLock(isOpen)
-
   if (!isOpen) return null
 
   return (

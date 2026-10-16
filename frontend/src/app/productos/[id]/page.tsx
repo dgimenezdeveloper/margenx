@@ -60,7 +60,8 @@ export default function ProductDetailPage() {
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  useBodyScrollLock(showAddModal)
+  // Unificación de todos los modales de la página en un solo lock coordinado
+  useBodyScrollLock(showAddModal || showDeleteModal || isSimulatorOpen || Boolean(ingredientToDelete))
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
