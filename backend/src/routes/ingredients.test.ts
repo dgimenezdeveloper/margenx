@@ -1,5 +1,5 @@
 // src/routes/ingredients.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { Prisma } from '@prisma/client';
@@ -24,6 +24,7 @@ const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
 const priceHistoryCreateMock = vi.fn();
+const accountFindUniqueMock = vi.fn();
 
 // $transaction real de Prisma recibe un callback (tx) => {...} y lo ejecuta
 // pasándole un cliente con los mismos modelos. Acá reutilizamos los mocks
@@ -40,6 +41,9 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
 vi.mock('../lib/prisma', () => ({
   prisma: {
     $transaction: (callback: (tx: unknown) => unknown) => transactionMock(callback),
+    account: {
+      findUnique: (...args: unknown[]) => accountFindUniqueMock(...args),
+    },
     ingredient: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       count: (...args: unknown[]) => countMock(...args),
@@ -84,7 +88,22 @@ beforeEach(() => {
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
   priceHistoryCreateMock.mockReset();
+  accountFindUniqueMock.mockReset();
   transactionMock.mockClear();
+
+  // Mock predeterminado para resolver los datos de la cuenta en despachos dinámicos
+  accountFindUniqueMock.mockResolvedValue({
+    id: 'account-1',
+    businessName: 'Panadería Central',
+    slug: 'panaderia-central',
+    users: [{ email: 'admin.panaderia@hotmail.com' }],
+  });
+});
+
+afterEach(() => {
+  delete process.env.N8N_MARGIN_ALERT_WEBHOOK_URL;
+  delete process.env.INTERNAL_WEBHOOK_SECRET;
+  vi.unstubAllGlobals();
 });
 
 describe('GET /api/ingredients - paginación', () => {
@@ -364,6 +383,7 @@ describe('PUT /api/ingredients/:id', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+    process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
 
     findFirstMock.mockResolvedValue({
       id: 'ing-1',
@@ -402,6 +422,7 @@ describe('PUT /api/ingredients/:id', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+    process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
 
     findFirstMock.mockResolvedValue({
       id: 'ing-1',
@@ -428,6 +449,13 @@ describe('PUT /api/ingredients/:id', () => {
     });
     productUpdateMock.mockResolvedValue({});
 
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'account-1',
+      businessName: 'Panadería Central',
+      slug: 'panaderia-central',
+      users: [{ email: 'admin.panaderia@hotmail.com' }],
+    });
+
     const res = await request(buildApp())
       .put('/api/ingredients/ing-1')
       .send({ name: 'Harina 000', unit: 'kg', currentCost: '9500.00' });
@@ -437,7 +465,11 @@ describe('PUT /api/ingredients/:id', () => {
       'https://n8n.example.test/webhook/margins',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'User-Agent': 'MargenX-Backend-Dispatcher/1.0',
+          'x-margenx-webhook-secret': 'test-secret',
+        }),
       })
     );
     const requestInit = fetchMock.mock.calls[0]?.[1] as { body?: string } | undefined;
@@ -445,8 +477,13 @@ describe('PUT /api/ingredients/:id', () => {
     const body = JSON.parse(requestInit!.body!);
     expect(body).toMatchObject({
       accountId: 'account-1',
-      ingredientId: 'ing-1',
-      ingredientName: 'Harina 000',
+      accountSlug: 'panaderia-central',
+      tradeName: 'Panadería Central',
+      ownerEmail: 'admin.panaderia@hotmail.com',
+      ingredient: {
+        id: 'ing-1',
+        name: 'Harina 000',
+      },
       affectedProductsCount: 1,
       criticalProducts: [
         expect.objectContaining({
