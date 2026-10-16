@@ -41,8 +41,13 @@ de los ocho productos seleccionados.
 - Panadería: datos tomados de las capturas de la planilla de QA.
 - Química: costos de insumos y precios de venta confirmados por el responsable
   de QA a partir de la información del comercio.
+- Proveedor real de Química GyJ: **Limpikorn**, lista de precios en
+  [Google Drive](https://docs.google.com/spreadsheets/d/1SMS808HLBco91-5RsFQN_WXSy9UHwPPHtt9jVzn-ZRA/edit?usp=sharing).
+  Opacante y Colorante no figuran en esa planilla porque no están a la venta
+  directa; sus precios fueron confirmados por mensaje directo del proveedor.
 - Los precios nuevos de Química reemplazan los anteriores para este seed.
-  Queda pendiente confirmar su actualización en Google Sheets.
+  Confirmados contra la lista de precios de Limpikorn (ver fuente arriba):
+  los 10 insumos coinciden exactamente con los valores cargados en el seed.
 - No se consultan precios ni cotizaciones durante la ejecución del script.
 
 ### Importes y unidades
@@ -304,8 +309,10 @@ realizadas por el seed del Sprint 1.
 
 - [ ] Verificar el escenario inicial en una base local vacía o recién migrada.
       La sesión documentada utilizó una base con datos anteriores.
-- [ ] Confirmar la actualización de Google Sheets con los valores nuevos
+- [x] Confirmar la actualización de Google Sheets con los valores nuevos
       de Química antes de declarar coincidencia del 100% con la planilla.
+      Confirmado: los 10 valores de Química GyJ coinciden con la lista de
+      precios real del proveedor Limpikorn (ver "Fuentes y convenciones").
 - [ ] Adjuntar las evidencias de terminal y Prisma Studio al PR.
 - [ ] Abrir un PR hacia `develop` que referencie la issue #30.
 - [ ] Verificar el pipeline de CI en verde.
