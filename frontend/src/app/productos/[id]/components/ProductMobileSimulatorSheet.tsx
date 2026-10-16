@@ -1,5 +1,4 @@
 import { ProductSimulatorPanel, type ProductSimulatorPanelProps } from './ProductSimulatorPanel'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -15,8 +14,6 @@ export function ProductMobileSimulatorSheet({
   gain,
   ...simulatorProps
 }: ProductMobileSimulatorSheetProps) {
-  useBodyScrollLock(isOpen)
-
   if (!isOpen) return null
 
   return (

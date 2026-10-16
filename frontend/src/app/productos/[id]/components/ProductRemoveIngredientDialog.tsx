@@ -1,5 +1,4 @@
 import { AlertTriangle } from 'lucide-react'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 interface ProductRemoveIngredientDialogProps {
   ingredientName: string | null
@@ -12,8 +11,6 @@ export function ProductRemoveIngredientDialog({
   onClose,
   onConfirm,
 }: ProductRemoveIngredientDialogProps) {
-  useBodyScrollLock(Boolean(ingredientName))
-
   if (!ingredientName) return null
 
   return (
