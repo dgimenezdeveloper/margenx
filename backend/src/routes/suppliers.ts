@@ -175,18 +175,17 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
     throw new AppError('Precio en cuarentena no encontrado.', 404);
   }
 
-  const quarantined = await prisma.supplierIngredient.findFirst({
-    where: { id, ingredient: { accountId }, isQuarantined: true },
-    include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
-  });
-
-  if (!quarantined) {
-    throw new AppError('Precio en cuarentena no encontrado.', 404);
-  }
-
-  const unitCost = calculateUnitCost(quarantined.packagePrice, quarantined.packageSize);
-
   const result = await prisma.$transaction(async (tx: any) => {
+    const quarantined = await tx.supplierIngredient.findFirst({
+      where: { id, ingredient: { accountId }, isQuarantined: true },
+      include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+    });
+
+    if (!quarantined) {
+      throw new AppError('Precio en cuarentena no encontrado.', 404);
+    }
+
+    const unitCost = calculateUnitCost(quarantined.packagePrice, quarantined.packageSize);
     const updatedSupplierIngredient = await tx.supplierIngredient.update({
       where: { id },
       data: { isQuarantined: false },
@@ -195,7 +194,17 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
     let criticalProducts: unknown[] = [];
 
     if (quarantined.isDefault) {
-      const previousCost = quarantined.ingredient.currentCost;
+      const finder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
+      const ingredientOnTx = await finder.call(tx.ingredient, {
+        where: { id: quarantined.ingredientId },
+        select: { id: true, name: true, currentCost: true },
+      });
+
+      if (!ingredientOnTx) {
+        throw new AppError('Insumo no encontrado.', 404);
+      }
+
+      const previousCost = ingredientOnTx.currentCost;
       await tx.ingredient.update({
         where: { id: quarantined.ingredientId },
         data: { currentCost: unitCost },
@@ -205,13 +214,14 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
 
     return {
       supplierIngredient: updatedSupplierIngredient,
+      unitCost,
       criticalProducts,
     };
   });
 
   return res.status(200).json({
     supplierIngredient: result.supplierIngredient,
-    unitCost,
+    unitCost: result.unitCost,
     criticalProducts: result.criticalProducts,
   });
 });

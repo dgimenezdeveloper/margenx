@@ -34,6 +34,7 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
     supplierIngredient: {
       create: supplierIngredientCreateMock,
+      findFirst: supplierIngredientFindFirstMock,
       update: supplierIngredientUpdateMock,
       updateMany: supplierIngredientUpdateManyMock,
     },
@@ -155,6 +156,54 @@ describe('GET /api/suppliers', () => {
       },
       orderBy: { id: 'asc' },
     });
+  });
+
+  it('libera un precio en cuarentena releyendo el costo dentro de la transacción', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('50000'),
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: true,
+      isQuarantined: true,
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      currentCost: new Prisma.Decimal('12090'),
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-1',
+      isQuarantined: false,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('20000'),
+    });
+
+    const applyIngredientCostChangeMock = vi.spyOn(
+      await import('../services/marginCalculator'),
+      'applyIngredientCostChange'
+    ).mockResolvedValue([]);
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
+
+    expect(res.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(supplierIngredientFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1', ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+    });
+    expect(ingredientFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      select: { id: true, name: true, currentCost: true },
+    });
+
+    applyIngredientCostChangeMock.mockRestore();
   });
 
   it('devuelve array vacío si no hay proveedores', async () => {

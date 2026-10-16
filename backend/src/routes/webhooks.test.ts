@@ -125,7 +125,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
   it('descarta silenciosamente los artículos no mapeados y actualiza solo los coincidentes', async () => {
     const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
     accountFindUniqueMock.mockResolvedValue(account);
-    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('1400') });
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('35') });
     supplierIngredientFindManyMock.mockResolvedValue([
       {
         id: 'si-1',
@@ -135,7 +135,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
         packageSize: new Prisma.Decimal('50'),
         packagePrice: new Prisma.Decimal('70000'),
         isDefault: true,
-        ingredient: { id: 'ing-1', accountId: 'acc-123', currentCost: new Prisma.Decimal('1400') },
+        ingredient: { id: 'ing-1', accountId: 'acc-123', currentCost: new Prisma.Decimal('35') },
       },
     ]);
 
@@ -189,7 +189,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
         },
       }),
       'ing-1',
-      new Prisma.Decimal('1400'),
+      new Prisma.Decimal('35'),
       new Prisma.Decimal('35')
     );
   });
@@ -226,6 +226,41 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-quarantine' },
       data: { packagePrice: new Prisma.Decimal('50000'), isQuarantined: true },
+    });
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+  });
+
+  it('retiene en cuarentena una caída anómala cuando la variación supera el 50% en valor absoluto', async () => {
+    const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
+    accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('10000') });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-drop',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-drop',
+        supplierCode: 'MC-DROP',
+        packageSize: new Prisma.Decimal('50'),
+        packagePrice: new Prisma.Decimal('10000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-drop', accountId: 'acc-123', currentCost: new Prisma.Decimal('10000') },
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-DROP', description: 'Manteca', price: 3000 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'si-drop' },
+      data: { packagePrice: new Prisma.Decimal('3000'), isQuarantined: true },
     });
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();

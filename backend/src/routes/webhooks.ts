@@ -110,7 +110,7 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
         const zero = new Prisma.Decimal('0');
         const threshold = new Prisma.Decimal('50');
         const variation = previousCost && previousCost.gt(zero)
-          ? newUnitCost.sub(previousCost).div(previousCost).mul(100)
+          ? newUnitCost.sub(previousCost).div(previousCost).mul(100).abs()
           : new Prisma.Decimal('1000');
 
         const shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
