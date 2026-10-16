@@ -170,7 +170,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-1' },
-      data: { packagePrice: new Prisma.Decimal('1750') },
+      data: { packagePrice: new Prisma.Decimal('1750'), isQuarantined: false },
     });
     expect(ingredientFindUniqueMock).toHaveBeenCalledWith({
       where: { id: 'ing-1' },
@@ -192,5 +192,42 @@ describe('POST /api/webhooks/supplier-prices', () => {
       new Prisma.Decimal('1400'),
       new Prisma.Decimal('35')
     );
+  });
+
+  it('retiene en cuarentena un cambio anómalo que supera el 50% de variación', async () => {
+    const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
+    accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('100') });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-quarantine',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-2',
+        supplierCode: 'MC-CUARENTINA',
+        packageSize: new Prisma.Decimal('50'),
+        packagePrice: new Prisma.Decimal('10000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-2', accountId: 'acc-123', currentCost: new Prisma.Decimal('100') },
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-CUARENTINA', description: 'Manteca', price: 50000 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.updated).toBe(1);
+    expect(res.body.discarded).toBe(0);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'si-quarantine' },
+      data: { packagePrice: new Prisma.Decimal('50000'), isQuarantined: true },
+    });
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
   });
 });

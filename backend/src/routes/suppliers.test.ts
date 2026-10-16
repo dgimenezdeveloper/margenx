@@ -19,6 +19,7 @@ const findFirstMock = vi.fn();
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
+const supplierIngredientFindManyMock = vi.fn();
 const supplierIngredientCreateMock = vi.fn();
 const supplierIngredientUpdateMock = vi.fn();
 const supplierIngredientUpdateManyMock = vi.fn();
@@ -54,6 +55,7 @@ vi.mock('../lib/prisma', () => ({
       delete: (...args: unknown[]) => deleteMock(...args),
     },
     supplierIngredient: {
+      findMany: (...args: unknown[]) => supplierIngredientFindManyMock(...args),
       create: (...args: unknown[]) => supplierIngredientCreateMock(...args),
       update: (...args: unknown[]) => supplierIngredientUpdateMock(...args),
       updateMany: (...args: unknown[]) => supplierIngredientUpdateManyMock(...args),
@@ -93,6 +95,7 @@ beforeEach(() => {
   createMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  supplierIngredientFindManyMock.mockReset();
   supplierIngredientCreateMock.mockReset();
   supplierIngredientUpdateMock.mockReset();
   supplierIngredientUpdateManyMock.mockReset();
@@ -121,6 +124,36 @@ describe('GET /api/suppliers', () => {
     expect(findManyMock).toHaveBeenCalledWith({
       where: { accountId: 'account-1' },
       orderBy: { name: 'asc' },
+    });
+  });
+
+  it('lista los precios en cuarentena filtrados por la cuenta del administrador', async () => {
+    const quarantined = [
+      {
+        id: 'sq-1',
+        ingredientId: 'ing-1',
+        supplierId: 's-1',
+        packagePrice: '50000',
+        packageSize: '50',
+        isDefault: true,
+        isQuarantined: true,
+        ingredient: { id: 'ing-1', name: 'Manteca', currentCost: '12090' },
+        supplier: { id: 's-1', name: 'Distribuidora X' },
+      },
+    ];
+    supplierIngredientFindManyMock.mockResolvedValue(quarantined);
+
+    const res = await request(buildApp()).get('/api/suppliers/quarantine');
+
+    expect(res.status).toBe(200);
+    expect(res.body.quarantined).toEqual(quarantined);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
+      where: { ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: {
+        ingredient: { select: { id: true, name: true, currentCost: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { id: 'asc' },
     });
   });
 

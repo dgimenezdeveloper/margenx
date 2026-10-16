@@ -138,10 +138,117 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* GET /api/suppliers/:id                                              */
-/* Detalle de un proveedor, filtrado por cuenta.                       */
+/* GET /api/suppliers/quarantine                                       */
+/* Lista los precios de proveedores en cuarentena para la cuenta del   */
+/* administrador autenticado.                                          */
+/* 200 OK | 401 No autenticado | 500                                     */
+/* ------------------------------------------------------------------ */
+router.get('/quarantine', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+
+  const quarantined = await prisma.supplierIngredient.findMany({
+    where: {
+      ingredient: { accountId },
+      isQuarantined: true,
+    },
+    include: {
+      ingredient: { select: { id: true, name: true, currentCost: true } },
+      supplier: { select: { id: true, name: true } },
+    },
+    orderBy: { id: 'asc' },
+  });
+
+  return res.status(200).json({ quarantined });
+});
+
+/* ------------------------------------------------------------------ */
+/* POST /api/suppliers/quarantine/:id/release                          */
+/* Libera un precio anómalo de cuarentena y, si corresponde, aplica    */
+/* el costo unitario del proveedor como nuevo costo activo del insumo.   */
 /* 200 OK | 401 No autenticado | 404 No encontrado/ajeno | 500         */
 /* ------------------------------------------------------------------ */
+router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+
+  if (!id) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const quarantined = await prisma.supplierIngredient.findFirst({
+    where: { id, ingredient: { accountId }, isQuarantined: true },
+    include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+  });
+
+  if (!quarantined) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const unitCost = calculateUnitCost(quarantined.packagePrice, quarantined.packageSize);
+
+  const result = await prisma.$transaction(async (tx: any) => {
+    const updatedSupplierIngredient = await tx.supplierIngredient.update({
+      where: { id },
+      data: { isQuarantined: false },
+    });
+
+    let criticalProducts: unknown[] = [];
+
+    if (quarantined.isDefault) {
+      const previousCost = quarantined.ingredient.currentCost;
+      await tx.ingredient.update({
+        where: { id: quarantined.ingredientId },
+        data: { currentCost: unitCost },
+      });
+      criticalProducts = await applyIngredientCostChange(tx, quarantined.ingredientId, previousCost, unitCost);
+    }
+
+    return {
+      supplierIngredient: updatedSupplierIngredient,
+      criticalProducts,
+    };
+  });
+
+  return res.status(200).json({
+    supplierIngredient: result.supplierIngredient,
+    unitCost,
+    criticalProducts: result.criticalProducts,
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* POST /api/suppliers/quarantine/:id/reject                           */
+/* Rechaza un precio anómalo y lo remueve de cuarentena sin tocar el    */
+/* costo activo del insumo.                                             */
+/* 200 OK | 401 No autenticado | 404 No encontrado/ajeno | 500         */
+/* ------------------------------------------------------------------ */
+router.post('/quarantine/:id/reject', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+
+  if (!id) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const quarantined = await prisma.supplierIngredient.findFirst({
+    where: { id, ingredient: { accountId }, isQuarantined: true },
+  });
+
+  if (!quarantined) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const supplierIngredient = await prisma.supplierIngredient.update({
+    where: { id },
+    data: { isQuarantined: false },
+  });
+
+  return res.status(200).json({
+    supplierIngredient,
+    message: 'Precio anómalo rechazado y mantenido en el costo anterior.',
+  });
+});
+
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id);
