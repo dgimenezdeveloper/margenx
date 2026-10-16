@@ -238,7 +238,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* HERO MOCKUP INTERACTIVO */}
+        {/* HERO MOCKUP INTERACTIVO CON DATOS REALES DEL SEED */}
         <div id="demo" className="relative">
           <div className="absolute -inset-4 rounded-[3rem] bg-indigo-500/10 blur-3xl dark:bg-indigo-600/15" />
           <div className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-6">
@@ -281,20 +281,18 @@ export default function LandingPage() {
               <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/40">
                 <Boxes className="size-5 text-indigo-600 dark:text-indigo-400" />
                 <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Materias primas</p>
-                <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">
-                  {activePilot === 'panaderia' ? '10 insumos' : '10 insumos'}
-                </p>
+                <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">10 insumos</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/40">
                 <BarChart3 className="size-5 text-emerald-700 dark:text-emerald-400" />
                 <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Margen promedio</p>
                 <p className="mt-1 text-2xl font-black text-emerald-800 dark:text-emerald-300">
-                  {activePilot === 'panaderia' ? '58.4%' : '37.5%'}
+                  {activePilot === 'panaderia' ? '60.6%' : '40.8%'}
                 </p>
               </div>
             </div>
 
-            {/* Ficha 1: Caso Saludable Real */}
+            {/* Ficha 1: Caso Saludable Real (Datos de Seed verificados) */}
             <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -305,42 +303,81 @@ export default function LandingPage() {
                   </p>
                   <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300">
                     {activePilot === 'panaderia'
-                      ? 'Costo: $4.725 · Precio: $13.500'
-                      : 'Costo: $390 · Precio: $650'}
+                      ? 'Costo: $3.616,25 · Precio: $13.500'
+                      : 'Costo: $316,30 · Precio: $650'}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-emerald-200/80 px-2.5 py-1 text-xs font-black text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-200">
-                  {activePilot === 'panaderia' ? '65.0% Saludable' : '40.0% Saludable'}
+                  {activePilot === 'panaderia' ? '73,2% Saludable' : '51,3% Saludable'}
                 </span>
               </div>
+              <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                {activePilot === 'panaderia'
+                  ? 'Supera el umbral mínimo configurado (65,0%)'
+                  : 'Supera el umbral mínimo configurado (35,0%)'}
+              </p>
             </div>
 
-            {/* Ficha 2: Alerta Roja Real de Semáforo */}
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 dark:border-rose-900/60 dark:bg-rose-950/40">
+            {/* Ficha 2: Segundo Producto Real (Bizcochitos Saludable / Suavizante Crítico) */}
+            <div
+              className={`rounded-2xl border p-3.5 ${
+                activePilot === 'panaderia'
+                  ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/60 dark:bg-emerald-950/30'
+                  : 'border-rose-200 bg-rose-50/90 dark:border-rose-900/60 dark:bg-rose-950/40'
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold text-rose-950 dark:text-rose-100">
+                  <p
+                    className={`text-sm font-bold ${
+                      activePilot === 'panaderia'
+                        ? 'text-emerald-950 dark:text-emerald-100'
+                        : 'text-rose-950 dark:text-rose-100'
+                    }`}
+                  >
                     {activePilot === 'panaderia'
                       ? 'Bizcochitos de grasa — 1 kg'
                       : 'Suavizante (Vivere / Johnson) — 1 L'}
                   </p>
-                  <p className="mt-0.5 text-xs text-rose-800 dark:text-rose-300">
+                  <p
+                    className={`mt-0.5 text-xs ${
+                      activePilot === 'panaderia'
+                        ? 'text-emerald-800 dark:text-emerald-300'
+                        : 'text-rose-800 dark:text-rose-300'
+                    }`}
+                  >
                     {activePilot === 'panaderia'
-                      ? 'Costo: $2.140 · Precio: $3.200'
-                      : 'Costo: $495 · Precio: $750'}
+                      ? 'Costo: $1.662,69 · Precio: $3.200'
+                      : 'Costo: $539,28 · Precio: $750'}
                   </p>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-200/80 px-2.5 py-1 text-xs font-black text-rose-900 dark:bg-rose-900/80 dark:text-rose-200">
-                  <AlertTriangle className="size-3" />
-                  {activePilot === 'panaderia' ? '33.1% Crítico' : '34.0% Crítico'}
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${
+                    activePilot === 'panaderia'
+                      ? 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-200'
+                      : 'bg-rose-200/80 text-rose-900 dark:bg-rose-900/80 dark:text-rose-200'
+                  }`}
+                >
+                  {activePilot === 'quimica' && <AlertTriangle className="size-3" />}
+                  {activePilot === 'panaderia' ? '48,0% Saludable' : '28,1% Crítico'}
                 </span>
               </div>
-              <p className="mt-2 text-xs font-semibold text-rose-800 dark:text-rose-300">
+              <p
+                className={`mt-2 text-[11px] font-semibold ${
+                  activePilot === 'panaderia'
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-rose-800 dark:text-rose-300'
+                }`}
+              >
                 {activePilot === 'panaderia'
-                  ? 'Por debajo del umbral mínimo configurado (40.0%)'
-                  : 'Por debajo del umbral mínimo configurado (40.0%)'}
+                  ? 'Cumple y supera el umbral mínimo configurado (40,0%)'
+                  : 'Por debajo del umbral mínimo configurado (40,0%)'}
               </p>
             </div>
+
+            <p className="mt-3 text-[10px] text-center text-slate-400 dark:text-slate-500">
+              * Costos unitarios y márgenes liquidados con Prisma.Decimal contra el dataset oficial de producción (seed post-#178).
+            </p>
           </div>
         </div>
       </section>
@@ -412,14 +449,14 @@ export default function LandingPage() {
                     <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                       <Eye className="size-3.5" /> Dueño (Admin)
                     </span>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Ve margen (65%)</span>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Ve margen real (73,2%)</span>
                   </div>
                   <hr className="border-slate-100 dark:border-slate-800" />
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
                     <span className="flex items-center gap-1.5 text-slate-500">
                       <EyeOff className="size-3.5" /> Colaborador (Caja)
                     </span>
-                    <span className="text-[11px] text-slate-500">Solo precio ($13.500)</span>
+                    <span className="text-[11px] text-slate-500">Solo precio al público ($13.500)</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
