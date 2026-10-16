@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@clerk/clerk-react'
-import { Plus } from 'lucide-react'
+import { Plus, LoaderCircle } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -17,25 +17,26 @@ import { MonitoredCatalogGrid } from './components/MonitoredCatalogGrid'
 
 export default function DashboardPage() {
   const { getToken } = useAuth()
-  const { user } = useCurrentUser()
+  // Extraemos isLoadingUser para saber si todavía estamos resolviendo la sesión
+  const { user, isLoading: isLoadingUser } = useCurrentUser()
   const isCollaborator = user?.role === 'COLLABORATOR'
 
   const [products, setProducts] = useState<Product[]>([])
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
 
-  // Estados de carga independientes para cumplir con el DoD
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
   const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(true)
 
   const [selectedBucket, setSelectedBucket] = useState<HealthBucketKey | null>(null)
 
   useEffect(() => {
+    // BLOQUEO RBAC: No disparamos ninguna petición hasta saber con certeza el rol del usuario
+    if (isLoadingUser) return
+
     let active = true
 
     const fetchMetrics = async () => {
       try {
-        // Al usar await Promise.resolve(null), garantizamos que la ejecución
-        // sea asíncrona y evitamos el error de ESLint (setState síncrono en effect)
         const res = await (isCollaborator
           ? Promise.resolve(null)
           : dashboardService.getMetrics(getToken))
@@ -67,7 +68,25 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator])
+  }, [getToken, isCollaborator, isLoadingUser])
+
+  // BLOQUEO RBAC VISUAL: Mostramos un skeleton global mientras se resuelve el rol.
+  // Esto garantiza que los componentes financieros NUNCA se monten por error en el DOM.
+  if (isLoadingUser) {
+    return (
+      <main className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
+          <div className="flex flex-col gap-6 pb-28 md:pb-12">
+            <Navbar />
+            <div className="flex items-center justify-center py-32">
+              <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </div>
+        </div>
+        <BottomNav />
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
