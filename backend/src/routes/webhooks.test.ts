@@ -6,10 +6,14 @@ import { Prisma } from '@prisma/client';
 const accountFindUniqueMock = vi.fn();
 const supplierIngredientFindManyMock = vi.fn();
 const supplierIngredientUpdateMock = vi.fn();
+const ingredientFindUniqueMock = vi.fn();
 const ingredientUpdateMock = vi.fn();
-const transactionMock = vi.fn(async (callback: (tx: any) => Promise<void>) => callback({
+const transactionMock = vi.fn(async (callback: (tx: any) => Promise<void>, _options?: unknown) => callback({
   supplierIngredient: { update: supplierIngredientUpdateMock },
-  ingredient: { update: ingredientUpdateMock },
+  ingredient: {
+    findUnique: ingredientFindUniqueMock,
+    update: ingredientUpdateMock,
+  },
 }));
 
 vi.mock('../lib/prisma', () => ({
@@ -20,7 +24,7 @@ vi.mock('../lib/prisma', () => ({
     supplierIngredient: {
       findMany: (...args: unknown[]) => supplierIngredientFindManyMock(...args),
     },
-    $transaction: (callback: (tx: any) => Promise<void>) => transactionMock(callback),
+    $transaction: (callback: (tx: any) => Promise<void>, options?: unknown) => transactionMock(callback, options),
   },
 }));
 
@@ -31,6 +35,7 @@ vi.mock('../services/marginCalculator', () => ({
   applyIngredientCostChange: vi.fn().mockResolvedValue([]),
 }));
 
+import * as marginCalculator from '../services/marginCalculator';
 import webhooksRouter from './webhooks';
 import { errorHandler } from '../middlewares/errorHandler';
 
@@ -48,7 +53,10 @@ describe('POST /api/webhooks/supplier-prices', () => {
     accountFindUniqueMock.mockReset();
     supplierIngredientFindManyMock.mockReset();
     supplierIngredientUpdateMock.mockReset();
+    ingredientFindUniqueMock.mockReset();
     ingredientUpdateMock.mockReset();
+    vi.mocked(marginCalculator.applyIngredientCostChange).mockReset();
+    vi.mocked(marginCalculator.applyIngredientCostChange).mockResolvedValue([]);
     transactionMock.mockClear();
   });
 
@@ -117,6 +125,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
   it('descarta silenciosamente los artículos no mapeados y actualiza solo los coincidentes', async () => {
     const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
     accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('1400') });
     supplierIngredientFindManyMock.mockResolvedValue([
       {
         id: 'si-1',
@@ -163,5 +172,25 @@ describe('POST /api/webhooks/supplier-prices', () => {
       where: { id: 'si-1' },
       data: { packagePrice: new Prisma.Decimal('1750') },
     });
+    expect(ingredientFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      select: { currentCost: true },
+    });
+    expect(ingredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      data: { currentCost: new Prisma.Decimal('35') },
+    });
+    expect(marginCalculator.applyIngredientCostChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplierIngredient: { update: supplierIngredientUpdateMock },
+        ingredient: {
+          findUnique: ingredientFindUniqueMock,
+          update: ingredientUpdateMock,
+        },
+      }),
+      'ing-1',
+      new Prisma.Decimal('1400'),
+      new Prisma.Decimal('35')
+    );
   });
 });

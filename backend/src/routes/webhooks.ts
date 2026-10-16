@@ -93,42 +93,49 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
     minMarginPercent?: string;
   }> = [];
 
-  await prisma.$transaction(async (tx: any) => {
-    for (const mapped of mappedItems) {
-      const currentItem = incomingByCode.get(mapped.supplierCode ?? '');
-      if (!currentItem) continue;
+  await prisma.$transaction(
+    async (tx: any) => {
+      for (const mapped of mappedItems) {
+        const currentItem = incomingByCode.get(mapped.supplierCode ?? '');
+        if (!currentItem) continue;
 
-      const newUnitCost = calculateUnitCost(new Prisma.Decimal(String(currentItem.price)), mapped.packageSize);
-      const packagePrice = new Prisma.Decimal(String(currentItem.price));
+        const newUnitCost = calculateUnitCost(new Prisma.Decimal(String(currentItem.price)), mapped.packageSize);
+        const packagePrice = new Prisma.Decimal(String(currentItem.price));
 
-      await tx.supplierIngredient.update({
-        where: { id: mapped.id },
-        data: { packagePrice },
-      });
-
-      if (mapped.isDefault) {
-        const previousCost = mapped.ingredient.currentCost;
-
-        await tx.ingredient.update({
-          where: { id: mapped.ingredientId },
-          data: { currentCost: newUnitCost },
+        await tx.supplierIngredient.update({
+          where: { id: mapped.id },
+          data: { packagePrice },
         });
 
-        const criticalProducts = await applyIngredientCostChange(tx, mapped.ingredientId, previousCost, newUnitCost);
+        if (mapped.isDefault) {
+          const ingredientSnapshot = await tx.ingredient.findUnique({
+            where: { id: mapped.ingredientId },
+            select: { currentCost: true },
+          });
+          const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
 
-        criticalProductsAlerts.push(
-          ...criticalProducts.map((product) => ({
-            productId: product.productId,
-            productName: product.productName,
-            previousCost: product.previousCost.toFixed(2),
-            newCost: product.newCost.toFixed(2),
-            currentMarginPercent: product.currentMarginPercent.toFixed(2),
-            minMarginPercent: product.minMarginPercent.toFixed(2),
-          }))
-        );
+          await tx.ingredient.update({
+            where: { id: mapped.ingredientId },
+            data: { currentCost: newUnitCost },
+          });
+
+          const criticalProducts = await applyIngredientCostChange(tx, mapped.ingredientId, previousCost, newUnitCost);
+
+          criticalProductsAlerts.push(
+            ...criticalProducts.map((product) => ({
+              productId: product.productId,
+              productName: product.productName,
+              previousCost: product.previousCost.toFixed(2),
+              newCost: product.newCost.toFixed(2),
+              currentMarginPercent: product.currentMarginPercent.toFixed(2),
+              minMarginPercent: product.minMarginPercent.toFixed(2),
+            }))
+          );
+        }
       }
-    }
-  });
+    },
+    { timeout: 30000 }
+  );
 
   return res.status(200).json({
     received: items.length,
