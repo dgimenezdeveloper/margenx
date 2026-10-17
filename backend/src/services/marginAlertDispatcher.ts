@@ -26,17 +26,26 @@ function formatDecimal(value: Prisma.Decimal | string | number): string {
  * Dispatcher asíncrono hacia n8n.
  * Resuelve dinámicamente los datos del comercio y el email del dueño (ADMIN)
  * garantizando aislamiento multi-tenant y autenticando con secreto compartido.
+ * Opera bajo patrón Fail-Closed (no despacha si no hay secreto configurado).
  */
 export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Promise<void> {
   const webhookUrl = process.env.N8N_MARGIN_ALERT_WEBHOOK_URL?.trim();
-  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET?.trim() || '';
+  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET?.trim();
 
   if (!webhookUrl || payload.criticalProducts.length === 0) {
     return;
   }
 
+  // 1. Blindaje Fail-Closed: nunca enviar peticiones si el secreto no está configurado
+  if (!webhookSecret) {
+    console.error(
+      '[MarginAlert] Error crítico de seguridad: INTERNAL_WEBHOOK_SECRET no está configurado en las variables de entorno. Despacho cancelado para prevenir fail-open.'
+    );
+    return;
+  }
+
   try {
-    // 1. Resolver dinámicamente la cuenta y el email del ADMIN destinatario
+    // 2. Resolver dinámicamente la cuenta y el email del ADMIN destinatario
     const account = await prisma.account.findUnique({
       where: { id: payload.accountId },
       select: {
@@ -63,7 +72,7 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
       return;
     }
 
-    // 2. Normalizar payload con datos dinámicos
+    // 3. Normalizar payload con datos dinámicos
     const dynamicPayload = {
       accountId: payload.accountId,
       accountSlug: account.slug,
@@ -85,8 +94,8 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
       triggeredAt: new Date().toISOString(),
     };
 
-    // 3. Despachar a n8n autenticando mediante header secreto
-    await fetch(webhookUrl, {
+    // 4. Despachar a n8n autenticando mediante header secreto
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -95,7 +104,14 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
       },
       body: JSON.stringify(dynamicPayload),
     });
+
+    // 5. Verificación estricta de respuesta HTTP (previene pérdida silenciosa de alertas ante 401/500)
+    if (!response.ok) {
+      console.error(
+        `[MarginAlert] Error de despacho HTTP ${response.status} (${response.statusText}) desde el webhook de n8n. La alerta de margen no fue entregada.`
+      );
+    }
   } catch (error) {
-    console.error('[MarginAlert] Error al despachar alerta de margen crítico a n8n:', error);
+    console.error('[MarginAlert] Error de red al despachar alerta de margen crítico a n8n:', error);
   }
 }

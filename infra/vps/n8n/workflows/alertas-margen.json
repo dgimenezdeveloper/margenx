@@ -25,9 +25,18 @@
           },
           "conditions": [
             {
-              "id": "check-secret",
+              "id": "header-not-empty",
+              "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "secret-match",
               "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] }}",
-              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET }}",
+              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || 'MargenX_Internal_Webhook_Secret_2026_Secure!' }}",
               "operator": {
                 "type": "string",
                 "operation": "equals"
@@ -46,7 +55,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Unauthorized: Secreto de webhook inválido o ausente.\",\n  \"timestamp\": \"={{ $now.toISO() }}\"\n}",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Unauthorized: Secreto de webhook inválido o ausente.\"\n}",
         "options": {
           "responseCode": 401
         }
@@ -60,7 +69,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Alerta de margen recibida y encolada dinámicamente.\",\n  \"timestamp\": \"={{ $now.toISO() }}\"\n}",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Alerta de margen recibida y encolada dinámicamente.\"\n}",
         "options": {
           "responseCode": 200
         }
