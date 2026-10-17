@@ -52,15 +52,20 @@ export interface IngredientInput {
   currentCost: number
 }
 
-function normalizeIngredient(ingredient: RawIngredient): Ingredient {
+function normalizeIngredient(ingredient: RawIngredient & { suppliers?: unknown[] }): Ingredient {
+  const rawConnections =
+    (ingredient.suppliers as SupplierIngredient[] | undefined) ??
+    ingredient.supplierConnections ??
+    []
+
   return {
     ...ingredient,
     currentCost: Number(ingredient.currentCost),
-    supplierConnections: ingredient.supplierConnections?.map(conn => ({
+    supplierConnections: rawConnections.map((conn) => ({
       ...conn,
       packageSize: Number(conn.packageSize),
-      packagePrice: Number(conn.packagePrice)
-    }))
+      packagePrice: Number(conn.packagePrice),
+    })),
   }
 }
 

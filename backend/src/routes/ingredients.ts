@@ -133,6 +133,13 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const [data, total] = await Promise.all([
     prisma.ingredient.findMany({
       where: { accountId },
+      include: {
+        suppliers: {
+          include: {
+            supplier: true,
+          },
+        },
+      },
       orderBy: { [sortBy]: order },
       skip,
       take: limit,
