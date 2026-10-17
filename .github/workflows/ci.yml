@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-check:
-    name: Backend Lint, Typecheck & Tests
+    name: Backend Lint & Typecheck
     runs-on: ubuntu-latest
     defaults:
       run:
