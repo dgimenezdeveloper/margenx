@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 export interface MarginAlertCriticalProduct {
   productId: string;
@@ -22,36 +23,95 @@ function formatDecimal(value: Prisma.Decimal | string | number): string {
 }
 
 /**
- * Dispatch fire-and-forget para la alerta de margen crítico.
- * El controlador no debe bloquearse esperando a la red del webhook.
+ * Dispatcher asíncrono hacia n8n.
+ * Resuelve dinámicamente los datos del comercio y el email del dueño (ADMIN)
+ * garantizando aislamiento multi-tenant y autenticando con secreto compartido.
+ * Opera bajo patrón Fail-Closed (no despacha si no hay secreto configurado).
  */
 export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Promise<void> {
   const webhookUrl = process.env.N8N_MARGIN_ALERT_WEBHOOK_URL?.trim();
+  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET?.trim();
 
   if (!webhookUrl || payload.criticalProducts.length === 0) {
     return;
   }
 
+  // 1. Blindaje Fail-Closed: nunca enviar peticiones si el secreto no está configurado
+  if (!webhookSecret) {
+    console.error(
+      '[MarginAlert] Error crítico de seguridad: INTERNAL_WEBHOOK_SECRET no está configurado en las variables de entorno. Despacho cancelado para prevenir fail-open.'
+    );
+    return;
+  }
+
   try {
-    const normalizedPayload: MarginAlertPayload = {
-      ...payload,
+    // 2. Resolver dinámicamente la cuenta y el email del ADMIN destinatario
+    const account = await prisma.account.findUnique({
+      where: { id: payload.accountId },
+      select: {
+        businessName: true,
+        slug: true,
+        users: {
+          where: { role: 'ADMIN' },
+          select: { email: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!account) {
+      console.warn(`[MarginAlert] No se encontró la cuenta con ID: ${payload.accountId}`);
+      return;
+    }
+
+    const tradeName = account.businessName;
+    const ownerEmail = account.users[0]?.email;
+
+    if (!ownerEmail) {
+      console.warn(`[MarginAlert] La cuenta "${tradeName}" no tiene un usuario ADMIN con email registrado.`);
+      return;
+    }
+
+    // 3. Normalizar payload con datos dinámicos
+    const dynamicPayload = {
+      accountId: payload.accountId,
+      accountSlug: account.slug,
+      tradeName,
+      ownerEmail,
+      ingredient: {
+        id: payload.ingredientId,
+        name: payload.ingredientName,
+      },
+      affectedProductsCount: payload.affectedProductsCount,
       criticalProducts: payload.criticalProducts.map((product) => ({
-        ...product,
+        productId: product.productId,
+        productName: product.productName,
         previousCost: formatDecimal(product.previousCost),
         newCost: formatDecimal(product.newCost),
         currentMarginPercent: formatDecimal(product.currentMarginPercent),
         minMarginPercent: formatDecimal(product.minMarginPercent),
       })),
+      triggeredAt: new Date().toISOString(),
     };
 
-    await fetch(webhookUrl, {
+    // 4. Despachar a n8n autenticando mediante header secreto
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'MargenX-Backend-Dispatcher/1.0',
+        'x-margenx-webhook-secret': webhookSecret,
       },
-      body: JSON.stringify(normalizedPayload),
+      body: JSON.stringify(dynamicPayload),
     });
+
+    // 5. Verificación estricta de respuesta HTTP (previene pérdida silenciosa de alertas ante 401/500)
+    if (!response.ok) {
+      console.error(
+        `[MarginAlert] Error de despacho HTTP ${response.status} (${response.statusText}) desde el webhook de n8n. La alerta de margen no fue entregada.`
+      );
+    }
   } catch (error) {
-    console.error('No se pudo despachar la alerta de margen crítico.', error);
+    console.error('[MarginAlert] Error de red al despachar alerta de margen crítico a n8n:', error);
   }
 }
