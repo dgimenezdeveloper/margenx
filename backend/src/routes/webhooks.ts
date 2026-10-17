@@ -12,7 +12,8 @@ const router = Router();
 /* ------------------------------------------------------------------ */
 /* POST /api/webhooks/supplier-prices                                   */
 /* Recibe listas de precios desde servicio satélite autenticado por      */
-/* secreto interno. Rechaza solicitudes no autorizadas con 401.          */
+/* secreto interno. Descarta artículos no mappeados y retiene en        */
+/* cuarentena precios anómalos con variación > 50% o costo <= 0.01.      */
 /* 200 OK | 400 Payload inválido | 401 No autorizado | 404 Slug inexistente/inactivo */
 /* ------------------------------------------------------------------ */
 export const supplierPricesIngestSchema = z.object({
@@ -101,19 +102,27 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
 
         const newUnitCost = calculateUnitCost(new Prisma.Decimal(String(currentItem.price)), mapped.packageSize);
         const packagePrice = new Prisma.Decimal(String(currentItem.price));
+        const ingredientSnapshot = await tx.ingredient.findUnique({
+          where: { id: mapped.ingredientId },
+          select: { currentCost: true },
+        });
+        const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
+        const zero = new Prisma.Decimal('0');
+        const threshold = new Prisma.Decimal('50');
+        const variation = previousCost && previousCost.gt(zero)
+          ? newUnitCost.sub(previousCost).div(previousCost).mul(100).abs()
+          : new Prisma.Decimal('1000');
+
+        const shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
 
         await tx.supplierIngredient.update({
           where: { id: mapped.id },
-          data: { packagePrice },
+          data: { packagePrice, isQuarantined: shouldQuarantine },
         });
 
-        if (mapped.isDefault) {
-          const ingredientSnapshot = await tx.ingredient.findUnique({
-            where: { id: mapped.ingredientId },
-            select: { currentCost: true },
-          });
-          const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
+        if (shouldQuarantine) continue;
 
+        if (mapped.isDefault) {
           await tx.ingredient.update({
             where: { id: mapped.ingredientId },
             data: { currentCost: newUnitCost },

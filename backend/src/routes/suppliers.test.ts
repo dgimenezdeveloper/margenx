@@ -19,6 +19,7 @@ const findFirstMock = vi.fn();
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
+const supplierIngredientFindManyMock = vi.fn();
 const supplierIngredientCreateMock = vi.fn();
 const supplierIngredientUpdateMock = vi.fn();
 const supplierIngredientUpdateManyMock = vi.fn();
@@ -33,6 +34,7 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
     supplierIngredient: {
       create: supplierIngredientCreateMock,
+      findFirst: supplierIngredientFindFirstMock,
       update: supplierIngredientUpdateMock,
       updateMany: supplierIngredientUpdateManyMock,
     },
@@ -54,6 +56,7 @@ vi.mock('../lib/prisma', () => ({
       delete: (...args: unknown[]) => deleteMock(...args),
     },
     supplierIngredient: {
+      findMany: (...args: unknown[]) => supplierIngredientFindManyMock(...args),
       create: (...args: unknown[]) => supplierIngredientCreateMock(...args),
       update: (...args: unknown[]) => supplierIngredientUpdateMock(...args),
       updateMany: (...args: unknown[]) => supplierIngredientUpdateManyMock(...args),
@@ -93,6 +96,7 @@ beforeEach(() => {
   createMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  supplierIngredientFindManyMock.mockReset();
   supplierIngredientCreateMock.mockReset();
   supplierIngredientUpdateMock.mockReset();
   supplierIngredientUpdateManyMock.mockReset();
@@ -122,6 +126,84 @@ describe('GET /api/suppliers', () => {
       where: { accountId: 'account-1' },
       orderBy: { name: 'asc' },
     });
+  });
+
+  it('lista los precios en cuarentena filtrados por la cuenta del administrador', async () => {
+    const quarantined = [
+      {
+        id: 'sq-1',
+        ingredientId: 'ing-1',
+        supplierId: 's-1',
+        packagePrice: '50000',
+        packageSize: '50',
+        isDefault: true,
+        isQuarantined: true,
+        ingredient: { id: 'ing-1', name: 'Manteca', currentCost: '12090' },
+        supplier: { id: 's-1', name: 'Distribuidora X' },
+      },
+    ];
+    supplierIngredientFindManyMock.mockResolvedValue(quarantined);
+
+    const res = await request(buildApp()).get('/api/suppliers/quarantine');
+
+    expect(res.status).toBe(200);
+    expect(res.body.quarantined).toEqual(quarantined);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
+      where: { ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: {
+        ingredient: { select: { id: true, name: true, currentCost: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+  });
+
+  it('libera un precio en cuarentena releyendo el costo dentro de la transacción', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('50000'),
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: true,
+      isQuarantined: true,
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      currentCost: new Prisma.Decimal('12090'),
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-1',
+      isQuarantined: false,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('20000'),
+    });
+
+    const applyIngredientCostChangeMock = vi.spyOn(
+      await import('../services/marginCalculator'),
+      'applyIngredientCostChange'
+    ).mockResolvedValue([]);
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
+
+    expect(res.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(supplierIngredientFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1', ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+    });
+    expect(ingredientFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      select: { id: true, name: true, currentCost: true },
+    });
+
+    applyIngredientCostChangeMock.mockRestore();
   });
 
   it('devuelve array vacío si no hay proveedores', async () => {
