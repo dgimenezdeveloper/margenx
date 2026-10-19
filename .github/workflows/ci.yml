@@ -27,8 +27,14 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Generar Prisma Client
+        run: npx prisma generate
+
       - name: Verificar compilación TypeScript
         run: npm run build
+
+      - name: Ejecutar Tests Unitarios (Vitest)
+        run: npm test
 
   frontend-check:
     name: Frontend Lint & Build
