@@ -21,7 +21,7 @@ export interface ProductCostImpact {
   minMarginPercent: DecimalType;
 }
 
-export interface CriticalMarginProduct extends ProductCostImpact {}
+export interface CriticalMarginProduct extends ProductCostImpact { }
 
 function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): DecimalType {
   if (value.lessThan(min)) return min;
@@ -127,9 +127,9 @@ export async function applyIngredientCostChange(
     previousCost ??
     (ingredientFinder && typeof ingredientFinder === 'function'
       ? (await ingredientFinder.call(tx.ingredient, {
-          where: { id: ingredientId },
-          select: { currentCost: true },
-        }))?.currentCost ?? null
+        where: { id: ingredientId },
+        select: { currentCost: true },
+      }))?.currentCost ?? null
       : null);
 
   if (oldCost && !oldCost.equals(newCost)) {
@@ -203,7 +203,7 @@ export async function applyIngredientCostChange(
   }
 
   return {
-    affectedProductsCount: productIds.length,
+    affectedProductsCount: affectedProducts.length,
     affectedProducts,
     criticalProducts,
   };
