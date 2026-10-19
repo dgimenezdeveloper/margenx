@@ -494,6 +494,100 @@ describe('PUT /api/ingredients/:id', () => {
     });
   });
 
+  it('devuelve affectedProductsCount total y solo los productos críticos en la respuesta', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('8000.00'),
+    });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('9500.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-1' }, { productId: 'prod-2' }]);
+    productFindUniqueMock
+      .mockResolvedValueOnce({
+        id: 'prod-1',
+        name: 'Pan flauta',
+        accountId: 'account-1',
+        salePrice: new Prisma.Decimal('100.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('50.00'),
+        marginPercent: new Prisma.Decimal('50.00'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('9500.00') } }],
+      })
+      .mockResolvedValueOnce({
+        id: 'prod-2',
+        name: 'Facturas',
+        accountId: 'account-1',
+        salePrice: new Prisma.Decimal('25000.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('50.00'),
+        marginPercent: new Prisma.Decimal('35.00'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('5000.00') } }],
+      });
+    productUpdateMock.mockResolvedValue({});
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '9500.00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      affectedProductsCount: 2,
+      affectedProducts: [
+        expect.objectContaining({
+          productId: 'prod-1',
+          productName: 'Pan flauta',
+        }),
+        expect.objectContaining({
+          productId: 'prod-2',
+          productName: 'Facturas',
+        }),
+      ],
+      criticalProducts: [
+        expect.objectContaining({
+          productId: 'prod-1',
+          productName: 'Pan flauta',
+        }),
+      ],
+    });
+    expect(res.body.affectedProducts).toHaveLength(2);
+    expect(res.body.criticalProducts).toHaveLength(1);
+  });
+
+  it('devuelve affectedProductsCount: 0 y criticalProducts: [] cuando no hubo cambio real', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('120.00'),
+    });
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '120.00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      ingredient: {
+        id: 'ing-1',
+        name: 'Harina 000',
+        unit: 'kg',
+        currentCost: '120',
+      },
+      affectedProductsCount: 0,
+      criticalProducts: [],
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('no despacha la alerta si falta configurar INTERNAL_WEBHOOK_SECRET (Fail-Closed)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
