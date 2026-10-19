@@ -78,7 +78,6 @@ export function SupplierPackagingModal({
     defaultValues: {
       supplierId: existingConnection?.supplierId || '',
       packageSize: existingConnection ? String(existingConnection.packageSize) : '',
-      packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
       packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
       isDefault: existingConnection?.isDefault || false,
     },
@@ -96,7 +95,6 @@ export function SupplierPackagingModal({
     reset({
       supplierId: existingConnection?.supplierId || '',
       packageSize: existingConnection ? String(existingConnection.packageSize) : '',
-      packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
       packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
       isDefault: existingConnection?.isDefault || false,
     })
@@ -108,12 +106,11 @@ export function SupplierPackagingModal({
       reset({
         supplierId: existingConnection?.supplierId || '',
         packageSize: existingConnection ? String(existingConnection.packageSize) : '',
-        packageUnit: existingConnection ? (existingConnection.packageUnit as 'kg' | 'l' | 'u') : normalizedBaseUnit,
         packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
         isDefault: existingConnection?.isDefault || false,
       })
     }
-  }, [isOpen, existingConnection, normalizedBaseUnit, reset])
+  }, [isOpen, existingConnection, reset])
 
   useEffect(() => {
     if (!isOpen) return
