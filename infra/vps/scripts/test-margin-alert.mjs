@@ -7,7 +7,14 @@
 
 const targetUrl = process.argv[2] || process.env.N8N_ALERT_WEBHOOK_URL || 'https://n8n.margenx.tech/webhook/margin-alert';
 const recipientEmail = process.argv[3] || process.env.ALERT_TARGET_EMAIL || 'margenx.saas@gmail.com';
-const webhookSecret = process.argv[4] || process.env.INTERNAL_WEBHOOK_SECRET || 'dev_secret_margenx_2026';
+const webhookSecret = process.argv[4] || process.env.INTERNAL_WEBHOOK_SECRET;
+
+// Sin secreto no se envía nada: nunca usar un valor por defecto embebido en el repo.
+if (!webhookSecret) {
+  console.error('❌ Falta el secreto del webhook. Definí INTERNAL_WEBHOOK_SECRET o pasalo como 4º argumento.');
+  console.error('   Uso: INTERNAL_WEBHOOK_SECRET=*** node test-margin-alert.mjs [url] [email]');
+  process.exit(2);
+}
 
 const testPayload = {
   accountId: '30a00000-0000-4000-8000-000000000001',

@@ -34,9 +34,18 @@
               }
             },
             {
+              "id": "env-secret-not-empty",
+              "leftValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
               "id": "secret-match",
               "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] }}",
-              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || 'MargenX_Internal_Webhook_Secret_2026_Secure!' }}",
+              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
               "operator": {
                 "type": "string",
                 "operation": "equals"
