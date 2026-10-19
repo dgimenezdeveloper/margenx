@@ -32,7 +32,11 @@ vi.mock('../services/marginCalculator', () => ({
   calculateUnitCost: (price: Prisma.Decimal, packageSize: Prisma.Decimal) => {
     return price.div(packageSize).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   },
-  applyIngredientCostChange: vi.fn().mockResolvedValue({ affectedProductsCount: 0, criticalProducts: [] }),
+  applyIngredientCostChange: vi.fn().mockResolvedValue({
+    affectedProductsCount: 0,
+    affectedProducts: [],
+    criticalProducts: [],
+  }),
 }));
 
 import * as marginCalculator from '../services/marginCalculator';
@@ -58,6 +62,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     vi.mocked(marginCalculator.applyIngredientCostChange).mockReset();
     vi.mocked(marginCalculator.applyIngredientCostChange).mockResolvedValue({
       affectedProductsCount: 0,
+      affectedProducts: [],
       criticalProducts: [],
     });
     transactionMock.mockClear();

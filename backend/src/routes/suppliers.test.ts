@@ -201,6 +201,7 @@ describe('GET /api/suppliers', () => {
       'applyIngredientCostChange'
     ).mockResolvedValue({
       affectedProductsCount: 0,
+      affectedProducts: [],
       criticalProducts: [],
     });
 
