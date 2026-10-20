@@ -5,14 +5,24 @@ import { useState, useRef } from 'react'
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
 interface ToastAlertProps {
-  title: string
+  title?: string
+  message?: string
   description?: string
   type?: ToastType
   onClose?: () => void
   offset?: number
 }
 
-export function ToastAlert({ title, description, type = 'success', onClose, offset = 0 }: ToastAlertProps) {
+export function ToastAlert({
+  title,
+  message,
+  description,
+  type = 'success',
+  onClose,
+  offset = 0,
+}: ToastAlertProps) {
+  // Soporta tanto 'title' como el 'message' anterior
+  const displayTitle = title ?? message ?? ''
   const topPosition = 16 + offset * 80
 
   // --- Lógica de Swipe-to-Dismiss para Mobile ---
@@ -33,11 +43,9 @@ export function ToastAlert({ title, description, type = 'success', onClose, offs
   }
 
   const handleTouchEnd = () => {
-    // Si el usuario deslizó más de 100px hacia cualquier lado, cerramos el toast
     if (Math.abs(translateX) > 100 && onClose) {
       onClose()
     } else {
-      // Si no llegó al límite, vuelve suavemente a su posición original
       setTranslateX(0)
     }
     setIsDragging(false)
@@ -71,7 +79,7 @@ export function ToastAlert({ title, description, type = 'success', onClose, offs
       style={{
         top: `${topPosition}px`,
         transform: `translateX(${translateX}px)`,
-        opacity: Math.max(1 - Math.abs(translateX) / 150, 0), // Se desvanece a medida que lo deslizas
+        opacity: Math.max(1 - Math.abs(translateX) / 150, 0),
         transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
       className={`fixed inset-x-4 md:inset-x-auto md:right-4 z-50 mx-auto md:mx-0 flex w-full max-w-sm items-start gap-3 rounded-xl border-l-4 bg-white p-4 shadow-xl dark:bg-gray-900 border-y border-r border-y-gray-200 border-r-gray-200 dark:border-y-gray-800 dark:border-r-gray-800 animate-in fade-in slide-in-from-top-4 md:slide-in-from-right-8 ${borderColor}`}
@@ -80,7 +88,7 @@ export function ToastAlert({ title, description, type = 'success', onClose, offs
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
-          {title}
+          {displayTitle}
         </p>
         {description && (
           <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 leading-relaxed">
