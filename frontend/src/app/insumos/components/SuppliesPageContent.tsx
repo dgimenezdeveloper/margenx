@@ -26,14 +26,19 @@ import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
-/**
- * Contenedor principal de la vista /insumos.
- * Se encarga de orquestar la carga, búsqueda, validación, edición,
- * alta, eliminación y actualización del costo de los ingredientes.
- */
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+
+// Contador global para IDs de toasts (puro y seguro para React)
+let toastIdCounter = 0
+
+interface ToastMsg {
+  id: string
+  title: string
+  description?: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
 
 export default function SuppliesPageContent() {
   const { getToken } = useAuth()
@@ -51,7 +56,9 @@ export default function SuppliesPageContent() {
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPackagingModal, setShowPackagingModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  // Array de toasts para permitir apilamiento
+  const [toasts, setToasts] = useState<ToastMsg[]>([])
 
   useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
@@ -93,16 +100,20 @@ export default function SuppliesPageContent() {
   const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
 
   /**
-   * Muestra un toast de éxito o error y lo oculta tras unos segundos.
+   * Muestra un toast y lo oculta tras 5 segundos.
    */
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message: msg, type })
-    window.setTimeout(() => setToast(null), 3500)
+  const notify = (title: string, description?: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    const id = String(++toastIdCounter)
+    setToasts((prev) => [...prev, { id, title, description, type }])
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
   }
 
-  /**
-   * Prepara el formulario para editar un insumo ya existente.
-   */
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
@@ -110,9 +121,6 @@ export default function SuppliesPageContent() {
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
   }
 
-  /**
-   * Abre la ficha de creación para dar de alta un nuevo insumo.
-   */
   const handleOpenNew = () => {
     setSelected(null)
     setShowDeleteConfirm(false)
@@ -120,9 +128,6 @@ export default function SuppliesPageContent() {
     setNewOpen(true)
   }
 
-  /**
-   * Cierra la hoja de edición y limpia el estado del formulario.
-   */
   const handleCloseSheet = () => {
     setSelected(null)
     setNewOpen(false)
@@ -130,9 +135,6 @@ export default function SuppliesPageContent() {
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
 
-  /**
-   * Solicita cerrar la hoja y confirma si existen cambios sin guardar.
-   */
   const requestCloseSheet = () => {
     if (isDirty) {
       setShowDiscardConfirm(true)
@@ -141,13 +143,10 @@ export default function SuppliesPageContent() {
     handleCloseSheet()
   }
 
-  /**
-   * Guarda un insumo nuevo o actualiza el costo de uno existente.
-   */
   const handleSave = async (data: z.input<typeof ingredientSchema>) => {
     const numericCost = Number(data.currentCost)
     if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
-      notify('El insumo no puede superar $99.999.999,99.', 'error')
+      notify('Error de validación', 'El insumo no puede superar $99.999.999,99.', 'error')
       return
     }
 
@@ -158,36 +157,56 @@ export default function SuppliesPageContent() {
     }
 
     try {
-      const ingredient = selected ? await ingredientService.update(getToken, selected.id, input) : await ingredientService.create(getToken, input)
-      setSupplies((current) =>
-        selected ? sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item))) : sortIngredients([...current, ingredient])
-      )
-      notify(selected ? `Costo de ${selected.name} actualizado a ${money(Number(data.currentCost))}` : `Insumo "${data.name}" creado correctamente`)
+      if (selected) {
+        const response = await ingredientService.update(getToken, selected.id, input)
+        const ingredient = response.ingredient
+
+        setSupplies((current) =>
+          sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item)))
+        )
+
+        const affectedCount = response.affectedProductsCount || 0
+        const criticalCount = response.criticalProducts?.length || 0
+
+        let toastTitle = `Costo de ${selected.name} actualizado`
+        let toastDesc = `Nuevo costo: ${money(Number(data.currentCost))}.`
+        let toastType: 'success' | 'warning' = 'success'
+
+        if (affectedCount > 0) {
+          toastDesc += ` Se actualizaron ${affectedCount} recetas vinculadas.`
+
+          if (criticalCount > 0) {
+            toastType = 'warning'
+            toastTitle = 'Costo actualizado con alertas'
+            toastDesc += ` ¡Atención! ${criticalCount} productos quedaron con margen crítico.`
+          }
+        }
+
+        notify(toastTitle, toastDesc, toastType)
+      } else {
+        const ingredient = await ingredientService.create(getToken, input)
+        setSupplies((current) => sortIngredients([...current, ingredient]))
+        notify('Insumo creado correctamente', `"${data.name}" se agregó a la despensa.`, 'success')
+      }
       handleCloseSheet()
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
+      notify('Error al guardar', error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
     }
   }
 
-  /**
-   * Elimina el insumo seleccionado y actualiza el estado local.
-   */
   const confirmDelete = async () => {
     if (!selected) return
     try {
       await ingredientService.delete(getToken, selected.id)
       setSupplies((current) => current.filter((item) => item.id !== selected.id))
-      notify(`Insumo "${selected.name}" eliminado correctamente`)
+      notify('Insumo eliminado', `"${selected.name}" eliminado correctamente`, 'success')
       handleCloseSheet()
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.', 'error')
+      notify('Error al eliminar', error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.', 'error')
       setShowDeleteConfirm(false)
     }
   }
 
-  /**
-   * Actualiza el estado del insumo tras asociar o editar un empaque mayorista.
-   */
   const handlePackagingSuccess = (newCost?: number, newConnection?: SupplierIngredient) => {
     if (!selected) return
     let updatedConnections = [...(selected.supplierConnections || [])]
@@ -206,15 +225,12 @@ export default function SuppliesPageContent() {
 
     if (newCost !== undefined) {
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`)
+      notify('Presentación vinculada', `Costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
     } else {
-      notify('Presentación mayorista asociada correctamente al proveedor.')
+      notify('Presentación vinculada', 'Presentación mayorista asociada correctamente al proveedor.', 'success')
     }
   }
 
-  /**
-   * Convierte un empaque asociado en el proveedor predeterminado del insumo.
-   */
   const handleMakeDefault = async (conn: SupplierIngredient) => {
     try {
       const result = await supplierService.addPackaging(getToken, conn.supplierId, {
@@ -232,15 +248,24 @@ export default function SuppliesPageContent() {
       setSupplies((current) => sortIngredients(current.map((item) => (item.id === selected!.id ? updatedIngredient : item))))
       setSelected(updatedIngredient)
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify(`Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`)
+      notify('Proveedor predeterminado', `Costo activo actualizado a ${money(newCost)}.`, 'success')
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
+      notify('Error', error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
     }
   }
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {toast && <ToastAlert message={toast.message} type={toast.type} />}
+      {toasts.map((t, index) => (
+        <ToastAlert
+          key={t.id}
+          title={t.title}
+          description={t.description}
+          type={t.type}
+          onClose={() => removeToast(t.id)}
+          offset={index}
+        />
+      ))}
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
