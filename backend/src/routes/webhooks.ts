@@ -128,7 +128,12 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
             data: { currentCost: newUnitCost },
           });
 
-          const criticalProducts = await applyIngredientCostChange(tx, mapped.ingredientId, previousCost, newUnitCost);
+          const { criticalProducts } = await applyIngredientCostChange(
+            tx,
+            mapped.ingredientId,
+            previousCost,
+            newUnitCost
+          );
 
           criticalProductsAlerts.push(
             ...criticalProducts.map((product) => ({

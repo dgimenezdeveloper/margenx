@@ -30,6 +30,7 @@ const priceHistoryCreateMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+const accountFindUniqueMock = vi.fn();
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
     supplierIngredient: {
@@ -48,6 +49,9 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
 vi.mock('../lib/prisma', () => ({
   prisma: {
     $transaction: (callback: (tx: unknown) => unknown) => transactionMock(callback),
+    account: {
+      findUnique: (...args: unknown[]) => accountFindUniqueMock(...args),
+    },
     supplier: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       findFirst: (...args: unknown[]) => findFirstMock(...args),
@@ -107,7 +111,14 @@ beforeEach(() => {
   productIngredientFindManyMock.mockReset();
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
+  accountFindUniqueMock.mockReset();
   transactionMock.mockClear();
+  accountFindUniqueMock.mockResolvedValue({
+    id: 'account-1',
+    businessName: 'Panadería Central',
+    slug: 'panaderia-central',
+    users: [{ email: 'admin.panaderia@hotmail.com' }],
+  });
 });
 
 describe('GET /api/suppliers', () => {
@@ -188,7 +199,11 @@ describe('GET /api/suppliers', () => {
     const applyIngredientCostChangeMock = vi.spyOn(
       await import('../services/marginCalculator'),
       'applyIngredientCostChange'
-    ).mockResolvedValue([]);
+    ).mockResolvedValue({
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    });
 
     const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
 
@@ -723,6 +738,69 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(res.status).toBe(200);
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('usa el total real de productos afectados en el payload de alerta cuando hay críticos', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+    process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
+
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({ id: 'si-1', isDefault: true });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-1' }, { productId: 'prod-2' }]);
+    productFindUniqueMock
+      .mockResolvedValueOnce({
+        id: 'prod-1',
+        name: 'Pan',
+        salePrice: new Prisma.Decimal('100.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('60.00'),
+        marginPercent: new Prisma.Decimal('50.00'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('700.00') } }],
+      })
+      .mockResolvedValueOnce({
+        id: 'prod-2',
+        name: 'Torta',
+        salePrice: new Prisma.Decimal('5000.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('60.00'),
+        marginPercent: new Prisma.Decimal('98.80'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('700.00') } }],
+      });
+    productUpdateMock.mockResolvedValue({});
+    const body = {
+      id: 'account-1',
+      businessName: 'Panadería Central',
+      slug: 'panaderia-central',
+      users: [{ email: 'admin.panaderia@hotmail.com' }],
+    };
+    accountFindUniqueMock.mockResolvedValue(body);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: true });
+
+    expect(res.status).toBe(201);
+    const requestInit = fetchMock.mock.calls[0]?.[1] as { body?: string } | undefined;
+    expect(requestInit?.body).toBeDefined();
+    const payload = JSON.parse(requestInit!.body!);
+    expect(payload.affectedProductsCount).toBe(2);
+    expect(payload.criticalProducts).toHaveLength(1);
   });
 
   it('devuelve 400 si packageUnit no coincide con la unidad del insumo', async () => {

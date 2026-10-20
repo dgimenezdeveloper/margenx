@@ -1,0 +1,173 @@
+{
+  "info": {
+    "name": "MargenX - Alertas de margen (Insumos)",
+    "description": "Casos de validación del contrato PUT /api/ingredients/:id para alertas de margen. Cubre cambio real, no-op, acceso no autorizado y conteo total vs críticos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "8c1e8b6a-4fbe-4d4d-9f1d-6cbe1f4cbb7d"
+  },
+  "item": [
+    {
+      "name": "01 - Cambio real: affectedProductsCount total + criticalProducts subset",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('El payload expone affectedProductsCount total', function () {",
+              "  pm.expect(body.affectedProductsCount).to.be.a('number');",
+              "  pm.expect(body.affectedProductsCount).to.be.greaterThan(0);",
+              "});",
+              "pm.test('criticalProducts contiene solo los críticos', function () {",
+              "  pm.expect(body.criticalProducts).to.be.an('array');",
+              "  pm.expect(body.criticalProducts.length).to.be.at.most(body.affectedProductsCount);",
+              "});",
+              "pm.test('La respuesta tiene la forma que consume el frontend', function () {",
+              "  pm.expect(body).to.have.property('ingredient');",
+              "  pm.expect(body).to.have.property('affectedProductsCount');",
+              "  pm.expect(body).to.have.property('criticalProducts');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Sin cambio real: affectedProductsCount = 0 y criticalProducts = []",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('No hubo cambio real', function () {",
+              "  pm.expect(body.affectedProductsCount).to.eql(0);",
+              "  pm.expect(body.criticalProducts).to.eql([]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"742.98\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Colaborador: 403 Forbidden",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('Se bloquea la mutación por RBAC', function () {",
+              "  pm.expect(pm.response.json().error).to.include('no autorizado');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{collaboratorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Alert dispatch: payload enviado por n8n usa el total real y la lista crítica",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('El total real queda en affectedProductsCount', function () {",
+              "  pm.expect(body.affectedProductsCount).to.be.a('number');",
+              "  pm.expect(body.affectedProductsCount).to.be.greaterThan(0);",
+              "});",
+              "pm.test('La lista crítica es un subconjunto del total', function () {",
+              "  pm.expect(body.criticalProducts.length).to.be.at.most(body.affectedProductsCount);",
+              "});",
+              "pm.test('La respuesta sigue el contrato esperado por el frontend', function () {",
+              "  pm.expect(body).to.have.all.keys(['ingredient', 'affectedProductsCount', 'criticalProducts']);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "adminToken", "value": "<jwt-admin>" },
+    { "key": "collaboratorToken", "value": "<jwt-colaborador>" },
+    { "key": "ingredientId", "value": "30b00001-0000-4000-8000-000000000001" }
+  ]
+}

@@ -261,7 +261,12 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
 
   if (hasNoActualChange) {
-    return res.status(200).json({ ingredient: existing });
+    return res.status(200).json({
+      ingredient: existing,
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    });
   }
 
   const previousCost = existing.currentCost ?? null;
@@ -272,9 +277,9 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
       data: { name, unit, currentCost: nextCost },
     });
 
-    const criticalProducts = await applyIngredientCostChange(tx, id, previousCost, nextCost);
+    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);
 
-    return { ingredient, criticalProducts };
+    return { ingredient, affectedProductsCount, affectedProducts, criticalProducts };
   });
 
   if (result.criticalProducts.length > 0) {
@@ -282,7 +287,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
       accountId,
       ingredientId: id,
       ingredientName: name,
-      affectedProductsCount: result.criticalProducts.length,
+      affectedProductsCount: result.affectedProductsCount,
       criticalProducts: result.criticalProducts.map((product) => ({
         productId: product.productId,
         productName: product.productName,
@@ -294,7 +299,26 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     });
   }
 
-  return res.status(200).json({ ingredient: result.ingredient });
+  return res.status(200).json({
+    ingredient: result.ingredient,
+    affectedProductsCount: result.affectedProductsCount,
+    affectedProducts: result.affectedProducts.map((product) => ({
+      productId: product.productId,
+      productName: product.productName,
+      previousCost: product.previousCost.toFixed(2),
+      newCost: product.newCost.toFixed(2),
+      currentMarginPercent: product.currentMarginPercent.toFixed(2),
+      minMarginPercent: product.minMarginPercent.toFixed(2),
+    })),
+    criticalProducts: result.criticalProducts.map((product) => ({
+      productId: product.productId,
+      productName: product.productName,
+      previousCost: product.previousCost.toFixed(2),
+      newCost: product.newCost.toFixed(2),
+      currentMarginPercent: product.currentMarginPercent.toFixed(2),
+      minMarginPercent: product.minMarginPercent.toFixed(2),
+    })),
+  });
 });
 
 /* ------------------------------------------------------------------ */

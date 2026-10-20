@@ -53,6 +53,7 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
         slug: true,
         users: {
           where: { role: 'ADMIN' },
+          orderBy: { createdAt: 'asc' },
           select: { email: true },
           take: 1,
         },
@@ -103,6 +104,7 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
         'x-margenx-webhook-secret': webhookSecret,
       },
       body: JSON.stringify(dynamicPayload),
+      signal: AbortSignal.timeout(5000),
     });
 
     // 5. Verificación estricta de respuesta HTTP (previene pérdida silenciosa de alertas ante 401/500)
