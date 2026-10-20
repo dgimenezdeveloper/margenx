@@ -22,7 +22,9 @@ Varios correos en una misma ejecución se procesan por separado: cada fila queda
 - Columnas reconocidas (sin distinguir mayúsculas ni tildes): código (`Código`, `Cod`, `Art`, `SKU`…), descripción (`Descripción`, `Detalle`…) y precio (`Precio Final`, `Final`, `Precio`, `Costo`…, en ese orden de prioridad). CSV con coma, punto y coma o tabulación.
 - Precios en formato argentino (`1.234,56`) o inglés (`1,234.56`); se descartan filas sin código o con precio no positivo. Más de 5.000 filas se envían en varios lotes.
 - XLSX con varias hojas: se lee **la primera hoja**.
+- Códigos con ceros a la izquierda (`001`): en Excel, formatear la columna de código como **Texto** antes de guardar. Si la celda es numérica, Excel guarda `1` y el cero se pierde antes de que n8n reciba el archivo (en CSV se conservan tal cual).
 - El trigger IMAP usa IDLE (tiempo real) con reconexión forzada cada 60 minutos, en vez de sondeo cada 60 s.
+- Si la API informa `discardedCodes` (contrato #208), el resumen lista los códigos descartados agrupados por motivo (máx. 20 por motivo, con "y N más") y avisa cuando la API no detalla todos (tope de 100).
 - El resumen se envía solo al `account.ownerEmail` que devuelve la API (contrato de #200). Si la API no lo informa, no se envía nada: la lista nunca se responde a quien la mandó. Los correos propios, rebotes y respuestas automáticas se ignoran para evitar bucles.
 - Un solo n8n apunta a un solo backend (`MARGENX_API_URL`).
 

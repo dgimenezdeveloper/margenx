@@ -99,5 +99,22 @@ const run = (file, ctx) => {
  const ok1=(mailId,upd,own)=>({json:{dispatchOk:true,mailId,accountSlug:'s'+mailId,fileName:mailId+'.csv',rowsInvalid:0,body:{received:10,updated:upd,discarded:10-upd,account:{tradeName:'T'+mailId,ownerEmail:own}}}});
  r=await run('resumen.js',{items:[ok1('0',3,'d0@x.com'),ok1('1',5,'d1@x.com'),ok1('2',1,'')]});
  assert.equal(r.length,2);assert.equal(r[0].json.ownerEmail,'d0@x.com');assert.ok(r[0].json.text.includes('3 insumos'));assert.ok(r[1].json.text.includes('5 insumos'));
+ // 9 Resumen: detalle de códigos descartados (contrato #208)
+ const dc=(n,reason,pre='X')=>Array.from({length:n},(_,i)=>({code:pre+i,reason}));
+ r=await run('resumen.js',{items:[{json:{mailId:'0',fileName:'x.xlsx',rowsInvalid:0,body:{received:30,updated:5,discarded:25,discardedCodes:[...dc(2,'NOT_FOUND','001'),{code:'<b>',reason:'AMBIGUOUS'},{code:'S1',reason:'INACTIVE_SUPPLIER'},...dc(21,'NOT_FOUND','Z'),{code:'Q',reason:'OTRA'}],account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
+ assert.ok(r[0].json.text.includes('Descartadas por código no encontrado en tus proveedores (23): 0010, 0011, Z0,'));
+ assert.ok(r[0].json.text.includes('y 3 más.')); // 23 códigos, se listan 20
+ assert.ok(r[0].json.text.includes('Descartadas por código presente en más de un proveedor activo (1): <b>.'));
+ assert.ok(r[0].json.text.includes('Descartadas por proveedor inactivo (1): S1.'));
+ assert.ok(r[0].json.text.includes('Descartadas por otro motivo (1): Q.'));
+ assert.ok(!r[0].json.text.includes('Se detallan')); // 26 listados >= 25 descartadas: sin nota
+ assert.ok(!r[0].json.html.includes('<b>')&&r[0].json.html.includes('&lt;b&gt;')); // el HTML escapa códigos
+ // dos lotes: se suman; si se listan menos que las descartadas (tope de la API) se avisa
+ r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:200,updated:0,discarded:150,discardedCodes:dc(100,'NOT_FOUND','A'),account:{tradeName:'T',ownerEmail:'d@x.com'}}}},{json:{mailId:'0',rowsInvalid:0,body:{received:10,updated:0,discarded:3,discardedCodes:dc(3,'INACTIVE_SUPPLIER','B')}}}]});
+ assert.ok(r[0].json.text.includes('Descartadas por código no encontrado en tus proveedores (100)'));assert.ok(r[0].json.text.includes('Descartadas por proveedor inactivo (3): B0, B1, B2.'));
+ assert.ok(r[0].json.text.includes('Se detallan 103 de 153 filas descartadas.'));
+ // sin discardedCodes (API v1 o nada descartado): el resumen no cambia
+ r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:5,updated:5,discarded:0,account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
+ assert.ok(!r[0].json.text.includes('Descartadas por')&&!r[0].json.text.includes('Se detallan'));
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});
