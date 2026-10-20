@@ -15,6 +15,8 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     ports:
+      # Solo loopback: Postgres NO debe quedar expuesto a internet. Los backends lo usan por la red interna (postgres:5432).
+      # Acceso externo (DBeaver, etc.): túnel SSH -> ssh -L 5435:127.0.0.1:5435 usuario@vps
       - "127.0.0.1:5435:5432"
     networks:
       - margenx_network
@@ -47,6 +49,7 @@ services:
       - INTERNAL_WEBHOOK_SECRET=${INTERNAL_WEBHOOK_SECRET}
       - MARGENX_API_URL=${MARGENX_API_URL}
       - IMAP_USER=${IMAP_USER}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
     volumes:
@@ -75,7 +78,11 @@ services:
     container_name: margenx_backend_prod
     restart: unless-stopped
     env_file:
-      - .env.prod
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_PROD}?schema=public
     ports:
       - "127.0.0.1:3011:3000"
     networks:
@@ -122,7 +129,11 @@ services:
     container_name: margenx_backend_dev
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_DEV}?schema=public
     ports:
       - "127.0.0.1:3021:3000"
     networks:
