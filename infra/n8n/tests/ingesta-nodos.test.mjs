@@ -24,6 +24,7 @@ const run = (file, ctx) => {
  const mail=(to,files,extra={})=>({json:{from:{value:[{address:'Prov@dist.com'}]},to:{text:to},subject:'Lista',...extra},binary:Object.fromEntries(files.map((f,i)=>['attachment_'+i,{fileName:f}]))});
  let r=await run('extraer.js',{items:[mail('precios+panaderia-central@margenx.tech',['Lista Octubre.xlsx'])],env:{IMAP_USER:'margenx.saas@gmail.com'}});
  assert.equal(r[0].json.slug,'panaderia-central');assert.equal(r[0].json.ext,'xlsx');assert.equal(r[0].json.error,'');
+ for (const a of ['precios-panaderia-central','precios.panaderia-central','PRECIOS+panaderia-central']){r=await run('extraer.js',{items:[mail(a+'@margenx.tech',['l.csv'])],env:{IMAP_USER:'margenx.saas@gmail.com'}});assert.equal(r[0].json.slug,'panaderia-central',a);assert.equal(r[0].json.error,'');}
  r=await run('extraer.js',{items:[mail('hola@margenx.tech',['a.xlsx']),mail('precios+x1@margenx.tech',['foto.png']),mail('precios+x1@margenx.tech',['a.csv'],{from:{value:[{address:'margenx.saas@gmail.com'}]}})],env:{IMAP_USER:'margenx.saas@gmail.com'}});
  assert.equal(r.length,2);assert.ok(r[0].json.error.includes('identificador'));assert.ok(r[1].json.error.includes('adjunto'));
  // 2 CSV

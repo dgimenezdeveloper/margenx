@@ -14,7 +14,7 @@ Flujo: `Correo Entrante (IMAP)` → `Extraer Slug y Adjunto` → (CSV: `Parsear 
 
 **Comportamiento a tener en cuenta**
 
-- El slug sale del destinatario `precios+<slug>@margenx.tech` (Cloudflare Email Routing → Gmail).
+- El slug sale del destinatario. Formato recomendado: `precios-<slug>@margenx.tech` (ej. `precios-panaderia-central@margenx.tech`); también se aceptan `precios.<slug>@` y `precios+<slug>@` (Cloudflare Email Routing → Gmail).
 - Columnas reconocidas (sin distinguir mayúsculas ni tildes): código (`Código`, `Cod`, `Art`, `SKU`…), descripción (`Descripción`, `Detalle`…) y precio (`Precio Final`, `Final`, `Precio`, `Costo`…, en ese orden de prioridad). CSV con coma, punto y coma o tabulación.
 - Precios en formato argentino (`1.234,56`) o inglés (`1,234.56`); se descartan filas sin código o con precio no positivo. Más de 5.000 filas se envían en varios lotes.
 - XLSX con varias hojas: se lee **la primera hoja**.
@@ -28,6 +28,6 @@ Flujo: `Correo Entrante (IMAP)` → `Extraer Slug y Adjunto` → (CSV: `Parsear 
 2. En n8n, crear la credencial **IMAP** llamada `Gmail IMAP MargenX` (host `imap.gmail.com`, puerto 993, SSL, usuario y contraseña de aplicación de Google). Las variables `IMAP_*` del `.env` no crean la credencial: se cargan a mano en la interfaz.
 3. Verificar que exista la credencial SMTP `Brevo MargenX SMTP Relay`.
 4. Importar `workflows/ingesta-listas.json` y activarlo.
-5. Probar enviando un `.csv` a `precios+<slug-de-prueba>@margenx.tech` y revisar el resumen recibido.
+5. Probar enviando un `.csv` a `precios-<slug-de-prueba>@margenx.tech` y revisar el resumen recibido.
 
 Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`.
