@@ -1,6 +1,15 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
+/**
+ * Payload de alerta crítica de margen para n8n.
+ *
+ * Este despachador no es un endpoint HTTP público; es un webhook saliente que el
+ * backend dispara cuando un producto cruza el margen mínimo y se requiere avisar al
+ * Administrador o consolidar la alerta para que n8n la transforme en correo y/o
+ * seguimiento. La ejecución es fail-closed: si no hay secreto o URL configurada, la
+ * alerta no se envía.
+ */
 export interface MarginAlertCriticalProduct {
   productId: string;
   productName: string;
@@ -27,6 +36,13 @@ function formatDecimal(value: Prisma.Decimal | string | number): string {
  * Resuelve dinámicamente los datos del comercio y el email del dueño (ADMIN)
  * garantizando aislamiento multi-tenant y autenticando con secreto compartido.
  * Opera bajo patrón Fail-Closed (no despacha si no hay secreto configurado).
+ *
+ * Envía la alerta crítica de margen a n8n.
+ *
+ * La documentación del proyecto define a n8n como orquestador de notificaciones y
+ * no como fuente de verdad del cálculo. Por eso este dispatcher sólo entrega el
+ * contexto final calculado por el backend y delega en n8n la composición del mail,
+ * la planificación o la notificación externa.
  */
 export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Promise<void> {
   const webhookUrl = process.env.N8N_MARGIN_ALERT_WEBHOOK_URL?.trim();
