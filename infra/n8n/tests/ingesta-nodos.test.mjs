@@ -67,15 +67,23 @@ const run = (file, ctx) => {
  // errores del despacho: 404 / 401 / 503 -> motivo según status; dos lotes con la misma falla -> un solo correo
  r=await run('error.js',{items:[{json:{...meta,dispatchOk:false,status:404,apiError:'x'}},{json:{...meta,dispatchOk:false,status:404}},{json:{...meta,mailId:'1',from:'o@d.com',dispatchOk:false,status:0,apiError:'ECONNREFUSED'}}]});
  assert.equal(r.length,2);assert.ok(r[0].json.text.includes('no existe o está inactivo'));assert.equal(r[1].json.to,'o@d.com');assert.ok(r[1].json.text.includes('3 intentos'));assert.ok(!r[1].json.text.includes('ECONNREFUSED'));
- // 6 Varios correos en una ejecución: cada uno conserva su remitente / archivo y sus filas
+ // 6 Varios correos: cada pasada (rama CSV / rama XLSX) responde SOLO por los correos que trae
  const mA={mailId:'0',slug:'panaderia-central',from:'a@d.com',fileName:'a.csv',error:''},mB={mailId:'1',slug:'otro',from:'b@d.com',fileName:'b.xlsx',error:''},mC={mailId:'2',slug:'vacio',from:'c@d.com',fileName:'c.csv',error:''};
- const mixed=[{json:{Codigo:'A1',Precio:'10'}},{json:{Cod:'B1',Precio:'20'}},{json:{Cod:'B2',Precio:'30'}},{json:{Codigo:'A2',Precio:'abc'}}];
- const owner=[0,1,1,0];
- r=await run('normalizar.js',{items:mixed,all:{'Extraer Slug y Adjunto':[mA,mB,mC,{mailId:'3',error:'x'}]},match:{'Extraer Slug y Adjunto':(i)=>[mA,mB][owner[i]]}});
- assert.equal(r.length,3);
+ const todos=[mA,mB,mC,{mailId:'3',error:'x'}];
+ const mixed=[{json:{Codigo:'A1',Precio:'10'}},{json:{Codigo:'A2',Precio:'abc'}},{json:{}}]; // 2 filas de A + marcador vacío de C
+ let owner=[0,0,2];
+ r=await run('normalizar.js',{items:mixed,all:{'Extraer Slug y Adjunto':todos},match:{'Extraer Slug y Adjunto':(i)=>todos[owner[i]]}});
+ assert.equal(r.length,2); // A y C; B (no vino en esta pasada) NO genera error falso
  assert.deepEqual([r[0].json.from,r[0].json.fileName,r[0].json.items.length,r[0].json.rowsInvalid],['a@d.com','a.csv',1,1]);
- assert.deepEqual([r[1].json.from,r[1].json.fileName,r[1].json.items.length],['b@d.com','b.xlsx',2]);
- assert.equal(r[2].json.ok,false);assert.equal(r[2].json.from,'c@d.com'); // CSV solo con encabezado: error al remitente correcto
+ assert.equal(r[1].json.ok,false);assert.equal(r[1].json.from,'c@d.com'); // CSV sin filas: error al remitente correcto
+ // segunda pasada (rama XLSX): solo B
+ owner=[1,1];
+ r=await run('normalizar.js',{items:[{json:{Cod:'B1',Precio:'20'}},{json:{Cod:'B2',Precio:'30'}}],all:{'Extraer Slug y Adjunto':todos},match:{'Extraer Slug y Adjunto':(i)=>todos[owner[i]]}});
+ assert.equal(r.length,1);assert.deepEqual([r[0].json.from,r[0].json.fileName,r[0].json.items.length],['b@d.com','b.xlsx',2]);
+ // CSV solo con encabezado en el nodo Parsear CSV -> marcador vacío ligado al correo
+ const bufH=Buffer.from('Codigo;Precio\n');
+ r=await run('csv.js',{items:[{json:{binaryKey:'attachment_0'}}],self:{helpers:{getBinaryDataBuffer:async()=>bufH}}});
+ assert.equal(r.length,1);assert.deepEqual(r[0].json,{});assert.equal(r[0].pairedItem.item,0);
  // sin pairedItem y un solo correo: usa ese correo
  r=await run('normalizar.js',{items:[{json:{Codigo:'Z',Precio:5}}],all:{'Extraer Slug y Adjunto':[mA]}});assert.equal(r[0].json.items[0].code,'Z');
  // 7 Despacho: 200 directo; 4xx sin reintento; 5xx con reintentos; error de red agotado
