@@ -10,6 +10,16 @@
 
 El equipo está compuesto por 4 personas. El Scrum Master asume los roles de **Scrum Master, DevOps y Arquitecto de Automatización (n8n)**. Los 3 roles restantes se asignan de forma estratégica para cubrir todo el ciclo de vida del producto sin solapamientos innecesarios ni cuellos de botella.
 
+El rol de Scrum Master es **rotativo** por indicación de la cátedra, mientras que DevOps y la arquitectura de automatización permanecen en Darío Giménez durante todos los sprints. La rotación vigente es:
+
+| Sprint | Scrum Master |
+| :--- | :--- |
+| Sprint 0 y Sprint 1 | Darío Giménez |
+| Sprint 2 | Mauricio Barreras |
+| Sprint 3 | Leandro Herrera |
+| Sprint 4 | Federico Paal |
+| Sprint 5 en adelante | Darío Giménez |
+
 ### Rol 1 — Scrum Master, DevOps & Arquitecto de Automatización
 
 **Responsabilidad principal:** dueño de la infraestructura y el despliegue continuo en la VPS Donweb, la arquitectura de automatizaciones satélite con n8n, la gobernanza técnica del repositorio y la facilitación del marco ágil (Scrum). Es quien garantiza la estabilidad operativa del entorno, la seguridad perimetral, la ejecución atómica de migraciones y la eliminación de bloqueos técnicos y de flujo para el equipo.
@@ -554,7 +564,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 * **QA (Leandro Herrera):**
   * [QA] Suite de pruebas automatizadas E2E de Recálculo de Margen y Aislamiento en Playwright (TC-MRG-01, TC-SEC-01, Completado).
   * [QA] Validación de precisión aritmética en fórmulas financieras y casos borde de recetas (Completado).
-* **DevOps / Scrum Master (Darío Giménez):**
+* **DevOps (Darío Giménez):**
   * [DEVOPS] Integración de Playwright en GitHub Actions con bloqueo de PRs defectuosos y reportes HTML (Completado).
   * [DEVOPS] Puesta a punto y despliegue del entorno de Producción (`https://margenx.tech`) para la Demo oficial del MVP (Completado).
 
@@ -580,7 +590,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA/PO] Redacción del protocolo de pruebas in-situ con clientes reales en mobile 360px (Completado).
   * [QA] Suite E2E en Playwright (`rbac-security.spec.ts`) para verificación de seguridad RBAC (Completado).
   * [QA] Colección Postman/Newman de precisión en factores de conversión mayorista (Completado).
-* **DevOps / SM (Darío Giménez):**
+* **DevOps (Darío Giménez):**
   * [DEVOPS] Optimización de imágenes Docker con multi-stage builds, límites de memoria por contenedor y rotación de logs en la VPS (RNF-01, Completado).
 
 #### Sprint 4: Recálculo en Cascada y Automatización n8n "Zero-Click" (10/10 al 24/10) — [En Curso]

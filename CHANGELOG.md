@@ -1,7 +1,60 @@
 
 # Changelog — MargenX
 
-## Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+
+## [Unreleased]
+
+> Borrador del Sprint 4 (Recálculo en Cascada y Automatización n8n). Completar con los PR mergeados a `develop` y pasar a `[0.5.0]` al cerrar el sprint.
+
+### Added
+
+- **Backend:** Recálculo en cascada de costos y márgenes al cambiar el costo de un insumo, con alerta solo cuando el margen cruza el mínimo hacia abajo (`#182`).
+- **Backend:** Webhook de ingesta de precios `POST /api/webhooks/supplier-prices`, protegido con la cabecera `x-margenx-webhook-secret` (`#183`).
+- **Backend:** Filtro anti-contaminación de precios y cuarentena de precios anómalos con endpoints para listar, liberar y rechazar (`#194`, `#198`).
+- **DevOps:** Canal de ingesta por correo con Cloudflare Email Routing, buzón IMAP en Gmail y envío por Brevo (`#186`).
+- **DevOps:** Monitor de memoria del VPS con aviso a Discord (`#188`, `#189`).
+- **QA:** Acta y bitácora de pruebas in-situ en Química GyJ (`#191`).
+
+### Changed
+
+- **Datos:** Seed con proveedores y presentaciones reales de los comercios piloto (`#196`).
+
+### Fixed
+
+- **Frontend:** Corrección del scroll en iOS Safari detectado en las pruebas in-situ (`#195`).
+
+## [0.4.0] - 2026-10-10 (Sprint 3: Dashboard de Rentabilidad, Roles RBAC y Dominio Multi-Proveedor)
+
+### Added
+
+- **Backend:** Modelos Prisma `Supplier`, `SupplierIngredient` y `PriceHistory` con seed de referencia (`#116`).
+- **Backend:** CRUD de proveedores con registro transaccional automático del historial de precios (`#117`).
+- **Backend:** Conversión de empaques mayoristas a costo unitario equivalente y proveedor predeterminado (`#118`).
+- **Backend:** Middleware RBAC que sanitiza campos de costo, margen y proveedores para el rol `COLLABORATOR` (`#119`).
+- **Backend:** Endpoints de métricas consolidadas del Dashboard (`#120`).
+- **Backend:** Upsert de precios de presentación de proveedor, en reemplazo del `409 Conflict` al reasociar (`#153`).
+- **Frontend:** Dashboard con métricas reales de la API, semáforo de margen e histograma de distribución (`#121`, `#122`).
+- **Frontend:** Adaptación de la UI por rol para ocultar datos financieros a colaboradores (`#123`).
+- **Frontend:** Gestión de proveedores por insumo con calculadora de empaques en vivo (`#124`).
+- **Frontend:** Historial de variaciones de costo por insumo (`#125`) y comparativa de proveedores con acción de predeterminado (`#152`).
+- **QA:** Protocolo de pruebas in-situ en 360px (`#126`), suite E2E de seguridad RBAC (`#127`) y colección Postman de precisión de conversión (`#128`).
+- **DevOps:** Imágenes Docker multi-stage, límites de memoria por contenedor y rotación de logs en el VPS (`#129`).
+
+### Changed
+
+- **Frontend:** Ficha técnica con inputs estáticos, botonera de margen normalizada y ordenamiento del Dashboard por margen ascendente (`#108`, `#110`, `#111`).
+- **Frontend:** Redondeo ascendente del margen sugerido con `Math.ceil` (`#109`).
+- **DevOps:** Puerto de Postgres replegado a `127.0.0.1:5435` (`#129`).
+
+### Fixed
+
+- **Frontend:** Blindaje de la UI ante campos ausentes en respuestas sanitizadas para `COLLABORATOR` (`#149`).
+
+### Security
+
+- **Frontend:** Diálogos de confirmación al descartar el modal de insumos, remover insumos de una receta y cerrar sesión (`#112`, `#113`, `#114`).
+- **Backend:** Sanitización financiera server-side para el rol `COLLABORATOR` (`#119`).
 
 ## [0.3.0] - 2026-10-02 (Sprint 2: MVP Core — Recetas Compuestas, Cálculo en Vivo y Despliegue en Producción)
 

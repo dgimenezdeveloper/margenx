@@ -3,9 +3,9 @@
 **Proyecto:** MargenX — Control de Márgenes en Tiempo Real
 **Materia:** Prácticas Profesionales Supervisadas (PPS) / Metodologías Ágiles
 **Fecha de Sesión:** 10/10/2026
-**Hora:** _[completar — hora real de la reunión]_
+**Hora:** 12:00 hs
 **Facilitador / Scrum Master Saliente:** Leandro Herrera
-**Scrum Master Entrante (Rotación Sprint 4):** Federico Paal _(a confirmar por el SM oficial — es el único integrante que no ocupó el rol todavía, siguiendo la rotación Darío → Mauricio → Leandro)_
+**Scrum Master Entrante (Rotación Sprint 4):** Federico Paal _(confirmado el 20/10/2026 por Darío Giménez; rotación Darío → Mauricio → Leandro → Federico)_
 **Participantes:** Darío Giménez (DevOps), Mauricio Barreras (Lead Backend), Federico Paal (Lead Frontend), Leandro Herrera (QA Engineer & SM saliente)
 
 ---
@@ -98,7 +98,7 @@ En cumplimiento de las pautas del manual operativo de MargenX, al completarse el
 - [ ] **Tablero NO completamente limpio al cierre:** `#152` queda en revisión (PR #156), pasa como carry-over al Sprint 4.
 - [x] **Ambientes de Staging/Producción:** `https://margenx.tech` y `https://dev.margenx.tech` operativos, con límites de memoria y rotación de logs aplicados tras el PR #157.
 - [ ] **Variables de entorno de la VPS (`.env.prod` / `.env.dev`):** el PR #157 cambió el compose para que `DATABASE_URL` se arme por separado en cada archivo en vez de inline — **pendiente confirmar en la VPS real que ambos apuntan a bases distintas (`margenx_prod` / `margenx_dev`)** antes de dar esto por cerrado.
-- [ ] **Backlog refinado para Sprint 4:** _a completar por el SM entrante — no se definió en esta sesión._
+- [ ] **Backlog refinado para Sprint 4:** no se definió en esta sesión. El backlog del Sprint 4 se cargó y asignó en el tablero durante el propio Sprint 4; al 19/10/2026 había ítems con fecha objetivo vencida (DEVOPS-02, DEVOPS-03 y DOCS-02), lo que muestra que el refinamiento y las fechas no estaban cerrados al inicio. _(Nota agregada el 20/10/2026 por Darío Giménez.)_
 - [x] **Secretos e Infraestructura de VPS:** sin cambios de credenciales reportados en este Sprint.
 
 ---
