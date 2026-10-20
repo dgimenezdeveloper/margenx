@@ -9,13 +9,30 @@ import { applyIngredientCostChange, calculateUnitCost } from '../services/margin
 
 const router = Router();
 
-/* ------------------------------------------------------------------ */
-/* POST /api/webhooks/supplier-prices                                   */
-/* Recibe listas de precios desde servicio satélite autenticado por      */
-/* secreto interno. Descarta artículos no mappeados y retiene en        */
-/* cuarentena precios anómalos con variación > 50% o costo <= 0.01.      */
-/* 200 OK | 400 Payload inválido | 401 No autorizado | 404 Slug inexistente/inactivo */
-/* ------------------------------------------------------------------ */
+/**
+ * POST /api/webhooks/supplier-prices
+ * Webhook de ingesta por proveedor.
+ *
+ * Contrato de integración con n8n / sistema satélite que reenvía listas de precios
+ * recibidas por correo o WhatsApp. El backend valida el secreto compartido, resuelve
+ * cada `supplierCode` dentro de la cuenta y del proveedor correcto, descarta filas sin
+ * mapeo y conserva un resumen fiable de qué se actualizó, quedó sin cambios, pasó a
+ * cuarentena o fue descartado.
+ *
+ * El diseño está alineado con la documentación del proyecto en /docs:
+ * - la identificación del proveedor es implícita por `supplierCode`
+ * - las listas no crean nuevos insumos ni contaminan el catálogo
+ * - los cambios de costo solo se ejecutan si el valor es real y válido
+ * - n8n conserva la lógica de ensamblado del resumen final y de las alertas
+ *
+ * Payload esperado:
+ * {
+ *   accountSlug: string,
+ *   items: [{ code: string, description?: string, price: number }]
+ * }
+ * 
+ * 200 OK | 400 Payload inválido | 401 No autorizado | 404 Slug inexistente/inactivo
+ */
 export const supplierPricesIngestSchema = z.object({
   accountSlug: z.string().trim().min(2),
   items: z.array(
@@ -27,10 +44,13 @@ export const supplierPricesIngestSchema = z.object({
   ).min(1).max(5000),
 });
 
-/*
-  Valida la cabecera interna del servicio satélite. Se compara con timingSafeEqual
-  para evitar ataques de timing en la autenticación inter-servicio.
-*/
+/**
+ * Valida la cabecera `x-margenx-webhook-secret` del servicio satélite.
+ *
+ * Se usa `timingSafeEqual` para evitar ataques de timing en la autenticación
+ * inter-servicio. El patrón es fail-closed: si falta o es incorrecto, el webhook
+ * responde 401 y no procesa ninguna solicitud.
+ */
 function hasValidInternalSecret(req: Request): boolean {
   const expectedSecret = process.env.INTERNAL_WEBHOOK_SECRET ?? '';
   const incomingSecret = req.get('x-margenx-webhook-secret') ?? '';
@@ -49,7 +69,32 @@ function hasValidInternalSecret(req: Request): boolean {
   return crypto.timingSafeEqual(expected, actual);
 }
 
+/**
+ * Procesa la ingesta masiva de precios de un proveedor.
+ *
+ * Flujo de negocio:
+ * 1. valida autenticación interna
+ * 2. valida el payload
+ * 3. resuelve la cuenta activa por `accountSlug`
+ * 4. deduplica items por `code` dentro del mismo lote
+ * 5. busca coincidencias de `supplierCode` dentro de la cuenta
+ * 6. descarta filas sin mapping, proveedor inactivo o ambiguas
+ * 7. compara el precio contra la presentación vigente para decidir:
+ *    - mismo precio => `unchanged`
+ *    - precio anómalo => `quarantined`
+ *    - precio válido => `updated`
+ * 8. si aplica, recalcula `Ingredient.currentCost` y dispara la cascada de productos
+ * 9. responde un resumen veraz para que n8n construya el correo y el dashboard
+ *
+ * La lógica respeta la arquitectura definida en /docs:
+ * - no crea nuevos insumos
+ * - no mezcla proveedores distintos dentro de la misma cuenta
+ * - no recalcula si no hubo cambio
+ * - no sobreescribe precios en cuarentena
+ */
 router.post('/supplier-prices', async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+
   if (!hasValidInternalSecret(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -66,25 +111,53 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
 
   const account = await prisma.account.findUnique({
     where: { slug: accountSlug },
+    include: {
+      users: {
+        where: { role: 'ADMIN' },
+        orderBy: { createdAt: 'asc' },
+        take: 1,
+        select: { email: true },
+      },
+    },
   });
 
   if (!account || !account.isActive) {
     throw new AppError('No existe una cuenta activa para el slug indicado.', 404);
   }
 
-  const incomingCodes = items.map((item) => item.code);
+  const dedupedItems = new Map<string, (typeof items)[number]>();
+  let duplicates = 0;
 
-  const mappedItems = await prisma.supplierIngredient.findMany({
+  for (const item of items) {
+    if (dedupedItems.has(item.code)) {
+      duplicates += 1;
+    }
+    dedupedItems.set(item.code, item);
+  }
+
+  const uniqueItems = [...dedupedItems.values()];
+  const incomingCodes = uniqueItems.map((item) => item.code);
+  const mappedRows = await prisma.supplierIngredient.findMany({
     where: {
       supplierCode: { in: incomingCodes },
       ingredient: { accountId: account.id },
     },
     include: {
       ingredient: true,
+      supplier: true,
     },
   });
 
-  const incomingByCode = new Map(items.map((item) => [item.code, item]));
+  const mappedByCode = new Map<string, typeof mappedRows>();
+  for (const row of mappedRows) {
+    const key = row.supplierCode ?? '';
+    if (!key) continue;
+    const bucket = mappedByCode.get(key) ?? [];
+    bucket.push(row);
+    mappedByCode.set(key, bucket);
+  }
+
+  const discardedCodes: Array<{ code: string; reason: string }> = [];
   const criticalProductsAlerts: Array<{
     productId?: string;
     productName?: string;
@@ -94,69 +167,131 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
     minMarginPercent?: string;
   }> = [];
 
-  await prisma.$transaction(
-    async (tx: any) => {
-      for (const mapped of mappedItems) {
-        const currentItem = incomingByCode.get(mapped.supplierCode ?? '');
-        if (!currentItem) continue;
+  let updated = 0;
+  let unchanged = 0;
+  let quarantined = 0;
+  let discarded = 0;
 
-        const newUnitCost = calculateUnitCost(new Prisma.Decimal(String(currentItem.price)), mapped.packageSize);
-        const packagePrice = new Prisma.Decimal(String(currentItem.price));
-        const ingredientSnapshot = await tx.ingredient.findUnique({
-          where: { id: mapped.ingredientId },
-          select: { currentCost: true },
-        });
-        const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
-        const zero = new Prisma.Decimal('0');
-        const threshold = new Prisma.Decimal('50');
-        const variation = previousCost && previousCost.gt(zero)
-          ? newUnitCost.sub(previousCost).div(previousCost).mul(100).abs()
-          : new Prisma.Decimal('1000');
+  await prisma.$transaction(async (tx: any) => {
+    for (const item of uniqueItems) {
+      const rows = mappedByCode.get(item.code) ?? [];
+      const activeRows = rows.filter((row) => row.supplier?.isActive !== false);
 
-        const shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
-
-        await tx.supplierIngredient.update({
-          where: { id: mapped.id },
-          data: { packagePrice, isQuarantined: shouldQuarantine },
-        });
-
-        if (shouldQuarantine) continue;
-
-        if (mapped.isDefault) {
-          await tx.ingredient.update({
-            where: { id: mapped.ingredientId },
-            data: { currentCost: newUnitCost },
-          });
-
-          const { criticalProducts } = await applyIngredientCostChange(
-            tx,
-            mapped.ingredientId,
-            previousCost,
-            newUnitCost
-          );
-
-          criticalProductsAlerts.push(
-            ...criticalProducts.map((product) => ({
-              productId: product.productId,
-              productName: product.productName,
-              previousCost: product.previousCost.toFixed(2),
-              newCost: product.newCost.toFixed(2),
-              currentMarginPercent: product.currentMarginPercent.toFixed(2),
-              minMarginPercent: product.minMarginPercent.toFixed(2),
-            }))
-          );
-        }
+      if (rows.length === 0) {
+        discarded += 1;
+        discardedCodes.push({ code: item.code, reason: 'NOT_FOUND' });
+        continue;
       }
-    },
-    { timeout: 30000 }
-  );
 
-  return res.status(200).json({
+      if (activeRows.length === 0) {
+        discarded += 1;
+        discardedCodes.push({ code: item.code, reason: 'INACTIVE_SUPPLIER' });
+        continue;
+      }
+
+      if (new Set(activeRows.map((row) => row.supplierId)).size > 1) {
+        discarded += 1;
+        discardedCodes.push({ code: item.code, reason: 'AMBIGUOUS' });
+        continue;
+      }
+
+      const mapped = activeRows[0];
+      if (!mapped) {
+        discarded += 1;
+        discardedCodes.push({ code: item.code, reason: 'AMBIGUOUS' });
+        continue;
+      }
+
+      const newPrice = new Prisma.Decimal(String(item.price));
+      const previousPackagePrice = mapped.packagePrice;
+      const previousUnitCost = calculateUnitCost(previousPackagePrice, mapped.packageSize);
+      const newUnitCost = calculateUnitCost(newPrice, mapped.packageSize);
+      const zero = new Prisma.Decimal('0');
+      const threshold = new Prisma.Decimal('50');
+      const variation = previousUnitCost.gt(zero)
+        ? newUnitCost.sub(previousUnitCost).div(previousUnitCost).mul(100).abs()
+        : new Prisma.Decimal('1000');
+
+      const isSamePrice = newPrice.equals(previousPackagePrice);
+      if (isSamePrice) {
+        unchanged += 1;
+        continue;
+      }
+
+      const shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
+
+      await tx.supplierIngredient.update({
+        where: { id: mapped.id },
+        data: { packagePrice: newPrice, isQuarantined: shouldQuarantine },
+      });
+
+      if (shouldQuarantine) {
+        quarantined += 1;
+        continue;
+      }
+
+      const ingredientSnapshot = await tx.ingredient.findUnique({
+        where: { id: mapped.ingredientId },
+        select: { currentCost: true },
+      });
+      const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
+
+      if (mapped.isDefault) {
+        await tx.ingredient.update({
+          where: { id: mapped.ingredientId },
+          data: { currentCost: newUnitCost },
+        });
+
+        const { criticalProducts } = await applyIngredientCostChange(
+          tx,
+          mapped.ingredientId,
+          previousCost,
+          newUnitCost
+        );
+
+        criticalProductsAlerts.push(
+          ...criticalProducts.map((product) => ({
+            productId: product.productId,
+            productName: product.productName,
+            previousCost: product.previousCost.toFixed(2),
+            newCost: product.newCost.toFixed(2),
+            currentMarginPercent: product.currentMarginPercent.toFixed(2),
+            minMarginPercent: product.minMarginPercent.toFixed(2),
+          }))
+        );
+      }
+
+      updated += 1;
+    }
+  }, { timeout: 30000 });
+
+  const responseBody = {
     received: items.length,
-    updated: mappedItems.length,
-    discarded: items.length - mappedItems.length,
+    updated,
+    unchanged,
+    quarantined,
+    duplicates,
+    discarded,
+    discardedCodes: discardedCodes.slice(0, 100),
+    account: {
+      tradeName: account.businessName ?? account.slug,
+      ownerEmail: account.users?.[0]?.email ?? null,
+    },
     criticalProductsAlerts,
-  });
+  };
+
+  console.info(JSON.stringify({
+    accountId: account.id,
+    received: responseBody.received,
+    updated: responseBody.updated,
+    unchanged: responseBody.unchanged,
+    quarantined: responseBody.quarantined,
+    duplicates: responseBody.duplicates,
+    discarded: responseBody.discarded,
+    durationMs: Date.now() - startedAt,
+  }));
+
+  return res.status(200).json(responseBody);
 });
 
 export default router;
