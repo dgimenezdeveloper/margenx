@@ -191,6 +191,8 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
       data: { isQuarantined: false },
     });
 
+    let affectedProductsCount = 0;
+    let affectedProducts: unknown[] = [];
     let criticalProducts: unknown[] = [];
 
     if (quarantined.isDefault) {
@@ -209,12 +211,17 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
         where: { id: quarantined.ingredientId },
         data: { currentCost: unitCost },
       });
-      criticalProducts = await applyIngredientCostChange(tx, quarantined.ingredientId, previousCost, unitCost);
+      const result = await applyIngredientCostChange(tx, quarantined.ingredientId, previousCost, unitCost);
+      affectedProductsCount = result.affectedProductsCount;
+      affectedProducts = result.affectedProducts;
+      criticalProducts = result.criticalProducts;
     }
 
     return {
       supplierIngredient: updatedSupplierIngredient,
       unitCost,
+      affectedProductsCount,
+      affectedProducts,
       criticalProducts,
     };
   });
@@ -222,6 +229,8 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
   return res.status(200).json({
     supplierIngredient: result.supplierIngredient,
     unitCost: result.unitCost,
+    affectedProductsCount: result.affectedProductsCount,
+    affectedProducts: result.affectedProducts,
     criticalProducts: result.criticalProducts,
   });
 });
@@ -476,12 +485,18 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
       data: { currentCost: unitCost },
     });
 
-    const criticalProducts = await applyIngredientCostChange(tx, ingredientId, previousCost, unitCost);
+    const { affectedProductsCount, criticalProducts } = await applyIngredientCostChange(
+      tx,
+      ingredientId,
+      previousCost,
+      unitCost
+    );
 
     return {
       supplierIngredient,
       ingredient: updatedIngredient,
       unitCost,
+      affectedProductsCount,
       criticalProducts,
     };
   });
@@ -491,7 +506,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
       accountId,
       ingredientId,
       ingredientName: result.ingredient.name ?? 'Insumo',
-      affectedProductsCount: result.criticalProducts.length,
+      affectedProductsCount: result.affectedProductsCount,
       criticalProducts: result.criticalProducts.map((product) => ({
         productId: product.productId,
         productName: product.productName,

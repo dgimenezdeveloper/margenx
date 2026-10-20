@@ -12,7 +12,7 @@ import { IngredientSupplierList } from './IngredientSupplierList'
  * Reúne el formulario con validación Zod, la acción de guardar, historial,
  * eliminación y la sección de proveedores asociados cuando corresponde.
  */
-const ingredientUnits = ['kg', 'litro', 'unidad', 'gr', 'ml', 'bidón'] as const
+const ingredientUnits = ['kg', 'litro', 'unidad'] as const
 
 interface IngredientUpsertSheetProps {
   selected: Ingredient | null
