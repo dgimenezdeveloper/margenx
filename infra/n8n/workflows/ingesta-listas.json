@@ -28,7 +28,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extrae slug del comercio y adjunto de planilla desde el correo IMAP.\n// Acepta precios-<slug>@, precios.<slug>@ y precios+<slug>@ (el slug puede llevar guiones: precios-panaderia-central).\nconst SLUG_RE = /precios[-.+]([a-z0-9]+(?:-[a-z0-9]+)*)@margenx\\.tech/i;\nconst EXT_RE = /\\.(xlsx|xls|csv)$/i;\nconst OWN = String($env.IMAP_USER || '').toLowerCase();\n\nfunction addrText(v) {\n  if (!v) return '';\n  if (typeof v === 'string') return v;\n  if (v.text) return v.text;\n  if (Array.isArray(v.value)) return v.value.map((a) => a.address).join(',');\n  return JSON.stringify(v);\n}\nfunction firstAddress(v) {\n  if (v && Array.isArray(v.value) && v.value[0]) return String(v.value[0].address || '').toLowerCase();\n  const m = addrText(v).match(/[^\\s<>,;\"']+@[^\\s<>,;\"']+/);\n  return m ? m[0].toLowerCase() : '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  const headers = j.headers || {};\n  const from = firstAddress(j.from);\n  // Evita bucles: ignora correos propios, rebotes y respuestas automáticas.\n  const autoSubmitted = String(headers['auto-submitted'] || '').toLowerCase();\n  if (\n    (OWN && from === OWN) ||\n    /^(mailer-daemon|postmaster|no-?reply)/.test(from) ||\n    (autoSubmitted && autoSubmitted !== 'no')\n  ) {\n    continue;\n  }\n\n  const recipients = [addrText(j.to), addrText(j.cc), String(headers['x-original-to'] || ''), String(headers['delivered-to'] || '')].join(' ');\n  const slug = (recipients.match(SLUG_RE) || [])[1];\n  const slugLower = slug ? slug.toLowerCase() : '';\n\n  const binary = item.binary || {};\n  const binaryKey = Object.keys(binary).find((k) => EXT_RE.test(String(binary[k].fileName || '')));\n  const fileName = binaryKey ? String(binary[binaryKey].fileName) : '';\n  const ext = fileName ? fileName.match(EXT_RE)[1].toLowerCase() : '';\n\n  let error = '';\n  if (!slugLower) error = 'El destinatario no incluye el identificador del comercio. Enviá la lista a precios-<comercio>@margenx.tech (por ejemplo precios-panaderia-central@margenx.tech).';\n  else if (!binaryKey) error = 'El correo no tiene un adjunto .xlsx, .xls o .csv con la lista de precios.';\n\n  out.push({\n    json: { slug: slugLower, from, subject: String(j.subject || ''), fileName, ext, binaryKey: binaryKey || '', error },\n    binary,\n  });\n}\nreturn out;\n"
+        "jsCode": "// Extrae slug del comercio y adjunto de planilla desde el correo IMAP.\n// Acepta precios-<slug>@, precios.<slug>@ y precios+<slug>@ (el slug puede llevar guiones: precios-panaderia-central).\nconst SLUG_RE = /precios[-.+]([a-z0-9]+(?:-[a-z0-9]+)*)@margenx\\.tech/i;\nconst EXT_RE = /\\.(xlsx|xls|csv)$/i;\nconst OWN = String($env.IMAP_USER || '').toLowerCase();\n\nfunction addrText(v) {\n  if (!v) return '';\n  if (typeof v === 'string') return v;\n  if (v.text) return v.text;\n  if (Array.isArray(v.value)) return v.value.map((a) => a.address).join(',');\n  return JSON.stringify(v);\n}\nfunction firstAddress(v) {\n  if (v && Array.isArray(v.value) && v.value[0]) return String(v.value[0].address || '').toLowerCase();\n  const m = addrText(v).match(/[^\\s<>,;\"']+@[^\\s<>,;\"']+/);\n  return m ? m[0].toLowerCase() : '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  const headers = j.headers || {};\n  const from = firstAddress(j.from);\n  // Evita bucles: ignora correos propios, rebotes y respuestas automáticas.\n  const autoSubmitted = String(headers['auto-submitted'] || '').toLowerCase();\n  if (\n    (OWN && from === OWN) ||\n    /^(mailer-daemon|postmaster|no-?reply)/.test(from) ||\n    (autoSubmitted && autoSubmitted !== 'no')\n  ) {\n    continue;\n  }\n\n  const recipients = [addrText(j.to), addrText(j.cc), String(headers['x-original-to'] || ''), String(headers['delivered-to'] || '')].join(' ');\n  const slug = (recipients.match(SLUG_RE) || [])[1];\n  const slugLower = slug ? slug.toLowerCase() : '';\n\n  const binary = item.binary || {};\n  const binaryKey = Object.keys(binary).find((k) => EXT_RE.test(String(binary[k].fileName || '')));\n  const fileName = binaryKey ? String(binary[binaryKey].fileName) : '';\n  const ext = fileName ? fileName.match(EXT_RE)[1].toLowerCase() : '';\n\n  let error = '';\n  if (!slugLower) error = 'El destinatario no incluye el identificador del comercio. Enviá la lista a precios-<comercio>@margenx.tech (por ejemplo precios-panaderia-central@margenx.tech).';\n  else if (!binaryKey) error = 'El correo no tiene un adjunto .xlsx, .xls o .csv con la lista de precios.';\n\n  out.push({\n    json: { mailId: String(out.length), slug: slugLower, from, subject: String(j.subject || ''), fileName, ext, binaryKey: binaryKey || '', error },\n    binary,\n  });\n}\nreturn out;\n"
       },
       "id": "node-extract-slug",
       "name": "Extraer Slug y Adjunto",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Convierte un adjunto CSV a filas, detectando coma / punto y coma / tabulación.\nconst out = [];\nfor (let idx = 0; idx < $input.all().length; idx++) {\n  const key = $input.all()[idx].json.binaryKey;\n  const buf = await this.helpers.getBinaryDataBuffer(idx, key);\n  let text = buf.toString('utf8');\n  if (text.includes('�')) text = buf.toString('latin1');\n  text = text.replace(/^﻿/, '');\n\n  const firstLine = text.split(/\\r?\\n/).find((l) => l.trim() !== '') || '';\n  const count = (ch) => (firstLine.match(new RegExp(ch === '\\t' ? '\\t' : '\\\\' + ch, 'g')) || []).length;\n  const delimiter = [';', ',', '\\t'].sort((a, b) => count(b) - count(a))[0];\n\n  const rows = [];\n  let row = [];\n  let cell = '';\n  let quoted = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (quoted) {\n      if (c === '\"' && text[i + 1] === '\"') { cell += '\"'; i++; }\n      else if (c === '\"') quoted = false;\n      else cell += c;\n    } else if (c === '\"') quoted = true;\n    else if (c === delimiter) { row.push(cell); cell = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(cell); cell = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else cell += c;\n  }\n  row.push(cell);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n\n  const header = (rows.shift() || []).map((h) => h.trim());\n  for (const r of rows) {\n    const obj = {};\n    header.forEach((h, i) => { if (h) obj[h] = (r[i] ?? '').trim(); });\n    out.push({ json: obj });\n  }\n}\nreturn out;\n"
+        "jsCode": "// Convierte un adjunto CSV a filas, detectando coma / punto y coma / tabulación.\n// Cada fila queda ligada (pairedItem) al correo del que salió; un CSV solo con encabezado no emite filas.\nconst out = [];\nfor (let idx = 0; idx < $input.all().length; idx++) {\n  const key = $input.all()[idx].json.binaryKey;\n  const buf = await this.helpers.getBinaryDataBuffer(idx, key);\n  let text = buf.toString('utf8');\n  if (text.includes('�')) text = buf.toString('latin1');\n  text = text.replace(/^﻿/, '');\n\n  const firstLine = text.split(/\\r?\\n/).find((l) => l.trim() !== '') || '';\n  const count = (ch) => (firstLine.match(new RegExp(ch === '\\t' ? '\\t' : '\\\\' + ch, 'g')) || []).length;\n  const delimiter = [';', ',', '\\t'].sort((a, b) => count(b) - count(a))[0];\n\n  const rows = [];\n  let row = [];\n  let cell = '';\n  let quoted = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (quoted) {\n      if (c === '\"' && text[i + 1] === '\"') { cell += '\"'; i++; }\n      else if (c === '\"') quoted = false;\n      else cell += c;\n    } else if (c === '\"') quoted = true;\n    else if (c === delimiter) { row.push(cell); cell = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(cell); cell = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else cell += c;\n  }\n  row.push(cell);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n\n  const header = (rows.shift() || []).map((h) => h.trim());\n  for (const r of rows) {\n    const obj = {};\n    header.forEach((h, i) => { if (h) obj[h] = (r[i] ?? '').trim(); });\n    out.push({ json: obj, pairedItem: { item: idx } });\n  }\n}\nreturn out;\n"
       },
       "id": "node-parse-csv",
       "name": "Parsear CSV",
@@ -133,7 +133,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza columnas (código / descripción / precio) y arma lotes para la API.\nconst meta = $('Extraer Slug y Adjunto').first().json;\nconst rows = $input.all().map((i) => i.json);\nconst BATCH = 5000; // máximo por request del webhook\n\nconst norm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst ALIASES = {\n  code: ['codigo', 'cod', 'art', 'articulo', 'sku', 'ref', 'referencia', 'cod art', 'cod articulo', 'codigo articulo', 'item'],\n  description: ['descripcion', 'detalle', 'producto', 'nombre', 'denominacion'],\n  price: ['precio final', 'final', 'precio', 'costo', 'precio lista', 'precio unitario', 'importe', 'p lista'],\n};\nconst keys = [...new Set(rows.flatMap((r) => Object.keys(r)))];\nfunction findKey(list) {\n  for (const a of list) {\n    const k = keys.find((key) => norm(key) === a);\n    if (k) return k;\n  }\n  for (const a of list) {\n    const k = keys.find((key) => norm(key).split(' ').includes(a));\n    if (k) return k;\n  }\n  return null;\n}\nconst cols = { code: findKey(ALIASES.code), description: findKey(ALIASES.description), price: findKey(ALIASES.price) };\n\nfunction parsePrice(v) {\n  if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;\n  let s = String(v ?? '').replace(/[^\\d.,-]/g, '');\n  if (!s) return NaN;\n  const lastDot = s.lastIndexOf('.');\n  const lastComma = s.lastIndexOf(',');\n  if (lastDot >= 0 && lastComma >= 0) {\n    s = lastComma > lastDot ? s.replace(/\\./g, '').replace(',', '.') : s.replace(/,/g, '');\n  } else if (lastComma >= 0) {\n    s = s.replace(/\\./g, '').replace(',', '.');\n  } else if (/^-?\\d{1,3}(\\.\\d{3})+$/.test(s)) {\n    s = s.replace(/\\./g, '');\n  }\n  return Number(s);\n}\nfunction parseCode(v) {\n  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(v);\n  return String(v ?? '').trim();\n}\n\nif (!cols.code || !cols.price) {\n  return [{ json: { ...meta, ok: false, error: 'No encontramos las columnas de código y precio en la planilla (se esperan encabezados como \"Código\" y \"Precio\").' } }];\n}\n\nconst items = [];\nlet invalid = 0;\nfor (const r of rows) {\n  const code = parseCode(r[cols.code]);\n  const price = parsePrice(r[cols.price]);\n  if (!code || !(price > 0)) { invalid++; continue; }\n  const item = { code, price: Math.round(price * 100) / 100 };\n  if (cols.description && r[cols.description] !== undefined && String(r[cols.description]).trim() !== '') {\n    item.description = String(r[cols.description]).trim();\n  }\n  items.push(item);\n}\n\nif (items.length === 0) {\n  return [{ json: { ...meta, ok: false, error: 'La planilla no tiene filas con código y precio válidos.' } }];\n}\n\nconst batches = Math.ceil(items.length / BATCH);\nconst out = [];\nfor (let b = 0; b < batches; b++) {\n  out.push({\n    json: {\n      ok: true,\n      accountSlug: meta.slug,\n      from: meta.from,\n      fileName: meta.fileName,\n      items: items.slice(b * BATCH, (b + 1) * BATCH),\n      rowsRead: rows.length,\n      rowsInvalid: invalid,\n      batchIndex: b + 1,\n      batches,\n    },\n  });\n}\nreturn out;\n"
+        "jsCode": "// Normaliza columnas (código / descripción / precio) y arma lotes para la API, un resultado por correo.\n// Las filas se asignan a su correo de origen (pairedItem), así varios correos en una misma ejecución no se mezclan.\nconst BATCH = 5000; // máximo por request del webhook\nconst mails = $('Extraer Slug y Adjunto').all().map((i) => i.json).filter((m) => !m.error);\n\nfunction mailOf(i) {\n  try {\n    const m = $('Extraer Slug y Adjunto').itemMatching(i);\n    if (m && m.json && m.json.mailId !== undefined) return m.json;\n  } catch (e) { /* sin pairedItem */ }\n  return mails.length === 1 ? mails[0] : null;\n}\n\nconst norm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst ALIASES = {\n  code: ['codigo', 'cod', 'art', 'articulo', 'sku', 'ref', 'referencia', 'cod art', 'cod articulo', 'codigo articulo', 'item'],\n  description: ['descripcion', 'detalle', 'producto', 'nombre', 'denominacion'],\n  price: ['precio final', 'final', 'precio', 'costo', 'precio lista', 'precio unitario', 'importe', 'p lista'],\n};\n\nfunction parsePrice(v) {\n  if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;\n  let s = String(v ?? '').replace(/[^\\d.,-]/g, '');\n  if (!s) return NaN;\n  const lastDot = s.lastIndexOf('.');\n  const lastComma = s.lastIndexOf(',');\n  if (lastDot >= 0 && lastComma >= 0) {\n    s = lastComma > lastDot ? s.replace(/\\./g, '').replace(',', '.') : s.replace(/,/g, '');\n  } else if (lastComma >= 0) {\n    s = s.replace(/\\./g, '').replace(',', '.');\n  } else if (/^-?\\d{1,3}(\\.\\d{3})+$/.test(s)) {\n    s = s.replace(/\\./g, '');\n  }\n  return Number(s);\n}\nfunction parseCode(v) {\n  return String(v ?? '').trim();\n}\n\nfunction processMail(meta, rows) {\n  const fail = (error) => [{ json: { ...meta, ok: false, error } }];\n  if (rows.length === 0) return fail('La planilla no tiene filas con código y precio válidos.');\n\n  const keys = [...new Set(rows.flatMap((r) => Object.keys(r)))];\n  const findKey = (list) => {\n    for (const a of list) {\n      const k = keys.find((key) => norm(key) === a);\n      if (k) return k;\n    }\n    for (const a of list) {\n      const k = keys.find((key) => norm(key).split(' ').includes(a));\n      if (k) return k;\n    }\n    return null;\n  };\n  const cols = { code: findKey(ALIASES.code), description: findKey(ALIASES.description), price: findKey(ALIASES.price) };\n  if (!cols.code || !cols.price) {\n    return fail('No encontramos las columnas de código y precio en la planilla (se esperan encabezados como \"Código\" y \"Precio\").');\n  }\n\n  const items = [];\n  let invalid = 0;\n  for (const r of rows) {\n    const code = parseCode(r[cols.code]);\n    const price = parsePrice(r[cols.price]);\n    if (!code || !(price > 0)) { invalid++; continue; }\n    const item = { code, price: Math.round(price * 100) / 100 };\n    if (cols.description && r[cols.description] !== undefined && String(r[cols.description]).trim() !== '') {\n      item.description = String(r[cols.description]).trim();\n    }\n    items.push(item);\n  }\n  if (items.length === 0) return fail('La planilla no tiene filas con código y precio válidos.');\n\n  const batches = Math.ceil(items.length / BATCH);\n  const out = [];\n  for (let b = 0; b < batches; b++) {\n    out.push({\n      json: {\n        ok: true,\n        mailId: meta.mailId,\n        accountSlug: meta.slug,\n        from: meta.from,\n        fileName: meta.fileName,\n        items: items.slice(b * BATCH, (b + 1) * BATCH),\n        rowsRead: rows.length,\n        rowsInvalid: invalid,\n        batchIndex: b + 1,\n        batches,\n      },\n    });\n  }\n  return out;\n}\n\nconst groups = new Map(mails.map((m) => [m.mailId, { meta: m, rows: [] }]));\n$input.all().forEach((it, i) => {\n  const m = mailOf(i);\n  const g = m && groups.get(m.mailId);\n  if (g) g.rows.push(it.json);\n});\n\nconst result = [];\nfor (const { meta, rows } of groups.values()) result.push(...processMail(meta, rows));\nreturn result;\n"
       },
       "id": "node-normalize",
       "name": "Normalizar Columnas",
@@ -177,51 +177,27 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ ($env.MARGENX_API_URL || 'https://api.margenx.tech') + '/api/webhooks/supplier-prices' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "x-margenx-webhook-secret",
-              "value": "={{ $env.INTERNAL_WEBHOOK_SECRET }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ accountSlug: $json.accountSlug, items: $json.items }) }}",
-        "options": {
-          "timeout": 60000
-        }
+        "jsCode": "// POST /api/webhooks/supplier-prices con política de reintentos:\n//  - 2xx            -> éxito\n//  - 4xx            -> falla de inmediato (reintentar no lo arregla: slug inexistente, planilla inválida, secreto incorrecto)\n//  - 5xx / timeout / error de red -> hasta 3 reintentos con espera creciente (2 s, 5 s, 10 s)\nconst url = ($env.MARGENX_API_URL || 'https://api.margenx.tech') + '/api/webhooks/supplier-prices';\nconst WAITS = [2000, 5000, 10000];\nconst sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  const meta = {\n    mailId: j.mailId, accountSlug: j.accountSlug, from: j.from, fileName: j.fileName,\n    rowsRead: j.rowsRead, rowsInvalid: j.rowsInvalid, batchIndex: j.batchIndex, batches: j.batches,\n  };\n  let attempt = 0;\n  let last;\n  while (true) {\n    attempt++;\n    try {\n      const res = await this.helpers.httpRequest({\n        method: 'POST',\n        url,\n        headers: { 'x-margenx-webhook-secret': $env.INTERNAL_WEBHOOK_SECRET, 'Content-Type': 'application/json' },\n        body: { accountSlug: j.accountSlug, items: j.items },\n        json: true,\n        timeout: 60000,\n        returnFullResponse: true,\n        ignoreHttpStatusErrors: true,\n      });\n      const status = Number(res.statusCode);\n      if (status >= 200 && status < 300) { last = { ok: true, status, body: res.body }; break; }\n      last = { ok: false, status, message: typeof res.body === 'string' ? res.body.slice(0, 300) : JSON.stringify(res.body || {}).slice(0, 300) };\n      if (status < 500) break; // 4xx: no se reintenta\n    } catch (e) {\n      last = { ok: false, status: 0, message: String((e && e.message) || e).slice(0, 300) }; // red / timeout\n    }\n    if (attempt > WAITS.length) break;\n    await sleep(WAITS[attempt - 1]);\n  }\n  out.push({ json: { ...meta, dispatchOk: last.ok, status: last.status, attempts: attempt, body: last.body, apiError: last.ok ? undefined : last.message } });\n}\nreturn out;\n"
       },
       "id": "node-http-dispatch",
       "name": "Despachar a API MargenX",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1880,
         100
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "onError": "continueErrorOutput"
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Consolida las respuestas de la API (uno o más lotes) y arma el resumen para el dueño del comercio.\nfunction escapeHtml(str) {\n  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nconst fmtInt = (n) => (Number(n) || 0).toLocaleString('es-AR');\nconst fmtPct = (n) => (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';\nconst fmtArs = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(Number(n) || 0);\n\nconst meta = $('Normalizar Columnas').first().json;\nconst responses = $input.all().map((i) => i.json.body || i.json);\nconst sum = (k) => responses.reduce((a, r) => a + (Number(r[k]) || 0), 0);\nconst received = sum('received');\nconst updated = sum('updated');\nconst extras = [\n  ['unchanged', 'sin cambios de precio'],\n  ['quarantined', 'retenidas en cuarentena para tu revisión'],\n  ['duplicates', 'duplicadas dentro de la lista'],\n].map(([k, label]) => [sum(k), label]).filter(([n]) => n > 0);\nconst discarded = sum('discarded');\nconst critical = responses.flatMap((r) => (Array.isArray(r.criticalProductsAlerts) ? r.criticalProductsAlerts : []));\nconst account = responses.map((r) => r.account).find((a) => a && a.ownerEmail) || {};\n\nconst ownerEmail = String(account.ownerEmail || '').trim();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(ownerEmail)) {\n  // Sin email del dueño en la respuesta de la API no se envía nada (el resumen nunca va al remitente de la lista).\n  return [];\n}\nconst tradeName = account.tradeName || meta.accountSlug;\n\nconst headline = `Se actualizaron ${fmtInt(updated)} insumos de ${fmtInt(received)} filas. ${fmtInt(discarded)} filas descartadas por filtro anti-polución.`;\nconst detailLines = [\n  ...extras.map(([n, label]) => `${fmtInt(n)} filas ${label}.`),\n  ...(meta.rowsInvalid > 0 ? [`${fmtInt(meta.rowsInvalid)} filas sin código o precio válido fueron ignoradas.`] : []),\n];\n\nconst critText = critical.map((p) => `- ${p.productName || 'Producto'}: margen ${fmtPct(p.currentMarginPercent)} (mínimo ${fmtPct(p.minMarginPercent)}), nuevo costo ${fmtArs(p.newCost)}`).join('\\n');\nconst critHtml = critical.map((p) => `<tr><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(p.productName || 'Producto')}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#b91c1c;font-weight:bold\">${escapeHtml(fmtPct(p.currentMarginPercent))}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(fmtPct(p.minMarginPercent))}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(fmtArs(p.newCost))}</td></tr>`).join('');\n\nconst text = `Hola!\\n\\nProcesamos la lista de precios recibida${meta.fileName ? ` (${meta.fileName})` : ''}.\\n\\n${headline}\\n${detailLines.join('\\n')}${critical.length ? `\\n\\nProductos que cayeron por debajo de su margen mínimo:\\n${critText}` : ''}\\n\\nEquipo MargenX`;\nconst html = `<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#1f2937\"><h2 style=\"font-size:18px\">Resumen de tu lista de precios</h2><p>Hola! Procesamos la lista de precios recibida${meta.fileName ? ` (<em>${escapeHtml(meta.fileName)}</em>)` : ''} para <strong>${escapeHtml(tradeName)}</strong>.</p><p style=\"font-size:16px\"><strong>${escapeHtml(headline)}</strong></p>${detailLines.length ? `<ul>${detailLines.map((l) => `<li>${escapeHtml(l)}</li>`).join('')}</ul>` : ''}${critical.length ? `<h3 style=\"color:#b91c1c;font-size:15px\">Productos bajo su margen mínimo</h3><table style=\"width:100%;border-collapse:collapse;font-size:14px\"><tr style=\"text-align:left;background:#f3f4f6\"><th style=\"padding:6px 8px\">Producto</th><th style=\"padding:6px 8px\">Margen</th><th style=\"padding:6px 8px\">Mínimo</th><th style=\"padding:6px 8px\">Costo</th></tr>${critHtml}</table>` : ''}<p style=\"color:#6b7280;font-size:12px;margin-top:24px\">Equipo MargenX</p></div>`;\n\nreturn [{ json: { ownerEmail, subject: `[MargenX] Resumen de importación de precios${critical.length ? ` — ${critical.length} producto(s) en margen crítico` : ''}`, text, html } }];\n"
+        "jsCode": "// Consolida las respuestas de la API (uno o más lotes) y arma el resumen para el dueño del comercio.\nfunction escapeHtml(str) {\n  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nconst fmtInt = (n) => (Number(n) || 0).toLocaleString('es-AR');\nconst fmtPct = (n) => (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';\nconst fmtArs = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(Number(n) || 0);\n\n// Un resumen por correo recibido: agrupa los lotes (respuestas de la API) de cada mailId.\nconst byMail = new Map();\nfor (const i of $input.all()) {\n  const k = String(i.json.mailId ?? '');\n  if (!byMail.has(k)) byMail.set(k, []);\n  byMail.get(k).push(i.json);\n}\nconst results = [];\nfor (const batchItems of byMail.values()) {\nconst meta = batchItems[0];\nconst responses = batchItems.map((i) => i.body || {});\nconst sum = (k) => responses.reduce((a, r) => a + (Number(r[k]) || 0), 0);\nconst received = sum('received');\nconst updated = sum('updated');\nconst extras = [\n  ['unchanged', 'sin cambios de precio'],\n  ['quarantined', 'retenidas en cuarentena para tu revisión'],\n  ['duplicates', 'duplicadas dentro de la lista'],\n].map(([k, label]) => [sum(k), label]).filter(([n]) => n > 0);\nconst discarded = sum('discarded');\nconst critical = responses.flatMap((r) => (Array.isArray(r.criticalProductsAlerts) ? r.criticalProductsAlerts : []));\nconst account = responses.map((r) => r.account).find((a) => a && a.ownerEmail) || {};\n\nconst ownerEmail = String(account.ownerEmail || '').trim();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(ownerEmail)) {\n  // Sin email del dueño en la respuesta de la API no se envía nada (el resumen nunca va al remitente de la lista).\n  continue;\n}\nconst tradeName = account.tradeName || meta.accountSlug;\n\nconst headline = `Se actualizaron ${fmtInt(updated)} insumos de ${fmtInt(received)} filas. ${fmtInt(discarded)} filas descartadas por filtro anti-polución.`;\nconst detailLines = [\n  ...extras.map(([n, label]) => `${fmtInt(n)} filas ${label}.`),\n  ...(meta.rowsInvalid > 0 ? [`${fmtInt(meta.rowsInvalid)} filas sin código o precio válido fueron ignoradas.`] : []),\n];\n\nconst critText = critical.map((p) => `- ${p.productName || 'Producto'}: margen ${fmtPct(p.currentMarginPercent)} (mínimo ${fmtPct(p.minMarginPercent)}), nuevo costo ${fmtArs(p.newCost)}`).join('\\n');\nconst critHtml = critical.map((p) => `<tr><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(p.productName || 'Producto')}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#b91c1c;font-weight:bold\">${escapeHtml(fmtPct(p.currentMarginPercent))}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(fmtPct(p.minMarginPercent))}</td><td style=\"padding:6px 8px;border-bottom:1px solid #e5e7eb\">${escapeHtml(fmtArs(p.newCost))}</td></tr>`).join('');\n\nconst text = `Hola!\\n\\nProcesamos la lista de precios recibida${meta.fileName ? ` (${meta.fileName})` : ''}.\\n\\n${headline}\\n${detailLines.join('\\n')}${critical.length ? `\\n\\nProductos que cayeron por debajo de su margen mínimo:\\n${critText}` : ''}\\n\\nEquipo MargenX`;\nconst html = `<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#1f2937\"><h2 style=\"font-size:18px\">Resumen de tu lista de precios</h2><p>Hola! Procesamos la lista de precios recibida${meta.fileName ? ` (<em>${escapeHtml(meta.fileName)}</em>)` : ''} para <strong>${escapeHtml(tradeName)}</strong>.</p><p style=\"font-size:16px\"><strong>${escapeHtml(headline)}</strong></p>${detailLines.length ? `<ul>${detailLines.map((l) => `<li>${escapeHtml(l)}</li>`).join('')}</ul>` : ''}${critical.length ? `<h3 style=\"color:#b91c1c;font-size:15px\">Productos bajo su margen mínimo</h3><table style=\"width:100%;border-collapse:collapse;font-size:14px\"><tr style=\"text-align:left;background:#f3f4f6\"><th style=\"padding:6px 8px\">Producto</th><th style=\"padding:6px 8px\">Margen</th><th style=\"padding:6px 8px\">Mínimo</th><th style=\"padding:6px 8px\">Costo</th></tr>${critHtml}</table>` : ''}<p style=\"color:#6b7280;font-size:12px;margin-top:24px\">Equipo MargenX</p></div>`;\n\nresults.push({ json: { ownerEmail, subject: `[MargenX] Resumen de importación de precios${critical.length ? ` — ${critical.length} producto(s) en margen crítico` : ''}`, text, html } });\n}\nreturn results;\n"
       },
       "id": "node-summary",
       "name": "Generar Resumen al Dueño",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2120,
+        2360,
         40
       ]
     },
@@ -241,7 +217,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2360,
+        2600,
         40
       ],
       "credentials": {
@@ -253,15 +229,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Arma el correo de error para el remitente (adjunto/slug inválido, planilla ilegible o API caída).\nfunction escapeHtml(str) {\n  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nconst meta = $('Extraer Slug y Adjunto').first().json;\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  let reason = typeof j.error === 'string' ? j.error : '';\n  if (!reason) {\n    const raw = JSON.stringify(j.error || j);\n    if (/404/.test(raw)) reason = 'El comercio indicado en la dirección no existe o está inactivo en MargenX.';\n    else if (/400/.test(raw)) reason = 'La planilla tiene un formato que MargenX no pudo procesar.';\n    else if (/401|403/.test(raw)) reason = 'Hubo un problema interno de autenticación. Ya avisamos al equipo técnico.';\n    else reason = 'No pudimos comunicarnos con MargenX después de 3 intentos. Reenviá la lista en unos minutos.';\n  }\n  if (!meta.from) continue;\n  const file = meta.fileName ? ` (${meta.fileName})` : '';\n  out.push({\n    json: {\n      to: meta.from,\n      subject: '[MargenX] No pudimos procesar tu lista de precios',\n      text: `Hola!\\n\\nRecibimos tu correo${file} pero no pudimos procesar la lista de precios.\\n\\nMotivo: ${reason}\\n\\nCuando lo corrijas, volvé a enviarla a la misma dirección.\\n\\nEquipo MargenX`,\n      html: `<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937\"><h2 style=\"color:#b91c1c;font-size:18px\">No pudimos procesar tu lista de precios</h2><p>Recibimos tu correo${escapeHtml(file)} pero la importación no se pudo completar.</p><p style=\"background:#fef2f2;border-left:4px solid #b91c1c;padding:12px\"><strong>Motivo:</strong> ${escapeHtml(reason)}</p><p>Cuando lo corrijas, volvé a enviarla a la misma dirección.</p><p style=\"color:#6b7280;font-size:12px\">Equipo MargenX</p></div>`,\n    },\n  });\n}\nreturn out;\n"
+        "jsCode": "// Arma el correo de error para el remitente (adjunto/slug inválido, planilla ilegible o API caída).\n// Cada ítem trae su propio remitente y archivo (from / fileName), así que se responde a quien corresponde aunque haya varios correos.\nfunction escapeHtml(str) {\n  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nconst REASONS = {\n  404: 'El comercio indicado en la dirección no existe o está inactivo en MargenX.',\n  400: 'La planilla tiene un formato que MargenX no pudo procesar.',\n  401: 'Hubo un problema interno de autenticación. Ya avisamos al equipo técnico.',\n  403: 'Hubo un problema interno de autenticación. Ya avisamos al equipo técnico.',\n};\nconst UNAVAILABLE = 'No pudimos comunicarnos con MargenX después de 3 intentos. Reenviá la lista en unos minutos.';\nconst out = [];\nconst seen = new Set();\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  let reason;\n  if (j.dispatchOk === false) reason = REASONS[j.status] || (j.status >= 400 && j.status < 500 ? 'MargenX rechazó la planilla recibida.' : UNAVAILABLE);\n  else reason = typeof j.error === 'string' && j.error ? j.error : UNAVAILABLE;\n  if (!j.from) continue;\n  const key = `${j.mailId}|${reason}`;\n  if (seen.has(key)) continue; // varios lotes del mismo correo fallando por lo mismo: un solo aviso\n  seen.add(key);\n  const file = j.fileName ? ` (${j.fileName})` : '';\n  out.push({\n    json: {\n      to: j.from,\n      subject: '[MargenX] No pudimos procesar tu lista de precios',\n      text: `Hola!\\n\\nRecibimos tu correo${file} pero no pudimos procesar la lista de precios.\\n\\nMotivo: ${reason}\\n\\nCuando lo corrijas, volvé a enviarla a la misma dirección.\\n\\nEquipo MargenX`,\n      html: `<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937\"><h2 style=\"color:#b91c1c;font-size:18px\">No pudimos procesar tu lista de precios</h2><p>Recibimos tu correo${escapeHtml(file)} pero la importación no se pudo completar.</p><p style=\"background:#fef2f2;border-left:4px solid #b91c1c;padding:12px\"><strong>Motivo:</strong> ${escapeHtml(reason)}</p><p>Cuando lo corrijas, volvé a enviarla a la misma dirección.</p><p style=\"color:#6b7280;font-size:12px\">Equipo MargenX</p></div>`,\n    },\n  });\n}\nreturn out;\n"
       },
       "id": "node-error-mail",
       "name": "Armar Correo de Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1880,
-        420
+        2360,
+        500
       ]
     },
     {
@@ -280,8 +256,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2120,
-        420
+        2600,
+        500
       ],
       "credentials": {
         "smtp": {
@@ -289,6 +265,89 @@
           "name": "Brevo MargenX SMTP Relay"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "node-if-dispatch-ok-c",
+              "leftValue": "={{ $json.dispatchOk }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-dispatch-ok",
+      "name": "¿Despacho OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "node-if-auth-fail-c",
+              "leftValue": "={{ [401, 403].includes($json.status) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-auth-fail",
+      "name": "¿Fallo de autenticación?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: '🚨 [n8n · ingesta de listas] La API de MargenX respondió ' + $json.status + ' (autenticación) al despachar la lista de \"' + $json.accountSlug + '\" (' + ($json.fileName || 'sin nombre') + '). Revisar INTERNAL_WEBHOOK_SECRET en n8n y en el backend.' }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "node-discord-alert",
+      "name": "Alerta a Discord (401/403)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2360,
+        300
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -405,14 +464,7 @@
       "main": [
         [
           {
-            "node": "Generar Resumen al Dueño",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Armar Correo de Error",
+            "node": "¿Despacho OK?",
             "type": "main",
             "index": 0
           }
@@ -439,6 +491,41 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "¿Despacho OK?": {
+      "main": [
+        [
+          {
+            "node": "Generar Resumen al Dueño",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar Correo de Error",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿Fallo de autenticación?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Fallo de autenticación?": {
+      "main": [
+        [
+          {
+            "node": "Alerta a Discord (401/403)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

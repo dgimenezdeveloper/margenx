@@ -11,13 +11,27 @@ const CODE = {
   'extraer.js': 'Extraer Slug y Adjunto',
   'csv.js': 'Parsear CSV',
   'normalizar.js': 'Normalizar Columnas',
+  'despacho.js': 'Despachar a API MargenX',
   'resumen.js': 'Generar Resumen al Dueño',
   'error.js': 'Armar Correo de Error',
 };
 const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+// ctx.nodes[nombre] = json único; ctx.all[nombre] = lista de json; ctx.match[nombre] = fn(i) -> json del ítem emparejado.
 const run = (file, ctx) => {
   const node = wf.nodes.find((n) => n.name === CODE[file]);
-  return new AsyncFn('$input', '$', '$env', node.parameters.jsCode).call(ctx.self || {}, { all: () => ctx.items }, (n) => ({ first: () => ({ json: ctx.nodes[n] }), all: () => [] }), ctx.env || {});
+  const $ = (n) => {
+    const list = (ctx.all && ctx.all[n]) || (ctx.nodes && ctx.nodes[n] !== undefined ? [ctx.nodes[n]] : []);
+    return {
+      first: () => ({ json: list[0] }),
+      all: () => list.map((json) => ({ json })),
+      itemMatching: (i) => {
+        const f = ctx.match && ctx.match[n];
+        if (!f) throw new Error('sin pairedItem');
+        return { json: f(i) };
+      },
+    };
+  };
+  return new AsyncFn('$input', '$', '$env', 'setTimeout', node.parameters.jsCode).call(ctx.self || {}, { all: () => ctx.items }, $, ctx.env || {}, (f) => f());
 };
 (async () => {
  // 1 Extraer
@@ -34,10 +48,9 @@ const run = (file, ctx) => {
    assert.equal(out.length>=1,true);
  }
  // 3 Normalizar
- const meta={slug:'panaderia-central',from:'p@d.com',fileName:'x.xlsx'};
+ const meta={mailId:'0',slug:'panaderia-central',from:'p@d.com',fileName:'x.xlsx',error:''};
  const rows=[{Cód:'A1','Detalle':'Harina','Precio Final':'$ 1.234,56'},{Cód:456,Detalle:'Azúcar','Precio Final':980.5},{Cód:'',Detalle:'x','Precio Final':10},{Cód:'B',Detalle:'y','Precio Final':'abc'},{Cód:'C',Detalle:'Sal','Precio Final':'1.500'},{Cód:'D',Detalle:'Aceite','Precio Final':'1,234.50'}];
  r=await run('normalizar.js',{items:rows.map(j=>({json:j})),nodes:{'Extraer Slug y Adjunto':meta}});
- 
  const it=r[0].json.items;assert.deepEqual(it.map(i=>i.price),[1234.56,980.5,1500,1234.5]);assert.equal(it[1].code,'456');assert.equal(r[0].json.rowsInvalid,2);
  r=await run('normalizar.js',{items:[{json:{A:1,B:2}}],nodes:{'Extraer Slug y Adjunto':meta}});assert.equal(r[0].json.ok,false);
  // lotes
@@ -45,11 +58,38 @@ const run = (file, ctx) => {
  r=await run('normalizar.js',{items:big,nodes:{'Extraer Slug y Adjunto':meta}});assert.deepEqual(r.map(x=>x.json.items.length),[5000,5000,2000]);
  // 4 Resumen
  const resp={received:1000,updated:2,discarded:998,account:{tradeName:'Panadería <Central>',ownerEmail:'dueno@x.com'},criticalProductsAlerts:[{productName:'Pan <b>',currentMarginPercent:'18.00',minMarginPercent:'30.00',newCost:'820.00'}]};
- r=await run('resumen.js',{items:[{json:resp}],nodes:{'Normalizar Columnas':{fileName:'x.xlsx',rowsInvalid:0}}});
+ r=await run('resumen.js',{items:[{json:{mailId:'0',fileName:'x.xlsx',rowsInvalid:0,body:resp}}]});
  assert.ok(r[0].json.text.includes('Se actualizaron 2 insumos de 1.000 filas. 998 filas descartadas por filtro anti-polución.'));assert.ok(!r[0].json.html.includes('<b>'));
- r=await run('resumen.js',{items:[{json:{received:1,updated:1,discarded:0}}],nodes:{'Normalizar Columnas':{}}});assert.equal(r.length,0);
+ r=await run('resumen.js',{items:[{json:{mailId:'0',body:{received:1,updated:1,discarded:0}}}]});assert.equal(r.length,0);
  // 5 Error
- r=await run('error.js',{items:[{json:{error:'Algo'}},{json:{error:{message:'Request failed 404'}}},{json:{error:{message:'ECONNREFUSED'}}}],nodes:{'Extraer Slug y Adjunto':meta}});
- assert.equal(r[0].json.to,'p@d.com');
+ r=await run('error.js',{items:[{json:{...meta,error:'Algo'}}]});
+ assert.equal(r[0].json.to,'p@d.com');assert.ok(r[0].json.text.includes('Motivo: Algo'));
+ // errores del despacho: 404 / 401 / 503 -> motivo según status; dos lotes con la misma falla -> un solo correo
+ r=await run('error.js',{items:[{json:{...meta,dispatchOk:false,status:404,apiError:'x'}},{json:{...meta,dispatchOk:false,status:404}},{json:{...meta,mailId:'1',from:'o@d.com',dispatchOk:false,status:0,apiError:'ECONNREFUSED'}}]});
+ assert.equal(r.length,2);assert.ok(r[0].json.text.includes('no existe o está inactivo'));assert.equal(r[1].json.to,'o@d.com');assert.ok(r[1].json.text.includes('3 intentos'));assert.ok(!r[1].json.text.includes('ECONNREFUSED'));
+ // 6 Varios correos en una ejecución: cada uno conserva su remitente / archivo y sus filas
+ const mA={mailId:'0',slug:'panaderia-central',from:'a@d.com',fileName:'a.csv',error:''},mB={mailId:'1',slug:'otro',from:'b@d.com',fileName:'b.xlsx',error:''},mC={mailId:'2',slug:'vacio',from:'c@d.com',fileName:'c.csv',error:''};
+ const mixed=[{json:{Codigo:'A1',Precio:'10'}},{json:{Cod:'B1',Precio:'20'}},{json:{Cod:'B2',Precio:'30'}},{json:{Codigo:'A2',Precio:'abc'}}];
+ const owner=[0,1,1,0];
+ r=await run('normalizar.js',{items:mixed,all:{'Extraer Slug y Adjunto':[mA,mB,mC,{mailId:'3',error:'x'}]},match:{'Extraer Slug y Adjunto':(i)=>[mA,mB][owner[i]]}});
+ assert.equal(r.length,3);
+ assert.deepEqual([r[0].json.from,r[0].json.fileName,r[0].json.items.length,r[0].json.rowsInvalid],['a@d.com','a.csv',1,1]);
+ assert.deepEqual([r[1].json.from,r[1].json.fileName,r[1].json.items.length],['b@d.com','b.xlsx',2]);
+ assert.equal(r[2].json.ok,false);assert.equal(r[2].json.from,'c@d.com'); // CSV solo con encabezado: error al remitente correcto
+ // sin pairedItem y un solo correo: usa ese correo
+ r=await run('normalizar.js',{items:[{json:{Codigo:'Z',Precio:5}}],all:{'Extraer Slug y Adjunto':[mA]}});assert.equal(r[0].json.items[0].code,'Z');
+ // 7 Despacho: 200 directo; 4xx sin reintento; 5xx con reintentos; error de red agotado
+ const batch=(extra={})=>({json:{ok:true,mailId:'0',accountSlug:'x',from:'a@d.com',fileName:'a.csv',items:[{code:'1',price:1}],rowsRead:1,rowsInvalid:0,batchIndex:1,batches:1,...extra}});
+ const mk=(seq)=>{let n=0;return {calls:()=>n,self:{helpers:{httpRequest:async()=>{const s=seq[Math.min(n++,seq.length-1)];if(s instanceof Error)throw s;return {statusCode:s,body:{received:1}};}}}};};
+ let h=mk([200]);r=await run('despacho.js',{items:[batch()],self:h.self,env:{INTERNAL_WEBHOOK_SECRET:'s'}});assert.equal(r[0].json.dispatchOk,true);assert.equal(h.calls(),1);
+ h=mk([404]);r=await run('despacho.js',{items:[batch()],self:h.self});assert.deepEqual([r[0].json.dispatchOk,r[0].json.status,h.calls()],[false,404,1]);
+ h=mk([401]);r=await run('despacho.js',{items:[batch()],self:h.self});assert.deepEqual([r[0].json.status,h.calls()],[401,1]);
+ h=mk([503,502,200]);r=await run('despacho.js',{items:[batch()],self:h.self});assert.deepEqual([r[0].json.dispatchOk,r[0].json.attempts,h.calls()],[true,3,3]);
+ h=mk([new Error('ETIMEDOUT')]);r=await run('despacho.js',{items:[batch()],self:h.self});assert.deepEqual([r[0].json.dispatchOk,r[0].json.status,r[0].json.attempts,h.calls()],[false,0,4,4]);
+ h=mk([500]);r=await run('despacho.js',{items:[batch(),batch({mailId:'1',from:'b@d.com'})],self:h.self});assert.deepEqual([r.length,h.calls()],[2,8]);assert.equal(r[1].json.from,'b@d.com');
+ // 8 Resumen: un correo por mailId
+ const ok1=(mailId,upd,own)=>({json:{dispatchOk:true,mailId,accountSlug:'s'+mailId,fileName:mailId+'.csv',rowsInvalid:0,body:{received:10,updated:upd,discarded:10-upd,account:{tradeName:'T'+mailId,ownerEmail:own}}}});
+ r=await run('resumen.js',{items:[ok1('0',3,'d0@x.com'),ok1('1',5,'d1@x.com'),ok1('2',1,'')]});
+ assert.equal(r.length,2);assert.equal(r[0].json.ownerEmail,'d0@x.com');assert.ok(r[0].json.text.includes('3 insumos'));assert.ok(r[1].json.text.includes('5 insumos'));
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});
