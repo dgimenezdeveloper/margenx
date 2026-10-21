@@ -127,6 +127,12 @@ const accounts = [
         // Proveedor real (issue #178): lácteos, huevos y dulces — lo que
         // MarJuanC no comercializa. Datos tomados de capturas puntuales de
         // https://www.donroqueonline.com.ar/catalogo/ (sin lista exportable aún).
+        // Issue #176: Don Roque todavía no tiene un SKU propio confirmado (no
+        // hay lista exportable), pero el webhook de ingesta necesita 10
+        // supplierCode reales en Panadería Central para las pruebas de
+        // estrés con 3.000 filas. DR-LECHE01/DR-HUEVO01/DR-RICOTA01 son
+        // códigos internos de referencia asignados para QA, no un SKU
+        // publicado por Don Roque — reemplazar cuando llegue su lista real.
         id: "30e00001-0000-4000-8000-000000000003",
         name: "Don Roque",
         contactPhone: undefined,
@@ -136,7 +142,7 @@ const accounts = [
         ingredients: [
           {
             ingredientId: "30b00001-0000-4000-8000-000000000008", // Leche entera larga vida
-            supplierCode: undefined,
+            supplierCode: "DR-LECHE01",
             rawDescription: "Leche Entera Larga Vida Sachet Silvia x 1 Lt",
             packageSize: "1.000",
             packageUnit: "l",
@@ -145,7 +151,7 @@ const accounts = [
           },
           {
             ingredientId: "30b00001-0000-4000-8000-000000000009", // Huevo grande
-            supplierCode: undefined,
+            supplierCode: "DR-HUEVO01",
             rawDescription: "Huevo x Maple B1 (grande) — maple de 30 u",
             packageSize: "30.000",
             packageUnit: "u",
@@ -154,7 +160,7 @@ const accounts = [
           },
           {
             ingredientId: "30b00001-0000-4000-8000-000000000010", // Ricota
-            supplierCode: undefined,
+            supplierCode: "DR-RICOTA01",
             rawDescription: "Ricota Silvia x 5 Kg",
             packageSize: "5.000",
             packageUnit: "kg",

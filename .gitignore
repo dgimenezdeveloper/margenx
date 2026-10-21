@@ -26,3 +26,6 @@ repomix-auditoria.md
 docs/contexto-antigravity.md
 .idea/
 todo-list.md
+
+# Evidencia de corridas de Newman (QA) - se adjunta al PR/cátedra, no se versiona
+backend/tests/postman/reports/
