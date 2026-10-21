@@ -158,7 +158,17 @@ describe('GET /api/suppliers', () => {
     const res = await request(buildApp()).get('/api/suppliers/quarantine');
 
     expect(res.status).toBe(200);
-    expect(res.body.quarantined).toEqual(quarantined);
+    expect(res.body.quarantined).toEqual([
+      expect.objectContaining({
+        id: 'sq-1',
+        currentPrice: '50000',
+        proposedPrice: '50000',
+        variationPercent: '0',
+        quarantineReason: 'SIN_MOTIVO',
+        ingredient: { id: 'ing-1', name: 'Manteca', currentCost: '12090' },
+        supplier: { id: 's-1', name: 'Distribuidora X' },
+      }),
+    ]);
     expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
       where: { ingredient: { accountId: 'account-1' }, isQuarantined: true },
       include: {
@@ -169,15 +179,18 @@ describe('GET /api/suppliers', () => {
     });
   });
 
-  it('libera un precio en cuarentena releyendo el costo dentro de la transacción', async () => {
+  it('libera un precio en cuarentena aplicando el pendiente y limpia los metadatos de rechazo', async () => {
     const quarantined = {
       id: 'sq-1',
       ingredientId: 'ing-1',
       supplierId: 's-1',
-      packagePrice: new Prisma.Decimal('50000'),
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: new Prisma.Decimal('5000'),
       packageSize: new Prisma.Decimal('50'),
       isDefault: true,
       isQuarantined: true,
+      quarantinedAt: new Date('2026-10-20T12:00:00.000Z'),
+      quarantineReason: 'VARIACION_MAYOR_50_POR_CIENTO',
       ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
     };
 
@@ -189,7 +202,11 @@ describe('GET /api/suppliers', () => {
     });
     supplierIngredientUpdateMock.mockResolvedValue({
       id: 'sq-1',
+      packagePrice: new Prisma.Decimal('5000'),
+      pendingPackagePrice: null,
       isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
     });
     ingredientUpdateMock.mockResolvedValue({
       id: 'ing-1',
@@ -213,11 +230,90 @@ describe('GET /api/suppliers', () => {
       where: { id: 'sq-1', ingredient: { accountId: 'account-1' }, isQuarantined: true },
       include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
     });
-    expect(ingredientFindFirstMock).toHaveBeenCalledWith({
-      where: { id: 'ing-1' },
-      select: { id: true, name: true, currentCost: true },
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1' },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('5000'),
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      })
     });
 
+    applyIngredientCostChangeMock.mockRestore();
+  });
+
+  it('dispara la alerta de margen cuando un precio liberado cruza el mínimo', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: new Prisma.Decimal('5000'),
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: true,
+      isQuarantined: true,
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      currentCost: new Prisma.Decimal('12090'),
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-1',
+      packagePrice: new Prisma.Decimal('5000'),
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('20000'),
+    });
+
+    const applyIngredientCostChangeMock = vi.spyOn(
+      await import('../services/marginCalculator'),
+      'applyIngredientCostChange'
+    ).mockResolvedValue({
+      affectedProductsCount: 1,
+      affectedProducts: [],
+      criticalProducts: [{
+        productId: 'prod-1',
+        productName: 'Pan Integral',
+        previousCost: new Prisma.Decimal('1000'),
+        newCost: new Prisma.Decimal('1200'),
+        currentMarginPercent: new Prisma.Decimal('18.75'),
+        minMarginPercent: new Prisma.Decimal('20'),
+      }],
+    });
+    const dispatchSpy = vi.spyOn(await import('../services/marginAlertDispatcher'), 'dispatchMarginAlertEvent').mockResolvedValue();
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
+
+    expect(res.status).toBe(200);
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      accountId: 'account-1',
+      ingredientId: 'ing-1',
+      ingredientName: 'Manteca',
+      affectedProductsCount: 1,
+      criticalProducts: [
+        expect.objectContaining({
+          productId: 'prod-1',
+          productName: 'Pan Integral',
+          previousCost: '1000.00',
+          newCost: '1200.00',
+          currentMarginPercent: '18.75',
+          minMarginPercent: '20.00',
+        }),
+      ],
+    }));
+
+    dispatchSpy.mockRestore();
     applyIngredientCostChangeMock.mockRestore();
   });
 

@@ -204,25 +204,74 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
 
       const newPrice = new Prisma.Decimal(String(item.price));
       const previousPackagePrice = mapped.packagePrice;
-      const previousUnitCost = calculateUnitCost(previousPackagePrice, mapped.packageSize);
-      const newUnitCost = calculateUnitCost(newPrice, mapped.packageSize);
+      let previousUnitCost: Prisma.Decimal;
+      let newUnitCost: Prisma.Decimal | null = null;
+      let shouldQuarantine = false;
+      let quarantineReason = 'VARIACION_MAYOR_50_POR_CIENTO';
+
+      try {
+        previousUnitCost = calculateUnitCost(previousPackagePrice, mapped.packageSize);
+      } catch (_error) {
+        previousUnitCost = new Prisma.Decimal('0');
+      }
+
+      try {
+        newUnitCost = calculateUnitCost(newPrice, mapped.packageSize);
+      } catch (_error) {
+        shouldQuarantine = true;
+        quarantineReason = 'COSTO_UNITARIO_INSUFICIENTE';
+      }
+
       const zero = new Prisma.Decimal('0');
       const threshold = new Prisma.Decimal('50');
-      const variation = previousUnitCost.gt(zero)
+      const variation = previousUnitCost.gt(zero) && newUnitCost
         ? newUnitCost.sub(previousUnitCost).div(previousUnitCost).mul(100).abs()
         : new Prisma.Decimal('1000');
 
       const isSamePrice = newPrice.equals(previousPackagePrice);
       if (isSamePrice) {
+        if (mapped.isQuarantined) {
+          await tx.supplierIngredient.update({
+            where: { id: mapped.id },
+            data: {
+              pendingPackagePrice: null,
+              isQuarantined: false,
+              quarantinedAt: null,
+              quarantineReason: null,
+            },
+          });
+        }
         unchanged += 1;
         continue;
       }
 
-      const shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
+      if (!shouldQuarantine && newUnitCost) {
+        shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
+      }
+      if (!newUnitCost && !shouldQuarantine) {
+        shouldQuarantine = true;
+      }
+      if (shouldQuarantine && quarantineReason === 'VARIACION_MAYOR_50_POR_CIENTO' && newUnitCost?.lte(new Prisma.Decimal('0.01'))) {
+        quarantineReason = 'COSTO_UNITARIO_INSUFICIENTE';
+      }
 
       await tx.supplierIngredient.update({
         where: { id: mapped.id },
-        data: { packagePrice: newPrice, isQuarantined: shouldQuarantine },
+        data: shouldQuarantine
+          ? {
+            packagePrice: previousPackagePrice,
+            pendingPackagePrice: newPrice,
+            isQuarantined: true,
+            quarantinedAt: new Date(),
+            quarantineReason,
+          }
+          : {
+            packagePrice: newPrice,
+            pendingPackagePrice: null,
+            isQuarantined: false,
+            quarantinedAt: null,
+            quarantineReason: null,
+          },
       });
 
       if (shouldQuarantine) {
@@ -230,13 +279,18 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
         continue;
       }
 
-      const ingredientSnapshot = await tx.ingredient.findUnique({
-        where: { id: mapped.ingredientId },
-        select: { currentCost: true },
-      });
-      const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
-
       if (mapped.isDefault) {
+        const ingredientSnapshot = await tx.ingredient.findUnique({
+          where: { id: mapped.ingredientId },
+          select: { currentCost: true },
+        });
+        const previousCost = ingredientSnapshot?.currentCost ?? mapped.ingredient.currentCost;
+
+        if (!newUnitCost) {
+          quarantined += 1;
+          continue;
+        }
+
         await tx.ingredient.update({
           where: { id: mapped.ingredientId },
           data: { currentCost: newUnitCost },
