@@ -18,8 +18,8 @@
 * **Período Evaluado:** Cierre de Sprint 2 (19/09/2026 al 02/10/2026 - 2 semanas) y Cierre de Sprint 3 (03/10/2026 al 10/10/2026 - 1 semana, cierre formal adelantado para alinear el calendario del equipo con los hitos de entrega quincenales de la cátedra) · **Corte de control:** 10/10/2026.
 * **Integrantes del Equipo:**
   * **Darío Giménez:**  DevOps & Automatización (Lead Infraestructura) Soporte Frontend.
-  * **Federico Paal:** Lead Frontend & UX/UI Mobile-First, Scrum Master (Sprint 2),.
-  * **Mauricio Barreras:** Lead Backend & Data Architect.
+  * **Federico Paal:** Lead Frontend & UX/UI Mobile-First.
+  * **Mauricio Barreras:** Lead Backend & Data Architect, Scrum Master (Sprint 2).
   * **Leandro Herrera:** Scrum Master (Sprint 3), QA Engineer & Enlace con Cliente Real.
 
 ### 2. Comprometido vs. completado
