@@ -348,7 +348,8 @@
         2360,
         300
       ],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "executeOnce": true
     }
   ],
   "connections": {

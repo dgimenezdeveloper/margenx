@@ -116,5 +116,7 @@ const run = (file, ctx) => {
  // sin discardedCodes (API v1 o nada descartado): el resumen no cambia
  r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:5,updated:5,discarded:0,account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
  assert.ok(!r[0].json.text.includes('Descartadas por')&&!r[0].json.text.includes('Se detallan'));
+ // 10 Alerta a Discord: una sola alerta por ejecución aunque fallen varios lotes/correos (el secreto roto afecta a todos)
+ assert.equal(wf.nodes.find((n)=>n.name==='Alerta a Discord (401/403)').executeOnce,true);
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});
