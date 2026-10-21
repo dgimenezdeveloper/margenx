@@ -13,7 +13,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Backend:** Webhook de ingesta de precios `POST /api/webhooks/supplier-prices`, protegido con la cabecera `x-margenx-webhook-secret` (`#183`).
 - **Backend:** Filtro anti-contaminación de precios y cuarentena de precios anómalos con endpoints para listar, liberar y rechazar (`#194`, `#198`).
 - **DevOps:** Canal de ingesta por correo con Cloudflare Email Routing, buzón IMAP en Gmail y envío por Brevo (`#186`).
-- **DevOps:** Monitor de memoria del VPS con aviso a Discord (`#188`, `#189`).
+- **DevOps:** Monitor de memoria del VPS con aviso a Discord (`#188`).
 - **QA:** Acta y bitácora de pruebas in-situ en Química GyJ (`#191`).
 
 ### Changed
