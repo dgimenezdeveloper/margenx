@@ -19,13 +19,10 @@ export function ToastAlert({
   description,
   type = 'success',
   onClose,
-  offset = 0,
 }: ToastAlertProps) {
-  // Soporta tanto 'title' como el 'message' anterior
   const displayTitle = title ?? message ?? ''
-  const topPosition = 16 + offset * 80
 
-  // --- Lógica de Swipe-to-Dismiss para Mobile ---
+  // --- Lógica táctil Swipe-to-Dismiss para Mobile ---
   const [translateX, setTranslateX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const startXRef = useRef<number | null>(null)
@@ -43,7 +40,7 @@ export function ToastAlert({
   }
 
   const handleTouchEnd = () => {
-    if (Math.abs(translateX) > 100 && onClose) {
+    if (Math.abs(translateX) > 80 && onClose) {
       onClose()
     } else {
       setTranslateX(0)
@@ -51,24 +48,20 @@ export function ToastAlert({
     setIsDragging(false)
     startXRef.current = null
   }
-  // ----------------------------------------------
 
-  let iconColor = 'text-emerald-500 dark:text-emerald-400'
-  let borderColor = 'border-emerald-500'
+  // --- Colores exactos para cada variante ---
+  let borderLeftColor = '#10b981' // Verde
+  let iconColor = 'text-emerald-400'
   let Icon = Check
 
-  if (type === 'error') {
-    iconColor = 'text-red-500 dark:text-red-400'
-    borderColor = 'border-red-500'
-    Icon = AlertTriangle
-  } else if (type === 'warning') {
-    iconColor = 'text-amber-500 dark:text-amber-400'
-    borderColor = 'border-amber-500'
-    Icon = AlertTriangle
-  } else if (type === 'info') {
-    iconColor = 'text-blue-500 dark:text-blue-400'
-    borderColor = 'border-blue-500'
+  if (type === 'info') {
+    borderLeftColor = '#3b82f6' // Azul
+    iconColor = 'text-blue-400'
     Icon = Info
+  } else if (type === 'warning' || type === 'error') {
+    borderLeftColor = '#f43f5e' // Rojo
+    iconColor = 'text-rose-500'
+    Icon = AlertTriangle
   }
 
   return (
@@ -77,30 +70,33 @@ export function ToastAlert({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
-        top: `${topPosition}px`,
         transform: `translateX(${translateX}px)`,
-        opacity: Math.max(1 - Math.abs(translateX) / 150, 0),
-        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        opacity: Math.max(1 - Math.abs(translateX) / 120, 0),
+        transition: isDragging ? 'none' : 'transform 0.25s ease-out, opacity 0.25s ease-out',
+        touchAction: 'pan-y',
+        borderLeftColor,
       }}
-      className={`fixed inset-x-4 md:inset-x-auto md:right-4 z-50 mx-auto md:mx-0 flex w-full max-w-sm items-start gap-3 rounded-xl border-l-4 bg-white p-4 shadow-xl dark:bg-gray-900 border-y border-r border-y-gray-200 border-r-gray-200 dark:border-y-gray-800 dark:border-r-gray-800 animate-in fade-in slide-in-from-top-4 md:slide-in-from-right-8 ${borderColor}`}
+      className="fixed inset-x-4 top-4 z-50 mx-auto md:inset-x-auto md:right-4 md:mx-0 flex max-w-md items-start justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl select-none dark:border-slate-800/90 dark:bg-[#0d1527] border-l-[4px] animate-in fade-in slide-in-from-top-4 md:slide-in-from-right-4"
     >
-      <Icon className={`size-5 shrink-0 mt-0.5 ${iconColor}`} />
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
-          {displayTitle}
-        </p>
-        {description && (
-          <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 leading-relaxed">
-            {description}
+      <div className={`flex ${description ? 'items-start' : 'items-center'} gap-3 min-w-0 flex-1`}>
+        <Icon className={`size-5 shrink-0 ${description ? 'mt-0.5' : ''} ${iconColor}`} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug wrap-break-word">
+            {displayTitle}
           </p>
-        )}
+          {description && (
+            <p className="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400 leading-relaxed wrap-break-word">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
 
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
-          className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 transition cursor-pointer"
+          className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
           aria-label="Cerrar notificación"
         >
           <X className="size-4" />

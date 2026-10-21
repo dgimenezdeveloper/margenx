@@ -30,7 +30,6 @@ const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
-// Contador global para IDs de toasts (puro y seguro para React)
 let toastIdCounter = 0
 
 interface ToastMsg {
@@ -57,8 +56,9 @@ export default function SuppliesPageContent() {
   const [showPackagingModal, setShowPackagingModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
 
-  // Array de toasts para permitir apilamiento
-  const [toasts, setToasts] = useState<ToastMsg[]>([])
+  // --- Cola de notificaciones independientes con 3 segundos de duración ---
+  const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
+  const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
   useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
@@ -81,6 +81,59 @@ export default function SuppliesPageContent() {
     }
   }, [getToken])
 
+  // Desencola la siguiente notificación con una pequeña transición de 150ms
+  useEffect(() => {
+    if (!currentToast && toastQueue.length > 0) {
+      const timeout = setTimeout(() => {
+        const nextToast = toastQueue[0]
+        setCurrentToast(nextToast)
+        setToastQueue((prev) => prev.slice(1))
+      }, 150)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [currentToast, toastQueue])
+
+  // Temporizador de 3 segundos (3000ms) exactos por cada toast
+  useEffect(() => {
+    if (!currentToast) return
+
+    const timer = setTimeout(() => {
+      setCurrentToast(null)
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [currentToast])
+
+  const notify = (
+    messageOrTitle: string,
+    typeOrDescription?: string,
+    maybeType?: 'success' | 'error' | 'warning' | 'info'
+  ) => {
+    const isKnownType = (val?: string): val is 'success' | 'error' | 'warning' | 'info' =>
+      val === 'success' || val === 'error' || val === 'warning' || val === 'info'
+
+    const title = messageOrTitle
+    let description: string | undefined = undefined
+    let type: 'success' | 'error' | 'warning' | 'info' = 'success'
+
+    if (isKnownType(typeOrDescription)) {
+      type = typeOrDescription
+    } else {
+      description = typeOrDescription
+      if (isKnownType(maybeType)) {
+        type = maybeType
+      }
+    }
+
+    const id = String(++toastIdCounter)
+    setToastQueue((prev) => [...prev, { id, title, description, type }])
+  }
+
+  const handleDismissCurrentToast = () => {
+    setCurrentToast(null)
+  }
+
   const {
     register,
     handleSubmit,
@@ -98,21 +151,6 @@ export default function SuppliesPageContent() {
   const filtered = useMemo(() => supplies.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())), [supplies, query])
   const isTotalEmpty = !isLoading && supplies.length === 0
   const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
-
-  /**
-   * Muestra un toast y lo oculta tras 5 segundos.
-   */
-  const notify = (title: string, description?: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
-    const id = String(++toastIdCounter)
-    setToasts((prev) => [...prev, { id, title, description, type }])
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 5000)
-  }
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }
 
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
@@ -146,7 +184,7 @@ export default function SuppliesPageContent() {
   const handleSave = async (data: z.input<typeof ingredientSchema>) => {
     const numericCost = Number(data.currentCost)
     if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
-      notify('Error de validación', 'El insumo no puede superar $99.999.999,99.', 'error')
+      notify('El insumo no puede superar $99.999.999,99.', 'error')
       return
     }
 
@@ -165,32 +203,37 @@ export default function SuppliesPageContent() {
           sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item)))
         )
 
-        const affectedCount = response.affectedProductsCount || 0
-        const criticalCount = response.criticalProducts?.length || 0
+        // 1. Toast Verde (Éxito)
+        notify(
+          `Costo de ${selected.name} actualizado`,
+          `Nuevo valor: ${money(Number(data.currentCost))}`,
+          'success'
+        )
 
-        let toastTitle = `Costo de ${selected.name} actualizado`
-        let toastDesc = `Nuevo costo: ${money(Number(data.currentCost))}.`
-        let toastType: 'success' | 'warning' = 'success'
-
-        if (affectedCount > 0) {
-          toastDesc += ` Se actualizaron ${affectedCount} recetas vinculadas.`
-
-          if (criticalCount > 0) {
-            toastType = 'warning'
-            toastTitle = 'Costo actualizado con alertas'
-            toastDesc += ` ¡Atención! ${criticalCount} productos quedaron con margen crítico.`
-          }
+        // 2. Toast Azul (Informativo)
+        if (response.affectedProductsCount > 0) {
+          notify(
+            `Se actualizaron los costos de ${response.affectedProductsCount} recetas vinculadas.`,
+            'info'
+          )
         }
 
-        notify(toastTitle, toastDesc, toastType)
+        // 3. Toast Rojo (Advertencia / Margen en riesgo)
+        if (response.criticalProducts && response.criticalProducts.length > 0) {
+          notify(
+            '¡Atención!',
+            `${response.criticalProducts.length} productos quedaron con margen por debajo de su objetivo.`,
+            'warning'
+          )
+        }
       } else {
         const ingredient = await ingredientService.create(getToken, input)
         setSupplies((current) => sortIngredients([...current, ingredient]))
-        notify('Insumo creado correctamente', `"${data.name}" se agregó a la despensa.`, 'success')
+        notify(`Insumo "${data.name}" creado correctamente`, 'success')
       }
       handleCloseSheet()
     } catch (error: unknown) {
-      notify('Error al guardar', error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
+      notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
     }
   }
 
@@ -199,10 +242,10 @@ export default function SuppliesPageContent() {
     try {
       await ingredientService.delete(getToken, selected.id)
       setSupplies((current) => current.filter((item) => item.id !== selected.id))
-      notify('Insumo eliminado', `"${selected.name}" eliminado correctamente`, 'success')
+      notify(`Insumo "${selected.name}" eliminado correctamente.`, 'success')
       handleCloseSheet()
     } catch (error: unknown) {
-      notify('Error al eliminar', error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.', 'error')
+      notify(error instanceof ApiError ? error.message : 'No se pudo eliminar el insumo.', 'error')
       setShowDeleteConfirm(false)
     }
   }
@@ -225,9 +268,9 @@ export default function SuppliesPageContent() {
 
     if (newCost !== undefined) {
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify('Presentación vinculada', `Costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
+      notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
     } else {
-      notify('Presentación vinculada', 'Presentación mayorista asociada correctamente al proveedor.', 'success')
+      notify('Presentación mayorista asociada correctamente al proveedor.', 'success')
     }
   }
 
@@ -248,24 +291,24 @@ export default function SuppliesPageContent() {
       setSupplies((current) => sortIngredients(current.map((item) => (item.id === selected!.id ? updatedIngredient : item))))
       setSelected(updatedIngredient)
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify('Proveedor predeterminado', `Costo activo actualizado a ${money(newCost)}.`, 'success')
+      notify(`Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`, 'success')
     } catch (error: unknown) {
-      notify('Error', error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
+      notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
     }
   }
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {toasts.map((t, index) => (
+      {/* Toast único activo con duración de 3 segundos */}
+      {currentToast && (
         <ToastAlert
-          key={t.id}
-          title={t.title}
-          description={t.description}
-          type={t.type}
-          onClose={() => removeToast(t.id)}
-          offset={index}
+          key={currentToast.id}
+          title={currentToast.title}
+          description={currentToast.description}
+          type={currentToast.type}
+          onClose={handleDismissCurrentToast}
         />
-      ))}
+      )}
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
