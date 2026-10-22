@@ -112,7 +112,7 @@ if [ "$FORCE_TEST" = false ] && [ -f "$COOLDOWN_FILE" ]; then
 fi
 
 # 5. Obtener Top de Contenedores Docker por Consumo de RAM
-TOP_CONTAINERS=$(docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null | head -n 6 || true)
+TOP_CONTAINERS=$(docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null | head -n 7 || true)
 
 if [ -z "$TOP_CONTAINERS" ]; then
   TOP_CONTAINERS="No se pudo obtener estadísticas de Docker o no hay contenedores activos."
