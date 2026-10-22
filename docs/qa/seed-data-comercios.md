@@ -167,14 +167,17 @@ true`) de su insumo.
 **Don Roque** — lácteos, huevos y dulces, lo que MarJuanC no comercializa.
 Datos tomados de capturas puntuales de su catálogo web
 (`https://www.donroqueonline.com.ar/catalogo/`); todavía no tiene una lista
-de precios exportable para automatizar. Sin `supplierCode` publicado.
+de precios exportable para automatizar, por lo que **no publica un
+`supplierCode` propio**. Los códigos `DR-*` de la tabla son códigos internos
+de referencia asignados para las pruebas de ingesta masiva (issue #176) —
+no son un SKU de Don Roque, reemplazar cuando llegue su lista real.
 Todas las presentaciones son el proveedor predeterminado de su insumo.
 
-| Insumo | Producto | Presentación | Costo/kg, /l o /u |
-|---|---|---:|---:|
-| Leche entera larga vida Silvia | Leche Entera Larga Vida Sachet Silvia x 1 Lt | 1 l / $1.715,00 | 1715.00 |
-| Huevo grande | Huevo x Maple B1 (grande) — maple de 30 u | 30 u / $5.800,00 | 193.33 |
-| Ricota Castelmar | Ricota Silvia x 5 Kg | 5 kg / $23.075,00 | 4615.00 |
+| Insumo | Código (interno, issue #176) | Producto | Presentación | Costo/kg, /l o /u |
+|---|---|---|---:|---:|
+| Leche entera larga vida Silvia | DR-LECHE01 | Leche Entera Larga Vida Sachet Silvia x 1 Lt | 1 l / $1.715,00 | 1715.00 |
+| Huevo grande | DR-HUEVO01 | Huevo x Maple B1 (grande) — maple de 30 u | 30 u / $5.800,00 | 193.33 |
+| Ricota Castelmar | DR-RICOTA01 | Ricota Silvia x 5 Kg | 5 kg / $23.075,00 | 4615.00 |
 
 **Distribuidora Mayorista Molinera** — proveedor ficticio original de la
 issue #30. Se conserva únicamente como segunda presentación de Harina 000
@@ -220,7 +223,9 @@ MarJuanC su proveedor predeterminado.
 ### Pendientes
 
 - Don Roque: conseguir una lista de precios exportable (Excel/PDF) para
-  automatizar su carga, igual que MarJuanC y Limpikorn.
+  automatizar su carga, igual que MarJuanC y Limpikorn. Hasta entonces,
+  `DR-LECHE01`/`DR-HUEVO01`/`DR-RICOTA01` son códigos internos de QA
+  (issue #176), no su SKU real — reemplazarlos cuando llegue esa lista.
 - No hay todavía un segundo proveedor **real** compartiendo el mismo insumo;
   Molinera se mantiene como proveedor ficticio solo para probar la lógica de
   `isDefault`.
