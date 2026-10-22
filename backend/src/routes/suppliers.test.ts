@@ -244,6 +244,46 @@ describe('GET /api/suppliers', () => {
     applyIngredientCostChangeMock.mockRestore();
   });
 
+  it('libera una fila legacy en cuarentena aunque no tenga pendingPackagePrice', async () => {
+    const quarantined = {
+      id: 'sq-legacy',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: null,
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: false,
+      isQuarantined: true,
+      quarantinedAt: new Date('2026-10-20T12:00:00.000Z'),
+      quarantineReason: 'VARIACION_MAYOR_50_POR_CIENTO',
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-legacy',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-legacy/release');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'sq-legacy' },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('1000'),
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      }),
+    });
+  });
+
   it('dispara la alerta de margen cuando un precio liberado cruza el mínimo', async () => {
     const quarantined = {
       id: 'sq-1',

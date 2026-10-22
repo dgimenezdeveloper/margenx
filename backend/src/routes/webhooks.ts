@@ -248,9 +248,6 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
       if (!shouldQuarantine && newUnitCost) {
         shouldQuarantine = newUnitCost.lte(new Prisma.Decimal('0.01')) || variation.gt(threshold);
       }
-      if (!newUnitCost && !shouldQuarantine) {
-        shouldQuarantine = true;
-      }
       if (shouldQuarantine && quarantineReason === 'VARIACION_MAYOR_50_POR_CIENTO' && newUnitCost?.lte(new Prisma.Decimal('0.01'))) {
         quarantineReason = 'COSTO_UNITARIO_INSUFICIENTE';
       }

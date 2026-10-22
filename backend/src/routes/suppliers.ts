@@ -205,11 +205,11 @@ router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Re
       throw new AppError('Precio en cuarentena no encontrado.', 404);
     }
 
-    if (!quarantined.pendingPackagePrice) {
+    const proposedPrice = quarantined.pendingPackagePrice ?? quarantined.packagePrice;
+
+    if (!proposedPrice) {
       throw new AppError('No hay un precio pendiente para liberar.', 409);
     }
-
-    const proposedPrice = quarantined.pendingPackagePrice;
 
     let unitCost: Prisma.Decimal;
     try {
