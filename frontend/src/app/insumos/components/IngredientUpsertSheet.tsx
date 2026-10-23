@@ -7,11 +7,6 @@ import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
 
-/**
- * Modal / bottom sheet para crear o actualizar un insumo.
- * Reúne el formulario con validación Zod, la acción de guardar, historial,
- * eliminación y la sección de proveedores asociados cuando corresponde.
- */
 const ingredientUnits = ['kg', 'litro', 'unidad'] as const
 
 interface IngredientUpsertSheetProps {
@@ -38,11 +33,6 @@ interface IngredientUpsertSheetProps {
   onDecimalChange: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-/**
- * Renderiza la ficha de creación o edición del insumo y su bloque de proveedores.
- * Se encarga de mostrar la versión de alta, la de edición con historial y la vista
- * de confirmación de eliminación sin duplicar la lógica del resto de la pantalla.
- */
 export function IngredientUpsertSheet({
   selected,
   newOpen,
@@ -69,6 +59,8 @@ export function IngredientUpsertSheet({
   if (!selected && !newOpen) {
     return null
   }
+
+  const hasDefaultSupplier = selected?.supplierConnections?.some(c => c.isDefault)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
@@ -210,6 +202,13 @@ export function IngredientUpsertSheet({
               </div>
               {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
             </label>
+
+            {hasDefaultSupplier && (
+              <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                <p>El costo manual puede ser reemplazado por la próxima actualización automática del proveedor.</p>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button

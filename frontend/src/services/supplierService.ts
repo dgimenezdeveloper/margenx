@@ -19,6 +19,7 @@ export interface SupplierIngredient {
   packageUnit: string
   packagePrice: number
   isDefault: boolean
+  isQuarantined?: boolean
   supplier?: {
     id: string
     name: string
@@ -37,6 +38,27 @@ export interface SupplierPackagingResponse {
   supplierIngredient: SupplierIngredient
   unitCost: number | string
   ingredient?: Ingredient
+}
+
+// Nuevos tipos para Cuarentena
+export interface QuarantinedItem {
+  id: string
+  ingredientId: string
+  supplierId: string
+  packagePrice: number
+  packageSize: number
+  isDefault: boolean
+  isQuarantined: boolean
+  ingredient: { id: string; name: string; currentCost: number }
+  supplier: { id: string; name: string }
+}
+
+export interface QuarantineReleaseResponse {
+  supplierIngredient: SupplierIngredient
+  unitCost: number
+  affectedProductsCount: number
+  affectedProducts: unknown[]
+  criticalProducts: unknown[]
 }
 
 export const supplierService = {
@@ -66,4 +88,22 @@ export const supplierService = {
       body: JSON.stringify(input),
     })
   },
+
+  // Nuevos métodos de Cuarentena
+  async getQuarantine(getToken: TokenGetter): Promise<QuarantinedItem[]> {
+    const response = await fetchApi<{ quarantined: QuarantinedItem[] }>('/suppliers/quarantine', getToken)
+    return response.quarantined || []
+  },
+
+  async releaseQuarantine(getToken: TokenGetter, id: string): Promise<QuarantineReleaseResponse> {
+    return fetchApi<QuarantineReleaseResponse>(`/suppliers/quarantine/${id}/release`, getToken, {
+      method: 'POST',
+    })
+  },
+
+  async rejectQuarantine(getToken: TokenGetter, id: string): Promise<void> {
+    await fetchApi(`/suppliers/quarantine/${id}/reject`, getToken, {
+      method: 'POST',
+    })
+  }
 }

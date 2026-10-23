@@ -2,10 +2,11 @@
 
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Boxes, LoaderCircle, Plus, Search } from 'lucide-react'
+import { Boxes, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
+import { useNavigate } from 'react-router-dom'
 
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -26,11 +27,6 @@ import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
-/**
- * Contenedor principal de la vista /insumos.
- * Se encarga de orquestar la carga, búsqueda, validación, edición,
- * alta, eliminación y actualización del costo de los ingredientes.
- */
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
@@ -38,9 +34,11 @@ const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a,
 export default function SuppliesPageContent() {
   const { getToken } = useAuth()
   const { user } = useCurrentUser()
+  const navigate = useNavigate()
   const isCollaborator = user?.role === 'COLLABORATOR'
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
+  const [quarantineCount, setQuarantineCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -57,10 +55,16 @@ export default function SuppliesPageContent() {
 
   useEffect(() => {
     let active = true
-    ingredientService
-      .getAll(getToken)
-      .then((ingredients) => {
-        if (active) setSupplies(sortIngredients(ingredients))
+
+    Promise.all([
+      ingredientService.getAll(getToken),
+      !isCollaborator ? supplierService.getQuarantine(getToken) : Promise.resolve([])
+    ])
+      .then(([ingredients, quarantined]) => {
+        if (active) {
+          setSupplies(sortIngredients(ingredients))
+          setQuarantineCount(quarantined.length)
+        }
       })
       .catch((error: unknown) => {
         if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.')
@@ -72,7 +76,7 @@ export default function SuppliesPageContent() {
     return () => {
       active = false
     }
-  }, [getToken])
+  }, [getToken, isCollaborator])
 
   const {
     register,
@@ -92,17 +96,11 @@ export default function SuppliesPageContent() {
   const isTotalEmpty = !isLoading && supplies.length === 0
   const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
 
-  /**
-   * Muestra un toast de éxito o error y lo oculta tras unos segundos.
-   */
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type })
     window.setTimeout(() => setToast(null), 3500)
   }
 
-  /**
-   * Prepara el formulario para editar un insumo ya existente.
-   */
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
@@ -110,9 +108,6 @@ export default function SuppliesPageContent() {
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
   }
 
-  /**
-   * Abre la ficha de creación para dar de alta un nuevo insumo.
-   */
   const handleOpenNew = () => {
     setSelected(null)
     setShowDeleteConfirm(false)
@@ -120,9 +115,6 @@ export default function SuppliesPageContent() {
     setNewOpen(true)
   }
 
-  /**
-   * Cierra la hoja de edición y limpia el estado del formulario.
-   */
   const handleCloseSheet = () => {
     setSelected(null)
     setNewOpen(false)
@@ -130,9 +122,6 @@ export default function SuppliesPageContent() {
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
 
-  /**
-   * Solicita cerrar la hoja y confirma si existen cambios sin guardar.
-   */
   const requestCloseSheet = () => {
     if (isDirty) {
       setShowDiscardConfirm(true)
@@ -141,9 +130,6 @@ export default function SuppliesPageContent() {
     handleCloseSheet()
   }
 
-  /**
-   * Guarda un insumo nuevo o actualiza el costo de uno existente.
-   */
   const handleSave = async (data: z.input<typeof ingredientSchema>) => {
     const numericCost = Number(data.currentCost)
     if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
@@ -169,9 +155,6 @@ export default function SuppliesPageContent() {
     }
   }
 
-  /**
-   * Elimina el insumo seleccionado y actualiza el estado local.
-   */
   const confirmDelete = async () => {
     if (!selected) return
     try {
@@ -185,9 +168,6 @@ export default function SuppliesPageContent() {
     }
   }
 
-  /**
-   * Actualiza el estado del insumo tras asociar o editar un empaque mayorista.
-   */
   const handlePackagingSuccess = (newCost?: number, newConnection?: SupplierIngredient) => {
     if (!selected) return
     let updatedConnections = [...(selected.supplierConnections || [])]
@@ -212,9 +192,6 @@ export default function SuppliesPageContent() {
     }
   }
 
-  /**
-   * Convierte un empaque asociado en el proveedor predeterminado del insumo.
-   */
   const handleMakeDefault = async (conn: SupplierIngredient) => {
     try {
       const result = await supplierService.addPackaging(getToken, conn.supplierId, {
@@ -256,11 +233,39 @@ export default function SuppliesPageContent() {
                 </span>
                 <input type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar insumos..." className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20" />
               </div>
+              {!isCollaborator && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/proveedores/cuarentena')}
+                  className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400"
+                >
+                  <ShieldAlert className="size-4" />
+                  Cuarentena
+                  {quarantineCount > 0 && (
+                    <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] text-white">{quarantineCount}</span>
+                  )}
+                </button>
+              )}
               <button type="button" onClick={handleOpenNew} className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700">
                 <Plus className="size-4" /> Nuevo Insumo
               </button>
             </div>
           </section>
+
+          {!isCollaborator && quarantineCount > 0 && (
+            <div className="md:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+                  <ShieldAlert className="size-5" />
+                  <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+                </div>
+                <button onClick={() => navigate('/proveedores/cuarentena')} className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer">
+                  Revisar
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60"><p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p><p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p></div>
             <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60"><p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p><p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p></div>
