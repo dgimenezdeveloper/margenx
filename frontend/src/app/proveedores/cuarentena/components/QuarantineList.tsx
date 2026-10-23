@@ -4,26 +4,24 @@ import { Check, X, AlertTriangle, LoaderCircle, TrendingUp, TrendingDown } from 
 import type { QuarantinedItem } from '@/services/supplierService'
 import { supplierService } from '@/services/supplierService'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
-import ToastAlert from '@/components/ToastAlert'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 const money = (val: number) => `$${Number(val).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-export function QuarantineList({ items }: { items: QuarantinedItem[] }) {
+interface QuarantineListProps {
+  items: QuarantinedItem[]
+  onShowToast: (msg: string, type: 'success' | 'error') => void
+}
+
+export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
   const { getToken } = useAuth()
   const { removeItemLocally } = useQuarantineStore()
 
   const [selectedItem, setSelectedItem] = useState<QuarantinedItem | null>(null)
   const [actionType, setActionType] = useState<'release' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useBodyScrollLock(selectedItem !== null)
-
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message: msg, type })
-    setTimeout(() => setToast(null), 4000)
-  }
 
   const handleAction = async () => {
     if (!selectedItem || !actionType) return
@@ -31,16 +29,16 @@ export function QuarantineList({ items }: { items: QuarantinedItem[] }) {
     try {
       if (actionType === 'release') {
         const res = await supplierService.releaseQuarantine(getToken, selectedItem.id)
-        notify(`Precio liberado. Recálculo: ${res.affectedProductsCount} afectados, ${res.criticalProducts.length} críticos.`)
+        onShowToast(`Precio liberado. Recálculo: ${res.affectedProductsCount} afectados, ${res.criticalProducts.length} críticos.`, 'success')
       } else {
         await supplierService.rejectQuarantine(getToken, selectedItem.id)
-        notify('Precio rechazado. Se mantiene el costo anterior.')
+        onShowToast('Precio rechazado. Se mantiene el costo anterior.', 'success')
       }
       removeItemLocally(selectedItem.id)
       setSelectedItem(null)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al procesar la acción'
-      notify(msg, 'error')
+      onShowToast(msg, 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -62,8 +60,6 @@ export function QuarantineList({ items }: { items: QuarantinedItem[] }) {
 
   return (
     <div className="space-y-4">
-      {toast && <ToastAlert message={toast.message} type={toast.type} />}
-
       {/* MOBILE CARDS */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {items.map((item) => {

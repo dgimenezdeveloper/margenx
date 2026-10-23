@@ -31,7 +31,7 @@ const mockItems = [
 
 describe('QuarantineList', () => {
   it('renderiza la tabla con los datos correctos', () => {
-    render(<QuarantineList items={mockItems} />)
+    render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)
     expect(screen.getAllByText('Harina').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Molino').length).toBeGreaterThan(0)
     // 20000 / 10 = 2000 propuesto vs 1000 actual (+100%)
@@ -39,14 +39,14 @@ describe('QuarantineList', () => {
   })
 
   it('abre el modal de confirmación al hacer clic en Liberar', () => {
-    render(<QuarantineList items={mockItems} />)
+    render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)
     const releaseBtns = screen.getAllByText('Liberar')
     fireEvent.click(releaseBtns[0]) // Click en desktop
     expect(screen.getByText('¿Liberar precio?')).toBeInTheDocument()
   })
 
   it('abre el modal de confirmación al hacer clic en Rechazar', () => {
-    render(<QuarantineList items={mockItems} />)
+    render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)
     const rejectBtns = screen.getAllByText('Rechazar')
     fireEvent.click(rejectBtns[0]) // Click en desktop
     expect(screen.getByText('¿Rechazar precio?')).toBeInTheDocument()

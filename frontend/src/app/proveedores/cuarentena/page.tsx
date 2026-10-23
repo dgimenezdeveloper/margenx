@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ShieldAlert, RefreshCw } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ToastAlert } from '@/components/ToastAlert'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
 import { QuarantineList } from './components/QuarantineList'
 
@@ -14,12 +15,22 @@ export default function QuarantinePage() {
   const { getToken } = useAuth()
   const { items, isLoading, error, fetchItems } = useQuarantineStore()
 
+  // El estado del Toast ahora vive en la página principal para que no se desmonte
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
   useEffect(() => {
     void fetchItems(getToken)
   }, [getToken, fetchItems])
 
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      {toast && <ToastAlert message={toast.message} type={toast.type} />}
+
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar title="Cuarentena de Precios" backHref="/insumos" />
@@ -56,7 +67,7 @@ export default function QuarantinePage() {
                 description="No hay precios retenidos en cuarentena en este momento."
               />
             ) : (
-              <QuarantineList items={items} />
+              <QuarantineList items={items} onShowToast={notify} />
             )}
           </section>
         </div>
