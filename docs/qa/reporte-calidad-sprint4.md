@@ -81,6 +81,26 @@ ver `infra/n8n` — no para corridas de regresión de QA).
 | E2E — Cascade Recalculation | 1 test | 1 | **0** | 10.3s |
 | **Total** | | **291** | **9** | — |
 
+## 3.1 Evidencia visual
+
+Capturas reales tomadas durante esta misma corrida (no mockups), con sesiones
+de Clerk reales vía `scripts/get-test-token.ts`/`@clerk/testing`. Se adjuntan
+como archivos aparte al PR (informe UNaB) — no se versionan en el repo:
+
+- **`qa-regresion-01-auth-dashboard.png`** — Auth: `/dashboard` tras login real
+  como `admin.panaderia@hotmail.com`, sin pasar por `/login` (issue base de
+  `smoke.spec.ts`).
+- **`qa-regresion-02-cascade-badge-critico.png`** — Cascade Recalculation:
+  `/productos` después de subir el costo de Harina 000 a $4.500 — "Pan Flauta
+  — 1 Kg" con el badge **"Crítico (-6.4%)"**, igual que afirma el test
+  automatizado de `cascade-recalculation.spec.ts`.
+- **`qa-regresion-03-rbac-colaborador-sin-margenes.png`** — RBAC: la misma
+  pantalla `/productos`, sesión `colab.panaderia@hotmail.com` — sin columna
+  "Costo" ni "Margen", sin tab "Insumos" en la barra superior.
+- **`qa-regresion-04-rbac-insumos-redirige.png`** — RBAC: intento de acceso
+  directo a `/insumos` como COLLABORATOR — la URL final es `/productos`
+  (redirección confirmada, no solo el tab oculto).
+
 **Cobertura de `marginCalculator.ts`** (`@vitest/coverage-v8`, agregado como
 devDependency para este reporte — no existía cobertura configurada en el
 repo): **94.52%** statements, **90.19%** branch, **100%** funciones,
