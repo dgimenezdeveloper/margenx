@@ -203,7 +203,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
   });
 
-  it('eventos en cuarentena se contabilizan por la presentación previa', async () => {
+  it('eventos en cuarentena se contabilizan por la presentación previa y retienen el precio propuesto sin pisar el vigente', async () => {
     accountFindUniqueMock.mockResolvedValue({
       id: 'acc-123',
       slug: 'panaderia-central',
@@ -239,7 +239,13 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(res.body.updated).toBe(0);
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-q1' },
-      data: { packagePrice: new Prisma.Decimal('1000'), isQuarantined: true },
+      data: expect.objectContaining({
+        pendingPackagePrice: new Prisma.Decimal('1000'),
+        isQuarantined: true,
+        quarantineReason: expect.any(String),
+        quarantinedAt: expect.any(Date),
+        packagePrice: new Prisma.Decimal('100'),
+      }),
     });
   });
 
@@ -363,7 +369,13 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-1' },
-      data: { packagePrice: new Prisma.Decimal('1750'), isQuarantined: true },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('70000'),
+        pendingPackagePrice: new Prisma.Decimal('1750'),
+        isQuarantined: true,
+        quarantineReason: expect.any(String),
+        quarantinedAt: expect.any(Date),
+      }),
     });
     expect(ingredientFindUniqueMock).not.toHaveBeenCalled();
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
@@ -402,7 +414,13 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(res.body.discarded).toBe(0);
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-quarantine' },
-      data: { packagePrice: new Prisma.Decimal('50000'), isQuarantined: true },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('10000'),
+        pendingPackagePrice: new Prisma.Decimal('50000'),
+        isQuarantined: true,
+        quarantineReason: expect.any(String),
+        quarantinedAt: expect.any(Date),
+      }),
     });
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
@@ -437,9 +455,103 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(res.status).toBe(200);
     expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
       where: { id: 'si-drop' },
-      data: { packagePrice: new Prisma.Decimal('3000'), isQuarantined: true },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('10000'),
+        pendingPackagePrice: new Prisma.Decimal('3000'),
+        isQuarantined: true,
+        quarantineReason: expect.any(String),
+        quarantinedAt: expect.any(Date),
+      }),
     });
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+  });
+
+  it('cuarentena el precio si el costo unitario calculado es inválido y no rompe el lote', async () => {
+    const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
+    accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('10000') });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-zero-unit',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-zero',
+        supplierCode: 'MC-ZERO',
+        packageSize: new Prisma.Decimal('10'),
+        packagePrice: new Prisma.Decimal('1000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-zero', accountId: 'acc-123', currentCost: new Prisma.Decimal('10000') },
+      },
+    ]);
+
+    const calcSpy = vi.spyOn(marginCalculator, 'calculateUnitCost').mockImplementation(() => {
+      throw new Error('El costo unitario calculado debe ser mayor a cero.');
+    });
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-ZERO', description: 'Manteca', price: 1 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.quarantined).toBe(1);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'si-zero-unit' },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('1000'),
+        pendingPackagePrice: new Prisma.Decimal('1'),
+        isQuarantined: true,
+        quarantineReason: 'COSTO_UNITARIO_INSUFICIENTE',
+        quarantinedAt: expect.any(Date),
+      }),
+    });
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+    calcSpy.mockRestore();
+  });
+
+  it('limpia la cuarentena cuando llega el mismo precio vigente y había un pendiente', async () => {
+    const account = { id: 'acc-123', slug: 'panaderia-central', isActive: true };
+    accountFindUniqueMock.mockResolvedValue(account);
+    ingredientFindUniqueMock.mockResolvedValue({ currentCost: new Prisma.Decimal('100') });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-same',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-same',
+        supplierCode: 'MC-SAME',
+        packageSize: new Prisma.Decimal('50'),
+        packagePrice: new Prisma.Decimal('1000'),
+        pendingPackagePrice: new Prisma.Decimal('1000'),
+        isDefault: true,
+        isQuarantined: true,
+        quarantineReason: 'VARIACION_MAYOR_50_POR_CIENTO',
+        quarantinedAt: new Date('2026-10-20T12:00:00.000Z'),
+        ingredient: { id: 'ing-same', accountId: 'acc-123', currentCost: new Prisma.Decimal('100') },
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-SAME', description: 'Manteca', price: 1000 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.unchanged).toBe(1);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'si-same' },
+      data: expect.objectContaining({
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      }),
+    });
   });
 });

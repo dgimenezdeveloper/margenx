@@ -18,6 +18,21 @@ export interface PriceHistory {
   changedAt: string
 }
 
+export interface CriticalProduct {
+  productId: string
+  productName: string
+  previousCost: string
+  newCost: string
+  currentMarginPercent: string
+  minMarginPercent: string
+}
+
+export interface IngredientUpdateResponse {
+  ingredient: Ingredient
+  affectedProductsCount: number
+  criticalProducts: CriticalProduct[]
+}
+
 type RawIngredient = Omit<Ingredient, 'currentCost' | 'supplierConnections'> & {
   currentCost: number | string
   supplierConnections?: Array<Omit<SupplierIngredient, 'packageSize' | 'packagePrice'> & {
@@ -40,6 +55,12 @@ interface IngredientResponse {
 
 interface SingleIngredientResponse {
   ingredient: RawIngredient
+}
+
+interface UpdateIngredientResponse {
+  ingredient: RawIngredient
+  affectedProductsCount?: number
+  criticalProducts?: CriticalProduct[]
 }
 
 interface HistoryResponse {
@@ -93,12 +114,16 @@ export const ingredientService = {
     return normalizeIngredient(response.ingredient)
   },
 
-  async update(getToken: TokenGetter, id: string, input: IngredientInput): Promise<Ingredient> {
-    const response = await fetchApi<SingleIngredientResponse>(`/ingredients/${id}`, getToken, {
+  async update(getToken: TokenGetter, id: string, input: IngredientInput): Promise<IngredientUpdateResponse> {
+    const response = await fetchApi<UpdateIngredientResponse>(`/ingredients/${id}`, getToken, {
       method: 'PUT',
       body: JSON.stringify(input),
     })
-    return normalizeIngredient(response.ingredient)
+    return {
+      ingredient: normalizeIngredient(response.ingredient),
+      affectedProductsCount: response.affectedProductsCount || 0,
+      criticalProducts: response.criticalProducts || []
+    }
   },
 
   async delete(getToken: TokenGetter, id: string): Promise<void> {
