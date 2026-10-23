@@ -70,6 +70,8 @@ export function IngredientUpsertSheet({
     return null
   }
 
+  const hasDefaultSupplier = selected?.supplierConnections?.some((c) => c.isDefault)
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
       <div className="fixed inset-0" onClick={onRequestClose} />
@@ -173,7 +175,9 @@ export function IngredientUpsertSheet({
 
             {!selected && (
               <div className="mt-4">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                  Unidad de medida
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {ingredientUnits.map((u) => (
                     <button
@@ -210,6 +214,13 @@ export function IngredientUpsertSheet({
               </div>
               {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
             </label>
+
+            {hasDefaultSupplier && (
+              <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                <p>El costo manual puede ser reemplazado por la próxima actualización automática del proveedor.</p>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button

@@ -8,6 +8,7 @@ import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
 import ProductDetailPage from './app/productos/[id]/page'
 import ProfilePage from './app/perfil/page'
+import QuarantinePage from './app/proveedores/cuarentena/page' // NUEVO
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
 
@@ -30,6 +31,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <AdminOnlyRoute>
           <SuppliesPage />
+        </AdminOnlyRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/proveedores/cuarentena', // NUEVO
+    element: (
+      <ProtectedRoute>
+        <AdminOnlyRoute>
+          <QuarantinePage />
         </AdminOnlyRoute>
       </ProtectedRoute>
     ),
