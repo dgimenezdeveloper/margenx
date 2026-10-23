@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "files": ["prisma/seed.ts"]
+  "files": ["prisma/seed.ts", "prisma/seed-demo.ts"]
 }
