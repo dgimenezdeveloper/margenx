@@ -29,7 +29,8 @@ import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-const sortIngredients = (ingredients: Ingredient[]) => [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+const sortIngredients = (ingredients: Ingredient[]) =>
+  [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
 let toastIdCounter = 0
 
@@ -59,7 +60,6 @@ export default function SuppliesPageContent() {
   const [showPackagingModal, setShowPackagingModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
 
-  // --- Cola de notificaciones independientes con 3 segundos de duración ---
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
@@ -68,9 +68,13 @@ export default function SuppliesPageContent() {
   useEffect(() => {
     let active = true
 
+    // Si getQuarantine falla, se captura silenciosamente devolviendo array vacío
+    // para que la pantalla principal de insumos NUNCA sea bloqueada.
     Promise.all([
       ingredientService.getAll(getToken),
-      !isCollaborator ? supplierService.getQuarantine(getToken) : Promise.resolve([]),
+      !isCollaborator
+        ? supplierService.getQuarantine(getToken).catch(() => [])
+        : Promise.resolve([]),
     ])
       .then(([ingredients, quarantined]) => {
         if (active) {
@@ -90,7 +94,6 @@ export default function SuppliesPageContent() {
     }
   }, [getToken, isCollaborator])
 
-  // Desencola la siguiente notificación con una pequeña transición de 150ms
   useEffect(() => {
     if (!currentToast && toastQueue.length > 0) {
       const timeout = setTimeout(() => {
@@ -103,7 +106,6 @@ export default function SuppliesPageContent() {
     }
   }, [currentToast, toastQueue])
 
-  // Temporizador de 3 segundos (3000ms) exactos por cada toast
   useEffect(() => {
     if (!currentToast) return
 
@@ -215,14 +217,12 @@ export default function SuppliesPageContent() {
           sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item)))
         )
 
-        // 1. Toast Verde (Éxito)
         notify(
           `Costo de ${selected.name} actualizado`,
           `Nuevo valor: ${money(Number(data.currentCost))}`,
           'success'
         )
 
-        // 2. Toast Azul (Informativo)
         if (response.affectedProductsCount > 0) {
           notify(
             `Se actualizaron los costos de ${response.affectedProductsCount} recetas vinculadas.`,
@@ -230,7 +230,6 @@ export default function SuppliesPageContent() {
           )
         }
 
-        // 3. Toast Rojo (Advertencia / Margen en riesgo)
         if (response.criticalProducts && response.criticalProducts.length > 0) {
           notify(
             '¡Atención!',
@@ -314,7 +313,10 @@ export default function SuppliesPageContent() {
       )
       setSelected(updatedIngredient)
       setValue('currentCost', String(newCost), { shouldDirty: false })
-      notify(`Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`, 'success')
+      notify(
+        `Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`,
+        'success'
+      )
     } catch (error: unknown) {
       notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
     }
@@ -322,7 +324,6 @@ export default function SuppliesPageContent() {
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {/* Toast único activo con duración de 3 segundos */}
       {currentToast && (
         <ToastAlert
           key={currentToast.id}
@@ -388,6 +389,7 @@ export default function SuppliesPageContent() {
                   <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => navigate('/proveedores/cuarentena')}
                   className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer"
                 >
@@ -415,6 +417,7 @@ export default function SuppliesPageContent() {
               <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
             </div>
           </div>
+
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">Todos los insumos</h2>

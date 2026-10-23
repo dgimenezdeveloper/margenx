@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ShieldAlert, RefreshCw } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
@@ -14,17 +14,23 @@ import { QuarantineList } from './components/QuarantineList'
 export default function QuarantinePage() {
   const { getToken } = useAuth()
   const { items, isLoading, error, fetchItems } = useQuarantineStore()
-
-  // El estado del Toast ahora vive en la página principal para que no se desmonte
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     void fetchItems(getToken)
   }, [getToken, fetchItems])
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    }
+  }, [])
+
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToast({ message: msg, type })
-    setTimeout(() => setToast(null), 4000)
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000)
   }
 
   return (
@@ -54,6 +60,7 @@ export default function QuarantinePage() {
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-900 dark:bg-rose-950/30">
                 <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 mb-4">{error}</p>
                 <button
+                  type="button"
                   onClick={() => fetchItems(getToken)}
                   className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-700 cursor-pointer"
                 >

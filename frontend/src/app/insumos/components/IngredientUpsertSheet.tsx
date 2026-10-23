@@ -7,6 +7,11 @@ import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
 
+/**
+ * Modal / bottom sheet para crear o actualizar un insumo.
+ * Reúne el formulario con validación Zod, la acción de guardar, historial,
+ * eliminación y la sección de proveedores asociados cuando corresponde.
+ */
 const ingredientUnits = ['kg', 'litro', 'unidad'] as const
 
 interface IngredientUpsertSheetProps {
@@ -33,6 +38,11 @@ interface IngredientUpsertSheetProps {
   onDecimalChange: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
+/**
+ * Renderiza la ficha de creación o edición del insumo y su bloque de proveedores.
+ * Se encarga de mostrar la versión de alta, la de edición con historial y la vista
+ * de confirmación de eliminación sin duplicar la lógica del resto de la pantalla.
+ */
 export function IngredientUpsertSheet({
   selected,
   newOpen,
@@ -60,7 +70,7 @@ export function IngredientUpsertSheet({
     return null
   }
 
-  const hasDefaultSupplier = selected?.supplierConnections?.some(c => c.isDefault)
+  const hasDefaultSupplier = selected?.supplierConnections?.some((c) => c.isDefault)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
@@ -165,7 +175,9 @@ export function IngredientUpsertSheet({
 
             {!selected && (
               <div className="mt-4">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad de medida</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                  Unidad de medida
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {ingredientUnits.map((u) => (
                     <button

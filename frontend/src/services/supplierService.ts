@@ -40,13 +40,16 @@ export interface SupplierPackagingResponse {
   ingredient?: Ingredient
 }
 
-// Nuevos tipos para Cuarentena
 export interface QuarantinedItem {
   id: string
   ingredientId: string
   supplierId: string
   packagePrice: number
   packageSize: number
+  currentPrice?: number
+  proposedPrice?: number
+  quarantineReason?: 'VARIACION_MAYOR_50_POR_CIENTO' | 'COSTO_UNITARIO_INSUFICIENTE' | string
+  variationPercent?: number
   isDefault: boolean
   isQuarantined: boolean
   ingredient: { id: string; name: string; currentCost: number }
@@ -89,7 +92,6 @@ export const supplierService = {
     })
   },
 
-  // Nuevos métodos de Cuarentena
   async getQuarantine(getToken: TokenGetter): Promise<QuarantinedItem[]> {
     const response = await fetchApi<{ quarantined: QuarantinedItem[] }>('/suppliers/quarantine', getToken)
     return response.quarantined || []
@@ -105,5 +107,5 @@ export const supplierService = {
     await fetchApi(`/suppliers/quarantine/${id}/reject`, getToken, {
       method: 'POST',
     })
-  }
+  },
 }
