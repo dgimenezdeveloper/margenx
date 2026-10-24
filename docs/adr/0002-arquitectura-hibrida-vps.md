@@ -15,7 +15,7 @@ La arquitectura híbrida original (ver ADR-002 previo) contemplaba el cómputo �
 
 ## Decisión
 
-Se adopta el despliegue **100% consolidado en una única VPS propia**  Ubuntu 22.04 LTS, IP `168.197.49.120`):
+Se adopta el despliegue **100% consolidado en una única VPS propia**  Ubuntu 22.04 LTS, IP `<VPS_IP>`):
 
 * **Persistencia y automatización:** PostgreSQL 16 y n8n corren en contenedores dentro de la red interna `margenx_network`.
 * **Cómputo:** el frontend y el backend se dockerizan y se publican como imágenes inmutables en Docker Hub (`dgimenezdeveloper/margenx-backend` / `margenx-frontend`) mediante GitHub Actions. La VPS solo descarga (`docker compose pull`) y levanta (`up -d --no-deps`) esas imágenes — nunca clona código fuente ni corre `npm install`.

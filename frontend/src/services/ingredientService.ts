@@ -18,6 +18,21 @@ export interface PriceHistory {
   changedAt: string
 }
 
+export interface CriticalProduct {
+  productId: string
+  productName: string
+  previousCost: string
+  newCost: string
+  currentMarginPercent: string
+  minMarginPercent: string
+}
+
+export interface IngredientUpdateResponse {
+  ingredient: Ingredient
+  affectedProductsCount: number
+  criticalProducts: CriticalProduct[]
+}
+
 type RawIngredient = Omit<Ingredient, 'currentCost' | 'supplierConnections'> & {
   currentCost: number | string
   supplierConnections?: Array<Omit<SupplierIngredient, 'packageSize' | 'packagePrice'> & {
@@ -42,6 +57,12 @@ interface SingleIngredientResponse {
   ingredient: RawIngredient
 }
 
+interface UpdateIngredientResponse {
+  ingredient: RawIngredient
+  affectedProductsCount?: number
+  criticalProducts?: CriticalProduct[]
+}
+
 interface HistoryResponse {
   history: RawPriceHistory[]
 }
@@ -52,15 +73,20 @@ export interface IngredientInput {
   currentCost: number
 }
 
-function normalizeIngredient(ingredient: RawIngredient): Ingredient {
+function normalizeIngredient(ingredient: RawIngredient & { suppliers?: unknown[] }): Ingredient {
+  const rawConnections =
+    (ingredient.suppliers as SupplierIngredient[] | undefined) ??
+    ingredient.supplierConnections ??
+    []
+
   return {
     ...ingredient,
     currentCost: Number(ingredient.currentCost),
-    supplierConnections: ingredient.supplierConnections?.map(conn => ({
+    supplierConnections: rawConnections.map((conn) => ({
       ...conn,
       packageSize: Number(conn.packageSize),
-      packagePrice: Number(conn.packagePrice)
-    }))
+      packagePrice: Number(conn.packagePrice),
+    })),
   }
 }
 
@@ -88,12 +114,16 @@ export const ingredientService = {
     return normalizeIngredient(response.ingredient)
   },
 
-  async update(getToken: TokenGetter, id: string, input: IngredientInput): Promise<Ingredient> {
-    const response = await fetchApi<SingleIngredientResponse>(`/ingredients/${id}`, getToken, {
+  async update(getToken: TokenGetter, id: string, input: IngredientInput): Promise<IngredientUpdateResponse> {
+    const response = await fetchApi<UpdateIngredientResponse>(`/ingredients/${id}`, getToken, {
       method: 'PUT',
       body: JSON.stringify(input),
     })
-    return normalizeIngredient(response.ingredient)
+    return {
+      ingredient: normalizeIngredient(response.ingredient),
+      affectedProductsCount: response.affectedProductsCount || 0,
+      criticalProducts: response.criticalProducts || []
+    }
   },
 
   async delete(getToken: TokenGetter, id: string): Promise<void> {

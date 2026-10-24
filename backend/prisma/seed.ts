@@ -5,9 +5,11 @@ import {
   calculateRecipeTotal,
   calculateMarginAmount,
   calculateMarginPercent,
+  calculateUnitCost,
 } from "../src/services/marginCalculator";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
+// Issue #178 — proveedores mayoristas reales y mapeo de SKU por SupplierIngredient.
 // Todos los importes están en ARS.
 // Conversión fija de insumos en USD: 1540 ARS/USD.
 // No incluye envases ni descuentos por volumen.
@@ -17,12 +19,17 @@ const accounts = [
   {
     id: "30a00000-0000-4000-8000-000000000001",
     businessName: "Panadería Central",
+    slug: "panaderia-central",
     users: [
       { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
       { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
     ],
     suppliers: [
       {
+        // Proveedor ficticio original de la issue #30. Se conserva únicamente
+        // como segunda presentación de Harina 000 (no default), para ejercitar
+        // la selección de proveedor predeterminado por insumo (issue #178).
+        // No vende lácteos frescos en la realidad, por eso ya no referencia Leche.
         id: "30e00001-0000-4000-8000-000000000001",
         name: "Distribuidora Mayorista Molinera",
         contactPhone: "+54 11 4000-1001",
@@ -32,21 +39,141 @@ const accounts = [
         ingredients: [
           {
             ingredientId: "30b00001-0000-4000-8000-000000000001",
+            supplierCode: undefined,
+            rawDescription: undefined,
             packageSize: "25.000",
             packageUnit: "kg",
             packagePrice: "18000.00",
-            isDefault: true,
-          },
-          {
-            ingredientId: "30b00001-0000-4000-8000-000000000008",
-            packageSize: "20.000",
-            packageUnit: "l",
-            packagePrice: "30000.00",
             isDefault: false,
           },
         ],
       },
+      {
+        // Proveedor real (issue #178): harinas, azúcares, grasas, margarinas,
+        // levaduras y sal. Lista de precios en PDF, bonificada por volumen.
+        id: "30e00001-0000-4000-8000-000000000002",
+        name: "Distribuidora MarJuanC Alimentos",
+        contactPhone: "+54 11 3758-0195",
+        email: undefined,
+        address: "Grito de Asencio 3632",
+        isActive: true,
+        ingredients: [
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000001", // Harina 000
+            supplierCode: "HAR188",
+            rawDescription: "HARINA SARITA 000 X 25 KG (lista bonificada ×30 u)",
+            packageSize: "25.000",
+            packageUnit: "kg",
+            packagePrice: "18406.25",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000002", // Harina 0000
+            supplierCode: "HAR187",
+            rawDescription: "HARINA SARITA 0000 X 25 KG (lista bonificada ×30 u)",
+            packageSize: "25.000",
+            packageUnit: "kg",
+            packagePrice: "21126.22",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000003", // Azúcar común tipo A
+            supplierCode: "AZU015",
+            rawDescription: "AZUCAR TIPO A paquete 10x1kg (lista bonificada ×200 u)",
+            packageSize: "10.000",
+            packageUnit: "kg",
+            packagePrice: "11400.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000004", // Manteca en bloque mayorista
+            supplierCode: "CRE101",
+            rawDescription: "MANTECA COTAGU X 5 KG (lista bonificada ×100 u)",
+            packageSize: "5.000",
+            packageUnit: "kg",
+            packagePrice: "50254.70",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000005", // Grasa bovina refinada
+            supplierCode: "GRA013",
+            rawDescription: "GRASA LA CORDOBESA X 20 KG (lista bonificada ×100 u)",
+            packageSize: "20.000",
+            packageUnit: "kg",
+            packagePrice: "77706.20",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000006", // Levadura fresca
+            supplierCode: "LEV201",
+            rawDescription: "LEVADURA LA CORDOBESA X 10 KG (lista bonificada ×100 u)",
+            packageSize: "10.000",
+            packageUnit: "kg",
+            packagePrice: "67245.80",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000007", // Sal fina
+            supplierCode: "SAL010",
+            rawDescription: "SAL FINA DOBLE VÍA X 25 KG (lista bonificada ×5 u)",
+            packageSize: "25.000",
+            packageUnit: "kg",
+            packagePrice: "11806.61",
+            isDefault: true,
+          },
+        ],
+      },
+      {
+        // Proveedor real (issue #178): lácteos, huevos y dulces — lo que
+        // MarJuanC no comercializa. Datos tomados de capturas puntuales de
+        // https://www.donroqueonline.com.ar/catalogo/ (sin lista exportable aún).
+        // Issue #176: Don Roque todavía no tiene un SKU propio confirmado (no
+        // hay lista exportable), pero el webhook de ingesta necesita 10
+        // supplierCode reales en Panadería Central para las pruebas de
+        // estrés con 3.000 filas. DR-LECHE01/DR-HUEVO01/DR-RICOTA01 son
+        // códigos internos de referencia asignados para QA, no un SKU
+        // publicado por Don Roque — reemplazar cuando llegue su lista real.
+        id: "30e00001-0000-4000-8000-000000000003",
+        name: "Don Roque",
+        contactPhone: undefined,
+        email: undefined,
+        address: undefined,
+        isActive: true,
+        ingredients: [
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000008", // Leche entera larga vida
+            supplierCode: "DR-LECHE01",
+            rawDescription: "Leche Entera Larga Vida Sachet Silvia x 1 Lt",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "1715.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000009", // Huevo grande
+            supplierCode: "DR-HUEVO01",
+            rawDescription: "Huevo x Maple B1 (grande) — maple de 30 u",
+            packageSize: "30.000",
+            packageUnit: "u",
+            packagePrice: "5800.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00001-0000-4000-8000-000000000010", // Ricota
+            supplierCode: "DR-RICOTA01",
+            rawDescription: "Ricota Silvia x 5 Kg",
+            packageSize: "5.000",
+            packageUnit: "kg",
+            packagePrice: "23075.00",
+            isDefault: true,
+          },
+        ],
+      },
     ],
+    // currentCost es el valor declarado de referencia QA (Sprint 1). Los
+    // insumos con un proveedor predeterminado en `suppliers` arriba quedan
+    // sobrescritos con el costo real de esa presentación mayorista (ver el
+    // paso de sincronización en main(), más abajo).
     ingredients: [
       { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "742.98" },
       { id: "30b00001-0000-4000-8000-000000000002", name: "Harina de trigo 0000 Olavarriense", unit: "kg", currentCost: "868.77" },
@@ -202,36 +329,118 @@ const accounts = [
   {
     id: "30a00000-0000-4000-8000-000000000002",
     businessName: "Química GyJ",
+    slug: "quimica-gyj",
     users: [
       { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
       { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
     ],
     suppliers: [
       {
-        id: "30e00002-0000-4000-8000-000000000001",
-        name: "Distribuidora Industrial Química Sur",
-        contactPhone: "+54 11 5000-2202",
-        email: "compras@quimicasur.com.ar",
-        address: "Calle 7 N° 240, Córdoba",
+        // Proveedor real único (issue #178): cubre los 10 insumos de Química
+        // GyJ. Lista de precios en Google Drive + cotizaciones adicionales
+        // pasadas directamente para los productos sin venta directa.
+        id: "30e00002-0000-4000-8000-000000000002",
+        name: "Limpikorn",
+        contactPhone: undefined,
+        email: undefined,
+        address: undefined,
         isActive: true,
         ingredients: [
           {
-            ingredientId: "30b00002-0000-4000-8000-000000000001",
-            packageSize: "20.000",
+            ingredientId: "30b00002-0000-4000-8000-000000000001", // Pasta suavi
+            supplierCode: undefined,
+            rawDescription: "Pasta suavi — cotización USD 10/kg (TC 1540 ARS/USD)",
+            packageSize: "1.000",
             packageUnit: "kg",
-            packagePrice: "28000.00",
+            packagePrice: "15400.00",
             isDefault: true,
           },
           {
-            ingredientId: "30b00002-0000-4000-8000-000000000006",
-            packageSize: "30.000",
+            ingredientId: "30b00002-0000-4000-8000-000000000002", // Soda
+            supplierCode: undefined,
+            rawDescription: "Soda cáustica — lista de precios Limpikorn",
+            packageSize: "1.000",
             packageUnit: "l",
-            packagePrice: "62000.00",
-            isDefault: false,
+            packagePrice: "2300.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000003", // Etoxilado
+            supplierCode: undefined,
+            rawDescription: "Etoxilado — cotización USD 3,20/kg (TC 1540 ARS/USD)",
+            packageSize: "1.000",
+            packageUnit: "kg",
+            packagePrice: "4928.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000004", // Sulfonico
+            supplierCode: undefined,
+            rawDescription: "Sulfónico — cotización USD 4,50/l (TC 1540 ARS/USD)",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "6930.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000005", // Aceite
+            supplierCode: undefined,
+            rawDescription: "Aceite — cotización USD 24/l (TC 1540 ARS/USD)",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "36960.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000006", // Alcohol
+            supplierCode: undefined,
+            rawDescription: "Alcohol — bidón 5 L",
+            packageSize: "5.000",
+            packageUnit: "l",
+            packagePrice: "12000.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000007", // Nonil
+            supplierCode: undefined,
+            rawDescription: "Nonil — cotización USD 6,50/l (TC 1540 ARS/USD)",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "10010.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000008", // Sal
+            supplierCode: undefined,
+            rawDescription: "Sal — bolsa 50 kg",
+            packageSize: "50.000",
+            packageUnit: "kg",
+            packagePrice: "11500.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000009", // Opacante
+            supplierCode: undefined,
+            rawDescription: "Opacante — lista de precios Limpikorn",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "10166.00",
+            isDefault: true,
+          },
+          {
+            ingredientId: "30b00002-0000-4000-8000-000000000010", // Color
+            supplierCode: undefined,
+            rawDescription: "Color — lista de precios Limpikorn",
+            packageSize: "1.000",
+            packageUnit: "l",
+            packagePrice: "2000.00",
+            isDefault: true,
           },
         ],
       },
     ],
+    // Los 10 insumos ya coinciden con el costo de Limpikorn (proveedor
+    // predeterminado), por lo que el paso de sincronización no los modifica.
     ingredients: [
       { id: "30b00002-0000-4000-8000-000000000001", name: "Pasta suavi", unit: "kg", currentCost: "15400.00" },
       { id: "30b00002-0000-4000-8000-000000000002", name: "Soda", unit: "l", currentCost: "2300.00" },
@@ -425,9 +634,9 @@ async function main() {
 
       await tx.account.upsert({
         where: { id: account.id },
-        create: { id: account.id, businessName: account.businessName },
+        create: { id: account.id, businessName: account.businessName, slug: account.slug },
         // Conserva plan, estado y vencimiento de prueba existentes.
-        update: { businessName: account.businessName },
+        update: { businessName: account.businessName, slug: account.slug },
       });
 
       for (const user of account.users) {
@@ -455,6 +664,23 @@ async function main() {
         });
       }
 
+      // Costo unitario por insumo según su proveedor predeterminado (isDefault:
+      // true), igual que calculateUnitCost en POST /api/suppliers/:id/ingredients.
+      // Manda sobre el valor declarado en account.ingredients cuando existe.
+      const defaultSupplierCostById = new Map<string, Prisma.Decimal>();
+      for (const supplier of account.suppliers) {
+        for (const item of supplier.ingredients) {
+          if (!item.isDefault) continue;
+          defaultSupplierCostById.set(
+            item.ingredientId,
+            calculateUnitCost(new Prisma.Decimal(item.packagePrice), new Prisma.Decimal(item.packageSize)),
+          );
+        }
+      }
+
+      // Costo unitario vigente de cada insumo, para calcular las recetas más abajo.
+      const ingredientCostById = new Map<string, Prisma.Decimal>();
+
       for (const ingredient of account.ingredients) {
         const matchingIngredients = await tx.ingredient.findMany({
           where: {
@@ -473,10 +699,23 @@ async function main() {
           throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
         }
 
+        const effectiveCost = defaultSupplierCostById.get(ingredient.id) ?? new Prisma.Decimal(ingredient.currentCost);
+
+        const existingIngredient = matchingIngredients.find((row) => row.id === ingredient.id);
+        if (existingIngredient && !existingIngredient.currentCost.equals(effectiveCost)) {
+          await tx.priceHistory.create({
+            data: {
+              ingredientId: ingredient.id,
+              oldCost: existingIngredient.currentCost,
+              newCost: effectiveCost,
+            },
+          });
+        }
+
         const values = {
           name: ingredient.name,
           unit: ingredient.unit,
-          currentCost: new Prisma.Decimal(ingredient.currentCost),
+          currentCost: effectiveCost,
         };
 
         await tx.ingredient.upsert({
@@ -484,6 +723,8 @@ async function main() {
           create: { id: ingredient.id, accountId: account.id, ...values },
           update: values,
         });
+
+        ingredientCostById.set(ingredient.id, effectiveCost);
       }
 
       for (const supplier of account.suppliers) {
@@ -545,12 +786,16 @@ async function main() {
             create: {
               supplierId: supplier.id,
               ingredientId: item.ingredientId,
+              supplierCode: item.supplierCode ?? null,
+              rawDescription: item.rawDescription ?? null,
               packageSize: new Prisma.Decimal(item.packageSize),
               packageUnit: item.packageUnit,
               packagePrice: new Prisma.Decimal(item.packagePrice),
               isDefault: item.isDefault,
             },
             update: {
+              supplierCode: item.supplierCode ?? null,
+              rawDescription: item.rawDescription ?? null,
               packageSize: new Prisma.Decimal(item.packageSize),
               packageUnit: item.packageUnit,
               packagePrice: new Prisma.Decimal(item.packagePrice),
@@ -559,11 +804,6 @@ async function main() {
           });
         }
       }
-
-      // Costo unitario vigente de cada insumo de la cuenta, para calcular las recetas.
-      const ingredientCostById = new Map(
-        account.ingredients.map((ingredient) => [ingredient.id, new Prisma.Decimal(ingredient.currentCost)]),
-      );
 
       for (const product of account.products) {
         const matchingProducts = await tx.product.findMany({
@@ -648,7 +888,7 @@ async function main() {
     ];
   }, { timeout: 30000 });
 
-  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos, 2 proveedores, 4 presentaciones mayoristas, 20 productos y sus recetas (BOM).");
+  console.log("Seed completado: 2 cuentas, 4 usuarios, 20 insumos, 4 proveedores, 21 presentaciones mayoristas, 20 productos y sus recetas (BOM).");
   console.table(counts);
 }
 

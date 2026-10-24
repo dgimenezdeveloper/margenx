@@ -3,8 +3,13 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
-import { applyIngredientCostChange, calculateUnitCost } from '../services/marginCalculator';
+import {
+  applyIngredientCostChange,
+  calculateUnitCost,
+  type CriticalMarginProduct,
+} from '../services/marginCalculator';
 import { requireRole } from '../middlewares/rbac';
+import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
 
 const router = Router();
 router.use(authMiddleware);
@@ -137,10 +142,194 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* GET /api/suppliers/:id                                              */
-/* Detalle de un proveedor, filtrado por cuenta.                       */
+/* GET /api/suppliers/quarantine                                       */
+/* Lista los precios de proveedores en cuarentena para la cuenta del   */
+/* administrador autenticado.                                          */
+/* 200 OK | 401 No autenticado | 500                                     */
+/* ------------------------------------------------------------------ */
+router.get('/quarantine', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+
+  const quarantined = await prisma.supplierIngredient.findMany({
+    where: {
+      ingredient: { accountId },
+      isQuarantined: true,
+    },
+    include: {
+      ingredient: { select: { id: true, name: true, currentCost: true } },
+      supplier: { select: { id: true, name: true } },
+    },
+    orderBy: { id: 'asc' },
+  });
+
+  const normalized = quarantined.map((row) => {
+    const currentPrice = new Prisma.Decimal(String(row.packagePrice ?? 0));
+    const proposedPrice = new Prisma.Decimal(String(row.pendingPackagePrice ?? row.packagePrice ?? 0));
+    const variationPercent = currentPrice.gt(0)
+      ? proposedPrice.sub(currentPrice).div(currentPrice).mul(100).abs().toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+      : new Prisma.Decimal('0.00');
+
+    return {
+      ...row,
+      currentPrice: currentPrice.toString(),
+      proposedPrice: proposedPrice.toString(),
+      variationPercent: variationPercent.toString(),
+      quarantineReason: row.quarantineReason ?? 'SIN_MOTIVO',
+    };
+  });
+
+  return res.status(200).json({ quarantined: normalized });
+});
+
+/* ------------------------------------------------------------------ */
+/* POST /api/suppliers/quarantine/:id/release                          */
+/* Libera un precio anómalo de cuarentena y, si corresponde, aplica    */
+/* el costo unitario del proveedor como nuevo costo activo del insumo.   */
 /* 200 OK | 401 No autenticado | 404 No encontrado/ajeno | 500         */
 /* ------------------------------------------------------------------ */
+router.post('/quarantine/:id/release', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+
+  if (!id) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const result = await prisma.$transaction(async (tx: any) => {
+    const quarantined = await tx.supplierIngredient.findFirst({
+      where: { id, ingredient: { accountId }, isQuarantined: true },
+      include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+    });
+
+    if (!quarantined) {
+      throw new AppError('Precio en cuarentena no encontrado.', 404);
+    }
+
+    const proposedPrice = quarantined.pendingPackagePrice ?? quarantined.packagePrice;
+
+    if (!proposedPrice) {
+      throw new AppError('No hay un precio pendiente para liberar.', 409);
+    }
+
+    let unitCost: Prisma.Decimal;
+    try {
+      unitCost = calculateUnitCost(proposedPrice, quarantined.packageSize);
+    } catch (_error) {
+      throw new AppError('El costo unitario calculado es inválido para este precio.', 422);
+    }
+
+    const updatedSupplierIngredient = await tx.supplierIngredient.update({
+      where: { id },
+      data: {
+        packagePrice: proposedPrice,
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      },
+    });
+
+    let affectedProductsCount = 0;
+    let affectedProducts: unknown[] = [];
+    let criticalProducts: CriticalMarginProduct[] = [];
+
+    if (quarantined.isDefault) {
+      const finder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
+      const ingredientOnTx = await finder.call(tx.ingredient, {
+        where: { id: quarantined.ingredientId },
+        select: { id: true, name: true, currentCost: true },
+      });
+
+      if (!ingredientOnTx) {
+        throw new AppError('Insumo no encontrado.', 404);
+      }
+
+      const previousCost = ingredientOnTx.currentCost;
+      await tx.ingredient.update({
+        where: { id: quarantined.ingredientId },
+        data: { currentCost: unitCost },
+      });
+      const currentResult = await applyIngredientCostChange(tx, quarantined.ingredientId, previousCost, unitCost);
+      affectedProductsCount = currentResult.affectedProductsCount;
+      affectedProducts = currentResult.affectedProducts;
+      criticalProducts = currentResult.criticalProducts;
+    }
+
+    return {
+      ingredientId: quarantined.ingredientId,
+      ingredientName: quarantined.ingredient.name,
+      supplierIngredient: updatedSupplierIngredient,
+      unitCost,
+      affectedProductsCount,
+      affectedProducts,
+      criticalProducts,
+    };
+  });
+
+  if (result.criticalProducts.length > 0) {
+    void dispatchMarginAlertEvent({
+      accountId,
+      ingredientId: result.ingredientId,
+      ingredientName: result.ingredientName,
+      affectedProductsCount: result.affectedProductsCount,
+      criticalProducts: result.criticalProducts.map((product) => ({
+        productId: product.productId,
+        productName: product.productName,
+        previousCost: product.previousCost.toFixed(2),
+        newCost: product.newCost.toFixed(2),
+        currentMarginPercent: product.currentMarginPercent.toFixed(2),
+        minMarginPercent: product.minMarginPercent.toFixed(2),
+      })),
+    });
+  }
+
+  return res.status(200).json({
+    supplierIngredient: result.supplierIngredient,
+    unitCost: result.unitCost,
+    affectedProductsCount: result.affectedProductsCount,
+    affectedProducts: result.affectedProducts,
+    criticalProducts: result.criticalProducts,
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* POST /api/suppliers/quarantine/:id/reject                           */
+/* Rechaza un precio anómalo y lo remueve de cuarentena sin tocar el    */
+/* costo activo del insumo.                                             */
+/* 200 OK | 401 No autenticado | 404 No encontrado/ajeno | 500         */
+/* ------------------------------------------------------------------ */
+router.post('/quarantine/:id/reject', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+
+  if (!id) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const quarantined = await prisma.supplierIngredient.findFirst({
+    where: { id, ingredient: { accountId }, isQuarantined: true },
+  });
+
+  if (!quarantined) {
+    throw new AppError('Precio en cuarentena no encontrado.', 404);
+  }
+
+  const supplierIngredient = await prisma.supplierIngredient.update({
+    where: { id },
+    data: {
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    },
+  });
+
+  return res.status(200).json({
+    supplierIngredient,
+    message: 'Precio anómalo rechazado y mantenido en el costo anterior.',
+  });
+});
+
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id);
@@ -307,16 +496,16 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   if (!isDefault) {
     const supplierIngredient = existingAssociation
       ? await prisma.supplierIngredient.update({
-          where: { id: existingAssociation.id },
-          data: associationData,
-        })
+        where: { id: existingAssociation.id },
+        data: associationData,
+      })
       : await prisma.supplierIngredient.create({
-          data: {
-            supplierId,
-            ingredientId,
-            ...associationData,
-          },
-        });
+        data: {
+          supplierId,
+          ingredientId,
+          ...associationData,
+        },
+      });
 
     return res.status(statusCode).json({ supplierIngredient, unitCost, ingredient });
   }
@@ -324,16 +513,16 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   const result = await prisma.$transaction(async (tx: any) => {
     const supplierIngredient = existingAssociation
       ? await tx.supplierIngredient.update({
-          where: { id: existingAssociation.id },
-          data: associationData,
-        })
+        where: { id: existingAssociation.id },
+        data: associationData,
+      })
       : await tx.supplierIngredient.create({
-          data: {
-            supplierId,
-            ingredientId,
-            ...associationData,
-          },
-        });
+        data: {
+          supplierId,
+          ingredientId,
+          ...associationData,
+        },
+      });
 
     if (typeof tx.supplierIngredient.updateMany === 'function') {
       await tx.supplierIngredient.updateMany({
@@ -345,7 +534,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     const finder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
     const ingredientOnTx = await finder.call(tx.ingredient, {
       where: { id: ingredientId },
-      select: { id: true, currentCost: true },
+      select: { id: true, name: true, currentCost: true },
     });
 
     if (!ingredientOnTx) {
@@ -358,14 +547,38 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
       data: { currentCost: unitCost },
     });
 
-    await applyIngredientCostChange(tx, ingredientId, previousCost, unitCost);
+    const { affectedProductsCount, criticalProducts } = await applyIngredientCostChange(
+      tx,
+      ingredientId,
+      previousCost,
+      unitCost
+    );
 
     return {
       supplierIngredient,
       ingredient: updatedIngredient,
       unitCost,
+      affectedProductsCount,
+      criticalProducts,
     };
   });
+
+  if (result.criticalProducts.length > 0) {
+    void dispatchMarginAlertEvent({
+      accountId,
+      ingredientId,
+      ingredientName: result.ingredient.name ?? 'Insumo',
+      affectedProductsCount: result.affectedProductsCount,
+      criticalProducts: result.criticalProducts.map((product) => ({
+        productId: product.productId,
+        productName: product.productName,
+        previousCost: product.previousCost.toFixed(2),
+        newCost: product.newCost.toFixed(2),
+        currentMarginPercent: product.currentMarginPercent.toFixed(2),
+        minMarginPercent: product.minMarginPercent.toFixed(2),
+      })),
+    });
+  }
 
   return res.status(statusCode).json({
     supplierIngredient: result.supplierIngredient,

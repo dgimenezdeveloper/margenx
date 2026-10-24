@@ -19,6 +19,7 @@ const findFirstMock = vi.fn();
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
+const supplierIngredientFindManyMock = vi.fn();
 const supplierIngredientCreateMock = vi.fn();
 const supplierIngredientUpdateMock = vi.fn();
 const supplierIngredientUpdateManyMock = vi.fn();
@@ -29,10 +30,12 @@ const priceHistoryCreateMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+const accountFindUniqueMock = vi.fn();
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
     supplierIngredient: {
       create: supplierIngredientCreateMock,
+      findFirst: supplierIngredientFindFirstMock,
       update: supplierIngredientUpdateMock,
       updateMany: supplierIngredientUpdateManyMock,
     },
@@ -46,6 +49,9 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
 vi.mock('../lib/prisma', () => ({
   prisma: {
     $transaction: (callback: (tx: unknown) => unknown) => transactionMock(callback),
+    account: {
+      findUnique: (...args: unknown[]) => accountFindUniqueMock(...args),
+    },
     supplier: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       findFirst: (...args: unknown[]) => findFirstMock(...args),
@@ -54,6 +60,7 @@ vi.mock('../lib/prisma', () => ({
       delete: (...args: unknown[]) => deleteMock(...args),
     },
     supplierIngredient: {
+      findMany: (...args: unknown[]) => supplierIngredientFindManyMock(...args),
       create: (...args: unknown[]) => supplierIngredientCreateMock(...args),
       update: (...args: unknown[]) => supplierIngredientUpdateMock(...args),
       updateMany: (...args: unknown[]) => supplierIngredientUpdateManyMock(...args),
@@ -93,6 +100,7 @@ beforeEach(() => {
   createMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  supplierIngredientFindManyMock.mockReset();
   supplierIngredientCreateMock.mockReset();
   supplierIngredientUpdateMock.mockReset();
   supplierIngredientUpdateManyMock.mockReset();
@@ -103,7 +111,14 @@ beforeEach(() => {
   productIngredientFindManyMock.mockReset();
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
+  accountFindUniqueMock.mockReset();
   transactionMock.mockClear();
+  accountFindUniqueMock.mockResolvedValue({
+    id: 'account-1',
+    businessName: 'Panadería Central',
+    slug: 'panaderia-central',
+    users: [{ email: 'admin.panaderia@hotmail.com' }],
+  });
 });
 
 describe('GET /api/suppliers', () => {
@@ -122,6 +137,224 @@ describe('GET /api/suppliers', () => {
       where: { accountId: 'account-1' },
       orderBy: { name: 'asc' },
     });
+  });
+
+  it('lista los precios en cuarentena filtrados por la cuenta del administrador', async () => {
+    const quarantined = [
+      {
+        id: 'sq-1',
+        ingredientId: 'ing-1',
+        supplierId: 's-1',
+        packagePrice: '50000',
+        packageSize: '50',
+        isDefault: true,
+        isQuarantined: true,
+        ingredient: { id: 'ing-1', name: 'Manteca', currentCost: '12090' },
+        supplier: { id: 's-1', name: 'Distribuidora X' },
+      },
+    ];
+    supplierIngredientFindManyMock.mockResolvedValue(quarantined);
+
+    const res = await request(buildApp()).get('/api/suppliers/quarantine');
+
+    expect(res.status).toBe(200);
+    expect(res.body.quarantined).toEqual([
+      expect.objectContaining({
+        id: 'sq-1',
+        currentPrice: '50000',
+        proposedPrice: '50000',
+        variationPercent: '0',
+        quarantineReason: 'SIN_MOTIVO',
+        ingredient: { id: 'ing-1', name: 'Manteca', currentCost: '12090' },
+        supplier: { id: 's-1', name: 'Distribuidora X' },
+      }),
+    ]);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
+      where: { ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: {
+        ingredient: { select: { id: true, name: true, currentCost: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+  });
+
+  it('libera un precio en cuarentena aplicando el pendiente y limpia los metadatos de rechazo', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: new Prisma.Decimal('5000'),
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: true,
+      isQuarantined: true,
+      quarantinedAt: new Date('2026-10-20T12:00:00.000Z'),
+      quarantineReason: 'VARIACION_MAYOR_50_POR_CIENTO',
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      currentCost: new Prisma.Decimal('12090'),
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-1',
+      packagePrice: new Prisma.Decimal('5000'),
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('20000'),
+    });
+
+    const applyIngredientCostChangeMock = vi.spyOn(
+      await import('../services/marginCalculator'),
+      'applyIngredientCostChange'
+    ).mockResolvedValue({
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    });
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
+
+    expect(res.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(supplierIngredientFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1', ingredient: { accountId: 'account-1' }, isQuarantined: true },
+      include: { ingredient: { select: { id: true, name: true, currentCost: true } } },
+    });
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1' },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('5000'),
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      })
+    });
+
+    applyIngredientCostChangeMock.mockRestore();
+  });
+
+  it('libera una fila legacy en cuarentena aunque no tenga pendingPackagePrice', async () => {
+    const quarantined = {
+      id: 'sq-legacy',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: null,
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: false,
+      isQuarantined: true,
+      quarantinedAt: new Date('2026-10-20T12:00:00.000Z'),
+      quarantineReason: 'VARIACION_MAYOR_50_POR_CIENTO',
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-legacy',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-legacy/release');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'sq-legacy' },
+      data: expect.objectContaining({
+        packagePrice: new Prisma.Decimal('1000'),
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      }),
+    });
+  });
+
+  it('dispara la alerta de margen cuando un precio liberado cruza el mínimo', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: new Prisma.Decimal('5000'),
+      packageSize: new Prisma.Decimal('50'),
+      isDefault: true,
+      isQuarantined: true,
+      ingredient: { id: 'ing-1', name: 'Manteca', currentCost: new Prisma.Decimal('12090') },
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      currentCost: new Prisma.Decimal('12090'),
+    });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'sq-1',
+      packagePrice: new Prisma.Decimal('5000'),
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      currentCost: new Prisma.Decimal('20000'),
+    });
+
+    const applyIngredientCostChangeMock = vi.spyOn(
+      await import('../services/marginCalculator'),
+      'applyIngredientCostChange'
+    ).mockResolvedValue({
+      affectedProductsCount: 1,
+      affectedProducts: [],
+      criticalProducts: [{
+        productId: 'prod-1',
+        productName: 'Pan Integral',
+        previousCost: new Prisma.Decimal('1000'),
+        newCost: new Prisma.Decimal('1200'),
+        currentMarginPercent: new Prisma.Decimal('18.75'),
+        minMarginPercent: new Prisma.Decimal('20'),
+      }],
+    });
+    const dispatchSpy = vi.spyOn(await import('../services/marginAlertDispatcher'), 'dispatchMarginAlertEvent').mockResolvedValue();
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/release');
+
+    expect(res.status).toBe(200);
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      accountId: 'account-1',
+      ingredientId: 'ing-1',
+      ingredientName: 'Manteca',
+      affectedProductsCount: 1,
+      criticalProducts: [
+        expect.objectContaining({
+          productId: 'prod-1',
+          productName: 'Pan Integral',
+          previousCost: '1000.00',
+          newCost: '1200.00',
+          currentMarginPercent: '18.75',
+          minMarginPercent: '20.00',
+        }),
+      ],
+    }));
+
+    dispatchSpy.mockRestore();
+    applyIngredientCostChangeMock.mockRestore();
   });
 
   it('devuelve array vacío si no hay proveedores', async () => {
@@ -641,6 +874,69 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(res.status).toBe(200);
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('usa el total real de productos afectados en el payload de alerta cuando hay críticos', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.N8N_MARGIN_ALERT_WEBHOOK_URL = 'https://n8n.example.test/webhook/margins';
+    process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
+
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({ id: 'si-1', isDefault: true });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-1' }, { productId: 'prod-2' }]);
+    productFindUniqueMock
+      .mockResolvedValueOnce({
+        id: 'prod-1',
+        name: 'Pan',
+        salePrice: new Prisma.Decimal('100.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('60.00'),
+        marginPercent: new Prisma.Decimal('50.00'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('700.00') } }],
+      })
+      .mockResolvedValueOnce({
+        id: 'prod-2',
+        name: 'Torta',
+        salePrice: new Prisma.Decimal('5000.00'),
+        minMarginPercent: new Prisma.Decimal('30.00'),
+        cost: new Prisma.Decimal('60.00'),
+        marginPercent: new Prisma.Decimal('98.80'),
+        ingredients: [{ quantity: new Prisma.Decimal('1'), ingredient: { currentCost: new Prisma.Decimal('700.00') } }],
+      });
+    productUpdateMock.mockResolvedValue({});
+    const body = {
+      id: 'account-1',
+      businessName: 'Panadería Central',
+      slug: 'panaderia-central',
+      users: [{ email: 'admin.panaderia@hotmail.com' }],
+    };
+    accountFindUniqueMock.mockResolvedValue(body);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '35000', isDefault: true });
+
+    expect(res.status).toBe(201);
+    const requestInit = fetchMock.mock.calls[0]?.[1] as { body?: string } | undefined;
+    expect(requestInit?.body).toBeDefined();
+    const payload = JSON.parse(requestInit!.body!);
+    expect(payload.affectedProductsCount).toBe(2);
+    expect(payload.criticalProducts).toHaveLength(1);
   });
 
   it('devuelve 400 si packageUnit no coincide con la unidad del insumo', async () => {

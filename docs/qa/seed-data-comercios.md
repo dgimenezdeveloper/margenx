@@ -4,6 +4,7 @@ Issues relacionadas:
 
 - #5: preparación del dataset de referencia.
 - #30: implementación y validación del seed idempotente.
+- #178: proveedores mayoristas reales y mapeo de SKU por `SupplierIngredient`.
 
 ## Objetivo
 
@@ -41,8 +42,13 @@ de los ocho productos seleccionados.
 - Panadería: datos tomados de las capturas de la planilla de QA.
 - Química: costos de insumos y precios de venta confirmados por el responsable
   de QA a partir de la información del comercio.
+- Proveedor real de Química GyJ: **Limpikorn**, lista de precios en
+  [Google Drive](https://docs.google.com/spreadsheets/d/1SMS808HLBco91-5RsFQN_WXSy9UHwPPHtt9jVzn-ZRA/edit?usp=sharing).
+  Opacante y Colorante no figuran en esa planilla porque no están a la venta
+  directa; sus precios fueron confirmados por mensaje directo del proveedor.
 - Los precios nuevos de Química reemplazan los anteriores para este seed.
-  Queda pendiente confirmar su actualización en Google Sheets.
+  Confirmados contra la lista de precios de Limpikorn (ver fuente arriba):
+  los 10 insumos coinciden exactamente con los valores cargados en el seed.
 - No se consultan precios ni cotizaciones durante la ejecución del script.
 
 ### Importes y unidades
@@ -74,26 +80,36 @@ de las cuentas existentes.
 
 ## Insumos de Panadería Central
 
-| name | unit | currentCost — ARS |
-|---|---|---:|
-| Harina de trigo 000 Olavarriense | kg | 742.98 |
-| Harina de trigo 0000 Olavarriense | kg | 868.77 |
-| Azúcar común tipo A | kg | 1150.00 |
-| Manteca en bloque mayorista | kg | 12090.00 |
-| Grasa bovina refinada La Cordobesa | kg | 5990.00 |
-| Levadura fresca La Cordobesa | kg | 6000.00 |
-| Sal fina Aurora | kg | 484.24 |
-| Leche entera larga vida Silvia | l | 1715.00 |
-| Huevo grande | u | 176.17 |
-| Ricota Castelmar | kg | 4294.14 |
+El valor de `currentCost` que queda cargado tras ejecutar el seed es el que
+indica la columna **costo activo (post-seed)**: el insumo con un proveedor
+predeterminado (`isDefault: true` en la sección
+[Proveedores y mapeo de SKU](#proveedores-y-mapeo-de-sku-issue-178) más abajo)
+toma el costo de esa presentación mayorista (`packagePrice / packageSize`),
+no el valor histórico declarado en el script. Ver issue #178.
+
+| name | unit | currentCost declarado — ARS | costo activo (post-seed) — ARS |
+|---|---|---:|---:|
+| Harina de trigo 000 Olavarriense | kg | 742.98 | **736.25** (MarJuanC) |
+| Harina de trigo 0000 Olavarriense | kg | 868.77 | **845.05** (MarJuanC) |
+| Azúcar común tipo A | kg | 1150.00 | **1140.00** (MarJuanC) |
+| Manteca en bloque mayorista | kg | 12090.00 | **10050.94** (MarJuanC) |
+| Grasa bovina refinada La Cordobesa | kg | 5990.00 | **3885.31** (MarJuanC) |
+| Levadura fresca La Cordobesa | kg | 6000.00 | **6724.58** (MarJuanC) |
+| Sal fina Aurora | kg | 484.24 | **472.26** (MarJuanC) |
+| Leche entera larga vida Silvia | l | 1715.00 | 1715.00 (Don Roque, sin cambio) |
+| Huevo grande | u | 176.17 | **193.33** (Don Roque) |
+| Ricota Castelmar | kg | 4294.14 | **4615.00** (Don Roque) |
 
 Notas de la referencia:
 
-- Huevo: `5285 / 30`, redondeado a dos decimales.
-- Ricota: precio mayorista estimado para una pieza aproximada de 3 kg.
+- Huevo: `5285 / 30`, redondeado a dos decimales. Ese era el cálculo original;
+  el costo activo real (Don Roque, maple de 30 a $5.800) lo reemplaza.
+- Ricota: precio mayorista estimado para una pieza aproximada de 3 kg. El
+  costo activo real (Don Roque, Ricota Silvia x 5 kg) lo reemplaza.
 - Azúcar y huevo figuraban con precio publicado y sin stock.
-- Estos valores son referencias del dataset, no precios actuales verificados
-  directamente con una panadería.
+- La columna "currentCost declarado" es la referencia histórica del dataset
+  (Sprint 1); se conserva en `backend/prisma/seed.ts` como valor de respaldo
+  para insumos sin proveedor predeterminado.
 
 ## Insumos de Química GyJ
 
@@ -110,6 +126,9 @@ Notas de la referencia:
 | Opacante | l | 10166.00 |
 | Color | l | 2000.00 |
 
+Los 10 valores ya coinciden exactamente con el precio del proveedor real
+(Limpikorn, ver más abajo), por lo que el costo activo post-seed no cambia.
+
 Conversiones utilizadas:
 
 - Pasta suavi: USD 10/kg × 1540 = ARS 15400/kg.
@@ -120,6 +139,96 @@ Conversiones utilizadas:
 - Alcohol: ARS 12000 por 5 l = ARS 2400/l.
 - Sal: ARS 11500 por 50 kg = ARS 230/kg.
 - Color: ARS 10000 por 5 l = ARS 2000/l.
+
+## Proveedores y mapeo de SKU (issue #178)
+
+El seed carga proveedores reales, con sus presentaciones mayoristas
+(`SupplierIngredient`) y, cuando el proveedor publica un código de artículo,
+su `supplierCode`. `rawDescription` conserva el nombre del producto tal como
+figura en la lista de precios del proveedor.
+
+### Panadería Central
+
+**Distribuidora MarJuanC Alimentos** — harinas, azúcares, grasas, margarinas
+y levaduras. Lista de precios en PDF (14/10/2026), precio bonificado por
+volumen. Todas las presentaciones son el proveedor predeterminado (`isDefault:
+true`) de su insumo.
+
+| Insumo | SKU | Producto (lista bonificada) | Presentación | Costo/kg o /l |
+|---|---|---|---:|---:|
+| Harina de trigo 000 Olavarriense | HAR188 | HARINA SARITA 000 X 25 KG (×30 u) | 25 kg / $18.406,25 | 736.25 |
+| Harina de trigo 0000 Olavarriense | HAR187 | HARINA SARITA 0000 X 25 KG (×30 u) | 25 kg / $21.126,22 | 845.05 |
+| Azúcar común tipo A | AZU015 | AZUCAR TIPO A paquete 10x1kg (×200 u) | 10 kg / $11.400,00 | 1140.00 |
+| Manteca en bloque mayorista | CRE101 | MANTECA COTAGU X 5 KG (×100 u) | 5 kg / $50.254,70 | 10050.94 |
+| Grasa bovina refinada La Cordobesa | GRA013 | GRASA LA CORDOBESA X 20 KG (×100 u) | 20 kg / $77.706,20 | 3885.31 |
+| Levadura fresca La Cordobesa | LEV201 | LEVADURA LA CORDOBESA X 10 KG (×100 u) | 10 kg / $67.245,80 | 6724.58 |
+| Sal fina Aurora | SAL010 | SAL FINA DOBLE VÍA X 25 KG (×5 u) | 25 kg / $11.806,61 | 472.26 |
+
+**Don Roque** — lácteos, huevos y dulces, lo que MarJuanC no comercializa.
+Datos tomados de capturas puntuales de su catálogo web
+(`https://www.donroqueonline.com.ar/catalogo/`); todavía no tiene una lista
+de precios exportable para automatizar, por lo que **no publica un
+`supplierCode` propio**. Los códigos `DR-*` de la tabla son códigos internos
+de referencia asignados para las pruebas de ingesta masiva (issue #176) —
+no son un SKU de Don Roque, reemplazar cuando llegue su lista real.
+Todas las presentaciones son el proveedor predeterminado de su insumo.
+
+| Insumo | Código (interno, issue #176) | Producto | Presentación | Costo/kg, /l o /u |
+|---|---|---|---:|---:|
+| Leche entera larga vida Silvia | DR-LECHE01 | Leche Entera Larga Vida Sachet Silvia x 1 Lt | 1 l / $1.715,00 | 1715.00 |
+| Huevo grande | DR-HUEVO01 | Huevo x Maple B1 (grande) — maple de 30 u | 30 u / $5.800,00 | 193.33 |
+| Ricota Castelmar | DR-RICOTA01 | Ricota Silvia x 5 Kg | 5 kg / $23.075,00 | 4615.00 |
+
+**Distribuidora Mayorista Molinera** — proveedor ficticio original de la
+issue #30. Se conserva únicamente como segunda presentación de Harina 000
+(`isDefault: false`, 25 kg / $18.000,00 → $720,00/kg) para ejercitar la
+selección del proveedor predeterminado cuando un insumo tiene más de un
+proveedor cargado.
+
+### Química GyJ
+
+**Limpikorn** — proveedor único, cubre los 10 insumos. Lista de precios en
+Google Drive más cotizaciones adicionales pasadas directamente para los
+productos sin venta directa. Sin `supplierCode` publicado; todas las
+presentaciones son el proveedor predeterminado de su insumo.
+
+| Insumo | Cotización original | Presentación | Costo/kg o /l |
+|---|---|---:|---:|
+| Pasta suavi | USD 10/kg | 1 kg / $15.400,00 | 15400.00 |
+| Soda | — | 1 l / $2.300,00 | 2300.00 |
+| Etoxilado | USD 3,20/kg | 1 kg / $4.928,00 | 4928.00 |
+| Sulfonico | USD 4,50/l | 1 l / $6.930,00 | 6930.00 |
+| Aceite | USD 24/l | 1 l / $36.960,00 | 36960.00 |
+| Alcohol | — | 5 l / $12.000,00 | 2400.00 |
+| Nonil | USD 6,50/l | 1 l / $10.010,00 | 10010.00 |
+| Sal | — | 50 kg / $11.500,00 | 230.00 |
+| Opacante | — | 1 l / $10.166,00 | 10166.00 |
+| Color | — | 1 l / $2.000,00 | 2000.00 |
+
+### Sincronización de `currentCost` con el proveedor predeterminado
+
+Antes de cargar los insumos, el seed recorre los proveedores de la cuenta y
+calcula, para cada insumo con una presentación `isDefault: true`,
+`packagePrice / packageSize` (la misma fórmula que `calculateUnitCost` en
+`POST /api/suppliers/:id/ingredients`). Ese valor reemplaza al declarado en
+`account.ingredients` al upsertear el insumo, y si cambia respecto del valor
+ya persistido se registra en `PriceHistory` (igual que en producción). Un
+insumo sin proveedor predeterminado conserva el valor declarado.
+
+Esto es lo que permite que, tras ejecutar el seed, "Harina de trigo 000"
+quede con el costo de MarJuanC ($736,25/kg) y no con el de Molinera
+($720,00/kg) ni con el valor histórico declarado ($742,98/kg), al ser
+MarJuanC su proveedor predeterminado.
+
+### Pendientes
+
+- Don Roque: conseguir una lista de precios exportable (Excel/PDF) para
+  automatizar su carga, igual que MarJuanC y Limpikorn. Hasta entonces,
+  `DR-LECHE01`/`DR-HUEVO01`/`DR-RICOTA01` son códigos internos de QA
+  (issue #176), no su SKU real — reemplazarlos cuando llegue esa lista.
+- No hay todavía un segundo proveedor **real** compartiendo el mismo insumo;
+  Molinera se mantiene como proveedor ficticio solo para probar la lógica de
+  `isDefault`.
 
 ## Productos de Panadería Central
 
@@ -304,8 +413,10 @@ realizadas por el seed del Sprint 1.
 
 - [ ] Verificar el escenario inicial en una base local vacía o recién migrada.
       La sesión documentada utilizó una base con datos anteriores.
-- [ ] Confirmar la actualización de Google Sheets con los valores nuevos
+- [x] Confirmar la actualización de Google Sheets con los valores nuevos
       de Química antes de declarar coincidencia del 100% con la planilla.
+      Confirmado: los 10 valores de Química GyJ coinciden con la lista de
+      precios real del proveedor Limpikorn (ver "Fuentes y convenciones").
 - [ ] Adjuntar las evidencias de terminal y Prisma Studio al PR.
 - [ ] Abrir un PR hacia `develop` que referencie la issue #30.
 - [ ] Verificar el pipeline de CI en verde.

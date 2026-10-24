@@ -1,0 +1,222 @@
+{
+  "info": {
+    "_postman_id": "4e8a43d9-d78b-4f78-a91a-87e0d0e9f9a1",
+    "name": "MargenX - Webhooks API",
+    "description": "Colección de pruebas para el endpoint de ingestión masiva de precios por webhook. Cubre casos de autorizacion, slug inexistente, payload válido y límite de 5000 items.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Rechaza sin secreto interno",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code es 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test('Respuesta indica Unauthorized', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.error).to.eql('Unauthorized');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"SKU-1\", \"description\": \"Producto 1\", \"price\": 123.45 }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhooks/supplier-prices",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhooks", "supplier-prices"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Rechaza secreto inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code es 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test('Respuesta indica Unauthorized', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.error).to.eql('Unauthorized');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-margenx-webhook-secret", "value": "{{wrongWebhookSecret}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"SKU-1\", \"description\": \"Producto 1\", \"price\": 123.45 }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhooks/supplier-prices",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhooks", "supplier-prices"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Rechaza slug inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code es 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('Respuesta indica que la cuenta no existe o está inactiva', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.error).to.include('No existe una cuenta activa para el slug indicado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"accountSlug\": \"slug-inexistente\",\n  \"items\": [\n    { \"code\": \"SKU-999\", \"description\": \"Producto inexistente\", \"price\": 99.99 }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhooks/supplier-prices",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhooks", "supplier-prices"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Acepta payload válido para cuenta activa",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code es 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Respuesta confirma recepcion del lote', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.message).to.eql('Lote de precios recibido correctamente.');",
+              "    pm.expect(json.processedItems).to.eql(100);",
+              "    pm.expect(json.accountId).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"SKU-1\", \"description\": \"Producto 1\", \"price\": 15.5 },\n    { \"code\": \"SKU-2\", \"description\": \"Producto 2\", \"price\": 16.5 },\n    { \"code\": \"SKU-3\", \"description\": \"Producto 3\", \"price\": 17.5 },\n    { \"code\": \"SKU-4\", \"description\": \"Producto 4\", \"price\": 18.5 },\n    { \"code\": \"SKU-5\", \"description\": \"Producto 5\", \"price\": 19.5 },\n    { \"code\": \"SKU-6\", \"description\": \"Producto 6\", \"price\": 20.5 },\n    { \"code\": \"SKU-7\", \"description\": \"Producto 7\", \"price\": 21.5 },\n    { \"code\": \"SKU-8\", \"description\": \"Producto 8\", \"price\": 22.5 },\n    { \"code\": \"SKU-9\", \"description\": \"Producto 9\", \"price\": 23.5 },\n    { \"code\": \"SKU-10\", \"description\": \"Producto 10\", \"price\": 24.5 },\n    { \"code\": \"SKU-11\", \"description\": \"Producto 11\", \"price\": 25.5 },\n    { \"code\": \"SKU-12\", \"description\": \"Producto 12\", \"price\": 26.5 },\n    { \"code\": \"SKU-13\", \"description\": \"Producto 13\", \"price\": 27.5 },\n    { \"code\": \"SKU-14\", \"description\": \"Producto 14\", \"price\": 28.5 },\n    { \"code\": \"SKU-15\", \"description\": \"Producto 15\", \"price\": 29.5 },\n    { \"code\": \"SKU-16\", \"description\": \"Producto 16\", \"price\": 30.5 },\n    { \"code\": \"SKU-17\", \"description\": \"Producto 17\", \"price\": 31.5 },\n    { \"code\": \"SKU-18\", \"description\": \"Producto 18\", \"price\": 32.5 },\n    { \"code\": \"SKU-19\", \"description\": \"Producto 19\", \"price\": 33.5 },\n    { \"code\": \"SKU-20\", \"description\": \"Producto 20\", \"price\": 34.5 },\n    { \"code\": \"SKU-21\", \"description\": \"Producto 21\", \"price\": 35.5 },\n    { \"code\": \"SKU-22\", \"description\": \"Producto 22\", \"price\": 36.5 },\n    { \"code\": \"SKU-23\", \"description\": \"Producto 23\", \"price\": 37.5 },\n    { \"code\": \"SKU-24\", \"description\": \"Producto 24\", \"price\": 38.5 },\n    { \"code\": \"SKU-25\", \"description\": \"Producto 25\", \"price\": 39.5 },\n    { \"code\": \"SKU-26\", \"description\": \"Producto 26\", \"price\": 40.5 },\n    { \"code\": \"SKU-27\", \"description\": \"Producto 27\", \"price\": 41.5 },\n    { \"code\": \"SKU-28\", \"description\": \"Producto 28\", \"price\": 42.5 },\n    { \"code\": \"SKU-29\", \"description\": \"Producto 29\", \"price\": 43.5 },\n    { \"code\": \"SKU-30\", \"description\": \"Producto 30\", \"price\": 44.5 },\n    { \"code\": \"SKU-31\", \"description\": \"Producto 31\", \"price\": 45.5 },\n    { \"code\": \"SKU-32\", \"description\": \"Producto 32\", \"price\": 46.5 },\n    { \"code\": \"SKU-33\", \"description\": \"Producto 33\", \"price\": 47.5 },\n    { \"code\": \"SKU-34\", \"description\": \"Producto 34\", \"price\": 48.5 },\n    { \"code\": \"SKU-35\", \"description\": \"Producto 35\", \"price\": 49.5 },\n    { \"code\": \"SKU-36\", \"description\": \"Producto 36\", \"price\": 50.5 },\n    { \"code\": \"SKU-37\", \"description\": \"Producto 37\", \"price\": 51.5 },\n    { \"code\": \"SKU-38\", \"description\": \"Producto 38\", \"price\": 52.5 },\n    { \"code\": \"SKU-39\", \"description\": \"Producto 39\", \"price\": 53.5 },\n    { \"code\": \"SKU-40\", \"description\": \"Producto 40\", \"price\": 54.5 },\n    { \"code\": \"SKU-41\", \"description\": \"Producto 41\", \"price\": 55.5 },\n    { \"code\": \"SKU-42\", \"description\": \"Producto 42\", \"price\": 56.5 },\n    { \"code\": \"SKU-43\", \"description\": \"Producto 43\", \"price\": 57.5 },\n    { \"code\": \"SKU-44\", \"description\": \"Producto 44\", \"price\": 58.5 },\n    { \"code\": \"SKU-45\", \"description\": \"Producto 45\", \"price\": 59.5 },\n    { \"code\": \"SKU-46\", \"description\": \"Producto 46\", \"price\": 60.5 },\n    { \"code\": \"SKU-47\", \"description\": \"Producto 47\", \"price\": 61.5 },\n    { \"code\": \"SKU-48\", \"description\": \"Producto 48\", \"price\": 62.5 },\n    { \"code\": \"SKU-49\", \"description\": \"Producto 49\", \"price\": 63.5 },\n    { \"code\": \"SKU-50\", \"description\": \"Producto 50\", \"price\": 64.5 },\n    { \"code\": \"SKU-51\", \"description\": \"Producto 51\", \"price\": 65.5 },\n    { \"code\": \"SKU-52\", \"description\": \"Producto 52\", \"price\": 66.5 },\n    { \"code\": \"SKU-53\", \"description\": \"Producto 53\", \"price\": 67.5 },\n    { \"code\": \"SKU-54\", \"description\": \"Producto 54\", \"price\": 68.5 },\n    { \"code\": \"SKU-55\", \"description\": \"Producto 55\", \"price\": 69.5 },\n    { \"code\": \"SKU-56\", \"description\": \"Producto 56\", \"price\": 70.5 },\n    { \"code\": \"SKU-57\", \"description\": \"Producto 57\", \"price\": 71.5 },\n    { \"code\": \"SKU-58\", \"description\": \"Producto 58\", \"price\": 72.5 },\n    { \"code\": \"SKU-59\", \"description\": \"Producto 59\", \"price\": 73.5 },\n    { \"code\": \"SKU-60\", \"description\": \"Producto 60\", \"price\": 74.5 },\n    { \"code\": \"SKU-61\", \"description\": \"Producto 61\", \"price\": 75.5 },\n    { \"code\": \"SKU-62\", \"description\": \"Producto 62\", \"price\": 76.5 },\n    { \"code\": \"SKU-63\", \"description\": \"Producto 63\", \"price\": 77.5 },\n    { \"code\": \"SKU-64\", \"description\": \"Producto 64\", \"price\": 78.5 },\n    { \"code\": \"SKU-65\", \"description\": \"Producto 65\", \"price\": 79.5 },\n    { \"code\": \"SKU-66\", \"description\": \"Producto 66\", \"price\": 80.5 },\n    { \"code\": \"SKU-67\", \"description\": \"Producto 67\", \"price\": 81.5 },\n    { \"code\": \"SKU-68\", \"description\": \"Producto 68\", \"price\": 82.5 },\n    { \"code\": \"SKU-69\", \"description\": \"Producto 69\", \"price\": 83.5 },\n    { \"code\": \"SKU-70\", \"description\": \"Producto 70\", \"price\": 84.5 },\n    { \"code\": \"SKU-71\", \"description\": \"Producto 71\", \"price\": 85.5 },\n    { \"code\": \"SKU-72\", \"description\": \"Producto 72\", \"price\": 86.5 },\n    { \"code\": \"SKU-73\", \"description\": \"Producto 73\", \"price\": 87.5 },\n    { \"code\": \"SKU-74\", \"description\": \"Producto 74\", \"price\": 88.5 },\n    { \"code\": \"SKU-75\", \"description\": \"Producto 75\", \"price\": 89.5 },\n    { \"code\": \"SKU-76\", \"description\": \"Producto 76\", \"price\": 90.5 },\n    { \"code\": \"SKU-77\", \"description\": \"Producto 77\", \"price\": 91.5 },\n    { \"code\": \"SKU-78\", \"description\": \"Producto 78\", \"price\": 92.5 },\n    { \"code\": \"SKU-79\", \"description\": \"Producto 79\", \"price\": 93.5 },\n    { \"code\": \"SKU-80\", \"description\": \"Producto 80\", \"price\": 94.5 },\n    { \"code\": \"SKU-81\", \"description\": \"Producto 81\", \"price\": 95.5 },\n    { \"code\": \"SKU-82\", \"description\": \"Producto 82\", \"price\": 96.5 },\n    { \"code\": \"SKU-83\", \"description\": \"Producto 83\", \"price\": 97.5 },\n    { \"code\": \"SKU-84\", \"description\": \"Producto 84\", \"price\": 98.5 },\n    { \"code\": \"SKU-85\", \"description\": \"Producto 85\", \"price\": 99.5 },\n    { \"code\": \"SKU-86\", \"description\": \"Producto 86\", \"price\": 100.5 },\n    { \"code\": \"SKU-87\", \"description\": \"Producto 87\", \"price\": 101.5 },\n    { \"code\": \"SKU-88\", \"description\": \"Producto 88\", \"price\": 102.5 },\n    { \"code\": \"SKU-89\", \"description\": \"Producto 89\", \"price\": 103.5 },\n    { \"code\": \"SKU-90\", \"description\": \"Producto 90\", \"price\": 104.5 },\n    { \"code\": \"SKU-91\", \"description\": \"Producto 91\", \"price\": 105.5 },\n    { \"code\": \"SKU-92\", \"description\": \"Producto 92\", \"price\": 106.5 },\n    { \"code\": \"SKU-93\", \"description\": \"Producto 93\", \"price\": 107.5 },\n    { \"code\": \"SKU-94\", \"description\": \"Producto 94\", \"price\": 108.5 },\n    { \"code\": \"SKU-95\", \"description\": \"Producto 95\", \"price\": 109.5 },\n    { \"code\": \"SKU-96\", \"description\": \"Producto 96\", \"price\": 110.5 },\n    { \"code\": \"SKU-97\", \"description\": \"Producto 97\", \"price\": 111.5 },\n    { \"code\": \"SKU-98\", \"description\": \"Producto 98\", \"price\": 112.5 },\n    { \"code\": \"SKU-99\", \"description\": \"Producto 99\", \"price\": 113.5 },\n    { \"code\": \"SKU-100\", \"description\": \"Producto 100\", \"price\": 114.5 }\n  ]\n}\n",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhooks/supplier-prices",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhooks", "supplier-prices"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - Rechaza payload > 5000 items",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const items = [];",
+              "for (let i = 1; i <= 5001; i++) {",
+              "  items.push({",
+              "    code: 'SKU-' + i,",
+              "    description: 'Producto ' + i,",
+              "    price: 10 + i",
+              "  });",
+              "}",
+              "pm.request.body.update(JSON.stringify({ accountSlug: pm.variables.get('validAccountSlug'), items }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code es 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Respuesta indica límite de 5000', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.error).to.match(/5000|items|max/i);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhooks/supplier-prices",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhooks", "supplier-prices"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

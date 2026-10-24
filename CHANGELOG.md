@@ -1,7 +1,96 @@
-
 # Changelog — MargenX
 
-## Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
+
+## [Unreleased]
+
+> Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
+
+## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
+
+### Added
+
+- **Backend:** Recálculo en cascada transaccional masivo de costos y márgenes de recetas (`applyIngredientCostChange`) con guarda Zero-Variation al editar materias primas (`#28`, PR `#182`).
+- **Backend:** Endpoint receptor de webhook `POST /api/webhooks/supplier-prices` protegido por cabecera de secreto criptográfico validado en tiempo constante (`#160`, PR `#183`).
+- **Backend:** Filtro Anti-Pollution en base de datos para ingesta batch con descarte estricto de artículos no mapeados (`#161`, PR `#194`).
+- **Backend:** Endpoints de auditoría, retención y resolución de precios de proveedores en cuarentena (`#162`, PR `#198`).
+- **Backend:** Ajuste de contrato en `PUT /api/ingredients/:id` para reportar el total de recetas afectadas y el subconjunto de productos críticos (`#199`, PR `#205`).
+- **Backend:** Webhook de ingesta masiva v2 con matching implícito de proveedor por código, descarte de códigos ambiguos o inactivos y retorno del contacto del dueño (`#200`, PR `#208`).
+- **Backend:** Cuarentena de precios v2 con campo `pendingPackagePrice`, retención ante variaciones superiores al 50% o costos unitarios insuficientes, y conservación de precio vigente al rechazar (`#202`, PR `#213`).
+- **Backend:** Migración relacional de base de datos para backfill de precios pendientes en presentaciones mayoristas legacy en cuarentena (`20261022100000_backfill_legacy_quarantine_pending_prices`).
+- **Frontend:** Modularización arquitectónica de la Ficha Técnica de Producto (`/productos/[id]`): separación en `ProductMasterDataForm` y `ProductRecipeBOM` (`#163`, PR `#184`).
+- **Frontend:** Modularización de controles analíticos de producto: `ProductSimulatorPanel`, `ProductFinancialCockpit`, `ProductMobileSimulatorSheet`, `ProductDeleteDialog` y `ProductRemoveIngredientDialog` (`#164`, PR `#190`).
+- **Frontend:** Modularización de la Despensa de Insumos (`/insumos`): tablas desktop `SuppliesTableDesktop`, tarjetas táctiles `SuppliesCardsMobile`, `IngredientSupplierList` y modal `IngredientUpsertSheet` (`#165`, PR `#185`).
+- **Frontend:** Modularización del Dashboard (`/dashboard`): componentes especializados `DashboardKpiCards`, `HealthDistributionHistogram` y `MonitoredCatalogGrid` (`#166`, PR `#192`).
+- **Frontend:** Bandeja visual de cuarentena de precios (`/proveedores/cuarentena`) para listar, liberar y rechazar anomalías de proveedores con recálculo automático (`#203`, PR `#217`).
+- **Frontend:** Cola secuencial de notificaciones Toast interactivas (`ToastAlert`) con soporte de descarte táctil (*swipe-to-dismiss*) para recálculos en cascada (`#168`, PR `#211`).
+- **DevOps:** Infraestructura de correo perimetral con Cloudflare Email Routing Catch-All (`*@margenx.tech`) para habilitar alias virtuales comerciales por comercio (`precios+<slug>@margenx.tech`) (`#169`, PR `#186`).
+- **DevOps:** Workflow n8n de ingesta: trigger IMAP vía IDLE sobre Gmail, extracción de slug comercial, parseo de planillas XLSX/XLS/CSV y normalización de columnas (`#170`, PR `#206`).
+- **DevOps:** Workflow n8n de despacho HTTP con política de reintentos exponenciales ante fallos de red y armado de correo con resumen de importación al dueño (`#171`, PR `#207`).
+- **DevOps:** Workflow n8n de alertas críticas de margen: despacho asíncrono SMTP vía Brevo Relay con plantilla HTML responsive accesible sin dependencias externas (`#172`, PR `#187`).
+- **DevOps:** Script centinela `monitor-memory.sh` en el host VPS con inspección periódica de consumo de memoria RAM, top de contenedores Docker y alertas enriquecidas a Discord (`#173`, PR `#188`).
+- **Datos:** Cuenta de demostración *Demo MargenX* (usuarios ADMIN y COLLABORATOR, 2 proveedores, 8 insumos, 3 productos y un caso de cuarentena) mediante el script independiente `prisma/seed-demo.ts` y el comando `npm run seed:demo`, con confirmación explícita del destino vía `SEED_DEMO_CONFIRM` (`#220`, PR `#221`).
+- **QA:** Protocolo, ejecución presencial y bitácora firmada de pruebas de ergonomía y usabilidad in-situ en 360px en *Química GyJ* (`#174`, PR `#191`).
+- **QA:** Suite de pruebas automatizadas E2E en Playwright para el recálculo en cascada (`cascade-recalculation.spec.ts`) (`#175`, PR `#216`).
+- **QA:** Colección automatizada de pruebas de estrés y resiliencia en Postman/Newman para el webhook de ingesta con lotes de 3.000 filas y 95% de polución (`#176`, PR `#215`).
+- **QA:** Suite de regresión general integral y matriz de clasificación de defectos de release (`#177`, PR `#218`).
+- **Docs:** Actualización y sincronización del Documento de Arquitectura de Software (SAD v2.0) con topología de red VPS, C4 y diagramas UML (`#179`, PR `#189`).
+- **Docs:** Registro de Decisión Arquitectónica ADR-004 formalizando la adopción del Margen Comercial sobre Ventas frente al Markup (`#180`, commit `e4af603`).
+- **Docs:** Regularización del CHANGELOG v0.4.0 y rotación de Scrum Master (`#209`, PR `#210`).
+- **Docs:** Consolidación de documentación de metodologías ágiles y Reporte de Entrega 5 UNaB (`docs/entregables/entrega-pps-sprint-4.md`) (`#181`).
+
+### Changed
+
+- **Frontend:** Actualización comercial de la Landing Page institucional (`/`) reflejando los casos de uso reales de *Panadería Central* y *Química GyJ* e ingesta Zero-Click (`#167`, PR `#197`).
+- **Frontend:** Normalización y validación estricta de unidades de medida en formularios reactivos de insumos (`#201`, PR `#204`).
+- **Datos:** Actualización del script de seed idempotente (`prisma/seed.ts`) con proveedores mayoristas reales (*Distribuidora MarJuanC*, *Don Roque* y *Limpikorn*) y homologación de códigos SKU (`#178`, PR `#196`).
+- **Testing:** Configuración de ejecución serial (`workers: 1`) en `playwright.config.ts` para evitar colisiones de concurrencia en pruebas E2E que mutan insumos compartidos.
+
+### Fixed
+
+- **Backend:** Los links de las alertas de margen respetan el entorno: el despachador envía `appBaseUrl` (desde `APP_BASE_URL`, opcional) y el workflow n8n lo valida contra una lista cerrada de dominios (`#222`, PR `#223`).
+- **Frontend:** Corrección del scroll de fondo en modales sobre iOS Safari mediante bloqueo con `position: fixed` y conteo de referencias en `useBodyScrollLock` (`#193`, PR `#195`).
+- **Frontend:** Eliminación del parpadeo visual (*zero-flicker*) y textos transitorios `NaN%` en badges de margen durante la resolución de sesión y rol en el Dashboard.
+- **Backend:** Prevención de transacciones innecesarias en base de datos al editar insumos mediante guarda Zero-Variation (`previousCost.equals(nextCost)`) (`#28`, PR `#182`).
+- **DevOps:** Confinamiento de memoria a 1024 MB y configuración de `NODE_OPTIONS=--max-old-space-size=768` en el contenedor n8n para prevenir fallos por agotamiento de heap al procesar planillas extensas.
+
+### Security
+
+- **Docs:** Limpieza de datos sensibles en la documentación y los archivos de ejemplo: mails de cuentas piloto, contraseña de ejemplo y datos de conexión del VPS reemplazados por etiquetas y placeholders (`#224`, PR `#225`).
+- **Backend:** Autenticación por cabecera de secreto criptográfico (`x-margenx-webhook-secret`) evaluada con `crypto.timingSafeEqual` para mitigar ataques de timing en el webhook de ingesta (`#160`).
+- **Backend:** Aislamiento multi-tenant estricto por slug comercial y purga de códigos de artículo ambiguos presentes en múltiples proveedores activos (`#200`).
+
+## [0.4.0] - 2026-10-10 (Sprint 3: Dashboard de Rentabilidad, Roles RBAC y Dominio Multi-Proveedor)
+
+### Added
+
+- **Backend:** Modelos Prisma `Supplier`, `SupplierIngredient` y `PriceHistory` con seed de referencia (`#116`).
+- **Backend:** CRUD de proveedores con registro transaccional automático del historial de precios (`#117`).
+- **Backend:** Conversión de empaques mayoristas a costo unitario equivalente y proveedor predeterminado (`#118`).
+- **Backend:** Middleware RBAC que sanitiza campos de costo, margen y proveedores para el rol `COLLABORATOR` (`#119`).
+- **Backend:** Endpoints de métricas consolidadas del Dashboard (`#120`).
+- **Backend:** Upsert de precios de presentación de proveedor, en reemplazo del `409 Conflict` al reasociar (`#153`).
+- **Frontend:** Dashboard con métricas reales de la API, semáforo de margen e histograma de distribución (`#121`, `#122`).
+- **Frontend:** Adaptación de la UI por rol para ocultar datos financieros a colaboradores (`#123`).
+- **Frontend:** Gestión de proveedores por insumo con calculadora de empaques en vivo (`#124`).
+- **Frontend:** Historial de variaciones de costo por insumo (`#125`) y comparativa de proveedores con acción de predeterminado (`#152`).
+- **QA:** Protocolo de pruebas in-situ en 360px (`#126`), suite E2E de seguridad RBAC (`#127`) y colección Postman de precisión de conversión (`#128`).
+- **DevOps:** Imágenes Docker multi-stage, límites de memoria por contenedor y rotación de logs en el VPS (`#129`).
+
+### Changed
+
+- **Frontend:** Ficha técnica con inputs estáticos, botonera de margen normalizada y ordenamiento del Dashboard por margen ascendente (`#108`, `#110`, `#111`).
+- **Frontend:** Redondeo ascendente del margen sugerido con `Math.ceil` (`#109`).
+- **DevOps:** Puerto de Postgres replegado a `127.0.0.1:5435` (`#129`).
+
+### Fixed
+
+- **Frontend:** Blindaje de la UI ante campos ausentes en respuestas sanitizadas para `COLLABORATOR` (`#149`).
+
+### Security
+
+- **Frontend:** Diálogos de confirmación al descartar el modal de insumos, remover insumos de una receta y cerrar sesión (`#112`, `#113`, `#114`).
+- **Backend:** Sanitización financiera server-side para el rol `COLLABORATOR` (`#119`).
 
 ## [0.3.0] - 2026-10-02 (Sprint 2: MVP Core — Recetas Compuestas, Cálculo en Vivo y Despliegue en Producción)
 
@@ -44,7 +133,7 @@
 - **DevOps:** Notificaciones automáticas de estado de CI/CD en Discord vía Webhooks (`#63`).
 - **Docs:** Sincronización de arquitectura VPS consolidada, SAD y plan de entregas (`#62`).
 - **Frontend:** Integración con `<ClerkProvider>`, rutas protegidas y consumo autenticado de API (`#60`).
-- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH (puerto 5371) y Nginx Reverse Proxy (`#40` via PR `#58`).
+- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH y Nginx Reverse Proxy (`#40` via PR `#58`).
 - **DevOps:** Automatización de migraciones de Prisma en el pipeline de deploy mediante contenedor efímero con mecanismo de fallo seguro (`#41` via PR `#59`).
 - **Backend:** Middleware global de captura, formateo y estandarización de errores HTTP (`#35` via PR `#51`).
 - **Backend:** Paginación y ordenamiento (Sorting) nativo en base de datos para la API de Insumos (`#36` via PR `#57`).
@@ -63,7 +152,7 @@
 - **DevOps:** Configuración de entorno aislado con VS Code DevContainers (Node 20, TypeScript, PostgreSQL 16 local).
 - **DevOps:** Pipeline de Integración Continua (CI) en GitHub Actions (`ci.yml`) con verificación de lint, typecheck y compilación.
 - **DevOps:** Automatización de tablero Kanban mediante GraphQL API (`auto-move-issues.yml`).
-- **Infra:** Despliegue en VPS propia de PostgreSQL 16 (puerto 5435) y orquestador n8n bajo subdominio con certificado SSL.
+- **Infra:** Despliegue en VPS propia de PostgreSQL 16 y orquestador n8n bajo subdominio con certificado SSL.
 - **Backend:** Modelo relacional base en Prisma (`Account`, `User`, `Ingredient`, `Product`, `ProductIngredient`).
 - **Backend:** Middleware de autenticación delegada (`authMiddleware`) con verificación asimétrica de JWT mediante Clerk.
 - **Backend:** Endpoints CRUD para gestión de Insumos (`/api/ingredients`) con aislamiento multi-tenant y tipos `Decimal`.

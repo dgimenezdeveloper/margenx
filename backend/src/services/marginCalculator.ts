@@ -12,6 +12,17 @@ const MIN_MONEY_VALUE = new Decimal('-99999999.99');
 const MAX_PERCENT_VALUE = new Decimal('999999.99');
 const MIN_PERCENT_VALUE = new Decimal('-999999.99');
 
+export interface ProductCostImpact {
+  productId: string;
+  productName: string;
+  previousCost: DecimalType;
+  newCost: DecimalType;
+  currentMarginPercent: DecimalType;
+  minMarginPercent: DecimalType;
+}
+
+export interface CriticalMarginProduct extends ProductCostImpact { }
+
 function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): DecimalType {
   if (value.lessThan(min)) return min;
   if (value.greaterThan(max)) return max;
@@ -99,20 +110,26 @@ export function calculateMarginPercent(salePrice: DecimalType, totalCost: Decima
   return clampDecimal(percent, MIN_PERCENT_VALUE, MAX_PERCENT_VALUE);
 }
 
+export interface IngredientCostChangeResult {
+  affectedProductsCount: number;
+  affectedProducts: ProductCostImpact[];
+  criticalProducts: CriticalMarginProduct[];
+}
+
 export async function applyIngredientCostChange(
   tx: any,
   ingredientId: string,
   previousCost: DecimalType | null,
   newCost: DecimalType
-): Promise<void> {
+): Promise<IngredientCostChangeResult> {
   const ingredientFinder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
   const oldCost =
     previousCost ??
     (ingredientFinder && typeof ingredientFinder === 'function'
       ? (await ingredientFinder.call(tx.ingredient, {
-          where: { id: ingredientId },
-          select: { currentCost: true },
-        }))?.currentCost ?? null
+        where: { id: ingredientId },
+        select: { currentCost: true },
+      }))?.currentCost ?? null
       : null);
 
   if (oldCost && !oldCost.equals(newCost)) {
@@ -130,30 +147,66 @@ export async function applyIngredientCostChange(
     select: { productId: true },
   });
   const productIds = [...new Set(affected.map((a: { productId: string }) => a.productId))];
+  const affectedProducts: ProductCostImpact[] = [];
+  const criticalProducts: CriticalMarginProduct[] = [];
 
   for (const productId of productIds) {
     const product = await tx.product.findUnique({
       where: { id: productId },
-      include: { ingredients: { include: { ingredient: { select: { currentCost: true } } } } },
+      include: {
+        ingredients: {
+          include: { ingredient: { select: { currentCost: true } } },
+        },
+      },
     });
     if (!product) continue;
 
-    const cost = calculateRecipeTotal(
+    const safeMinMarginPercent = product.minMarginPercent ?? ZERO;
+    const previousProductCost = product.cost ?? ZERO;
+    const previousMarginPercent = product.marginPercent ?? ZERO;
+    const nextCost = calculateRecipeTotal(
       product.ingredients.map((pi: { quantity: DecimalType; ingredient: { currentCost: DecimalType } }) => ({
         quantity: pi.quantity,
         unitCost: pi.ingredient.currentCost,
       }))
     );
+    const nextMarginAmount = calculateMarginAmount(product.salePrice, nextCost);
+    const nextMarginPercent = calculateMarginPercent(product.salePrice, nextCost);
 
     await tx.product.update({
       where: { id: productId },
       data: {
-        cost,
-        marginAmount: calculateMarginAmount(product.salePrice, cost),
-        marginPercent: calculateMarginPercent(product.salePrice, cost),
+        cost: nextCost,
+        marginAmount: nextMarginAmount,
+        marginPercent: nextMarginPercent,
       },
     });
+
+    const productImpact: ProductCostImpact = {
+      productId: product.id,
+      productName: product.name ?? 'Producto',
+      previousCost: previousProductCost,
+      newCost: nextCost,
+      currentMarginPercent: nextMarginPercent,
+      minMarginPercent: safeMinMarginPercent,
+    };
+
+    affectedProducts.push(productImpact);
+
+    const crossedMinimumMargin =
+      previousMarginPercent.greaterThanOrEqualTo(safeMinMarginPercent) &&
+      nextMarginPercent.lessThan(safeMinMarginPercent);
+
+    if (crossedMinimumMargin) {
+      criticalProducts.push(productImpact);
+    }
   }
+
+  return {
+    affectedProductsCount: affectedProducts.length,
+    affectedProducts,
+    criticalProducts,
+  };
 }
 
 export default {

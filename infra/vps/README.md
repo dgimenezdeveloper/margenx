@@ -7,7 +7,7 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
 ## 1. Vision General de la Arquitectura
 
     +--------------------------------------------------------------------+
-    |                 VPS PRIVADA (168.197.49.120)                       |
+    |                 VPS PRIVADA (<VPS_IP>)                           |
     |                                                                    |
     |  +--------------------------------------------------------------+  |
     |  | Nginx (reverse proxy nativo del host, SSL Let's Encrypt)     |  |
@@ -45,7 +45,7 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
 
 | Característica | Dev Local (DevContainer) | Staging - VPS (`develop`) | Producción - VPS (`main`) |
 | :--- | :--- | :--- | :--- |
-| **Ubicación** | Contenedor local de cada integrante | VPS (`168.197.49.120`) | VPS (`168.197.49.120`) |
+| **Ubicación** | Contenedor local de cada integrante | VPS (`<VPS_IP>`) | VPS (`<VPS_IP>`) |
 | **Contenedor** | `postgres:16-alpine` (local) | `margenx_postgres_prod` (compartido) | `margenx_postgres_prod` (compartido) |
 | **Base de datos** | `margenx_dev` (local) | `margenx_dev` (en VPS) | `margenx_prod` |
 | **Uso principal** | Desarrollo diario individual, creación de migraciones (`npx prisma migrate dev`) | Validación de integración antes de producción, demos intermedias | Datos reales de comercios piloto y entrega final |
@@ -54,22 +54,26 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
 
 ## 3. Acceso a la Base de Datos (DBeaver / TablePlus / Clientes SQL)
 
-El contenedor de PostgreSQL publica el puerto `5435` en el host (`5435:5432` en el Docker Compose). Esto permite la conexión directa de los integrantes del equipo para inspección de datos y tareas de desarrollo sin requerir acceso SSH ni credenciales del sistema operativo del servidor.
+El contenedor de PostgreSQL publica su puerto solo en la interfaz de loopback del host (`127.0.0.1`, ver `docker-compose.prod.yml`). No es accesible desde internet: los backends lo usan por la red interna de Docker y, para inspección de datos desde clientes SQL, se accede mediante un túnel SSH hacia el loopback del servidor.
 
-### Parámetros de Conexión Directa:
-* **Host:** `168.197.49.120`
-* **Puerto:** `5435`
+### Parámetros de Conexión (vía túnel SSH):
+* **Host:** `127.0.0.1` (extremo local del túnel SSH)
+* **Puerto:** `<DB_PORT>` (puerto local del túnel; el puerto publicado en el host se define en `docker-compose.prod.yml`)
 * **Base de datos:** `margenx_dev` (Staging) o `margenx_prod` (Producción)
-* **Usuario:** `margenx_admin`
+* **Usuario:** `<DB_USER>` (ver `POSTGRES_USER` en el canal seguro del equipo)
 * **Contraseña:** *(Ver variable `POSTGRES_PASSWORD` en el canal seguro del equipo)*
 
-> 🔒 **Aislamiento y Seguridad:** Las credenciales `margenx_admin` corresponden exclusivamente al motor PostgreSQL dentro del contenedor. No otorgan permisos de administración, acceso a terminal ni lectura de archivos del sistema operativo de la VPS.
+> 🔒 **Aislamiento y Seguridad:** Las credenciales de la base corresponden exclusivamente al motor PostgreSQL dentro del contenedor. No otorgan permisos de administración, acceso a terminal ni lectura de archivos del sistema operativo de la VPS.
+
+### Monitoreo de memoria (`scripts/monitor-memory.sh`)
+
+El script de alertas a Discord muestra el host del servidor en el embed a partir de la variable de entorno opcional `VPS_HOST` (por ejemplo, definida en el crontab que lo invoca). Si no está definida, el campo muestra `N/D`. El valor real no se versiona en el repositorio.
 
 ### Aplicar Migraciones de Prisma manualmente (Lead Backend, caso excepcional)
 En condiciones normales, el pipeline de CI/CD aplica las migraciones automáticamente en cada deploy. Si el Lead Backend necesita correrlas manualmente desde su máquina local:
 
 ```bash
-DATABASE_URL='postgresql://margenx_admin:PASSWORD@168.197.49.120:5435/margenx_prod?schema=public' npx prisma migrate deploy
+DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<VPS_HOST>:<DB_PORT>/margenx_prod?schema=public' npx prisma migrate deploy
 ```
 
 ---

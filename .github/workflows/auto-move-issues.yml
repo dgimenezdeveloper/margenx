@@ -1,30 +1,11 @@
 # ============================================================
-# auto-move-issues.yml
-# Automatiza el movimiento de tarjetas en GitHub Projects v2
-# adaptado para MargenX con columna estándar "To Do".
+# auto-move-issues.yml — MargenX Project Board Automation
 #
-# FLUJO DE ESTADOS:
+# FLUJO COMPLETO:
 #   BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE
-#                                  ↑___QA rechaza___|
-#
-# ⚠️ IMPORTANTE (leer antes de tocar este archivo):
-# Los eventos "issues", "create" y "pull_request_review" NO están
-# atados a un commit/rama específica de una PR. GitHub SIEMPRE
-# evalúa estos jobs usando la copia de este archivo que existe en
-# la RAMA POR DEFECTO del repositorio (Settings → Branches → Default
-# branch), sin importar en qué rama se haya editado el workflow.
-#
-# En cambio, el evento "pull_request" SÍ usa el ref de merge de la
-# propia PR (para PRs del mismo repo). Por eso el job de IN REVIEW
-# puede reflejar cambios recientes aunque vivan en una rama de
-# feature, mientras que "handle_qa_review" (pull_request_review)
-# puede seguir ejecutando una versión vieja -o directamente no
-# ejecutar el job si no existía- hasta que este archivo esté
-# actualizado en la rama por defecto.
-#
-# 👉 Después de modificar este archivo, mergeá siempre a la rama
-#    configurada como default antes de dar por fallido un flujo que
-#    dependa de pull_request_review, issues o create.
+#                          ↑           |
+#                          |___QA______| (Changes Requested)
+#                       Rechaza / Re-review
 # ============================================================
 
 name: Auto Move Issues - Project Board
@@ -34,19 +15,28 @@ on:
     types: [assigned, unassigned]
   create:
   pull_request:
-    types: [opened, closed, reopened]
+    types: [opened, closed, reopened, review_requested]
     branches:
       - develop
+      - main
   pull_request_review:
     types: [submitted]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Número del PR a simular/forzar como QA APPROVED (ej: 12)"
+        description: "Número del PR a probar/simular (ej: 125)"
         required: true
         type: string
+      action_type:
+        description: "Acción a simular"
+        required: true
+        type: choice
+        options:
+          - "qa_approved"
+          - "qa_rejected"
+          - "review_requested"
       dry_run:
-        description: "Modo prueba (true = solo muestra qué haría, sin mover ni comentar nada)"
+        description: "Modo prueba (true = solo muestra qué haría, sin modificar nada)"
         required: false
         default: "true"
         type: choice
@@ -201,47 +191,26 @@ jobs:
   # ============================================================
   # JOB 3: TO DO → IN PROGRESS (Al crear branch)
   # ============================================================
-  move_to_in_progress:
+  move_to_in_progress_branch:
     name: "Branch creada → IN PROGRESS"
     if: github.event_name == 'create' && github.event.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
-      - name: Extraer número de issue
-        id: extract_issue
-        run: |
-          BRANCH="${{ github.ref_name }}"
-          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
-          if [ -z "$ISSUE_NUMBER" ]; then
-            echo "ISSUE_FOUND=false" >> $GITHUB_OUTPUT
-          else
-            echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-            echo "ISSUE_FOUND=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Obtener node_id de la issue
-        if: steps.extract_issue.outputs.ISSUE_FOUND == 'true'
-        id: get_issue
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.extract_issue.outputs.ISSUE_NUMBER }}
-        run: |
-          ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
-          if [ "$ISSUE_DATA" = "null" ]; then
-            echo "ISSUE_VALID=false" >> $GITHUB_OUTPUT
-          else
-            ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
-            echo "ISSUE_ID=$ISSUE_ID" >> $GITHUB_OUTPUT
-            echo "ISSUE_VALID=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Mover a IN PROGRESS
-        if: steps.get_issue.outputs.ISSUE_VALID == 'true'
+      - name: Extraer número de issue y mover a IN PROGRESS
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           ORGANIZATION: ${{ vars.ORGANIZATION }}
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          ISSUE_ID: ${{ steps.get_issue.outputs.ISSUE_ID }}
         run: |
+          BRANCH="${{ github.ref_name }}"
+          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+          [ -z "$ISSUE_NUMBER" ] && echo "No se detectó número de issue en la rama '$BRANCH'. Omitiendo." && exit 0
+
+          ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+          [ "$ISSUE_DATA" = "null" ] && echo "Issue #$ISSUE_NUMBER no encontrada en el repo. Omitiendo." && exit 0
+
+          ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+
           gh api graphql -f query='
             query($org: String!, $number: Int!) {
               user(login: $org) {
@@ -294,19 +263,19 @@ jobs:
             -f option="$IN_PROGRESS_OPTION_ID" \
             --silent
 
-          echo "🔄 Issue #${{ steps.extract_issue.outputs.ISSUE_NUMBER }} movida a IN PROGRESS"
+          echo "🔄 Rama '$BRANCH' -> Issue #$ISSUE_NUMBER movida a IN PROGRESS"
 
   # ============================================================
-  # JOB 4: IN PROGRESS → IN REVIEW (Al abrir PR)
+  # JOB 4: PR ABIERTO O RE-REVIEW SOLICITADO → IN REVIEW
   # ============================================================
   move_to_in_review:
-    name: "PR abierto → IN REVIEW"
+    name: "PR Abierto / Re-Review → IN REVIEW"
     if: |
       github.event_name == 'pull_request' &&
-      (github.event.action == 'opened' || github.event.action == 'reopened')
+      (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'review_requested')
     runs-on: ubuntu-latest
     steps:
-      - name: Mover issues vinculadas a IN REVIEW
+      - name: Mover a IN REVIEW y actualizar Labels
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           ORGANIZATION: ${{ vars.ORGANIZATION }}
@@ -315,7 +284,11 @@ jobs:
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
+          echo "📥 Procesando PR #$PR_NUMBER (Acción: $EVENT_ACTION)"
+
           gh api graphql -f query='
             query($org: String!, $number: Int!) {
               user(login: $org) {
@@ -368,8 +341,7 @@ jobs:
           fi
 
           if [ -n "$CLOSING_ISSUES" ]; then
-            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
-            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+            echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
               ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
               ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
 
@@ -404,53 +376,60 @@ jobs:
             done
           fi
 
-      - name: Agregar label 'needs-qa' al PR
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-        run: |
+          # Gestión de Labels
           gh api /repos/${{ github.repository }}/labels -f name="needs-qa" -f color="fbca04" 2>/dev/null || true
-          gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-qa" --repo ${{ github.repository }}
+          gh pr edit $PR_NUMBER \
+            --add-label "needs-qa" \
+            --remove-label "qa-rejected,qa-approved,ready-to-merge" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+
+          if [ "$EVENT_ACTION" = "review_requested" ]; then
+            COMMENT="## 🔄 Re-Revisión de QA Solicitada
+
+            @${AUTHOR} ha aplicado correcciones y solicita una nueva revisión de QA.
+            La issue vinculada ha regresado a **IN REVIEW**."
+
+            gh pr comment $PR_NUMBER --body "$COMMENT" --repo ${{ github.repository }}
+          fi
 
   # ============================================================
-  # JOB 5: REVISIÓN DE QA (QA Approved o In Progress)
+  # JOB 5: REVISIÓN DE QA (APROBADO O RECHAZADO)
   # ============================================================
   handle_qa_review:
-    name: "Review QA → QA APPROVED o IN PROGRESS"
+    name: "Decisión QA → QA APPROVED o IN PROGRESS"
     if: github.event_name == 'pull_request_review' && github.event.action == 'submitted'
     runs-on: ubuntu-latest
     steps:
-      - name: Verificar si el reviewer es QA
+      - name: Validar si el reviewer es QA
         id: check_reviewer
         env:
           REVIEWER: ${{ github.event.review.user.login }}
           QA_USERS: ${{ vars.QA_GITHUB_USERS }}
           REVIEW_STATE: ${{ github.event.review.state }}
         run: |
-          echo "🔍 Reviewer recibido: '$REVIEWER'"
-          echo "🔍 Estado del review: '$REVIEW_STATE'"
-          echo "🔍 QA_GITHUB_USERS crudo: '$QA_USERS'"
+          echo "🔍 Reviewer: '$REVIEWER' | Estado: '$REVIEW_STATE'"
 
-          # Normalizamos separadores: admite espacios, comas, ';' o saltos de línea
           NORMALIZED_USERS=$(echo "$QA_USERS" | tr ',;' ' ')
-
           IS_QA=false
           for USER in $NORMALIZED_USERS; do
             USER_TRIMMED=$(echo "$USER" | xargs)
             [ -z "$USER_TRIMMED" ] && continue
-            REVIEWER_LOWER=$(echo "$REVIEWER" | tr '[:upper:]' '[:lower:]')
-            USER_LOWER=$(echo "$USER_TRIMMED" | tr '[:upper:]' '[:lower:]')
-            if [ "$REVIEWER_LOWER" = "$USER_LOWER" ]; then
+            if [ "$(echo "$REVIEWER" | tr '[:upper:]' '[:lower:]')" = "$(echo "$USER_TRIMMED" | tr '[:upper:]' '[:lower:]')" ]; then
               IS_QA=true
               break
             fi
           done
 
+          if [ -z "$QA_USERS" ]; then
+            echo "⚠️ QA_GITHUB_USERS no configurado. Aceptando reviewer por defecto."
+            IS_QA=true
+          fi
+
           echo "IS_QA=$IS_QA" >> $GITHUB_OUTPUT
           echo "REVIEW_STATE=$REVIEW_STATE" >> $GITHUB_OUTPUT
-          echo "✅ Resultado -> IS_QA=$IS_QA | REVIEW_STATE=$REVIEW_STATE"
 
-      # --- QA APRUEBA ---
-      - name: Mover issues a QA APPROVED y notificar a Dario
+      # --- CASO A: QA APRUEBA ---
+      - name: QA Aprueba → Mover a QA APPROVED y notificar
         if: |
           steps.check_reviewer.outputs.IS_QA == 'true' &&
           steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
@@ -516,8 +495,7 @@ jobs:
           fi
 
           if [ -n "$CLOSING_ISSUES" ]; then
-            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
-            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+            echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
               ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
               ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
 
@@ -552,34 +530,145 @@ jobs:
             done
           fi
 
-      - name: Labels y Notificación al Scrum Master
-        if: |
-          steps.check_reviewer.outputs.IS_QA == 'true' &&
-          steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          REVIEWER: ${{ github.event.review.user.login }}
-        run: |
+          # Labels de aprobación
           gh api /repos/${{ github.repository }}/labels -f name="qa-approved" -f color="0e8a16" 2>/dev/null || true
           gh api /repos/${{ github.repository }}/labels -f name="ready-to-merge" -f color="0075ca" 2>/dev/null || true
-
-          gh pr edit ${{ github.event.pull_request.number }} \
+          gh pr edit $PR_NUMBER \
             --add-label "qa-approved,ready-to-merge" \
             --remove-label "needs-qa,qa-rejected" \
             --repo ${{ github.repository }} 2>/dev/null || true
 
           COMMENT="## ✅ PR Aprobado por QA — Listo para Mergear
 
-          @dgimenezdeveloper, este PR ha sido **aprobado por QA** (@$REVIEWER) y está listo para ser mergeado a \`develop\`."
+          Este PR ha sido formalmente **aprobado por QA** (@$REVIEWER). Está listo para Squash and Merge hacia \`develop\`."
 
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "$COMMENT" \
-            --repo ${{ github.repository }}
+          gh pr comment $PR_NUMBER --body "$COMMENT" --repo ${{ github.repository }}
 
-      - name: Notificar Aprobación de QA en Discord
+      # --- CASO B: QA RECHAZA (CHANGES REQUESTED) ---
+      - name: QA Rechaza → Mover a IN PROGRESS y alertar al Developer
         if: |
           steps.check_reviewer.outputs.IS_QA == 'true' &&
-          steps.check_reviewer.outputs.REVIEW_STATE == 'approved'
+          steps.check_reviewer.outputs.REVIEW_STATE == 'changes_requested'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORGANIZATION: ${{ vars.ORGANIZATION }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REVIEWER: ${{ github.event.review.user.login }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          echo "❌ QA solicitó cambios en PR #$PR_NUMBER"
+
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              user(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            -f org="$ORGANIZATION" \
+            -F number=$PROJECT_NUMBER \
+            > project_data.json
+
+          PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
+          STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
+          IN_PROGRESS_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json)
+
+          CLOSING_ISSUES=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 25) {
+                    nodes { id number }
+                  }
+                }
+              }
+            }' \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F number=$PR_NUMBER \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
+
+          if [ -z "$CLOSING_ISSUES" ]; then
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            if [ -n "$ISSUE_NUMBER" ]; then
+              ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
+              if [ "$ISSUE_DATA" != "null" ]; then
+                ISSUE_ID=$(echo "$ISSUE_DATA" | jq -r '.node_id')
+                CLOSING_ISSUES="{\"id\":\"$ISSUE_ID\",\"number\":$ISSUE_NUMBER}"
+              fi
+            fi
+          fi
+
+          if [ -n "$CLOSING_ISSUES" ]; then
+            echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+              ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
+              ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
+
+              ITEM_ID=$(gh api graphql -f query='
+                mutation($project: ID!, $issue: ID!) {
+                  addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                    item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f issue="$ISSUE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id')
+
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project,
+                    itemId: $item,
+                    fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }' \
+                -f project="$PROJECT_ID" \
+                -f item="$ITEM_ID" \
+                -f field="$STATUS_FIELD_ID" \
+                -f option="$IN_PROGRESS_OPTION_ID" \
+                --silent
+
+              echo "↩️ Issue #$ISSUE_NUM devuelta a IN PROGRESS"
+            done
+          fi
+
+          # Labels de rechazo
+          gh api /repos/${{ github.repository }}/labels -f name="qa-rejected" -f color="d73a4a" 2>/dev/null || true
+          gh pr edit $PR_NUMBER \
+            --add-label "qa-rejected" \
+            --remove-label "needs-qa,qa-approved,ready-to-merge" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+
+          COMMENT="## ❌ QA Solicitó Cambios
+
+          @${AUTHOR}, se han detectado observaciones durante la revisión de QA realizada por @${REVIEWER}.
+
+          La tarjeta ha vuelto a **IN PROGRESS**. Por favor revisá las observaciones, aplicá las correcciones necesarias en esta rama y volvé a solicitar la revisión (**Re-request review**) cuando esté listo."
+
+          gh pr comment $PR_NUMBER --body "$COMMENT" --repo ${{ github.repository }}
+
+      # --- NOTIFICACIÓN EN DISCORD ---
+      - name: Notificar Decisión en Discord
+        if: |
+          steps.check_reviewer.outputs.IS_QA == 'true' &&
+          (steps.check_reviewer.outputs.REVIEW_STATE == 'approved' || steps.check_reviewer.outputs.REVIEW_STATE == 'changes_requested')
         continue-on-error: true
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -587,35 +676,47 @@ jobs:
           PR_TITLE: "${{ github.event.pull_request.title }}"
           PR_URL: "${{ github.event.pull_request.html_url }}"
           REVIEWER: "${{ github.event.review.user.login }}"
+          AUTHOR: "${{ github.event.pull_request.user.login }}"
+          STATE: "${{ steps.check_reviewer.outputs.REVIEW_STATE }}"
         run: |
-          if [ -z "$DISCORD_WEBHOOK" ]; then
-            echo "⚠️ DISCORD_WEBHOOK_URL no configurado. Omitiendo notificación."
-            exit 0
+          [ -z "$DISCORD_WEBHOOK" ] && exit 0
+
+          if [ "$STATE" = "approved" ]; then
+            COLOR=3066993
+            STATUS_TXT="✅ **PR #${PR_NUMBER} Aprobado por QA**"
+            DESC="Listo para merge a \`develop\` por el Scrum Master."
+          else
+            COLOR=15158332
+            STATUS_TXT="❌ **PR #${PR_NUMBER} con Cambios Solicitados por QA**"
+            DESC="Revisar observaciones. Devuelta a \`IN PROGRESS\` para @${AUTHOR}."
           fi
 
           PAYLOAD=$(jq -n \
-            --arg content "✅ **PR #${PR_NUMBER} Aprobado por QA — Listo para Mergear**" \
+            --arg content "$STATUS_TXT" \
             --arg title "PR #${PR_NUMBER}: ${PR_TITLE}" \
             --arg url "$PR_URL" \
+            --arg desc "$DESC" \
             --arg reviewer "$REVIEWER" \
+            --arg author "$AUTHOR" \
+            --argjson color "$COLOR" \
             '{
               content: $content,
               embeds: [
                 {
                   title: $title,
                   url: $url,
-                  description: ("El PR ha sido revisado y formalmente aprobado por @" + $reviewer + ". Está listo para fusión a `develop`."),
-                  color: 3066993,
+                  description: $desc,
+                  color: $color,
                   fields: [
-                    { name: "Aprobado por (QA)", value: ("@" + $reviewer), inline: true },
-                    { name: "Acción Requerida", value: "Merge a `develop` por Scrum Master", inline: true }
+                    { name: "Revisor (QA)", value: ("@" + $reviewer), inline: true },
+                    { name: "Desarrollador", value: ("@" + $author), inline: true }
                   ],
                   timestamp: (now | todate)
                 }
               ]
             }')
 
-          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || echo "Error enviando notificación a Discord"
+          curl -s -S -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK" || true
 
   # ============================================================
   # JOB 6: MERGEADO → DONE
@@ -690,8 +791,7 @@ jobs:
           fi
 
           if [ -n "$CLOSING_ISSUES" ]; then
-            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
-            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+            echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
               ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
               ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
 
@@ -799,8 +899,7 @@ jobs:
           fi
 
           if [ -n "$CLOSING_ISSUES" ]; then
-            ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
-            echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+            echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
               ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
               ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
 
@@ -836,26 +935,26 @@ jobs:
           fi
 
   # ============================================================
-  # JOB 8: EJECUCIÓN MANUAL (workflow_dispatch) → Simula/fuerza QA APPROVED
+  # JOB 8: TEST MANUAL (workflow_dispatch) — Simulación & Dry Run
   # ============================================================
-  manual_test_qa_approved:
-    name: "🧪 Manual → Simular/Forzar QA APPROVED"
+  manual_test_dispatcher:
+    name: "🧪 Test Manual / Simulación"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Resolver issues vinculadas y mover a QA APPROVED (o simular)
+      - name: Simular acción de QA o Re-Review
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           ORGANIZATION: ${{ vars.ORGANIZATION }}
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          ACTION_TYPE: ${{ github.event.inputs.action_type }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
-          REVIEWER: ${{ github.actor }}
+          ACTOR: ${{ github.actor }}
         run: |
-          echo "🧪 Ejecución manual disparada por: $REVIEWER"
-          echo "🧪 PR objetivo: #$PR_NUMBER | dry_run=$DRY_RUN"
+          echo "🧪 [DISPATCH] PR #$PR_NUMBER | Acción: $ACTION_TYPE | Dry Run: $DRY_RUN"
 
           gh api graphql -f query='
             query($org: String!, $number: Int!) {
@@ -880,12 +979,25 @@ jobs:
 
           PROJECT_ID=$(jq -r '.data.user.projectV2.id' project_data.json)
           STATUS_FIELD_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .id' project_data.json)
-          QA_APPROVED_OPTION_ID=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json)
 
-          if [ -z "$PROJECT_ID" ] || [ -z "$STATUS_FIELD_ID" ] || [ -z "$QA_APPROVED_OPTION_ID" ]; then
-            echo "❌ No pude resolver PROJECT_ID/STATUS_FIELD_ID/QA_APPROVED_OPTION_ID. Revisá ORGANIZATION, PROJECT_NUMBER y que exista la columna 'QA Approved'."
-            exit 1
+          if [ "$ACTION_TYPE" = "qa_approved" ]; then
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "qa approved") | .id' project_data.json)
+            LABEL_ADD="qa-approved,ready-to-merge"
+            LABEL_DEL="needs-qa,qa-rejected"
+            TARGET_STATUS_NAME="QA APPROVED"
+          elif [ "$ACTION_TYPE" = "qa_rejected" ]; then
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in progress") | .id' project_data.json)
+            LABEL_ADD="qa-rejected"
+            LABEL_DEL="needs-qa,qa-approved,ready-to-merge"
+            TARGET_STATUS_NAME="IN PROGRESS"
+          else
+            TARGET_OPT=$(jq -r '.data.user.projectV2.fields.nodes[] | select(.name != null and (.name | ascii_downcase) == "status") | .options[] | select(.name != null and (.name | ascii_downcase) == "in review") | .id' project_data.json)
+            LABEL_ADD="needs-qa"
+            LABEL_DEL="qa-rejected,qa-approved,ready-to-merge"
+            TARGET_STATUS_NAME="IN REVIEW"
           fi
+
+          echo "🎯 Columna destino resuelta: $TARGET_STATUS_NAME ($TARGET_OPT)"
 
           CLOSING_ISSUES=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
@@ -903,17 +1015,16 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            echo "⚠️ El PR #$PR_NUMBER no tiene issues vinculadas vía closingIssuesReferences. Nada para mover."
+            echo "⚠️ No se encontraron closingIssuesReferences en PR #$PR_NUMBER"
             exit 0
           fi
 
-          ISSUE_LIST=$(echo "$CLOSING_ISSUES" | jq -s -c '.')
-          echo "$ISSUE_LIST" | jq -c '.[]' | while IFS= read -r ISSUE_OBJ; do
+          echo "$CLOSING_ISSUES" | jq -s -c '.[]' | while IFS= read -r ISSUE_OBJ; do
             ISSUE_ID=$(echo "$ISSUE_OBJ" | jq -r '.id')
             ISSUE_NUM=$(echo "$ISSUE_OBJ" | jq -r '.number')
 
             if [ "$DRY_RUN" = "true" ]; then
-              echo "🧪 [DRY RUN] Movería Issue #$ISSUE_NUM a QA APPROVED (sin ejecutar mutación real)"
+              echo "🧪 [DRY RUN] Movería Issue #$ISSUE_NUM a $TARGET_STATUS_NAME"
               continue
             fi
 
@@ -941,30 +1052,13 @@ jobs:
               -f project="$PROJECT_ID" \
               -f item="$ITEM_ID" \
               -f field="$STATUS_FIELD_ID" \
-              -f option="$QA_APPROVED_OPTION_ID" \
+              -f option="$TARGET_OPT" \
               --silent
 
-            echo "✔️ Issue #$ISSUE_NUM movida a QA APPROVED (forzado manualmente)"
+            echo "✔️ Issue #$ISSUE_NUM movida exitosamente a $TARGET_STATUS_NAME"
           done
 
-      - name: Labels y comentario (solo si dry_run=false)
-        if: github.event.inputs.dry_run == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          REVIEWER: ${{ github.actor }}
-        run: |
-          gh api /repos/${{ github.repository }}/labels -f name="qa-approved" -f color="0e8a16" 2>/dev/null || true
-          gh api /repos/${{ github.repository }}/labels -f name="ready-to-merge" -f color="0075ca" 2>/dev/null || true
-
-          gh pr edit ${{ github.event.inputs.pr_number }} \
-            --add-label "qa-approved,ready-to-merge" \
-            --remove-label "needs-qa,qa-rejected" \
-            --repo ${{ github.repository }} 2>/dev/null || true
-
-          COMMENT="## ✅ PR Aprobado por QA — Listo para Mergear (forzado manualmente)
-
-          @dgimenezdeveloper, este PR fue movido a **QA Approved** manualmente vía workflow_dispatch por @$REVIEWER."
-
-          gh pr comment ${{ github.event.inputs.pr_number }} \
-            --body "$COMMENT" \
-            --repo ${{ github.repository }}
+          if [ "$DRY_RUN" = "false" ]; then
+            gh pr edit $PR_NUMBER --add-label "$LABEL_ADD" --remove-label "$LABEL_DEL" --repo ${{ github.repository }} 2>/dev/null || true
+            gh pr comment $PR_NUMBER --body "🧪 [Manual Simulation] PR procesado con acción \`$ACTION_TYPE\` por @$ACTOR." --repo ${{ github.repository }}
+          fi

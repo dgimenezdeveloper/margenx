@@ -1,18 +1,22 @@
+version: '3.8'
+
 services:
   # ========================================================
-  # Base de Datos PostgreSQL Compartida (Staging + Prod)
+  # Base de Datos PostgreSQL Compartida (Aloja margenx_prod y margenx_dev)
   # ========================================================
   postgres:
     image: postgres:16-alpine
-    container_name: margenx_postgres
-    restart: always
+    container_name: margenx_postgres_prod
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB_PROD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     ports:
+      # Solo loopback: Postgres NO debe quedar expuesto a internet. Los backends lo usan por la red interna (postgres:5432).
+      # Acceso externo (DBeaver, etc.): túnel SSH -> ssh -L 5435:127.0.0.1:5435 usuario@vps
       - "127.0.0.1:5435:5432"
     networks:
       - margenx_network
@@ -29,30 +33,37 @@ services:
         max-file: "3"
 
   # ========================================================
-  # n8n Orquestador Satélite
+  # n8n Satélite (Orquestador de Alertas y Reportes)
   # ========================================================
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    container_name: margenx_n8n
-    restart: always
+    image: docker.n8n.io/n8nio/n8n
+    container_name: margenx_n8n_prod
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - NODE_OPTIONS=--max-old-space-size=768
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - INTERNAL_WEBHOOK_SECRET=${INTERNAL_WEBHOOK_SECRET}
+      - MARGENX_API_URL=${MARGENX_API_URL}
+      - IMAP_USER=${IMAP_USER}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    volumes:
+      - ./data/n8n:/home/node/.n8n
     ports:
       - "127.0.0.1:5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
-      - N8N_HOST=n8n.margenx.tech
-      - WEBHOOK_URL=https://n8n.margenx.tech/
-    volumes:
-      - n8n_data:/home/node/.n8n
     networks:
       - margenx_network
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1024M
         reservations:
-          memory: 256M
+          memory: 384M
     logging:
       driver: "json-file"
       options:
@@ -60,16 +71,20 @@ services:
         max-file: "3"
 
   # ========================================================
-  # PRODUCCIÓN: Backend API
+  # ENTORNO PRODUCCIÓN (Rama main)
   # ========================================================
   backend-prod:
     image: ${DOCKER_USERNAME}/margenx-backend:latest
     container_name: margenx_backend_prod
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_PROD}?schema=public
     ports:
       - "127.0.0.1:3011:3000"
-    env_file:
-      - .env.prod
     networks:
       - margenx_network
     depends_on:
@@ -86,13 +101,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ========================================================
-  # PRODUCCIÓN: Frontend SPA
-  # ========================================================
   frontend-prod:
     image: ${DOCKER_USERNAME}/margenx-frontend:latest
     container_name: margenx_frontend_prod
-    restart: always
+    restart: unless-stopped
     ports:
       - "127.0.0.1:3010:80"
     networks:
@@ -110,16 +122,20 @@ services:
         max-file: "3"
 
   # ========================================================
-  # STAGING: Backend API
+  # ENTORNO STAGING / DEV (Rama develop)
   # ========================================================
   backend-dev:
     image: ${DOCKER_USERNAME}/margenx-backend:dev
     container_name: margenx_backend_dev
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_DEV}?schema=public
     ports:
       - "127.0.0.1:3021:3000"
-    env_file:
-      - .env.dev
     networks:
       - margenx_network
     depends_on:
@@ -136,13 +152,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ========================================================
-  # STAGING: Frontend SPA
-  # ========================================================
   frontend-dev:
     image: ${DOCKER_USERNAME}/margenx-frontend:dev
     container_name: margenx_frontend_dev
-    restart: always
+    restart: unless-stopped
     ports:
       - "127.0.0.1:3020:80"
     networks:
@@ -161,8 +174,5 @@ services:
 
 networks:
   margenx_network:
-    external: true
-
-volumes:
-  postgres_data:
-  n8n_data:
+    name: margenx_network
+    driver: bridge

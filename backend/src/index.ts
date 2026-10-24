@@ -6,6 +6,7 @@ import ingredientsRoutes from './routes/ingredients';
 import productsRoutes from './routes/products';
 import dashboardRoutes from './routes/dashboard';
 import suppliersRoutes from './routes/suppliers';
+import webhooksRoutes from './routes/webhooks';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -15,13 +16,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;  // Utiliza el puerto definido en .env o 3000 como valor por defecto.
 
 app.use(cors());  // Permite solicitudes desde otros orígenes.
-app.use(express.json());  // Permite recibir y procesar JSON en el body de las peticiones.
+app.use(express.json({ limit: '1mb' }));  // Permite recibir payloads de ingestión masiva sin romper el límite de validación de negocio.
 app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenticación.
 app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de insumos (protegidas por authMiddleware).
 app.use('/api/products', productsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/suppliers', suppliersRoutes);
-
+app.use('/api/webhooks', webhooksRoutes);
 /*
   Health check de la API.
   Permite comprobar rápidamente si el servidor
