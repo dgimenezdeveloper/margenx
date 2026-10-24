@@ -17,7 +17,7 @@ Consolidar el MVP base de MargenX dotando al sistema de persistencia robusta, fl
 ## 2. Hitos Técnicos y Entregables Completados por Rol
 
 ### A. DevOps, Automatización e Infraestructura (Darío Giménez)
-- **Pipeline de Despliegue Continuo (CD) a VPS:** Configuración y puesta en marcha del workflow en GitHub Actions (`deploy.yml`) que compila imágenes Docker inmutables en Docker Hub y se conecta por SSH a la VPS Donweb (`168.197.49.120`) para actualizar los servicios sin tiempo de inactividad (Issue #40 / PR #58).
+- **Pipeline de Despliegue Continuo (CD) a VPS:** Configuración y puesta en marcha del workflow en GitHub Actions (`deploy.yml`) que compila imágenes Docker inmutables en Docker Hub y se conecta por SSH a la VPS Donweb (`<VPS_IP>`) para actualizar los servicios sin tiempo de inactividad (Issue #40 / PR #58).
 - **Migraciones Automatizadas en Despliegue:** Integración de la ejecución atómica de `prisma migrate deploy` mediante un contenedor efímero previo al reinicio de los contenedores de aplicación (Issue #41 / PR #59).
 - **Notificaciones de CI/CD en Discord:** Implementación de alertas automatizadas vía webhooks para reportar en tiempo real el éxito de los deploys y los fallos en pipelines (Issue #42 / PR #63).
 - **Hardening de Staging y Producción:** Configuración perimetral de Nginx reverse proxy con certificados SSL de Let's Encrypt para `dev.margenx.tech` y preconfiguración del entorno productivo `margenx.tech` (Issue #68).

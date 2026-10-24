@@ -12,6 +12,9 @@
 #   /bin/bash monitor-memory.sh           # Modo normal (umbral 85% o MEMORY_THRESHOLD)
 #   /bin/bash monitor-memory.sh 10        # Modo test con umbral al 10%
 #   /bin/bash monitor-memory.sh --test    # Fuerza el envío inmediato de prueba
+#
+# Variables opcionales:
+#   VPS_HOST   Host a mostrar en el embed (por defecto "N/D"; no se versiona).
 # ==============================================================================
 
 set -euo pipefail
@@ -153,7 +156,7 @@ JSON_PAYLOAD=$(cat << EOF
         },
         {
           "name": "🖥️ Servidor Host",
-          "value": "\`168.197.49.120\`",
+          "value": "\`${VPS_HOST:-N/D}\`",
           "inline": true
         },
         {

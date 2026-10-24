@@ -110,7 +110,7 @@ graph LR
     subgraph IDP ["Identidad"]
         Clerk["Clerk Auth (JWT)"]
     end
-    subgraph VPS ["VPS (168.197.49.120)"]
+    subgraph VPS ["VPS (<VPS_IP>)"]
         Nginx["Nginx Host (SSL)"]
         Front["frontend-dev:3011"]
         Back["backend-dev:3021"]

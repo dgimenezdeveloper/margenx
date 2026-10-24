@@ -170,7 +170,7 @@ graph LR
     subgraph IDP ["Identidad"]
         Clerk["Clerk Auth (JWT)"]
     end
-    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS — 168.197.49.120)"]
+    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS — <VPS_IP>)"]
         Nginx["Nginx Reverse Proxy (SSL Let's Encrypt)"]
         
         subgraph PROD ["Entorno Producción (margenx.tech)"]
