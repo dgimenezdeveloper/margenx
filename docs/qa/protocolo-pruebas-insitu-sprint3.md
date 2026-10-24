@@ -40,8 +40,8 @@ existentes, no un reemplazo:
 
 | Comercio | Rol a probar | Credenciales |
 | --- | --- | --- |
-| Panadería Central | ADMIN (dueño/encargado) | `admin.panaderia@hotmail.com` |
-| Panadería Central | COLLABORATOR (empleado de mostrador) | `colab.panaderia@hotmail.com` |
+| Panadería Central | ADMIN (dueño/encargado) | `cuenta piloto: ADMIN Panadería Central` |
+| Panadería Central | COLLABORATOR (empleado de mostrador) | `cuenta piloto: COLLABORATOR Panadería Central` |
 | Química GyJ | ADMIN (dueño/encargado) | a confirmar con el responsable del comercio el día de la visita |
 
 Mismas cuentas reales de Clerk que usa el resto de la suite E2E del
@@ -150,7 +150,7 @@ Escenario: Un colaborador de mostrador consulta precios en su propio teléfono
 ```
 
 **Guía de ejecución:**
-1. Loguearse con `colab.panaderia@hotmail.com` directamente en el teléfono
+1. Loguearse con `cuenta piloto: COLLABORATOR Panadería Central` directamente en el teléfono
    del colaborador (no en el del encargado de QA), para que la prueba
    refleje su uso real.
 2. Navegar lentamente por `/productos` (lista completa) y `/dashboard`,

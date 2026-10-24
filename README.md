@@ -97,7 +97,7 @@ The application is structured into four core operational modules:
 #### Option B: Manual Local Setup
 ```bash
 # 1. Start PostgreSQL 16 in Docker
-docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=devpassword123 -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine
+docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=<tu_password_local> -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine
 
 # 2. Setup & Run Backend
 cd backend
@@ -215,7 +215,7 @@ Módulos principales del sistema:
 #### Opción B: Ejecución Manual
 ```bash
 # 1. Iniciar PostgreSQL 16
-docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=devpassword123 -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine
+docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=<tu_password_local> -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine
 
 # 2. Configurar y levantar Backend
 cd backend

@@ -21,7 +21,7 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
 
 `rbac-security.spec.ts` necesita auditar la app con permisos de `COLLABORATOR`, no de `ADMIN` — una sesión distinta a la que usa el resto de las suites. En vez de loguear/desloguear dentro del test (lento y frágil), sigue el mismo patrón de auth global pero en paralelo:
 
-- **Proyecto `setup-collaborator` (`auth.collaborator.setup.ts`):** mismo mecanismo de `clerk.signIn({ page, emailAddress })`, pero con `E2E_CLERK_COLLAB_EMAIL` (`colab.panaderia@hotmail.com`). Persiste su propio `storageState` en `playwright/.auth/collaborator.json` — nunca pisa `user.json`.
+- **Proyecto `setup-collaborator` (`auth.collaborator.setup.ts`):** mismo mecanismo de `clerk.signIn({ page, emailAddress })`, pero con `E2E_CLERK_COLLAB_EMAIL` (cuenta de pruebas definida en los secrets de GitHub). Persiste su propio `storageState` en `playwright/.auth/collaborator.json` — nunca pisa `user.json`.
 - **Proyecto `chromium-collaborator`:** el único que carga `collaborator.json` y el único que corre `rbac-security.spec.ts` (vía `testMatch`). Los proyectos `chromium`/`firefox`/`webkit` excluyen ese archivo explícitamente (`testIgnore`) para no correrlo dos veces con la sesión equivocada.
 - Acotado a un solo browser (Chromium): alcanza para auditar ocultamiento de datos y no justifica triplicar el tiempo de CI.
 
@@ -37,4 +37,4 @@ cp frontend/.env.test.example frontend/.env.test
 Completá `E2E_CLERK_COLLAB_EMAIL` además de las variables ya existentes (ver `.env.test.example`) para poder correr `rbac-security.spec.ts`.
 
 ### Secret Nuevo en CI (issue #127)
-Además de los secrets ya configurados (`VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `E2E_CLERK_TEST_EMAIL`, `E2E_CLERK_TEST_PASSWORD`), GitHub Actions necesita `E2E_CLERK_COLLAB_EMAIL` (`colab.panaderia@hotmail.com`) en *Settings → Secrets and variables → Actions* para que `chromium-collaborator` pueda correr.
+Además de los secrets ya configurados (`VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `E2E_CLERK_TEST_EMAIL`, `E2E_CLERK_TEST_PASSWORD`), GitHub Actions necesita `E2E_CLERK_COLLAB_EMAIL` (cuenta de pruebas definida en los secrets de GitHub) en *Settings → Secrets and variables → Actions* para que `chromium-collaborator` pueda correr.
