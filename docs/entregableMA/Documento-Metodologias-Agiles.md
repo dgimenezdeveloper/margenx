@@ -77,7 +77,7 @@ Durante el ciclo de desarrollo del **Sprint 4**, la plataforma evolucionó de un
   1. El cliente envía la solicitud HTTP acompañada del Bearer Token de Clerk.
   2. El middleware `authMiddleware` valida la firma asimétrica del token (RS256) contra la clave pública del entorno (`CLERK_JWT_KEY`) y recupera el registro del usuario en PostgreSQL.
   3. El middleware `sanitizeFinancialData` intercepta la respuesta saliente:
-     a. Configura la cabecera HTTP defensiva `Cache-Control: private, no-store` para impedir que proxys o el navegador almacenen datos sensibles en caché.
+     a. Configura la cabecera HTTP defensiva `Cache-Control: private, no-store` para impedir que proxies o el navegador almacenen datos sensibles en caché.
      b. Sobrescribe el método `res.json` para purgar de manera recursiva todos los campos financieros prohibidos (`cost`, `marginAmount`, `marginPercent`, `minMarginPercent`, `defaultMinMarginPercent`, `packagePrice`, `packageSize`, `unitCost`, `suppliers`).
   4. El controlador resuelve la consulta filtrando por `accountId`.
   5. La respuesta JSON sanitizada viaja hacia el cliente conteniendo únicamente el nombre del producto, la presentación y el `salePrice` (precio de venta al público).
