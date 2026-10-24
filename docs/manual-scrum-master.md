@@ -108,7 +108,7 @@ En los sábados no presenciales del calendario académico, la cátedra exige pre
 ---
 
 ## 2. PERSPECTIVA ARQUITECTÓNICA Y DE INGENIERÍA (Evaluación Product Owner PPS)
-* **Estado de la Infraestructura VPS Donweb (168.197.49.120):**
+* **Estado de la Infraestructura VPS Donweb (<VPS_IP>):**
   - Contenedores activos en Staging: Frontend Dev (3020), Backend Dev (3021), Postgres (5435), n8n (5678).
   - Estado de la base de datos `margenx_dev`.
 * **Integridad Transaccional y Persistencia:**
@@ -237,7 +237,7 @@ En la raíz del repositorio, actualizar `CHANGELOG.md` siguiendo el estándar [K
 Al publicarse el Release en `main`, GitHub Actions dispara automáticamente el workflow `deploy.yml`:
 1. Compila las imágenes de Frontend y Backend con tag `:latest`.
 2. Sube las imágenes a Docker Hub (`dgimenezdeveloper/margenx-frontend:latest` y `dgimenezdeveloper/margenx-backend:latest`).
-3. Se conecta por SSH a la VPS Donweb (`168.197.49.120`) y ejecuta:
+3. Se conecta por SSH a la VPS Donweb (`<VPS_IP>`) y ejecuta:
    ```bash
    docker compose pull backend-prod frontend-prod
    docker compose run --rm backend-prod npx prisma migrate deploy  # Contra la base margenx_prod en puerto 5435
