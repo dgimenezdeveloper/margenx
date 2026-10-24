@@ -2,7 +2,7 @@
 
 * **Estado:** Aceptado
 * **Fecha:** 2026-10-19
-* **Decisores:** Darío Giménez (DevOps/SM), Leandro Herrera (QA/PO), equipo de desarrollo MargenX
+* **Decisores:** Darío Giménez, Leandro Herrera, equipo de desarrollo MargenX
 * **Issue:** #180 (SPRINT4-DOCS-02)
 * **Relacionado con:** `docs/qa/reporte-precision-sprint2.md` (issue #77), `backend/src/services/marginCalculator.ts` (issue #75)
 
@@ -64,5 +64,16 @@ Implementación vigente:
   * Coherencia con el estándar financiero y con las pruebas de precisión de `reporte-precision-sprint2.md`.
 * **Negativas / a mitigar:**
   * Un comerciante habituado al markup puede esperar "100 %" para duplicar el costo y ver 50 %. *Mitigación:* el simulador sugiere el precio para un margen objetivo y la documentación de soporte (`support-docs-modal`) debe explicar la equivalencia con la tabla de este ADR.
-  * El frontend calcula y muestra el margen con 1 decimal mientras el backend lo liquida con 2 (hallazgo §5 de `reporte-precision-sprint2.md`, diferencia máxima de 0,05 puntos porcentuales). *Mitigación:* se propone unificar a 2 decimales (mejora pendiente, fuera del alcance de este ADR); hasta entonces la fuente de verdad es el valor del backend.
+  * El frontend calcula y muestra el margen con 1 decimal mientras el backend lo liquida con 2 (hallazgo §5 de `reporte-precision-sprint2.md`, diferencia máxima de 0,05 puntos porcentuales). *Mitigación:* es una **deuda conocida**: la unificación a 2 decimales se trata en el Sprint 5 (fuera del alcance de este ADR); hasta entonces la fuente de verdad es el valor del backend.
   * Los productos sin ingredientes muestran `0.00 %` aunque tengan precio; se interpreta como "sin costo cargado", no como rentabilidad nula.
+
+## Revisión
+
+| Concepto | Detalle |
+|:---|:---|
+| Fecha de la decisión | 2026-10-19 |
+| Commit original | `e4af603` (directo a `develop`) |
+| Issue de la decisión | #180 (cerrada sin rama ni PR) |
+| Issue de regularización | #227 |
+| PR de regularización | #228 |
+| Revisores | Federico Paal |
