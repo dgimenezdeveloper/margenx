@@ -401,7 +401,7 @@ Matriz relacional que asocia insumos a productos con sus cantidades de formulaci
 
 ## 4. Arquitectura y Diagrama de Despliegue de Infraestructura
 
-El despliegue opera bajo el modelo **Consolidado 100% en VPS Linux** (Ubuntu 22.04 LTS, IP `168.197.49.120`), implementando un esquema de doble entorno (Staging y Producción) dentro de una misma máquina mediante Docker Compose, aislando bases de datos y confinando el uso de memoria a un techo de $\approx 3.3\text{ GB}$.
+El despliegue opera bajo el modelo **Consolidado 100% en VPS Linux** (Ubuntu 22.04 LTS, IP no publicada), implementando un esquema de doble entorno (Staging y Producción) dentro de una misma máquina mediante Docker Compose, aislando bases de datos y confinando el uso de memoria a un techo de $\approx 3.3\text{ GB}$.
 
 ### 4.1. Diagrama de Despliegue Físico y Topología de Red (Mermaid)
 
