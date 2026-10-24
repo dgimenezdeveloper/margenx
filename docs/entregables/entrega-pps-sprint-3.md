@@ -7,10 +7,10 @@
 > * **API Backend Healthcheck:** [https://api.margenx.tech/api/health](https://api.margenx.tech/api/health) (`status: ok`, `environment: production`)
 > * **Entorno Staging (Develop):** [https://dev.margenx.tech](https://dev.margenx.tech)
 > 
-> * **ADMIN (Panadería Central):** `admin.panaderia@hotmail.com` · Clave:  *[Provista en el PDF / entrega del Campus]*
-> * **COLLABORATOR (Panadería Central):** `colab.panaderia@hotmail.com` · Clave:  *[Provista en el PDF / entrega del Campus]*
-> * **ADMIN (Química GyJ):** `admin.quimica@hotmail.com` · Clave:  *[Provista en el PDF / entrega del Campus]*
-> * **COLLABORATOR (Química GyJ):** `colab.quimica@hotmail.com` · Clave:  *[Provista en el PDF / entrega del Campus]*
+> * **ADMIN (Panadería Central):** `cuenta piloto: ADMIN Panadería Central` · Clave:  *[Provista en el PDF / entrega del Campus]*
+> * **COLLABORATOR (Panadería Central):** `cuenta piloto: COLLABORATOR Panadería Central` · Clave:  *[Provista en el PDF / entrega del Campus]*
+> * **ADMIN (Química GyJ):** `cuenta piloto: ADMIN Química GyJ` · Clave:  *[Provista en el PDF / entrega del Campus]*
+> * **COLLABORATOR (Química GyJ):** `cuenta piloto: COLLABORATOR Química GyJ` · Clave:  *[Provista en el PDF / entrega del Campus]*
 
 ---
 
@@ -66,7 +66,7 @@
   * La base productiva cuenta con el dataset real de *Panadería Central* (10 insumos: harina 0000 Olavarriense, manteca mayorista, levadura fresca, grasa refinada, leche Silvia; y productos como Medialunas de manteca, Cañoncitos con DDL, Pan lactal) y de *Química GyJ* (pasta suavi, sulfonico, soda cáustica, etoxilado; y productos como Jabón líquido tipo Skip 1L, Suavizante Vivere 1L). Precios vigentes en pesos argentinos (ARS) y fechas de variaciones de costos auditables en el historial.
 * **Verificable en vivo durante la evaluación:**
   1. **Gestión de Proveedores sin Sistemas Integrables (Feedback Cátedra):** En `/insumos`, selección de cualquier materia prima $\rightarrow$ modal de compras mayoristas $\rightarrow$ carga asistida de bultos (ej. "Distribuidora Mayorista Molinera": bolsa 25 kg a $18.000). El sistema calcula reactivamente el costo unitario por kilo ($720/kg) y actualiza el costo activo impactando las recetas.
-  2. **RBAC y Ocultamiento Financiero Total:** Ingreso con usuario colaborador (`colab.panaderia@hotmail.com`): catálogo en modo atención al público, ruta `/insumos` bloqueada por guardias y sanitización server-side que elimina costos, márgenes y proveedores tanto del DOM como del payload de red.
+  2. **RBAC y Ocultamiento Financiero Total:** Ingreso con usuario colaborador (`cuenta piloto: COLLABORATOR Panadería Central`): catálogo en modo atención al público, ruta `/insumos` bloqueada por guardias y sanitización server-side que elimina costos, márgenes y proveedores tanto del DOM como del payload de red.
   3. **Dashboard con Métricas Reales:** Tarjetas KPI de productos en riesgo y margen promedio calculados sobre la base PostgreSQL real, junto con el histograma de 4 rangos de rentabilidad (WCAG AA).
   4. **Eliminación de Fricción de Sesión (Feedback Cátedra):** Refactorización de `useSessionSecurity.ts` para eliminar deslogueos agresivos a los 15 minutos mientras el operador permanece en caja.
 
