@@ -19,7 +19,7 @@
 
 * **Compromiso inicial:** 30 issues · **95 Story Points (SP)**.
 * **Incorporado durante el cierre:** 5 issues · **8 SP** (`#220`, `#222`, `#224`, `#226`, `#227`), todas derivadas de la devolución de la Entrega 4, de las pruebas de cierre y de las tareas de release. Total del sprint: **35 issues · 103 SP**.
-* **Estado al cierre:** 34 de 35 issues completadas (**100 de 103 SP, 97 %**). La restante (`#226`) es la tarea de cierre del release, que se confirma al publicar el tag v0.5.0 (la regularización del ADR-004, `#227`, ya se mergeó en el PR #228). <!-- confirmar Done tras release --> Ninguna historia de producto se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
+* **Estado al cierre:** 35 de 35 issues completadas (**103 de 103 SP, 100 %**). La última, `#226` (release v0.5.0), se cerró tras publicar el tag y la Release; la regularización del ADR-004 (`#227`) se mergeó en el PR #228. Ninguna historia de producto se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
 
 | Issue | Responsable | Área | SP | Estado | PR / evidencia |
 | :--- | :--- | :--- | :-: | :-: | :--- |
@@ -56,13 +56,13 @@
 | `#220` | Darío Giménez | DevOps / Backend | 2 | Done | [PR #221](https://github.com/dgimenezdeveloper/margenx/pull/221) — Cuenta de demo dedicada "Demo MargenX" *(incorporada)* |
 | `#222` | Darío Giménez | Backend / DevOps | 1 | Done | [PR #223](https://github.com/dgimenezdeveloper/margenx/pull/223) — El link de las alertas respeta el entorno *(incorporada)* |
 | `#224` | Darío Giménez | DevOps / Docs | 1 | Done | [PR #225](https://github.com/dgimenezdeveloper/margenx/pull/225) — Limpieza de datos sensibles del repositorio público *(incorporada)* |
-| `#226` | Darío Giménez | DevOps | 3 | Pendiente <!-- confirmar Done tras release --> | Release v0.5.0: checklist de pre-release, merge a `main`, tag y rollback *(incorporada)* |
+| `#226` | Darío Giménez | DevOps | 3 | Done | [PR #231](https://github.com/dgimenezdeveloper/margenx/pull/231) · [tag v0.5.0](https://github.com/dgimenezdeveloper/margenx/tree/v0.5.0) · [Release v0.5.0](https://github.com/dgimenezdeveloper/margenx/releases/tag/v0.5.0) — Release v0.5.0: checklist de pre-release, merge a `main`, tag y rollback *(incorporada)* |
 | `#227` | Darío Giménez | Docs | 1 | Done | [PR #228](https://github.com/dgimenezdeveloper/margenx/pull/228) — Regularización del ADR-004 (flujo de PR y revisión, ref. `#180`) *(incorporada)* |
 
 ### 3. Demo: qué se ve funcionando y en qué URL
 * **Entorno de evaluación:** [https://dev.margenx.tech](https://dev.margenx.tech) · **Healthcheck:** [https://api-dev.margenx.tech/api/health](https://api-dev.margenx.tech/api/health) (`status: ok`, entorno `development`).
 * **Cuentas de prueba (devolución de la Entrega 4):** el entorno tiene dos usuarios dedicados al comercio ficticio **"Demo MargenX"**, con datos inventados: `demo-admin@margenx.tech` (rol ADMIN) y `demo-colab@margenx.tech` (rol COLLABORATOR). Las contraseñas se entregan por el Campus. Son credenciales de un **entorno de prueba**: no se reutilizan en producción ni con datos de clientes reales, y se rotan al cerrar la cursada. Los comercios piloto reales (Panadería Central y Química GyJ) **no** se usan en la demo.
-* **Producción** ([https://margenx.tech](https://margenx.tech)) corre con datos de los comercios piloto; por eso la evaluación se hace en el entorno de prueba.
+* **Producción** ([https://margenx.tech](https://margenx.tech)) está desplegada en la versión **v0.5.0** (healthcheck en 200) y corre con datos de los comercios piloto. **Los datos de demostración (cuenta *Demo MargenX*) están cargados en el entorno de dev, no en producción**; por eso la evaluación se hace en [https://dev.margenx.tech](https://dev.margenx.tech). La siembra de la cuenta Demo en producción y la verificación de un login autenticado en producción con una cuenta real quedan pendientes (ver punto 5).
 
 **Recorrido sugerido con la cuenta ADMIN (cada paso cubre una funcionalidad del sprint):**
 1. **Despensa (`/insumos`):** 8 insumos con costo vigente y proveedores asociados.
@@ -76,7 +76,7 @@
 * **Ingesta por correo (Zero-Click).** El comerciante reenvía la lista del distribuidor a su alias `precios-<comercio>@margenx.tech` (el workflow también acepta `precios+<comercio>@`); Cloudflare y Gmail la entregan a n8n, que la convierte y envía al backend. El backend actualiza solo los artículos que el comercio ya mapeó, **descarta con motivo** el resto, **retiene en cuarentena** los precios anómalos (variación del costo unitario superior al 50 %, en alza o en baja, o costo unitario ≤ $0,01) y envía al dueño un resumen por correo. El dato dudoso nunca se aplica solo, de modo que un error del proveedor no distorsiona los márgenes.
 
 ### 4. Commits del período
-* **Comparación oficial:** [v0.4.0...v0.5.0](https://github.com/dgimenezdeveloper/margenx/compare/v0.4.0...v0.5.0)
+* **Comparación oficial:** [v0.4.0...v0.5.0](https://github.com/dgimenezdeveloper/margenx/compare/v0.4.0...v0.5.0) · **Release:** [v0.5.0](https://github.com/dgimenezdeveloper/margenx/releases/tag/v0.5.0) (tag anotado sobre el merge commit del release)
 * **Hitos verificables (hash corto del commit en `develop`):**
   * `720b454` — recálculo transaccional en cascada (`#28`, PR #182)
   * `16d39d8` — webhook de ingesta masiva (`#160`, PR #183)
@@ -108,6 +108,7 @@
   * `3f226e3` — el link de las alertas respeta el entorno (`#222`, PR #223)
   * `0665028` — limpieza de datos sensibles del repositorio (`#224`, PR #225)
   * `e9ec970` — regularización del ADR-004 (`#227`, PR #228)
+  * `fc99acb` — merge commit del release v0.5.0 en `main` (`#226`, [PR #231](https://github.com/dgimenezdeveloper/margenx/pull/231)), sin squash
 
 ### 5. Impedimentos y qué necesitan de la cátedra
 **Resueltos en este período**
@@ -129,7 +130,14 @@
 | Nombres de producto con "De" en mayúscula en la interfaz | Baja (cosmético) | Sprint 5 |
 | Sin backup automático de la base | Media | Sprint 5 (backup diario y ensayo de restauración) |
 
-**Activo / consulta a la cátedra:** el sistema admite `salePrice: 0` en productos en borrador ("Sin costear"), lo que produce un margen negativo transitorio. Solicitamos confirmar si se prefiere mantener esa flexibilidad o bloquear precios en cero cuando el producto ya tiene insumos. Fuera de eso, **sin bloqueos activos** para iniciar el Sprint 5.
+**Pendientes del release v0.5.0 (pasan al Sprint 5)**
+* **(a) Producción sin verificar con sesión autenticada:** sembrar la cuenta *Demo MargenX* en producción y verificar un login autenticado en producción con una cuenta real. Hoy los usuarios demo no existen en la base de producción, por lo que no pueden ingresar allí.
+* **(b) Pruebas en producción:** webhook de ingesta (200 con secreto válido, 401 con inválido) y alerta de margen de prueba con el link al entorno correcto.
+* **(c) Rotación de credenciales** de entregas anteriores y de los servicios, al cierre de la cursada.
+* **(d) Limpieza de datos de conexión de la base** (usuario y puerto) que quedan en la documentación y en los archivos de ejemplo de entorno.
+* **(e) La IP del VPS permanece en el historial de git:** se quitó del árbol actual, pero no se reescribe el historial. La mitigación es el firewall (puerto de la base cerrado desde el exterior, verificado el 24/10).
+
+**Activo / consulta a la cátedra:** el sistema admite `salePrice: 0` en productos en borrador ("Sin costear"), lo que produce un margen negativo transitorio. Solicitamos confirmar si se prefiere mantener esa flexibilidad o bloquear precios en cero cuando el producto ya tiene insumos. Fuera de eso, **sin bloqueos activos** para iniciar el Sprint 5; los pendientes del release no impiden arrancarlo.
 
 ### 6. Horas dedicadas por integrante
 | Integrante | Rol en el proyecto | Horas Sprint 4 (2 semanas) | Total acumulado |
@@ -143,13 +151,15 @@
 *Horas totales del sprint, no semanales. El acumulado parte de las 322 h informadas en la Entrega 3 (cierre del Sprint 3, de una semana) más las 110 h de este sprint.*
 
 ### 7. Compromiso del próximo período
-**Sprint 5 (25/10/2026 al 07/11/2026) · Scrum Master: Darío Giménez, hasta la entrega final.**
+**Sprint 5 (25/10/2026 al 07/11/2026) · Scrum Master: Darío Giménez, hasta la entrega final.** Los ítems siguientes son los candidatos del sprint, **a planificar y estimar en el Sprint Planning del 25/10**; el alcance definitivo se confirma allí.
 1. **Smart Purchasing (RF-15):** comparación de ofertas por insumo, ahorro proyectado ($ y %) y orden de compra sugerida al proveedor más conveniente.
 2. **Reporte ejecutivo semanal en PDF por n8n:** disparo programado (lunes 08:00), compilado desde `/api/reports/margin-summary` y enviado al administrador.
 3. **Moneda y cotización:** conversión ARS/USD con cotización BCRA/BNA.
 4. **Sesión y seguridad:** separar las instancias de Clerk de producción y desarrollo, ajustar la duración de sesión y rotar las credenciales de entregas anteriores al cierre de la cursada.
 5. **Datos y continuidad:** índices compuestos en PostgreSQL, backup automático diario en el VPS y ensayo de restauración.
-6. **Calidad y deuda:** corregir los hallazgos del punto 5, convertir las sugerencias no bloqueantes de las revisiones en issues (etiqueta `review-followup`) y auditoría de accesibilidad y rendimiento (objetivo: más de 90 puntos en Lighthouse a 360 px).
+6. **Calidad y deuda:** corregir los hallazgos del punto 5, convertir las sugerencias no bloqueantes de las revisiones en issues de seguimiento (etiqueta `review-followup`) y auditoría de accesibilidad y rendimiento (objetivo: más de 90 puntos en Lighthouse a 360 px).
+7. **Colecciones Postman/Newman:** actualizar las 6 colecciones al contrato vigente; desde el Sprint 5, todo cambio de contrato HTTP actualiza su colección en el mismo PR.
+8. **Pendientes del release v0.5.0:** los ítems (a) a (e) del punto 5 (siembra de la cuenta Demo y login autenticado en producción, webhook 200/401 y alerta de prueba en producción, rotación de credenciales y limpieza de datos de conexión en docs y archivos de ejemplo).
 
 ---
 <!-- SALTO DE PÁGINA PARA EXPORTAR A PDF -->
