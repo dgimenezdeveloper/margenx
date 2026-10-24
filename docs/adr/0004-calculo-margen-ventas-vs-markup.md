@@ -75,5 +75,5 @@ Implementación vigente:
 | Commit original | `e4af603` (directo a `develop`) |
 | Issue de la decisión | #180 (cerrada sin rama ni PR) |
 | Issue de regularización | #227 |
-| PR de regularización | #XXX <!-- completar --> |
-| Revisores | Leandro Herrera o Federico Paal <!-- completar con quien apruebe --> |
+| PR de regularización | #228 |
+| Revisores | Federico Paal |
