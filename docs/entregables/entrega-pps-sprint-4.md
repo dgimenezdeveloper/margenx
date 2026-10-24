@@ -19,7 +19,7 @@
 
 * **Compromiso inicial:** 30 issues · **95 Story Points (SP)**.
 * **Incorporado durante el cierre:** 5 issues · **8 SP** (`#220`, `#222`, `#224`, `#226`, `#227`), todas derivadas de la devolución de la Entrega 4, de las pruebas de cierre y de las tareas de release. Total del sprint: **35 issues · 103 SP**.
-* **Estado al cierre:** 33 de 35 issues completadas (**99 de 103 SP, 96 %**). Las 2 restantes (`#226` y `#227`) son tareas de cierre del release que se confirman al publicar el tag v0.5.0 y al mergear la regularización del ADR-004 <!-- confirmar Done tras release -->. Ninguna historia de producto se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
+* **Estado al cierre:** 34 de 35 issues completadas (**100 de 103 SP, 97 %**). La restante (`#226`) es la tarea de cierre del release, que se confirma al publicar el tag v0.5.0 (la regularización del ADR-004, `#227`, ya se mergeó en el PR #228). <!-- confirmar Done tras release --> Ninguna historia de producto se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
 
 | Issue | Responsable | Área | SP | Estado | PR / evidencia |
 | :--- | :--- | :--- | :-: | :-: | :--- |
@@ -57,7 +57,7 @@
 | `#222` | Darío Giménez | Backend / DevOps | 1 | Done | [PR #223](https://github.com/dgimenezdeveloper/margenx/pull/223) — El link de las alertas respeta el entorno *(incorporada)* |
 | `#224` | Darío Giménez | DevOps / Docs | 1 | Done | [PR #225](https://github.com/dgimenezdeveloper/margenx/pull/225) — Limpieza de datos sensibles del repositorio público *(incorporada)* |
 | `#226` | Darío Giménez | DevOps | 3 | Pendiente <!-- confirmar Done tras release --> | Release v0.5.0: checklist de pre-release, merge a `main`, tag y rollback *(incorporada)* |
-| `#227` | Darío Giménez | Docs | 1 | Pendiente <!-- confirmar Done tras merge --> | [PR #228](https://github.com/dgimenezdeveloper/margenx/pull/228) — Regularización del ADR-004 (flujo de PR y revisión, ref. `#180`) *(incorporada)* |
+| `#227` | Darío Giménez | Docs | 1 | Done | [PR #228](https://github.com/dgimenezdeveloper/margenx/pull/228) — Regularización del ADR-004 (flujo de PR y revisión, ref. `#180`) *(incorporada)* |
 
 ### 3. Demo: qué se ve funcionando y en qué URL
 * **Entorno de evaluación:** [https://dev.margenx.tech](https://dev.margenx.tech) · **Healthcheck:** [https://api-dev.margenx.tech/api/health](https://api-dev.margenx.tech/api/health) (`status: ok`, entorno `development`).
@@ -105,6 +105,9 @@
   * `d5a9c25` — seed con proveedores mayoristas (`#178`, PR #196)
   * `21955da` — SAD sincronizado (`#179`, PR #189)
   * `94f4c71` — cuenta de demo dedicada (`#220`, PR #221)
+  * `3f226e3` — el link de las alertas respeta el entorno (`#222`, PR #223)
+  * `0665028` — limpieza de datos sensibles del repositorio (`#224`, PR #225)
+  * `e9ec970` — regularización del ADR-004 (`#227`, PR #228)
 
 ### 5. Impedimentos y qué necesitan de la cátedra
 **Resueltos en este período**
@@ -112,7 +115,7 @@
 * **Scroll en iOS Safari:** el fondo se desplazaba con un modal abierto; se corrigió con un bloqueo de posición en el hook `useBodyScrollLock` (`#193`).
 * **Memoria de n8n:** el procesamiento de planillas grandes agotaba el heap de Node; se ajustó el límite del contenedor y de Node en la configuración de producción.
 * **Credenciales en la documentación (devolución de la Entrega 4):** se creó la cuenta Demo dedicada (`#220`) y se retiraron del repositorio los datos de los comercios piloto y los ejemplos de contraseña (`#224`). Queda un límite honesto: los valores anteriores siguen en el historial de git, por lo que las claves que figuraron en entregas previas se rotan al cierre de la cursada.
-* **Link de las alertas apuntaba siempre a producción:** corregido para que respete el entorno (`#222`).
+* **Link de las alertas apuntaba siempre a producción:** corregido para que respete el entorno (`#222`, PR #223); verificado en el entorno de desarrollo el 24/10.
 
 **Pendientes conocidos (registro de hallazgos, con severidad)**
 
