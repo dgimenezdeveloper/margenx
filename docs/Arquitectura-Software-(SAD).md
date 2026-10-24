@@ -137,7 +137,7 @@ erDiagram
         string businessName "Nombre comercial"
         string slug UK "Identificador URL para correos"
         string subscriptionPlan "FREE | PRO"
-        datetime trialEndsAt "Vencimiento freemium"
+        datetime trialEndsAt "Vencimiento freemium (opcional)"
         boolean isActive "Estado de cuenta"
         decimal defaultMinMarginPercent "Decimal(5,2) Margen global inicial"
         datetime createdAt
@@ -164,27 +164,27 @@ erDiagram
     SUPPLIER {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Razón social / Nombre fantasía"
-        string contactPhone "Teléfono comercial"
-        string email "Correo de contacto"
-        string address "Dirección física"
+        string name "Razón social / Nombre fantasía (UK con accountId)"
+        string contactPhone "Teléfono comercial (opcional)"
+        string email "Correo de contacto (opcional)"
+        string address "Dirección física (opcional)"
         boolean isActive "Estado del proveedor"
     }
 
     SUPPLIER_INGREDIENT {
         string id PK "uuid"
-        string supplierId FK "uuid"
-        string ingredientId FK "uuid"
-        string supplierCode "Código SKU mayorista"
-        string rawDescription "Descripción según factura"
+        string supplierId FK "uuid (UK con ingredientId)"
+        string ingredientId FK "uuid (UK con supplierId)"
+        string supplierCode "Código SKU mayorista (opcional, UK con supplierId)"
+        string rawDescription "Descripción según factura (opcional)"
         decimal packageSize "Decimal(10,3) Contenido por bulto"
         string packageUnit "Unidad base: kg, l, u"
         decimal packagePrice "Decimal(10,2) Precio cerrado de bulto"
-        decimal pendingPackagePrice "Decimal(10,2) Precio propuesto en cuarentena"
+        decimal pendingPackagePrice "Decimal(10,2) Precio propuesto en cuarentena (opcional)"
         boolean isDefault "Indica si alimenta currentCost"
         boolean isQuarantined "Bandera de retención anómala"
-        datetime quarantinedAt "Fecha de ingreso a cuarentena"
-        string quarantineReason "Motivo de la retención anómala"
+        datetime quarantinedAt "Fecha de ingreso a cuarentena (opcional)"
+        string quarantineReason "Motivo de la retención anómala (opcional)"
     }
 
     PRICE_HISTORY {
@@ -198,7 +198,7 @@ erDiagram
     PRODUCT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Denominación comercial"
+        string name "Denominación comercial (UK con accountId)"
         decimal salePrice "Decimal(10,2) Precio de venta al público"
         decimal minMarginPercent "Decimal(5,2) Umbral de alerta"
         decimal cost "Decimal(10,2) Costo total de receta"
@@ -209,8 +209,8 @@ erDiagram
 
     PRODUCT_INGREDIENT {
         string id PK "uuid"
-        string productId FK "uuid"
-        string ingredientId FK "uuid"
+        string productId FK "uuid (UK con ingredientId)"
+        string ingredientId FK "uuid (UK con productId)"
         decimal quantity "Decimal(10,3) Cantidad usada en receta"
     }
 ```
@@ -265,6 +265,12 @@ classDiagram
         +String packageUnit
         +Decimal packagePrice
         +Boolean isDefault
+        +String supplierCode
+        +String rawDescription
+        +Decimal pendingPackagePrice
+        +Boolean isQuarantined
+        +DateTime quarantinedAt
+        +String quarantineReason
         +calculateUnitCost() Decimal
     }
 

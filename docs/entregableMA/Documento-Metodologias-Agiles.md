@@ -226,7 +226,7 @@ erDiagram
         TEXT businessName "Nombre fantasía del comercio"
         TEXT slug UK "Identificador URL-safe para correo"
         TEXT subscriptionPlan "FREE | PRO (default: FREE)"
-        TIMESTAMP trialEndsAt "Vencimiento freemium (nullable)"
+        TIMESTAMP trialEndsAt "Vencimiento freemium (opcional)"
         BOOLEAN isActive "Estado de cuenta (default: true)"
         DECIMAL defaultMinMarginPercent "Decimal(5,2) (default: 30.00)"
         TIMESTAMP createdAt "default: now()"
@@ -253,27 +253,27 @@ erDiagram
     Supplier {
         TEXT id PK "uuid() default"
         TEXT accountId FK "uuid -> Account.id"
-        TEXT name "Razón social del proveedor"
-        TEXT contactPhone "Teléfono (nullable)"
-        TEXT email "Correo de contacto (nullable)"
-        TEXT address "Dirección física (nullable)"
+        TEXT name "Razón social del proveedor (UK con accountId)"
+        TEXT contactPhone "Teléfono (opcional)"
+        TEXT email "Correo de contacto (opcional)"
+        TEXT address "Dirección física (opcional)"
         BOOLEAN isActive "default: true"
     }
 
     SupplierIngredient {
         TEXT id PK "uuid() default"
-        TEXT supplierId FK "uuid -> Supplier.id"
-        TEXT ingredientId FK "uuid -> Ingredient.id"
-        TEXT supplierCode "Código SKU de factura/lista (nullable)"
-        TEXT rawDescription "Descripción según lista mayorista (nullable)"
+        TEXT supplierId FK "uuid -> Supplier.id (UK con ingredientId)"
+        TEXT ingredientId FK "uuid -> Ingredient.id (UK con supplierId)"
+        TEXT supplierCode "Código SKU de factura/lista (opcional, UK con supplierId)"
+        TEXT rawDescription "Descripción según lista mayorista (opcional)"
         DECIMAL packageSize "Decimal(10,3) Contenido por bulto"
         TEXT packageUnit "kg, l, u (coincide con Ingredient.unit)"
         DECIMAL packagePrice "Decimal(10,2) Precio cerrado de bulto"
-        DECIMAL pendingPackagePrice "Decimal(10,2) Precio retenido (nullable)"
+        DECIMAL pendingPackagePrice "Decimal(10,2) Precio retenido (opcional)"
         BOOLEAN isDefault "Indica si define el costo activo (default: false)"
         BOOLEAN isQuarantined "Bandera de retención anómala (default: false)"
-        TIMESTAMP quarantinedAt "Fecha de ingreso a cuarentena (nullable)"
-        TEXT quarantineReason "Motivo de la retención anómala (nullable)"
+        TIMESTAMP quarantinedAt "Fecha de ingreso a cuarentena (opcional)"
+        TEXT quarantineReason "Motivo de la retención anómala (opcional)"
     }
 
     PriceHistory {
@@ -287,7 +287,7 @@ erDiagram
     Product {
         TEXT id PK "uuid() default"
         TEXT accountId FK "uuid -> Account.id"
-        TEXT name "Denominación comercial terminada"
+        TEXT name "Denominación comercial terminada (UK con accountId)"
         DECIMAL salePrice "Decimal(10,2) Precio de venta al público"
         DECIMAL minMarginPercent "Decimal(5,2) Umbral mínimo de alerta"
         DECIMAL cost "Decimal(10,2) Costo total calculado (default: 0)"
@@ -298,8 +298,8 @@ erDiagram
 
     ProductIngredient {
         TEXT id PK "uuid() default"
-        TEXT productId FK "uuid -> Product.id"
-        TEXT ingredientId FK "uuid -> Ingredient.id"
+        TEXT productId FK "uuid -> Product.id (UK con ingredientId)"
+        TEXT ingredientId FK "uuid -> Ingredient.id (UK con productId)"
         DECIMAL quantity "Decimal(10,3) Cantidad usada en receta"
     }
 ```
