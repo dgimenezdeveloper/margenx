@@ -23,30 +23,32 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** Modularización de la Despensa de Insumos (`/insumos`): tablas desktop `SuppliesTableDesktop`, tarjetas táctiles `SuppliesCardsMobile`, `IngredientSupplierList` y modal `IngredientUpsertSheet` (`#165`, PR `#185`).
 - **Frontend:** Modularización del Dashboard (`/dashboard`): componentes especializados `DashboardKpiCards`, `HealthDistributionHistogram` y `MonitoredCatalogGrid` (`#166`, PR `#192`).
 - **Frontend:** Bandeja visual de cuarentena de precios (`/proveedores/cuarentena`) para listar, liberar y rechazar anomalías de proveedores con recálculo automático (`#203`, PR `#217`).
-- **Frontend:** Cola secuencial de notificaciones Toast interactivas (`ToastAlert`) con soporte de descarte táctil (*swipe-to-dismiss*) para recálculos en cascada (`#211`, PR `#211`).
-- **Frontend:** Vista comparativa de proveedores mayoristas por materia prima con acción de conmutación de proveedor predeterminado (`#152`, PR `#156`).
+- **Frontend:** Cola secuencial de notificaciones Toast interactivas (`ToastAlert`) con soporte de descarte táctil (*swipe-to-dismiss*) para recálculos en cascada (`#168`, PR `#211`).
 - **DevOps:** Infraestructura de correo perimetral con Cloudflare Email Routing Catch-All (`*@margenx.tech`) para habilitar alias virtuales comerciales por comercio (`precios+<slug>@margenx.tech`) (`#169`, PR `#186`).
 - **DevOps:** Workflow n8n de ingesta: trigger IMAP vía IDLE sobre Gmail, extracción de slug comercial, parseo de planillas XLSX/XLS/CSV y normalización de columnas (`#170`, PR `#206`).
 - **DevOps:** Workflow n8n de despacho HTTP con política de reintentos exponenciales ante fallos de red y armado de correo con resumen de importación al dueño (`#171`, PR `#207`).
 - **DevOps:** Workflow n8n de alertas críticas de margen: despacho asíncrono SMTP vía Brevo Relay con plantilla HTML responsive accesible sin dependencias externas (`#172`, PR `#187`).
-- **DevOps:** Script centinela `monitor-memory.sh` en el host VPS con inspección periódica de consumo de memoria RAM, top de contenedores Docker y alertas enriquecidas a Discord (`#173`).
+- **DevOps:** Script centinela `monitor-memory.sh` en el host VPS con inspección periódica de consumo de memoria RAM, top de contenedores Docker y alertas enriquecidas a Discord (`#173`, PR `#188`).
+- **Datos:** Cuenta de demostración *Demo MargenX* (usuarios ADMIN y COLLABORATOR, 2 proveedores, 8 insumos, 3 productos y un caso de cuarentena) mediante el script independiente `prisma/seed-demo.ts` y el comando `npm run seed:demo`, con confirmación explícita del destino vía `SEED_DEMO_CONFIRM` (`#220`, PR `#221`).
 - **QA:** Protocolo, ejecución presencial y bitácora firmada de pruebas de ergonomía y usabilidad in-situ en 360px en *Química GyJ* (`#174`, PR `#191`).
 - **QA:** Suite de pruebas automatizadas E2E en Playwright para el recálculo en cascada (`cascade-recalculation.spec.ts`) (`#175`, PR `#216`).
-- **QA:** Colección automatizada de pruebas de estrés y resiliencia en Postman/Newman para el webhook de ingesta con lotes de 3.000 filas y 95% de polución (`#176`).
+- **QA:** Colección automatizada de pruebas de estrés y resiliencia en Postman/Newman para el webhook de ingesta con lotes de 3.000 filas y 95% de polución (`#176`, PR `#215`).
 - **QA:** Suite de regresión general integral y matriz de clasificación de defectos de release (`#177`, PR `#218`).
 - **Docs:** Actualización y sincronización del Documento de Arquitectura de Software (SAD v2.0) con topología de red VPS, C4 y diagramas UML (`#179`, PR `#189`).
-- **Docs:** Registro de Decisión Arquitectónica ADR-004 formalizando la adopción del Margen Comercial sobre Ventas frente al Markup (`#180`).
+- **Docs:** Registro de Decisión Arquitectónica ADR-004 formalizando la adopción del Margen Comercial sobre Ventas frente al Markup (`#180`, commit `e4af603`).
+- **Docs:** Regularización del CHANGELOG v0.4.0 y rotación de Scrum Master (`#209`, PR `#210`).
 - **Docs:** Consolidación de documentación de metodologías ágiles y Reporte de Entrega 5 UNaB (`docs/entregables/entrega-pps-sprint-4.md`) (`#181`).
 
 ### Changed
 
-- **Frontend:** Actualización comercial de la Landing Page institucional (`/`) reflejando los casos de uso reales de *Panadería Central* y *Química GyJ*, ingesta Zero-Click y accesibilidad WCAG AA (`#167`, PR `#197`).
+- **Frontend:** Actualización comercial de la Landing Page institucional (`/`) reflejando los casos de uso reales de *Panadería Central* y *Química GyJ* e ingesta Zero-Click (`#167`, PR `#197`).
 - **Frontend:** Normalización y validación estricta de unidades de medida en formularios reactivos de insumos (`#201`, PR `#204`).
 - **Datos:** Actualización del script de seed idempotente (`prisma/seed.ts`) con proveedores mayoristas reales (*Distribuidora MarJuanC*, *Don Roque* y *Limpikorn*) y homologación de códigos SKU (`#178`, PR `#196`).
 - **Testing:** Configuración de ejecución serial (`workers: 1`) en `playwright.config.ts` para evitar colisiones de concurrencia en pruebas E2E que mutan insumos compartidos.
 
 ### Fixed
 
+- **Backend:** Los links de las alertas de margen respetan el entorno: el despachador envía `appBaseUrl` (desde `APP_BASE_URL`, opcional) y el workflow n8n lo valida contra una lista cerrada de dominios (`#222`, PR `#223`).
 - **Frontend:** Corrección del scroll de fondo en modales sobre iOS Safari mediante bloqueo con `position: fixed` y conteo de referencias en `useBodyScrollLock` (`#193`, PR `#195`).
 - **Frontend:** Eliminación del parpadeo visual (*zero-flicker*) y textos transitorios `NaN%` en badges de margen durante la resolución de sesión y rol en el Dashboard.
 - **Backend:** Prevención de transacciones innecesarias en base de datos al editar insumos mediante guarda Zero-Variation (`previousCost.equals(nextCost)`) (`#28`, PR `#182`).
@@ -54,6 +56,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Security
 
+- **Docs:** Limpieza de datos sensibles en la documentación y los archivos de ejemplo: mails de cuentas piloto, contraseña de ejemplo y datos de conexión del VPS reemplazados por etiquetas y placeholders (`#224`, PR `#225`).
 - **Backend:** Autenticación por cabecera de secreto criptográfico (`x-margenx-webhook-secret`) evaluada con `crypto.timingSafeEqual` para mitigar ataques de timing en el webhook de ingesta (`#160`).
 - **Backend:** Aislamiento multi-tenant estricto por slug comercial y purga de códigos de artículo ambiguos presentes en múltiples proveedores activos (`#200`).
 
