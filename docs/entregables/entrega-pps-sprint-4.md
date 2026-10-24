@@ -18,8 +18,8 @@
 🔗 **Tablero oficial (filtrado por Sprint 4):** [ver en GitHub Projects](https://github.com/users/dgimenezdeveloper/projects/7/views/6?filterQuery=sprint%3A%22Sprint+4%22)
 
 * **Compromiso inicial:** 30 issues · **95 Story Points (SP)**.
-* **Incorporado durante el cierre:** 3 issues · **4 SP** (`#220`, `#222`, `#224`), todas derivadas de la devolución de la Entrega 4 y de las pruebas de cierre. Total del sprint: **33 issues · 99 SP**.
-* **Estado al cierre:** 33 de 33 issues completadas (**99 de 99 SP, 100 %**). Ninguna historia se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
+* **Incorporado durante el cierre:** 5 issues · **8 SP** (`#220`, `#222`, `#224`, `#226`, `#227`), todas derivadas de la devolución de la Entrega 4, de las pruebas de cierre y de las tareas de release. Total del sprint: **35 issues · 103 SP**.
+* **Estado al cierre:** 33 de 35 issues completadas (**99 de 103 SP, 96 %**). Las 2 restantes (`#226` y `#227`) son tareas de cierre del release que se confirman al publicar el tag v0.5.0 y al mergear la regularización del ADR-004 <!-- confirmar Done tras release -->. Ninguna historia de producto se arrastra al Sprint 5; la deuda técnica detectada se detalla en el punto 5.
 
 | Issue | Responsable | Área | SP | Estado | PR / evidencia |
 | :--- | :--- | :--- | :-: | :-: | :--- |
@@ -56,6 +56,8 @@
 | `#220` | Darío Giménez | DevOps / Backend | 2 | Done | [PR #221](https://github.com/dgimenezdeveloper/margenx/pull/221) — Cuenta de demo dedicada "Demo MargenX" *(incorporada)* |
 | `#222` | Darío Giménez | Backend / DevOps | 1 | Done | [PR #223](https://github.com/dgimenezdeveloper/margenx/pull/223) — El link de las alertas respeta el entorno *(incorporada)* |
 | `#224` | Darío Giménez | DevOps / Docs | 1 | Done | [PR #225](https://github.com/dgimenezdeveloper/margenx/pull/225) — Limpieza de datos sensibles del repositorio público *(incorporada)* |
+| `#226` | Darío Giménez | DevOps | 3 | Pendiente <!-- confirmar Done tras release --> | Release v0.5.0: checklist de pre-release, merge a `main`, tag y rollback *(incorporada)* |
+| `#227` | Darío Giménez | Docs | 1 | Pendiente <!-- confirmar Done tras merge --> | Regularización del ADR-004 (flujo de PR y revisión, ref. `#180`) *(incorporada)* |
 
 ### 3. Demo: qué se ve funcionando y en qué URL
 * **Entorno de evaluación:** [https://dev.margenx.tech](https://dev.margenx.tech) · **Healthcheck:** [https://api-dev.margenx.tech/api/health](https://api-dev.margenx.tech/api/health) (`status: ok`, entorno `development`).
