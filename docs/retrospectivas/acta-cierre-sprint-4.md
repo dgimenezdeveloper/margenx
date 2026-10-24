@@ -105,10 +105,10 @@ En cumplimiento de las directivas de rotación de roles del manual operativo de 
 - **Scrum Master Entrante:** Darío Giménez (conducción para Sprint 5 y 6 hacia la defensa final)
 
 ### Checklist de Traspaso Verificado:
-- [x] **Tablero Limpio:** 30 de 30 issues del Sprint 4 en estado `Done` (incluyendo la issue `#181` tras este commit).
+- [x] **Tablero Limpio:** 34 de 35 issues del Sprint 4 en estado `Done` (incluyendo la issue `#181` tras este commit); queda pendiente `#226` (release v0.5.0) hasta publicar el tag.
 - [x] **Ambientes en Producción y Staging:** `https://margenx.tech` y `https://dev.margenx.tech` operativos con certificados SSL y healthchecks respondiendo HTTP 200 OK.
-- [x] **Release v0.5.0 Publicado:** Tag `v0.5.0` creado formalmente en GitHub y desplegado en la VPS mediante `deploy.yml`.
-- [x] **Backlog Refinado para Sprint 5:** Historias de Smart Purchasing, Reportes PDF y Backups desglosadas con criterios de aceptación Gherkin y prioridades asignadas.
+- [ ] **Release v0.5.0 Publicado:** a completar al publicar el tag `v0.5.0` (creación en GitHub y despliegue en la VPS mediante `deploy.yml`).
+- [ ] **Backlog Refinado para Sprint 5:** pendiente: issues del Sprint 5 por crear (Smart Purchasing, Reportes PDF y Backups, con criterios de aceptación Gherkin y prioridades).
 - [x] **Secretos e Infraestructura de VPS Verificados:** Archivo `/opt/margenx-infra/.env` en orden, variables de n8n actualizadas y centinela de memoria activo.
 
 ---
