@@ -451,7 +451,7 @@ graph TB
     %% Conexiones Clientes
     Mobile -->|HTTPS: margenx.tech| NginxHost
     Desktop -->|HTTPS: dev.margenx.tech| NginxHost
-    OwnerMail -->|precios+slug@margenx.tech| CF_Mail
+    OwnerMail -->|"precios+slug@margenx.tech"| CF_Mail
 
     %% Conexiones Cloudflare
     CF_Mail -->|Reenvío Catch-All| Gmail

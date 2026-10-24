@@ -200,7 +200,7 @@ Brevo["Brevo SMTP Relay"]
 Owner["Dueño del comercio"]
 end
 
-Mail -->|precios-comercio@margenx.tech| CF
+Mail -->|"precios-comercio@margenx.tech"| CF
 CF --> GM
 GM -.->|IMAP Trigger| N8N
 N8N -->|JSON| Back
