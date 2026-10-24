@@ -1,3 +1,5 @@
+> **Nota (24/10/2026):** las fechas de este documento corresponden al plan inicial. El cronograma vigente (Sprint 3 de una semana, del 03/10 al 10/10, y Sprint 4 del 11/10 al 24/10) figura en `CHANGELOG.md` y en las actas de cierre de cada sprint.
+
 ---
 
 # PROPUESTA DE PROYECTO: MargenX — Control de Márgenes en Tiempo Real
