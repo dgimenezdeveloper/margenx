@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 2.0 (Consolidada Sprint 4 — Arquitectura Multi-Proveedor y Automatización)  
-**Fecha de Actualización:** 16 de Octubre de 2026  
+**Versión:** 2.1 (Consolidada Cierre Sprint 4 — Ingesta Zero-Click y Cuarentena)
+**Fecha de Actualización:** 24 de Octubre de 2026
 
 ---
 
@@ -137,7 +137,7 @@ erDiagram
         string businessName "Nombre comercial"
         string slug UK "Identificador URL para correos"
         string subscriptionPlan "FREE | PRO"
-        datetime trialEndsAt "Vencimiento freemium"
+        datetime trialEndsAt "Vencimiento freemium (opcional)"
         boolean isActive "Estado de cuenta"
         decimal defaultMinMarginPercent "Decimal(5,2) Margen global inicial"
         datetime createdAt
@@ -164,21 +164,27 @@ erDiagram
     SUPPLIER {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Razón social / Nombre fantasía"
-        string contactPhone "Teléfono comercial"
-        string email "Correo de contacto"
-        string address "Dirección física"
+        string name "Razón social / Nombre fantasía (UK con accountId)"
+        string contactPhone "Teléfono comercial (opcional)"
+        string email "Correo de contacto (opcional)"
+        string address "Dirección física (opcional)"
         boolean isActive "Estado del proveedor"
     }
 
     SUPPLIER_INGREDIENT {
         string id PK "uuid"
-        string supplierId FK "uuid"
-        string ingredientId FK "uuid"
+        string supplierId FK "uuid (UK con ingredientId)"
+        string ingredientId FK "uuid (UK con supplierId)"
+        string supplierCode "Código SKU mayorista (opcional, UK con supplierId)"
+        string rawDescription "Descripción según factura (opcional)"
         decimal packageSize "Decimal(10,3) Contenido por bulto"
         string packageUnit "Unidad base: kg, l, u"
-        decimal packagePrice "Decimal(10,2) Precio cerrado de compra"
+        decimal packagePrice "Decimal(10,2) Precio cerrado de bulto"
+        decimal pendingPackagePrice "Decimal(10,2) Precio propuesto en cuarentena (opcional)"
         boolean isDefault "Indica si alimenta currentCost"
+        boolean isQuarantined "Bandera de retención anómala"
+        datetime quarantinedAt "Fecha de ingreso a cuarentena (opcional)"
+        string quarantineReason "Motivo de la retención anómala (opcional)"
     }
 
     PRICE_HISTORY {
@@ -192,7 +198,7 @@ erDiagram
     PRODUCT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Denominación comercial"
+        string name "Denominación comercial (UK con accountId)"
         decimal salePrice "Decimal(10,2) Precio de venta al público"
         decimal minMarginPercent "Decimal(5,2) Umbral de alerta"
         decimal cost "Decimal(10,2) Costo total de receta"
@@ -203,13 +209,11 @@ erDiagram
 
     PRODUCT_INGREDIENT {
         string id PK "uuid"
-        string productId FK "uuid"
-        string ingredientId FK "uuid"
+        string productId FK "uuid (UK con ingredientId)"
+        string ingredientId FK "uuid (UK con productId)"
         decimal quantity "Decimal(10,3) Cantidad usada en receta"
     }
 ```
-
-> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama Entidad-Relación Consolidado en Google Drive](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
 
 ---
 
@@ -261,6 +265,12 @@ classDiagram
         +String packageUnit
         +Decimal packagePrice
         +Boolean isDefault
+        +String supplierCode
+        +String rawDescription
+        +Decimal pendingPackagePrice
+        +Boolean isQuarantined
+        +DateTime quarantinedAt
+        +String quarantineReason
         +calculateUnitCost() Decimal
     }
 
@@ -321,8 +331,6 @@ classDiagram
     MarginAlertDispatcher ..> MarginCalculatorService : escucha eventos
 ```
 
-> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama de Clases UML del Dominio en Google Drive](https://drive.google.com/file/d/1XDlsOyQaL4XmBNSIAl7XUeCLsAQ_pM8R/view?usp=sharing)
-
 ---
 
 ### Justificación de Integridad Relacional: DB Cascade vs. Aplicación 409 Conflict
@@ -357,6 +365,32 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
 - Actor: Administrador o Colaborador.
 - Flujo: se crea el producto y, en la misma operación transaccional, se insertan las filas de `ProductIngredient` correspondientes a la receta, calculando el costo inicial antes de persistir.
 
+**CU-04: Ingesta automatizada de listas de precios mayoristas ("Zero-Click") y Filtro Anti-Pollution**
+
+- Actor: Administrador (remitente vía correo) / Satélite n8n.
+- Precondición: La cuenta posee un slug configurado y existen códigos de artículo vinculados a insumos.
+- Flujo:
+  1. Recepción de correo en Cloudflare Catch-All y reenvío a Gmail.
+  2. n8n lee por IMAP, parsea los adjuntos (CSV/XLSX) y normaliza las columnas.
+  3. n8n ejecuta un POST al webhook del backend con cabecera de secreto criptográfico.
+  4. El backend valida el secreto en tiempo constante y ejecuta un matching implícito por `supplierCode` en lote.
+  5. **Filtro Anti-Pollution:** El sistema actualiza los artículos mapeados y descarta las filas sobrantes o ambiguas sin contaminar la base de datos.
+  6. Si el precio varía dentro de parámetros normales (<= 50%), actualiza el costo activo y dispara el recálculo en cascada.
+  7. n8n responde al dueño con un resumen ejecutivo de la importación.
+- Postcondición: Los costos mayoristas se actualizan y las recetas se recalculan sin intervención manual en la plataforma.
+
+**CU-05: Auditoría, retención y resolución de precios en Cuarentena**
+
+- Actor: Administrador.
+- Precondición: Existen precios retenidos en cuarentena por el webhook de ingesta.
+- Flujo:
+  1. El webhook detecta una suba brusca (> 50%) o un precio unitario irrisorio (<= $0.01).
+  2. **Retención en Cuarentena:** El sistema guarda el valor propuesto en `pendingPackagePrice` y marca `isQuarantined = true`, manteniendo intacto el `packagePrice` anterior para no romper las recetas.
+  3. El Administrador accede a la vista de Cuarentena.
+  4. Si elige **"Liberar"**, el sistema transaccional aplica el nuevo precio, actualiza el insumo y recalcula los márgenes de los productos afectados.
+  5. Si elige **"Rechazar"**, se descarta el precio propuesto, se limpia el estado de cuarentena y se preserva el costo histórico seguro.
+- Postcondición: La anomalía de precio queda resuelta, protegiendo la rentabilidad de variaciones erróneas o extremas.
+
 ---
 
 ## 4. Arquitectura de Despliegue y CI/CD
@@ -371,7 +405,7 @@ graph TB
     end
 
     subgraph CLOUDFLARE ["Cloudflare Edge (margenx.tech)"]
-        DNS["DNS Nube Gris (DNS Only: 168.197.49.120)"]
+        DNS["DNS Nube Gris (DNS Only → VPS)"]
         EmailRouting["Email Routing Catch-All (*@margenx.tech)"]
     end
 
@@ -381,33 +415,33 @@ graph TB
         Gmail["Gmail (margenx.saas@gmail.com)"]
     end
 
-    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS — 168.197.49.120)"]
+    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS)"]
         Nginx["Nginx Reverse Proxy Host (SSL Let's Encrypt)"]
         CronHost["Cron Host (monitor-memory.sh cada 5 min)"]
 
         subgraph STACK_PROD ["Entorno Producción (margenx_network)"]
-            FrontP["frontend-prod (:3010 | 128 MB)"]
-            BackP["backend-prod (:3011 | 512 MB)"]
-            DB_Prod[("PostgreSQL 16 (:5435 | 1024 MB)")]
+            FrontP["frontend-prod (128 MB)"]
+            BackP["backend-prod (512 MB)"]
+            DB_Prod[("PostgreSQL 16 (1024 MB)")]
         end
 
         subgraph STACK_DEV ["Entorno Staging / Develop"]
-            FrontD["frontend-dev (:3020 | 128 MB)"]
-            BackD["backend-dev (:3021 | 512 MB)"]
+            FrontD["frontend-dev (128 MB)"]
+            BackD["backend-dev (512 MB)"]
         end
 
         subgraph AUTOMATION ["Servicios Satélite"]
-            N8N["n8n Engine (:5678 | 1024 MB | Heap 768 MB)"]
+            N8N["n8n Engine (1024 MB | Heap 768 MB)"]
         end
     end
 
     Mobile -->|HTTPS| Nginx
     Desktop -->|HTTPS| Nginx
-    Nginx -->|Proxy pass 3010| FrontP
-    Nginx -->|Proxy pass 3011| BackP
-    Nginx -->|Proxy pass 3020| FrontD
-    Nginx -->|Proxy pass 3021| BackD
-    Nginx -->|Proxy pass 5678| N8N
+    Nginx -->|Proxy pass| FrontP
+    Nginx -->|Proxy pass| BackP
+    Nginx -->|Proxy pass| FrontD
+    Nginx -->|Proxy pass| BackD
+    Nginx -->|Proxy pass| N8N
 
     BackP -->|Prisma Pool| DB_Prod
     BackD -->|Prisma Pool| DB_Prod
@@ -419,8 +453,6 @@ graph TB
     CronHost -.->|Supervisa RAM > 85%| Discord["Canal Discord Equipo"]
 ```
 
-> 🔗 **Acceso en Alta Resolución:** [Ver Diagrama de Despliegue de Infraestructura en Google Drive](https://drive.google.com/file/d/1garCbrxJP0kF4VSgHnZsLmp_ZnlrMpTc/view?usp=sharing)
-
 ---
 
 ### Flujo del Pipeline de GitHub Actions
@@ -429,7 +461,7 @@ graph TB
 2. **Job 1 — Determinar entorno y tags:** según la rama de origen, resuelve dinámicamente el entorno destino (`production`/`staging`), el tag de imagen (`latest`/`dev`), los nombres de servicio (`backend-prod`/`backend-dev`, `frontend-prod`/`frontend-dev`) y la URL de API a inyectar en el build del frontend.
 3. **Job 2 — Lint & Test:** instala dependencias, corre linter (ESLint), corre tests unitarios del backend (`vitest run`) y la suite E2E de Playwright contra un entorno efímero con base de datos de prueba.
 4. **Job 3 — Build & Push a Docker Hub:** construye las imágenes Docker de frontend y backend, y las publica en Docker Hub (`dgimenezdeveloper/margenx-backend` y `margenx-frontend`) con el tag correspondiente al entorno.
-5. **Job 4 — Deploy vía SSH a la VPS:** se conecta por SSH seguro (puerto 5371) a la VPS y ejecuta `docker compose pull` sobre los servicios del entorno correspondiente. La VPS nunca clona código fuente ni corre `npm install`: solo descarga las imágenes ya construidas.
+5. **Job 4 — Deploy vía SSH a la VPS:** se conecta por SSH seguro (puerto no estándar con clave pública) a la VPS y ejecuta `docker compose pull` sobre los servicios del entorno correspondiente. La VPS nunca clona código fuente ni corre `npm install`: solo descarga las imágenes ya construidas.
 6. **Job 5 — Migraciones:** ejecuta `docker compose run --rm <servicio-backend> npx prisma migrate deploy` contra la base de datos del entorno correspondiente (`margenx_dev` o `margenx_prod`), con mecanismo de fallo seguro, como paso previo al reinicio de contenedores.
 7. **Job 6 — Reinicio de contenedores:** ejecuta `docker compose up -d --no-deps` sobre los servicios de frontend y backend del entorno correspondiente, sin afectar los contenedores de PostgreSQL ni n8n.
 
@@ -457,28 +489,28 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
 
 **Suite 1: Recálculo de márgenes en cascada**
 
-Escenario: Actualizar el costo de un insumo recalcula el margen de todos los productos relacionados  
-  Dado que existe una cuenta con el producto "Hamburguesa Clásica" que usa el insumo "Carne picada" (200g, costo $3.500/kg)  
-  Y el producto tiene un precio de venta de $4.500 y margen mínimo configurado en 30%  
-  Cuando el Administrador actualiza el costo de "Carne picada" a $4.200/kg  
-  Entonces el margen de "Hamburguesa Clásica" se recalcula automáticamente  
-  Y el producto se muestra marcado visualmente como "en alerta" si su nuevo margen es menor al 30%  
+Escenario: Actualizar el costo de un insumo recalcula el margen de todos los productos relacionados
+  Dado que existe una cuenta con el producto "Hamburguesa Clásica" que usa el insumo "Carne picada" (200g, costo $3.500/kg)
+  Y el producto tiene un precio de venta de $4.500 y margen mínimo configurado en 30%
+  Cuando el Administrador actualiza el costo de "Carne picada" a $4.200/kg
+  Entonces el margen de "Hamburguesa Clásica" se recalcula automáticamente
+  Y el producto se muestra marcado visualmente como "en alerta" si su nuevo margen es menor al 30%
   Y el Dashboard refleja el cambio sin necesidad de recargar la página
 
 **Suite 2: Control de acceso del rol Colaborador y protección financiera**
 
-Escenario: Un usuario Colaborador visualiza precios de salón pero no costos ni márgenes  
-  Dado que el usuario "colaborador@comercio.com" tiene rol COLLABORATOR en la cuenta  
-  Cuando accede al catálogo o vista de productos  
-  Entonces el sistema debe mostrar el nombre y el precio de venta al público  
-  Y no debe mostrar el campo de margen, costo de insumos ni costo total de receta  
+Escenario: Un usuario Colaborador visualiza precios de salón pero no costos ni márgenes
+  Dado que el usuario "colaborador@comercio.com" tiene rol COLLABORATOR en la cuenta
+  Cuando accede al catálogo o vista de productos
+  Entonces el sistema debe mostrar el nombre y el precio de venta al público
+  Y no debe mostrar el campo de margen, costo de insumos ni costo total de receta
   Y una solicitud directa a la API debe responder con dichos campos financieros omitidos
 
 **Suite 3: Aislamiento multiempresa**
 
-Escenario: Un usuario de una cuenta no puede acceder a datos de otra cuenta  
-  Dado que existen dos cuentas distintas, "Cafetería A" y "Panadería B", cada una con sus propios productos  
-  Cuando un usuario autenticado de "Cafetería A" intenta acceder al ID de un producto perteneciente a "Panadería B"  
+Escenario: Un usuario de una cuenta no puede acceder a datos de otra cuenta
+  Dado que existen dos cuentas distintas, "Cafetería A" y "Panadería B", cada una con sus propios productos
+  Cuando un usuario autenticado de "Cafetería A" intenta acceder al ID de un producto perteneciente a "Panadería B"
   Entonces el sistema debe responder con un error de acceso no autorizado (403/404), sin exponer datos de la otra cuenta
 
 Estas 3 suites son las **mínimas obligatorias** para el DoD del proyecto. Se ejecutan en cada Pull Request hacia `main` como parte del pipeline de CI.
@@ -593,29 +625,29 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 * **DevOps (Darío Giménez):**
   * [DEVOPS] Optimización de imágenes Docker con multi-stage builds, límites de memoria por contenedor y rotación de logs en la VPS (RNF-01, Completado).
 
-#### Sprint 4: Recálculo en Cascada y Automatización n8n "Zero-Click" (10/10 al 24/10) — [En Curso]
+#### Sprint 4: Recálculo en Cascada y Automatización n8n "Zero-Click" (11/10 al 24/10) — [Completado]
 * **Hito Cátedra:** Presentación para el Product Owner y Pitch de venta comercial (Clase 31/10).
 * **Entregable:** Motor transaccional de recálculo masivo en backend ante variaciones de costos de insumos, automatización de alertas por email en n8n y pipeline de ingesta masiva de listas de precios con descarte estricto anti-polución y reglas de cuarentena.
 * **Backend (Mauricio Barreras):**
   * [BE] Recálculo en cascada transaccional masivo con guarda Zero-Variation (RF-08, Completado).
   * [BE] Endpoint de ingesta masiva con cabecera de secreto criptográfico y validación Zod (RF-14, Completado).
   * [BE] Disparo asíncrono de Webhook `margin.alert.triggered` tras commit transaccional enriquecido con contacto de comercio (Completado).
-  * [BE] Lógica de Filtro Anti-Pollution batch y bandeja de Cuarentena para aumentos anómalos >50% (RF-14, En Curso).
+  * [BE] Lógica de Filtro Anti-Pollution batch y bandeja de Cuarentena para aumentos anómalos >50% (RF-14, Completado).
 * **Frontend (Federico Paal):**
   * [FE] Refactorización y modularización de la Ficha Técnica de Producto en subcomponentes desacoplados (Completado).
-  * [FE] Modularización de Catálogo de Insumos y Dashboard (En Curso).
-  * [FE] Reflejo reactivo en UI ante recálculos en cascada y sistema global de Toasts de alerta (RF-08, RNF-04, Planificado).
+  * [FE] Modularización de Catálogo de Insumos y Dashboard (Completado).
+  * [FE] Reflejo reactivo en UI ante recálculos en cascada y sistema global de Toasts de alerta (RF-08, RNF-04, Completado).
 * **DevOps / n8n (Darío Giménez):**
   * [DEVOPS] Infraestructura de Correo Catch-All en Cloudflare y relay SMTP autenticado en Brevo (Completado).
   * [DEVOPS] Workflow n8n de despacho de alertas críticas vía Brevo SMTP con plantilla HTML responsive y sin imágenes externas (RF-08, RNF-10, Completado).
   * [DEVOPS] Script de monitoreo preventivo de memoria RAM en VPS Donweb (`monitor-memory.sh`) con alertas Embed a Discord (Completado).
-  * [DEVOPS] Workflow n8n para ingesta automatizada de listas mayoristas adjuntas por correo (CSV/Excel/Google Sheets) (RF-14, En Curso).
+  * [DEVOPS] Workflow n8n para ingesta automatizada de listas mayoristas adjuntas por correo (CSV/Excel/Google Sheets) (RF-14, Completado).
 * **QA / PO (Leandro Herrera):**
-  * [QA] Ejecución presencial del protocolo de pruebas in-situ en 360px con Panadería Central (En Curso).
-  * [QA] Suite E2E en Playwright para validación del flujo integral de recálculo en cascada (Planificado).
-  * [QA] Pruebas de concurrencia y estrés sobre recálculos masivos de recetas (Planificado).
+  * [QA] Ejecución presencial del protocolo de pruebas in-situ en 360px con Química GyJ (Completado).
+  * [QA] Suite E2E en Playwright para validación del flujo integral de recálculo en cascada (Completado).
+  * [QA] Pruebas de concurrencia y estrés sobre recálculos masivos de recetas (Completado).
 
-#### Sprint 5: Smart Purchasing, Reportes PDF y Endurecimiento (24/10 al 07/11)
+#### Sprint 5: Smart Purchasing, Reportes PDF y Endurecimiento (25/10 al 07/11)
 * **Hito Cátedra:** Ensayo general de defensa y revisión integral (Clase 14/11).
 * **Entregable:** Motor de sugerencia de compras al proveedor más económico (Smart Purchasing), generador de orden de compra sugerida, reporte PDF semanal generado por n8n, base de datos optimizada con índices y ensayo de recuperación ante desastres (Restore).
 * **Backend (Mauricio Barreras):**
@@ -632,7 +664,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [N8N] Workflow con trigger Cron semanal para generación y envío del PDF de márgenes.
   * [DEVOPS] Automatización de backups diarios de PostgreSQL en la VPS y ensayo de Disaster Recovery.
 
-#### Sprint 6: PWA Instalable, Congelamiento de Release v1.0 y Defensa Final (07/11 al 21/11)
+#### Sprint 6: PWA Instalable, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
 * **Hito Cátedra:** ENTREGA FINAL Y DEFENSA DE PPS (Clase 28/11).
 * **Entregable:** Versión final Release v1.0 congelada, aplicación Mobile-First instalable como Progressive Web App (PWA), documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
 * **Frontend (Federico Paal):**
@@ -650,59 +682,12 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 
 ---
 
-### 6.1. Matriz de Trazabilidad de Requerimientos (RF y RNF vs. Backlog)
-
-#### Trazabilidad de Requerimientos Funcionales (RF)
-
-| Requerimiento Funcional | Descripción Resumida | Módulos Técnicos y Entregables | Sprint de Entrega |
-| :---- | :---- | :---- | :---: |
-| **RF-01** | ABM de insumos (nombre, unidad, costo). | [BE-CRUD-Insumos], [FE-Cards-Insumos], [FE-Form-Zod] | **Sprint 0 / 1** |
-| **RF-02** | Crear productos base (nombre y precio venta). | [BE-CRUD-Productos], [FE-Cards-Productos], [FE-Persistencia] | **Sprint 1 / 2** |
-| **RF-03** | Asociar receta de insumos a un producto. | [FE-Editor-Zustand], [BE-Transacciones-BOM] | **Sprint 2** |
-| **RF-04** | Cálculo de costo total según materias primas. | [BE-Motor-Decimal], [FE-Store-Zustand] | **Sprint 2** |
-| **RF-05** | Cálculo automático de margen ($ y %). | [BE-Servicio-Margen], [FE-Simulador-Precios] | **Sprint 2** |
-| **RF-06** | Margen mínimo y sugerencia automática de precio de venta. | [BE-Margen-Global], [FE-Calculo-Sugerido] | **Sprint 3** |
-| **RF-07** | Alertas visuales por margen bajo (Semáforo). | [FE-MarginBadge], [FE-Histograma-Dashboard] | **Sprint 3** |
-| **RF-08** | Recálculo en cascada al cambiar costo de insumo. | [BE-Cascada-Transaccional], [N8N-Alertas-SMTP] | **Sprint 4** |
-| **RF-09** | Listado de productos ordenable por métricas. | [BE-Metricas-Dashboard], [FE-Dashboard-API] | **Sprint 3** |
-| **RF-10** | Aislamiento multiempresa estricto. | Filtrado por `accountId` en Prisma + TC-SEC-01 Playwright | **Sprint 0 al 6** |
-| **RF-11** | Roles diferenciados (Admin vs. Colaborador). | [BE-Roles-Prisma], [BE-Middleware-RBAC] | **Sprint 0 / 3** |
-| **RF-12** | Colaborador con acceso a precios de salón sin visibilidad de costos/márgenes. | [BE-Sanitizacion-Financiera], [FE-Adaptacion-Rol] | **Sprint 3** |
-| **RF-13** | Múltiples proveedores por insumo, mapeo SKU y factor de conversión. | [BE-Modelos-Proveedores], [FE-Calculadora-Bultos], [FE-Historial-Precios] | **Sprint 3** |
-| **RF-14** | Ingesta masiva "Zero-Click" de listas de precios con descarte estricto. | [BE-Webhook-Ingesta], [N8N-Ingesta-IMAP], [BE-Filtro-AntiPollution] | **Sprint 4** |
-| **RF-15** | Motor de compras inteligentes al proveedor de menor costo. | [BE-Smart-Purchasing], [FE-Comparador-Ofertas] | **Sprint 5** |
-| **RF-16** | Soporte de productos comerciales en estado Borrador / Sin Receta. | [BE-Soporte-Borrador], [FE-Badge-SinReceta] | **Sprint 1 / 2** |
-| **RF-17** | ABM de Proveedores y administración de contactos. | [BE-CRUD-Proveedores], [FE-Modales-Proveedores] | **Sprint 3** |
-| **RF-18** | Calculadora de costo unitario desde empaques cerrados. | [FE-SupplierPackagingModal], [BE-Conversion-Empaques] | **Sprint 3** |
-| **RF-19** | Línea de tiempo histórica de variaciones inflacionarias. | [BE-PriceHistory], [FE-PriceHistoryModal] | **Sprint 3** |
-| **RF-20** | Conmutación de proveedor predeterminado con recálculo. | [BE-Upsert-Proveedor], [FE-Comparativa-Predeterminado] | **Sprint 3** |
-
----
-
-#### Trazabilidad de Requerimientos No Funcionales (RNF)
-
-| RNF | Criterio de Calidad | Mecanismo de Garantía en el Proyecto |
-| :---- | :---- | :---- |
-| **RNF-01** | Performance (< 2s de carga inicial). | Docker multi-stage con límites de memoria y rotación de logs en VPS, índices B-Tree en PostgreSQL y auditoría Lighthouse. |
-| **RNF-02** | Mobile-First responsive desde 360px. | Criterio obligatorio en la DoD de cada PR de Frontend + navegación BottomNav, modales Bottom Sheet y controles `min-h-11`. |
-| **RNF-03** | Autenticación y aislamiento de sesiones. | Verificación asimétrica de JWT con Clerk (`CLERK_JWT_KEY`) y filtrado estricto por `accountId` en base de datos. |
-| **RNF-04** | Recálculo en vivo sin recargar (< 50 ms). | Estado reactivo con Zustand en cliente para actualización instantánea sin roundtrip de red. |
-| **RNF-05** | Validación estricta de valores positivos. | Esquemas Zod en formularios, validación en controllers y topes decimales para prevenir desbordes de PostgreSQL. |
-| **RNF-06** | Respuestas de error limpias (sin stack traces). | Middleware centralizado `errorHandler.ts` con formato JSON unificado `{"error": "mensaje"}`. |
-| **RNF-07** | Compatibilidad cross-browser estable. | Verificación manual y suites headless en Chrome, Firefox y WebKit móvil con Playwright. |
-| **RNF-08** | Integridad referencial en base de datos. | Constraints relacionales de Prisma (`onDelete: Cascade`), transacciones ACID con `prisma.$transaction` e historial `PriceHistory`. |
-| **RNF-09** | Seguridad RBAC validada a nivel de API. | Middleware RBAC en backend (`sanitizeFinancialData`) con cabecera `Cache-Control: private, no-store` y blindaje defensivo en UI. |
-| **RNF-10** | Alertas críticas en tiempo real a costo $0. | Webhooks de backend despachados a n8n para envío de correos SMTP transaccionales vía Brevo con entrega en inbox principal. |
-| **RNF-11** | Instalabilidad móvil nativa sin App Store (PWA). | Configuración de PWA con `@vite-pwa/plugin`, Web App Manifest y Service Workers para uso offline en celular. |
-
----
-
 ## 7. Estructura del Repositorio y Reglas de Trabajo
 
 ### 7.1. Estructura de Carpetas del Proyecto
 
-El proyecto está organizado bajo la modalidad de monorepositorio ordenado, separando claramente la capa de presentación (Frontend SPA), la capa de servicios y datos (Backend REST con Prisma), la automatización satélite (n8n en VPS) y los entornos estandarizados de desarrollo (DevContainers):  
-[![Estructura de Carpetas](https://drive.google.com/file/d/1TD8Mm97lGAnoF1H6eJ6Eto_Ltv8FDxgG/view?usp=sharing)](https://drive.google.com/file/d/1TD8Mm97lGAnoF1H6eJ6Eto_Ltv8FDxgG/view?usp=sharing)  
+El proyecto está organizado bajo la modalidad de monorepositorio ordenado, separando claramente la capa de presentación (Frontend SPA), la capa de servicios y datos (Backend REST con Prisma), la automatización satélite (n8n en VPS) y los entornos estandarizados de desarrollo (DevContainers):
+[![Estructura de Carpetas](https://drive.google.com/file/d/1TD8Mm97lGAnoF1H6eJ6Eto_Ltv8FDxgG/view?usp=sharing)](https://drive.google.com/file/d/1TD8Mm97lGAnoF1H6eJ6Eto_Ltv8FDxgG/view?usp=sharing)
 [Clic sobre el diagrama o este link para abrirlo en alta resolución](https://drive.google.com/file/d/1TD8Mm97lGAnoF1H6eJ6Eto_Ltv8FDxgG/view?usp=sharing)
 
 ### 7.2. Convención de Ramas (GitFlow Simplificado)
@@ -731,6 +716,7 @@ Para evitar la obsolescencia documental y garantizar que la arquitectura evoluci
   * **ADR-001:** Adopción de Clerk para autenticación delegada y control RBAC.
   * **ADR-002:** Despliegue Consolidado 100% en VPS Donweb (Frontend, Backend, PostgreSQL 16 interno y n8n bajo Docker Compose con Nginx Host y doble entorno Staging/Prod a costo $0), reemplazando la arquitectura híbrida Azure + VPS evaluada inicialmente.
   * **ADR-003:** Orquestador satélite n8n desacoplado del monolito vía Webhooks HTTP asíncronos para alertas y generación de PDFs.
+  * **ADR-004:** Adopción del Margen Comercial sobre Precio de Venta (Profit Margin) en lugar del Recargo sobre Costo (Markup).
 * **Contratos de API Vivos (Living Documentation):** La documentación de endpoints se mantiene sincronizada con el código mediante colecciones de Postman versionadas en `backend/tests/postman/` (formato JSON v2.1) y su posterior exportación a especificación OpenAPI / Swagger.
 * **Registro de Cambios y Versionado Semántico (CHANGELOG):** Se adopta el estándar Keep a Changelog en el archivo raíz `CHANGELOG.md` junto a versionado semántico (SemVer), etiquetando cada cierre de sprint con tags anotados en Git (ej. `v0.1.0`, `v0.4.0`, `v1.0.0`).
 * **README como Fuente Única de Onboarding:** El archivo `README.md` principal garantiza que cualquier desarrollador levante el stack local completo en menos de 10 minutos utilizando Docker DevContainers, documentando variables de entorno (`.env.example`), diagramas y comandos de test.
