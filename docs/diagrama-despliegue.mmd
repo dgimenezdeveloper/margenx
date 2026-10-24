@@ -1,0 +1,47 @@
+flowchart TD
+    %% ESTILOS VISUALES
+    classDef user fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef github fill:#334155,stroke:#1e293b,stroke-width:2px,color:#fff;
+    classDef vps fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
+    classDef db fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff;
+    classDef n8n fill:#ea580c,stroke:#c2410c,stroke-width:2px,color:#fff;
+    classDef email fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff;
+
+    %% 1. COLUMNA DERECHA (CI/CD)
+    subgraph GITHUB [" GitHub (CI/CD) "]
+        Repo["📦 Repositorio (main / develop)"]:::github
+        Actions["⚙️ GitHub Actions"]:::github
+        Hub["🐳 Docker Hub Registry"]:::github
+        Repo -->|Push| Actions
+        Actions -->|Build & Push| Hub
+    end
+
+    %% 2. COLUMNA IZQUIERDA (USUARIOS)
+    User["👤 Usuarios"]
+    Nav["📱 Navegador (Mobile-First)"]:::user
+    User --> Nav
+
+    %% 3. BLOQUE CÓMPUTO (VPS DONWEB)
+    subgraph COMPUTE [" 🖥️ VPS Donweb — Cómputo y Ruteo "]
+        Nginx["🌐 Nginx Reverse Proxy (SSL Let's Encrypt)"]:::vps
+        App["🚀 Contenedores MargenX (Frontend + Backend)<br/>Prod (margenx.tech) & Dev (dev.margenx.tech)"]:::vps
+        Nginx -->|Proxy Pass Local| App
+    end
+
+    %% 4. BLOQUE PERSISTENCIA Y AUTOMATIZACIÓN (VPS DONWEB)
+    subgraph STORAGE [" 🗄️ VPS Donweb — Persistencia y Automatización "]
+        DB[("PostgreSQL 16<br/>(margenx_prod / margenx_dev)")]:::db
+        N8N["🤖 n8n (Automatización)"]:::n8n
+    end
+
+    %% 5. EXTERNOS
+    Email["📧 Proveedor de Email (SMTP)"]:::email
+
+    %% CONEXIONES
+    Nav -->|HTTPS| Nginx
+    Hub -.->|"Deploy Automático (SSH)"| App
+
+    App -->|Conexión DB| DB
+    App -->|Webhook HTTPS| N8N
+    N8N -->|Consulta API| App
+    N8N -->|Envía Alertas| Email
