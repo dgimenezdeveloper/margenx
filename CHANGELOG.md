@@ -133,7 +133,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** Notificaciones automáticas de estado de CI/CD en Discord vía Webhooks (`#63`).
 - **Docs:** Sincronización de arquitectura VPS consolidada, SAD y plan de entregas (`#62`).
 - **Frontend:** Integración con `<ClerkProvider>`, rutas protegidas y consumo autenticado de API (`#60`).
-- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH (puerto 5371) y Nginx Reverse Proxy (`#40` via PR `#58`).
+- **DevOps:** Pipeline de Despliegue Continuo (CD) hacia VPS Donweb vía Docker Hub, SSH y Nginx Reverse Proxy (`#40` via PR `#58`).
 - **DevOps:** Automatización de migraciones de Prisma en el pipeline de deploy mediante contenedor efímero con mecanismo de fallo seguro (`#41` via PR `#59`).
 - **Backend:** Middleware global de captura, formateo y estandarización de errores HTTP (`#35` via PR `#51`).
 - **Backend:** Paginación y ordenamiento (Sorting) nativo en base de datos para la API de Insumos (`#36` via PR `#57`).
@@ -152,7 +152,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** Configuración de entorno aislado con VS Code DevContainers (Node 20, TypeScript, PostgreSQL 16 local).
 - **DevOps:** Pipeline de Integración Continua (CI) en GitHub Actions (`ci.yml`) con verificación de lint, typecheck y compilación.
 - **DevOps:** Automatización de tablero Kanban mediante GraphQL API (`auto-move-issues.yml`).
-- **Infra:** Despliegue en VPS propia de PostgreSQL 16 (puerto 5435) y orquestador n8n bajo subdominio con certificado SSL.
+- **Infra:** Despliegue en VPS propia de PostgreSQL 16 y orquestador n8n bajo subdominio con certificado SSL.
 - **Backend:** Modelo relacional base en Prisma (`Account`, `User`, `Ingredient`, `Product`, `ProductIngredient`).
 - **Backend:** Middleware de autenticación delegada (`authMiddleware`) con verificación asimétrica de JWT mediante Clerk.
 - **Backend:** Endpoints CRUD para gestión de Insumos (`/api/ingredients`) con aislamiento multi-tenant y tipos `Decimal`.
