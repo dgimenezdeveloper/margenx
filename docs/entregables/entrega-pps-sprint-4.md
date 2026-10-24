@@ -156,6 +156,7 @@
 
 ### 1. Requerimientos funcionales y no funcionales
 * **RF:** RF-01 (ABM de insumos), RF-02 (alta de productos), RF-03 (recetas compuestas BOM), RF-04 (costo total de elaboración), RF-05 (margen nominal y porcentual), RF-06 (margen mínimo esperado), RF-07 (semáforo de rentabilidad), RF-08 (recálculo transaccional en cascada), RF-09 (orden y métricas server-side), RF-10 (multi-tenant por `accountId`), RF-11 (roles Admin/Colaborador), RF-12 (ocultamiento financiero al Colaborador), RF-13 (multi-proveedor y factores de conversión de empaque), RF-14 (ingesta por correo con filtro anti-pollution y cuarentena), RF-16 (productos borrador sin receta), RF-17 (ABM de proveedores), RF-18 (calculadora de empaques mayoristas), RF-19 (historial de precios), RF-20 (proveedor predeterminado).
+* RF-15 (Smart Purchasing) no figura entre los implementados: está planificado para el Sprint 5 (ver punto 7).
 * **RNF:** RNF-01 (carga inicial < 2 s), RNF-02 (Mobile-First desde 360 px), RNF-03 (autenticación JWT con Clerk), RNF-04 (recálculo reactivo en cliente), RNF-05 (validación con Zod), RNF-06 (errores HTTP uniformes `{"error": "..."}`), RNF-08 (borrado seguro con `409 Conflict`), RNF-09 (sanitización financiera server-side con `Cache-Control: private, no-store`), RNF-10 (alertas transaccionales sin costo vía Brevo), RNF-11 (memoria de contenedores acotada en el VPS).
 
 ### 2. Modelo de datos
