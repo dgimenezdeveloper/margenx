@@ -90,6 +90,8 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
     }
 
     // 3. Normalizar payload con datos dinámicos
+    const appBaseUrl = process.env.APP_BASE_URL?.trim();
+
     const dynamicPayload = {
       accountId: payload.accountId,
       accountSlug: account.slug,
@@ -109,6 +111,8 @@ export async function dispatchMarginAlertEvent(payload: MarginAlertPayload): Pro
         minMarginPercent: formatDecimal(product.minMarginPercent),
       })),
       triggeredAt: new Date().toISOString(),
+      // Base del link de la alerta según entorno; si no está definida, n8n usa su fallback.
+      ...(appBaseUrl ? { appBaseUrl } : {}),
     };
 
     // 4. Despachar a n8n autenticando mediante header secreto
