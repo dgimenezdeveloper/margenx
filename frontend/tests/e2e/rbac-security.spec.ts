@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Response } from '@playwright/test'
 
 /**
- * Issue #127. Suite autenticada como COLLABORATOR (colab.panaderia@hotmail.com,
+ * Issue #127. Suite autenticada como COLLABORATOR (cuenta piloto: COLLABORATOR Panadería Central,
  * ver auth.collaborator.setup.ts y playwright.config.ts) — no como ADMIN, a
  * diferencia del resto de las suites de este directorio.
  *
