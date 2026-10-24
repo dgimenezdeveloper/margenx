@@ -414,7 +414,7 @@ graph TB
     end
 
     subgraph CLOUDFLARE ["Cloudflare Edge Network"]
-        CF_DNS["DNS Administrado (Nube Gris: 168.197.49.120)"]
+        CF_DNS["DNS Administrado (Nube Gris → VPS)"]
         CF_Mail["Cloudflare Email Routing (Catch-All: *@margenx.tech)"]
     end
 
@@ -425,25 +425,25 @@ graph TB
         Discord["Discord Webhook (Canal Alertas DevOps / Memoria)"]
     end
 
-    subgraph VPS_HOST ["Servidor VPS Donweb (Ubuntu 22.04 LTS — 168.197.49.120)"]
+    subgraph VPS_HOST ["Servidor VPS Donweb (Ubuntu 22.04 LTS)"]
         NginxHost["Nginx Reverse Proxy Host (SSL Let's Encrypt / Certbot)"]
         CronSentinel["Crontab Host: monitor-memory.sh (Cada 5 min)"]
 
         subgraph RED_DOCKER ["Red Interna Bridge: margenx_network"]
             subgraph STACK_PROD ["Entorno Producción (Rama main)"]
-                FrontProd["frontend-prod (:3010 | 128 MB)"]
-                BackProd["backend-prod (:3011 | 512 MB)"]
-                DB_Prod[("PostgreSQL 16 (:5435 | 1024 MB)
+                FrontProd["frontend-prod (128 MB)"]
+                BackProd["backend-prod (512 MB)"]
+                DB_Prod[("PostgreSQL 16 (1024 MB)
                 Bases: margenx_prod y margenx_dev")]
             end
 
             subgraph STACK_DEV ["Entorno Staging (Rama develop)"]
-                FrontDev["frontend-dev (:3020 | 128 MB)"]
-                BackDev["backend-dev (:3021 | 512 MB)"]
+                FrontDev["frontend-dev (128 MB)"]
+                BackDev["backend-dev (512 MB)"]
             end
 
             subgraph STACK_AUTOMATION ["Satélite de Automatización"]
-                N8N["n8n Engine (:5678 | 1024 MB | Heap: 768 MB)"]
+                N8N["n8n Engine (1024 MB | Heap: 768 MB)"]
             end
         end
     end
@@ -458,11 +458,11 @@ graph TB
     CF_DNS -.->|Resolución DNS| NginxHost
 
     %% Conexiones Nginx Host a Contenedores
-    NginxHost -->|Proxy Pass 127.0.0.1:3010| FrontProd
-    NginxHost -->|Proxy Pass 127.0.0.1:3011| BackProd
-    NginxHost -->|Proxy Pass 127.0.0.1:3020| FrontDev
-    NginxHost -->|Proxy Pass 127.0.0.1:3021| BackDev
-    NginxHost -->|Proxy Pass 127.0.0.1:5678| N8N
+    NginxHost -->|Proxy Pass| FrontProd
+    NginxHost -->|Proxy Pass| BackProd
+    NginxHost -->|Proxy Pass| FrontDev
+    NginxHost -->|Proxy Pass| BackDev
+    NginxHost -->|Proxy Pass| N8N
 
     %% Conexiones Backend y Base de Datos
     BackProd -->|Prisma Connection Pool| DB_Prod

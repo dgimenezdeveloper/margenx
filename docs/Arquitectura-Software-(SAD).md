@@ -399,7 +399,7 @@ graph TB
     end
 
     subgraph CLOUDFLARE ["Cloudflare Edge (margenx.tech)"]
-        DNS["DNS Nube Gris (DNS Only: 168.197.49.120)"]
+        DNS["DNS Nube Gris (DNS Only → VPS)"]
         EmailRouting["Email Routing Catch-All (*@margenx.tech)"]
     end
 
@@ -409,33 +409,33 @@ graph TB
         Gmail["Gmail (margenx.saas@gmail.com)"]
     end
 
-    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS — 168.197.49.120)"]
+    subgraph VPS ["VPS Donweb (Ubuntu 22.04 LTS)"]
         Nginx["Nginx Reverse Proxy Host (SSL Let's Encrypt)"]
         CronHost["Cron Host (monitor-memory.sh cada 5 min)"]
 
         subgraph STACK_PROD ["Entorno Producción (margenx_network)"]
-            FrontP["frontend-prod (:3010 | 128 MB)"]
-            BackP["backend-prod (:3011 | 512 MB)"]
-            DB_Prod[("PostgreSQL 16 (:5435 | 1024 MB)")]
+            FrontP["frontend-prod (128 MB)"]
+            BackP["backend-prod (512 MB)"]
+            DB_Prod[("PostgreSQL 16 (1024 MB)")]
         end
 
         subgraph STACK_DEV ["Entorno Staging / Develop"]
-            FrontD["frontend-dev (:3020 | 128 MB)"]
-            BackD["backend-dev (:3021 | 512 MB)"]
+            FrontD["frontend-dev (128 MB)"]
+            BackD["backend-dev (512 MB)"]
         end
 
         subgraph AUTOMATION ["Servicios Satélite"]
-            N8N["n8n Engine (:5678 | 1024 MB | Heap 768 MB)"]
+            N8N["n8n Engine (1024 MB | Heap 768 MB)"]
         end
     end
 
     Mobile -->|HTTPS| Nginx
     Desktop -->|HTTPS| Nginx
-    Nginx -->|Proxy pass 3010| FrontP
-    Nginx -->|Proxy pass 3011| BackP
-    Nginx -->|Proxy pass 3020| FrontD
-    Nginx -->|Proxy pass 3021| BackD
-    Nginx -->|Proxy pass 5678| N8N
+    Nginx -->|Proxy pass| FrontP
+    Nginx -->|Proxy pass| BackP
+    Nginx -->|Proxy pass| FrontD
+    Nginx -->|Proxy pass| BackD
+    Nginx -->|Proxy pass| N8N
 
     BackP -->|Prisma Pool| DB_Prod
     BackD -->|Prisma Pool| DB_Prod
