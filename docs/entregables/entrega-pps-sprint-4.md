@@ -44,7 +44,7 @@
 | `#177` | Leandro Herrera | QA | 2 | Done | [PR #218](https://github.com/dgimenezdeveloper/margenx/pull/218) — Regresión general y matriz de defectos |
 | `#178` | Leandro Herrera | QA | 3 | Done | [PR #196](https://github.com/dgimenezdeveloper/margenx/pull/196) — Seed con proveedores mayoristas y mapeo de SKU |
 | `#179` | Darío Giménez | Docs | 5 | Done | [PR #189](https://github.com/dgimenezdeveloper/margenx/pull/189) — SAD sincronizado (C4, UML, ER) |
-| `#180` | Darío Giménez | Docs | 2 | Done | ADR-004 — Margen sobre ventas frente a markup (`docs/adr/0004-calculo-margen-ventas-vs-markup.md`, commit `e4af603`) |
+| `#180` | Darío Giménez | Docs | 2 | Done | ADR-004 — Margen sobre ventas frente a markup (`docs/adr/0004-calculo-margen-ventas-vs-markup.md`, commit `e4af603`); regularizado en `#227` (PR #XXX <!-- completar -->) |
 | `#181` | Federico Paal | Docs | 5 | Done | Consolidación documental, CHANGELOG `[0.5.0]` y este reporte |
 | `#193` | Federico Paal | Frontend | 1 | Done | [PR #195](https://github.com/dgimenezdeveloper/margenx/pull/195) — Fix de scroll de fondo en modales de iOS Safari |
 | `#199` | Mauricio Barreras | Backend | 1 | Done | [PR #205](https://github.com/dgimenezdeveloper/margenx/pull/205) — Contrato de `PUT /api/ingredients/:id` |
@@ -216,7 +216,7 @@ Brevo -->|Resumen o alerta| Owner
 * **Pruebas automatizadas del flujo crítico:** suite E2E de recálculo en cascada con Playwright (`#175`, PR #216) y regresión general con matriz de defectos (`#177`, PR #218; informe en `docs/qa/reporte-calidad-sprint4.md`).
 * **Estrés y resiliencia de la ingesta:** colección Newman con 3.000 filas y 95 % de ítems no mapeados (`#176`, PR #215), con casos límite documentados.
 * **Manejo de errores:** el backend responde con `{"error": "..."}` uniforme, el frontend muestra mensajes y estados vacíos en lugar de pantallas en blanco, y el borrado de un insumo que forma parte de recetas devuelve `409 Conflict`.
-* **Decisiones de arquitectura:** ADR-002 (arquitectura híbrida en VPS) y ADR-004 (margen sobre ventas frente a markup); SAD v2.0 sincronizado (`#179`).
+* **Decisiones de arquitectura:** ADR-002 (arquitectura híbrida en VPS) y ADR-004 (margen sobre ventas frente a markup; regularizado en `#227`, PR #XXX <!-- completar -->); SAD v2.0 sincronizado (`#179`).
 
 ### 5. Definition of Done (DoD) del equipo
 Una tarea se considera **DONE** solo cuando: (1) tiene un PR desde una rama de feature hacia `develop`, con *Conventional Commits*; (2) cuenta con la aprobación de al menos un par (peer review) y de QA; (3) no hay errores de TypeScript (`tsc -b`) ni advertencias del linter; (4) el pipeline de CI está en verde; (5) se cumplen los criterios de aceptación Gherkin con datos verosímiles; (6) la interfaz es Mobile-First y se verificó a 360 px sin desborde horizontal; (7) las consultas están acotadas por `accountId` y las respuestas financieras se sanitizan para `COLLABORATOR`; (8) está desplegada y verificada en el entorno de pruebas (`dev.margenx.tech`).
