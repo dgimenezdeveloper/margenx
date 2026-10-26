@@ -45,7 +45,8 @@ import { errorHandler } from '../middlewares/errorHandler';
 
 function buildApp() {
   const app = express();
-  app.use(express.json({ limit: '1mb' }));
+  app.use('/api/webhooks', express.json({ limit: '5mb' }));
+  app.use(express.json({ limit: '256kb' }));
   app.use('/api/webhooks', webhooksRouter);
   app.use(errorHandler);
   return app;
@@ -66,6 +67,67 @@ describe('POST /api/webhooks/supplier-prices', () => {
       criticalProducts: [],
     });
     transactionMock.mockClear();
+  });
+
+  it('acepta una lista de 1,2 MB dentro del límite del webhook y no responde 500', async () => {
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'acc-123',
+      slug: 'panaderia-central',
+      businessName: 'Panadería Central',
+      isActive: true,
+      users: [{ email: 'admin@panaderia.example' }],
+    });
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-1',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-1',
+        supplierCode: 'MC-OK',
+        packageSize: new Prisma.Decimal('50'),
+        packagePrice: new Prisma.Decimal('1000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-1', accountId: 'acc-123', currentCost: new Prisma.Decimal('20') },
+        supplier: { id: 'supplier-1', isActive: true },
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-OK', description: 'x'.repeat(1_200_000), price: 1100 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.status).not.toBe(500);
+    expect(res.body).toMatchObject({
+      received: 1,
+      account: {
+        tradeName: 'Panadería Central',
+        ownerEmail: 'admin@panaderia.example',
+      },
+    });
+  });
+
+  it('devuelve 413 cuando la lista supera el límite de tamaño del webhook', async () => {
+    const hugeDescription = 'x'.repeat(6 * 1024 * 1024);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'MC-TOO-LARGE', description: hugeDescription, price: 1234 }],
+      });
+
+    expect(res.status).toBe(413);
+    expect(res.body).toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: expect.stringContaining('demasiado grande'),
+    });
+    expect(res.body.error).toContain('Divid');
   });
 
   it('deduplica el payload y devuelve ownerEmail en la respuesta', async () => {
