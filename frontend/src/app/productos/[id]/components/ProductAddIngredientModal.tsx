@@ -169,18 +169,23 @@ export function ProductAddIngredientModal({
 
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Cantidad utilizada</label>
-              <NumericInput
-                value={inputQty}
-                onChange={setInputQty}
-                placeholder="50"
-                containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
-                className="text-sm font-bold text-gray-900 dark:text-white"
-              />
+              <label htmlFor="recipe-quantity-input" className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                Cantidad utilizada
+                <NumericInput
+                  id="recipe-quantity-input"
+                  aria-label="Cantidad utilizada"
+                  value={inputQty}
+                  onChange={setInputQty}
+                  placeholder="50"
+                  containerClassName="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
+                  className="text-sm font-bold text-gray-900 dark:text-white"
+                />
+              </label>
             </div>
             <div className="w-28 sm:w-36">
-              <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad</label>
+              <label htmlFor="recipe-unit-select" className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Unidad</label>
               <select
+                id="recipe-unit-select"
                 value={recipeUnit}
                 onChange={(e) => setRecipeUnit(e.target.value)}
                 className="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"

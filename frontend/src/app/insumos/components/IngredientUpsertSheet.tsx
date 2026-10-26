@@ -29,7 +29,7 @@ interface IngredientUpsertSheetProps {
   setValue: UseFormSetValue<z.input<typeof ingredientSchema>>
   errors: FieldErrors<z.input<typeof ingredientSchema>>
   selectedUnit: z.input<typeof ingredientSchema>['unit'] | undefined
-  watchedCurrentCost: string | number
+  watchedCurrentCost?: string | number
   money: (value: number) => string
 }
 
@@ -187,12 +187,12 @@ export function IngredientUpsertSheet({
               </div>
             )}
 
-            <div className="mt-4">
-              <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                Costo unitario ({selected ? selected.unit : selectedUnit})
-              </label>
+            <label htmlFor="costo-unitario" className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
+              Costo unitario ({selected ? selected.unit : selectedUnit})
               <NumericInput
-                value={watchedCurrentCost}
+                id="costo-unitario"
+                aria-label={`Costo unitario (${selected ? selected.unit : selectedUnit})`}
+                value={watchedCurrentCost ?? (selected ? String(selected.currentCost) : '')}
                 onChange={(val) => setValue('currentCost', val, { shouldValidate: true, shouldDirty: true })}
                 prefixSymbol="$"
                 prefixClassName="text-lg font-bold"
@@ -201,7 +201,7 @@ export function IngredientUpsertSheet({
                 className="text-lg font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
                 error={errors.currentCost?.message}
               />
-            </div>
+            </label>
 
             {hasDefaultSupplier && (
               <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
