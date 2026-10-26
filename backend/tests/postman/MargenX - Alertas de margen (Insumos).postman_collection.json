@@ -44,9 +44,9 @@
           "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "ingredients", "{{ingredientId}}"]
+          "path": ["ingredients", "{{ingredientId}}"]
         }
       },
       "response": []
@@ -58,6 +58,10 @@
           "listen": "test",
           "script": {
             "exec": [
+              "// Reenvía el mismo currentCost que dejó el request 01 (9500.00), no el",
+              "// costo base original (742.98): este request comparte el insumo con el",
+              "// 01 dentro de la misma corrida, así que \"sin cambio real\" tiene que",
+              "// probarse contra el valor vigente en este momento, no contra la base.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
               "pm.test('No hubo cambio real', function () {",
@@ -77,12 +81,12 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"742.98\"\n}"
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "ingredients", "{{ingredientId}}"]
+          "path": ["ingredients", "{{ingredientId}}"]
         }
       },
       "response": []
@@ -94,9 +98,10 @@
           "listen": "test",
           "script": {
             "exec": [
+              "// Mensaje real de backend/src/middlewares/rbac.ts:52 (requireRole).",
               "pm.test('Status 403', function () { pm.response.to.have.status(403); });",
               "pm.test('Se bloquea la mutación por RBAC', function () {",
-              "  pm.expect(pm.response.json().error).to.include('no autorizado');",
+              "  pm.expect(pm.response.json().error).to.eql('Acceso denegado. Se requiere rol ADMIN.');",
               "});"
             ],
             "type": "text/javascript"
@@ -114,9 +119,9 @@
           "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "ingredients", "{{ingredientId}}"]
+          "path": ["ingredients", "{{ingredientId}}"]
         }
       },
       "response": []
@@ -128,6 +133,10 @@
           "listen": "test",
           "script": {
             "exec": [
+              "// Vuelve el costo a la base del seed (742.98): es un cambio real otra",
+              "// vez (esta vez hacia abajo), así que de paso deja la colección",
+              "// reproducible sin una limpieza aparte y sin pisar el baseline que",
+              "// usan otras colecciones y las suites E2E.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
               "pm.test('El total real queda en affectedProductsCount', function () {",
@@ -137,8 +146,10 @@
               "pm.test('La lista crítica es un subconjunto del total', function () {",
               "  pm.expect(body.criticalProducts.length).to.be.at.most(body.affectedProductsCount);",
               "});",
+              "// La respuesta también incluye affectedProducts (la lista completa,",
+              "// no solo el total): backend/src/routes/ingredients.ts:302-313.",
               "pm.test('La respuesta sigue el contrato esperado por el frontend', function () {",
-              "  pm.expect(body).to.have.all.keys(['ingredient', 'affectedProductsCount', 'criticalProducts']);",
+              "  pm.expect(body).to.have.all.keys(['ingredient', 'affectedProductsCount', 'affectedProducts', 'criticalProducts']);",
               "});"
             ],
             "type": "text/javascript"
@@ -153,19 +164,19 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"742.98\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/api/ingredients/{{ingredientId}}",
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "ingredients", "{{ingredientId}}"]
+          "path": ["ingredients", "{{ingredientId}}"]
         }
       },
       "response": []
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
     { "key": "adminToken", "value": "<jwt-admin>" },
     { "key": "collaboratorToken", "value": "<jwt-colaborador>" },
     { "key": "ingredientId", "value": "30b00001-0000-4000-8000-000000000001" }

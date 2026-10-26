@@ -29,5 +29,6 @@ Closes #
 - [ ] No hay sentencias 'console.log' de depuracion olvidadas en el codigo.
 - [ ] El diseno es Mobile-First y se visualiza correctamente desde 360px (Solo Frontend).
 - [ ] Se han documentado los nuevos endpoints o variables de entorno (Solo Backend/DevOps).
+- [ ] Si este PR cambia el contrato de un endpoint existente, la colección de Postman que lo cubre quedó actualizada en este mismo PR (Solo Backend). No aplica si no se tocó ningún contrato.
 - [ ] El pipeline de Integracion Continua (CI) se ejecuta sin errores.
 - [ ] He revisado mi propio codigo antes de abrir este PR.
