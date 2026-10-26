@@ -22,8 +22,8 @@ import {
 } from '@/schemas/supplierPackagingSchema'
 import { supplierService, type Supplier, type SupplierIngredient } from '@/services/supplierService'
 import type { Ingredient } from '@/services/ingredientService'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { ApiError } from '@/services/api'
+import { NumericInput } from '@/components/NumericInput'
 
 interface SupplierPackagingModalProps {
   isOpen: boolean
@@ -83,8 +83,8 @@ export function SupplierPackagingModal({
     },
   })
 
-  const watchedSize = useWatch({ control, name: 'packageSize' })
-  const watchedPrice = useWatch({ control, name: 'packagePrice' })
+  const watchedSize = useWatch({ control, name: 'packageSize' }) as string | number
+  const watchedPrice = useWatch({ control, name: 'packagePrice' }) as string | number
   const watchedIsDefault = useWatch({ control, name: 'isDefault' })
 
   const handleClose = () => {
@@ -360,26 +360,15 @@ export function SupplierPackagingModal({
               >
                 Tamaño del bulto
               </label>
-              <input
+              <NumericInput
                 id="package-size-input"
-                {...register('packageSize')}
-                onKeyDown={handleNumericKeyDown}
-                onChange={(e) => {
-                  const clean = sanitizeDecimal(e.target.value)
-                  setValue('packageSize', clean, {
-                    shouldValidate: true,
-                  })
-                }}
-                inputMode="decimal"
-                type="text"
+                value={watchedSize}
+                onChange={(val) => setValue('packageSize', val, { shouldValidate: true })}
                 placeholder="Ej. 25"
-                className="no-spinners min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                className="text-sm font-bold text-gray-900 dark:text-white"
+                error={errors.packageSize?.message}
               />
-              {errors.packageSize && (
-                <p className="mt-1 text-[11px] font-bold text-rose-500">
-                  {errors.packageSize.message}
-                </p>
-              )}
             </div>
 
             <div>
@@ -408,29 +397,17 @@ export function SupplierPackagingModal({
             >
               Precio total del bulto ($)
             </label>
-            <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-              <span className="text-base font-bold text-gray-400 mr-2">$</span>
-              <input
-                id="package-price-input"
-                {...register('packagePrice')}
-                onKeyDown={handleNumericKeyDown}
-                onChange={(e) => {
-                  const clean = sanitizeDecimal(e.target.value)
-                  setValue('packagePrice', clean, {
-                    shouldValidate: true,
-                  })
-                }}
-                inputMode="decimal"
-                type="text"
-                placeholder="0.00"
-                className="no-spinners w-full bg-transparent text-sm font-bold text-gray-900 outline-none dark:text-white"
-              />
-            </div>
-            {errors.packagePrice && (
-              <p className="mt-1 text-[11px] font-bold text-rose-500">
-                {errors.packagePrice.message}
-              </p>
-            )}
+            <NumericInput
+              id="package-price-input"
+              value={watchedPrice}
+              onChange={(val) => setValue('packagePrice', val, { shouldValidate: true })}
+              prefixSymbol="$"
+              prefixClassName="text-base font-bold text-gray-400"
+              placeholder="0,00"
+              containerClassName="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+              className="text-sm font-bold text-gray-900 dark:text-white"
+              error={errors.packagePrice?.message}
+            />
           </div>
 
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/40">
