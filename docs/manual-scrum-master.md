@@ -63,8 +63,8 @@ Cuando el equipo tome una decisión técnica de impacto estructural (ej. incorpo
 - [ ] **Casos de Uso (CU):** Si cambia un flujo de negocio (ej. permitir productos borrador sin receta o la exclusión de costos a colaboradores), actualizar el caso de uso correspondiente en la Sección 3.
 
 ### 2.3. Sincronización entre Tablero y GitFlow
-- [ ] **Nomenclatura de Ramas:** Toda rama debe crearse desde `develop` siguiendo el formato `feature/<issue>-<slug>` o `fix/<issue>-<slug>` (ej. `feature/66-be-motor-margen`).
-  * *Mecánica:* El script `.github/workflows/auto-move-issues.yml` parsea el número de issue del nombre de la rama y mueve la tarjeta automáticamente de `To Do` a `In Progress`.
+- [ ] **Nomenclatura de Ramas:** Toda rama se crea desde la issue con el botón **Create a branch** de GitHub, con base `develop`, y queda con el formato `N-slug` en minúsculas ASCII con guiones (ej. `66-be-motor-margen`). Ver `docs/definition-of-done.md` §1.
+  * *Mecánica:* El script `.github/workflows/auto-move-issues.yml` toma el primer número del nombre de la rama como número de issue y mueve la tarjeta automáticamente de `To Do` a `In Progress`.
 - [ ] **Vinculación en Pull Request:** El cuerpo del PR debe contener la palabra clave de cierre: `Closes #<numero-issue>`.
 - [ ] **Ciclo de Estados en Tablero:**
   * Al abrir PR hacia `develop` $\rightarrow$ la tarjeta pasa automáticamente a **`In Review`**.
@@ -188,14 +188,13 @@ En la raíz del repositorio, actualizar `CHANGELOG.md` siguiendo el estándar [K
 
 1. Mover el contenido acumulado en `## [Unreleased]` hacia la nueva versión (ej. `## [0.2.0] - 2026-09-18`).
 2. Clasificar los cambios bajo las categorías estándar: `### Added`, `### Changed`, `### Fixed`, `### Security`.
-3. Commitear y pushear el cambio a `develop`:
+3. Crear la rama desde la issue de cierre del sprint con el botón **Create a branch** (base `develop`), commitear y abrir el PR hacia `develop`:
    ```bash
-   git checkout develop
-   git pull origin develop
-   git checkout -b docs/cierre-sprint-X
+   git fetch origin
+   git switch <N>-<slug>   # rama creada desde la issue de cierre
    git add CHANGELOG.md docs/
-   git commit -m "docs(release): preparar changelog y acta de cierre sprint X"
-   git push origin docs/cierre-sprint-X
+   git commit -m "docs(release): preparar changelog y acta de cierre sprint X (#N)"
+   git push origin <N>-<slug>
    ```
 
 ---
@@ -268,6 +267,6 @@ Al concluir la FASE 4, el Scrum Master saliente realiza la entrega formal al ent
 
 - [ ] **Tablero Limpio:** Todas las issues del sprint cerrado están en columna `Done`.
 - [ ] **Backlog Refinado:** Las issues del sprint entrante tienen responsable asignado, prioridad fijada (P1 a P4) y descripción técnica alineada al DoD.
-- [ ] **Ramas Eliminadas:** Ramas de trabajo de issues cerradas (`feature/*` y `fix/*`) borradas tanto en local como en remoto (`git remote prune origin`).
+- [ ] **Ramas Eliminadas:** Ramas de trabajo de issues cerradas (`N-slug`) borradas tanto en local como en remoto (`git remote prune origin`).
 - [ ] **Variables de VPS Verificadas:** El archivo `/opt/margenx-infra/.env` en la VPS conserva intactas las 9 líneas del certificado PEM `CLERK_JWT_KEY` y credenciales de base de datos.
 - [ ] **Fecha de Entrega de Medio Sprint:** Notificada en el grupo de WhatsApp la fecha límite del próximo entregable online para la cátedra.
