@@ -6,12 +6,8 @@ import { ingredientSchema } from '@/schemas/ingredientSchema'
 import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
+import { NumericInput } from '@/components/NumericInput'
 
-/**
- * Modal / bottom sheet para crear o actualizar un insumo.
- * Reúne el formulario con validación Zod, la acción de guardar, historial,
- * eliminación y la sección de proveedores asociados cuando corresponde.
- */
 const ingredientUnits = ['kg', 'litro', 'unidad'] as const
 
 interface IngredientUpsertSheetProps {
@@ -33,16 +29,10 @@ interface IngredientUpsertSheetProps {
   setValue: UseFormSetValue<z.input<typeof ingredientSchema>>
   errors: FieldErrors<z.input<typeof ingredientSchema>>
   selectedUnit: z.input<typeof ingredientSchema>['unit'] | undefined
+  watchedCurrentCost: string | number
   money: (value: number) => string
-  onNumericKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
-  onDecimalChange: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-/**
- * Renderiza la ficha de creación o edición del insumo y su bloque de proveedores.
- * Se encarga de mostrar la versión de alta, la de edición con historial y la vista
- * de confirmación de eliminación sin duplicar la lógica del resto de la pantalla.
- */
 export function IngredientUpsertSheet({
   selected,
   newOpen,
@@ -62,9 +52,8 @@ export function IngredientUpsertSheet({
   setValue,
   errors,
   selectedUnit,
+  watchedCurrentCost,
   money,
-  onNumericKeyDown,
-  onDecimalChange,
 }: IngredientUpsertSheetProps) {
   if (!selected && !newOpen) {
     return null
@@ -198,22 +187,21 @@ export function IngredientUpsertSheet({
               </div>
             )}
 
-            <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
-              Costo unitario ({selected ? selected.unit : selectedUnit})
-              <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                <span className="text-lg font-bold text-gray-400">$</span>
-                <input
-                  {...register('currentCost')}
-                  onKeyDown={onNumericKeyDown}
-                  onChange={onDecimalChange}
-                  inputMode="decimal"
-                  type="text"
-                  placeholder="0.00"
-                  className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                />
-              </div>
-              {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
-            </label>
+            <div className="mt-4">
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                Costo unitario ({selected ? selected.unit : selectedUnit})
+              </label>
+              <NumericInput
+                value={watchedCurrentCost}
+                onChange={(val) => setValue('currentCost', val, { shouldValidate: true, shouldDirty: true })}
+                prefixSymbol="$"
+                prefixClassName="text-lg font-bold"
+                placeholder="0,00"
+                containerClassName="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                className="text-lg font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+                error={errors.currentCost?.message}
+              />
+            </div>
 
             {hasDefaultSupplier && (
               <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
