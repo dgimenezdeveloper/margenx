@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronDown, LoaderCircle, Plus, Search, X } from 'lucide-react'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import type { Ingredient } from '@/services/ingredientService'
+import { NumericInput } from '@/components/NumericInput'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -32,7 +32,6 @@ export function ProductAddIngredientModal({
   isLoadingSupplies,
   onAdd,
 }: ProductAddIngredientModalProps) {
-  // Inicialización síncrona del estado al montar el componente (sin useEffect)
   const [selectedSupplyId, setSelectedSupplyId] = useState<string>(availablePantry[0]?.id || '')
   const [recipeUnit, setRecipeUnit] = useState<string>(() => {
     const supply = availablePantry[0]
@@ -171,14 +170,12 @@ export function ProductAddIngredientModal({
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">Cantidad utilizada</label>
-              <input
+              <NumericInput
                 value={inputQty}
-                onKeyDown={handleNumericKeyDown}
-                onChange={(e) => setInputQty(sanitizeDecimal(e.target.value))}
-                inputMode="decimal"
-                type="text"
+                onChange={setInputQty}
                 placeholder="50"
-                className="no-spinners min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
+                containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
+                className="text-sm font-bold text-gray-900 dark:text-white"
               />
             </div>
             <div className="w-28 sm:w-36">
