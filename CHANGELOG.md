@@ -6,6 +6,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
+### Changed
+
+- **DevOps:** `proxy_http_version 1.1` en el ejemplo de Nginx de staging y guía para activar gzip en el Nginx del host, con verificación y reversión, en `infra/vps/README.md` §8 (`#233`).
+
+### Security
+
+- **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
+
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
 ### Added
