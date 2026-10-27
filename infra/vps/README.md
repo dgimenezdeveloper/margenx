@@ -145,3 +145,57 @@ curl -I https://api.margenx.tech/api/health
 ```
 
 ---
+
+## 8. Compresión gzip en el Nginx del host
+
+Hasta el 26/10/2026, `margenx.tech` servía el JS (808 KB) y el CSS (81 KB) **sin comprimir**, aunque el navegador pidiera gzip. Había dos causas:
+
+1. En `/etc/nginx/nginx.conf` del host solo estaba `gzip on`, con `gzip_types`, `gzip_vary` y `gzip_comp_level` comentados, así que solo se comprimía HTML.
+2. Nginx habla con los contenedores en HTTP/1.0 por defecto. El `gzip on` de `frontend/nginx.conf` no comprime respuestas a HTTP/1.0 (`gzip_http_version` vale `1.1` por defecto), por eso cada bloque `location` de MargenX necesita `proxy_http_version 1.1` (ver `nginx/margenx-prod.conf.example` y `nginx/margenx-dev.conf.example`).
+
+### Bloque a activar en `/etc/nginx/nginx.conf` (contexto `http`)
+
+```nginx
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml image/svg+xml;
+```
+
+`text/html` no se lista porque Nginx siempre lo comprime cuando `gzip` está activo. El archivo es compartido con otros sitios de la VPS: el cambio también los afecta.
+
+### Cómo aplicarlo sin cortar el servicio
+
+```bash
+sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak-$(date +%Y%m%d)
+sudoedit /etc/nginx/nginx.conf          # descomentar o agregar el bloque de arriba
+sudoedit /etc/nginx/sites-available/<archivo-de-margenx>   # proxy_http_version 1.1 en cada location
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Verificación
+
+```bash
+# Debe responder content-encoding: gzip
+curl -sI -H 'Accept-Encoding: gzip' https://margenx.tech/assets/<archivo>.js | grep -i content-encoding
+curl -sI -H 'Accept-Encoding: gzip' https://margenx.tech/assets/<archivo>.css | grep -i content-encoding
+
+# Comparar el peso transferido con y sin compresión
+curl -s https://margenx.tech/assets/<archivo>.js | wc -c
+curl -s -H 'Accept-Encoding: gzip' https://margenx.tech/assets/<archivo>.js | wc -c
+```
+
+Confirmar además que los otros sitios de la VPS siguen respondiendo.
+
+### Cómo revertirlo
+
+```bash
+sudo cp /etc/nginx/nginx.conf.bak-<fecha> /etc/nginx/nginx.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Si solo hay que quitar `proxy_http_version 1.1`, borrar esa línea de cada `location`, volver a correr `sudo nginx -t` y recargar.
+
+---
