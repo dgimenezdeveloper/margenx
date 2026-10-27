@@ -27,18 +27,9 @@ Para generar varios de una sola vez y no perder tiempo entre invocaciones (recom
 
 ```bash
 cd backend
-node --experimental-strip-types -e '
-import { createClerkClient } from "@clerk/backend";
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-async function tok(userId) {
-  const session = await clerk.sessions.createSession({ userId });
-  const { jwt } = await clerk.sessions.getToken(session.id);
-  return jwt;
-}
-console.log("TOKEN_A=" + await tok("user_3J3QH50TxpOxRky6qNX7C79lj7x"));   // panaderia-admin
-console.log("TOKEN_B=" + await tok("user_3J3QxljX607yJ96D5uYViLqZYvD"));   // quimica-admin
-console.log("TOKEN_COLLAB=" + await tok("user_3J3Qf8N1X4mH5z5B9Ol757UdJmE")); // panaderia-colab
-'
+echo "TOKEN_A=$(npx tsx scripts/get-test-token.ts panaderia-admin)"
+echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
+echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
 ## Correr las 6 en orden
