@@ -11,7 +11,7 @@ Issue #37. Colección automatizada de pruebas de API para `POST/GET/PUT/DELETE /
 
 El criterio técnico original de la issue #37 pide validar una respuesta **paginada** en el `GET` (`array data` + `objeto meta`). Al momento de escribir esta colección, la **issue #36 (paginación) todavía no está implementada** en `develop` — el endpoint devuelve un array plano bajo la clave `ingredients`, sin paginar.
 
-La colección valida el **contrato real vigente hoy** (ver el test `GET Listar insumos (200)`, con un comentario explícito en el script). Cuando la issue #36 se mergee, hay que actualizar ese schema a `{ data: [...], meta: {...} }` antes de dar por cerrada la cobertura completa de la issue #37.
+Nota sobre el contrato: La colección valida el contrato paginado actual (Issue #36). El endpoint GET /api/ingredients devuelve un objeto con la estructura { data, meta } (incluyendo total, page, limit y totalPages), y los tests de Postman verifican correctamente esta paginación server-side.
 
 ## Requisitos previos
 
@@ -29,13 +29,14 @@ Si no las tenés ya armadas, en Prisma Studio (`npx prisma studio`, desde `backe
 
 ## 2. Generar los tokens (duran ~60s cada uno)
 
-En `backend/scripts/get-test-token.ts`, cambiá la constante `userId` por el de Cuenta A, corré:
+El script get-test-token.ts funciona mediante alias pasados por argumento, evitando tener que editar el código fuente. Genera los tokens ejecutando desde la carpeta backend/:
 
 ```bash
-npx tsx scripts/get-test-token.ts
+npx tsx scripts/get-test-token.ts panaderia-admin
+npx tsx scripts/get-test-token.ts quimica-admin
 ```
 
-Copiá el token. Repetí cambiando `userId` al de Cuenta B para el segundo token.
+Copia los JWT resultantes para pasarlos como argumentos a los scripts de ejecución (run-tests*.sh).
 
 Como duran poco, no los guardes en el archivo de environment — pasalos como overrides al correr Newman (ver el paso siguiente), generándolos justo antes de correr la colección.
 

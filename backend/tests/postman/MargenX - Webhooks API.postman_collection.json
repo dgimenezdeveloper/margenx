@@ -134,11 +134,19 @@
               "    pm.response.to.have.status(200);",
               "});",
               "",
-              "pm.test('Respuesta confirma recepcion del lote', function () {",
+              "pm.test('Respuesta confirma recepcion del lote (contrato vigente)', function () {",
               "    const json = pm.response.json();",
-              "    pm.expect(json.message).to.eql('Lote de precios recibido correctamente.');",
-              "    pm.expect(json.processedItems).to.eql(100);",
-              "    pm.expect(json.accountId).to.be.a('string');",
+              "    pm.expect(json.received).to.eql(100);",
+              "    pm.expect(json.updated).to.eql(0);",
+              "    pm.expect(json.unchanged).to.eql(0);",
+              "    pm.expect(json.quarantined).to.eql(0);",
+              "    pm.expect(json.duplicates).to.eql(0);",
+              "    pm.expect(json.discarded).to.eql(100);",
+              "    pm.expect(json.discardedCodes).to.be.an('array').with.lengthOf(100);",
+              "    pm.expect(json.discardedCodes[0]).to.have.all.keys(['code', 'reason']);",
+              "    pm.expect(json.discardedCodes[0].reason).to.eql('NOT_FOUND');",
+              "    pm.expect(json.account).to.eql({ tradeName: 'Panadería Central', ownerEmail: 'admin.panaderia@hotmail.com' });",
+              "    pm.expect(json.criticalProductsAlerts).to.eql([]);",
               "});"
             ]
           }

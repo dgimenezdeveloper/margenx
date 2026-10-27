@@ -49,6 +49,7 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 
 ### 6. Documentación de API (Backend)
 - **Documentación de Endpoints:** Todo nuevo endpoint debe tener documentado su método HTTP, ruta, cabeceras requeridas, payload esperado, respuestas HTTP posibles (200, 400, 401, 403, 404, 500) y su colección de Postman asociada.
+- **Cambio de contrato, colección en el mismo PR:** si un PR modifica el contrato de un endpoint existente (forma de la respuesta, código HTTP, mensaje de error, validación), la colección de Postman que lo cubre se actualiza en el mismo PR. No corresponde dejarla desactualizada para una issue de seguimiento (acuerdo de la retro del Sprint 4, issue #264).
 - **Aislamiento Multi-Tenant:** Toda consulta en base de datos debe filtrar de forma estricta e inviolable por `accountId`.
 
 ---
