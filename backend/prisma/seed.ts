@@ -21,8 +21,8 @@ const accounts = [
     businessName: "Panadería Central",
     slug: "panaderia-central",
     users: [
-      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
-      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
+      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3LHkU9OL8FBdKxkZOsI0CvoVJ1j" },
+      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3LHkX5fpp3AcI7HvYn42PBV1xwP" },
     ],
     suppliers: [
       {
