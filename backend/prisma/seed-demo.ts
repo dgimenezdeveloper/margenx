@@ -26,8 +26,8 @@ const ACCOUNT = {
   businessName: "Demo MargenX",
   slug: "demo-margenx",
   users: [
-    { id: "31d00001-0000-4000-8000-000000000001", email: "demo-admin@margenx.tech", role: Role.ADMIN, authProviderId: "user_3L76Tx5xz0PLTzloe2wiSvRWTZT" },
-    { id: "31d00001-0000-4000-8000-000000000002", email: "demo-colab@margenx.tech", role: Role.COLLABORATOR, authProviderId: "user_3L76U1ydsm6uUGxpPmnpg7ZJlIK" },
+    { id: "31d00001-0000-4000-8000-000000000001", email: "demo-admin@margenx.tech", role: Role.ADMIN, authProviderId: "user_3LHZsMObG8rtQEjZnIR9hB83047" },
+    { id: "31d00001-0000-4000-8000-000000000002", email: "demo-colab@margenx.tech", role: Role.COLLABORATOR, authProviderId: "user_3LHa1sLQjQk7uUtluUfEII9pbFR" },
   ],
 };
 

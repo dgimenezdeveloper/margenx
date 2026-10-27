@@ -6,6 +6,11 @@ on:
   push:
     branches: [main, develop]
 
+# Cancela la corrida anterior de la misma rama/PR cuando llega un push nuevo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-check:
     name: Backend Lint & Typecheck
@@ -147,9 +152,27 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Instalar navegador Chromium para Playwright
+      # Antes: `playwright install --with-deps chromium` tardaba ~10 min porque
+      # apt bajaba fuentes y xvfb desde un mirror lento. Los tests corren headless,
+      # así que alcanza con chromium-headless-shell (--only-shell), y el runner
+      # ubuntu-latest ya trae las librerías de sistema de Chrome. Los binarios se
+      # cachean por versión de Playwright: con cache hit el paso tarda segundos.
+      - name: Obtener versión de Playwright
+        id: playwright-version
         working-directory: ./frontend
-        run: npx playwright install --with-deps chromium
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache de navegadores Playwright
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium-shell
+
+      - name: Instalar navegador Chromium para Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: ./frontend
+        run: npx playwright install --only-shell chromium
 
       - name: Ejecutar Suite E2E Completa
         working-directory: ./frontend

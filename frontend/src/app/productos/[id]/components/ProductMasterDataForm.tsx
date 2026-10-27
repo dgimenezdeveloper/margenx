@@ -1,7 +1,7 @@
 import type { UseFormRegister, UseFormSetValue, FieldErrors } from 'react-hook-form'
 import type { z } from 'zod'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { productSchema } from '@/schemas/productSchema'
+import { NumericInput } from '@/components/NumericInput'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -15,6 +15,7 @@ export interface ProductMasterDataFormProps {
   register: UseFormRegister<ProductInput>
   setValue: UseFormSetValue<ProductInput>
   errors: FieldErrors<ProductInput>
+  watchedMinMargin: string | number
 }
 
 export function ProductMasterDataForm({
@@ -25,6 +26,7 @@ export function ProductMasterDataForm({
   register,
   setValue,
   errors,
+  watchedMinMargin,
 }: ProductMasterDataFormProps) {
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
@@ -74,26 +76,16 @@ export function ProductMasterDataForm({
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
               Margen Mínimo Objetivo (%)
             </label>
-            <div className="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-              <input
-                {...register('minMarginPercent')}
-                onKeyDown={handleNumericKeyDown}
-                onChange={(e) => {
-                  const clean = sanitizeDecimal(e.target.value)
-                  setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
-                }}
-                inputMode="decimal"
-                type="text"
-                placeholder="30"
-                className="no-spinners w-full bg-transparent text-right text-sm font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-              />
-              <span className="ml-1 font-bold text-gray-400">%</span>
-            </div>
-            {errors.minMarginPercent && (
-              <p className="mt-1 text-xs font-bold text-rose-500">
-                {errors.minMarginPercent.message}
-              </p>
-            )}
+            <NumericInput
+              value={watchedMinMargin}
+              onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
+              suffixSymbol="%"
+              suffixClassName="font-bold"
+              placeholder="30"
+              containerClassName="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+              className="text-right text-sm font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+              error={errors.minMarginPercent?.message}
+            />
           </div>
         </>
       )}

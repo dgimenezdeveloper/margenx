@@ -6,53 +6,37 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
-### Fixed
-
-- **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
-- **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
-
 ### Added
 
+- **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
-### Added
-
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
 - **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.
-
-### Changed
-
-- **Docs:** documentados los límites de ingesta, el contrato de error 413 y el runbook operativo en [docs/api.md](docs/api.md) y [docs/runbook-ingesta.md](docs/runbook-ingesta.md).
-### Changed
-
-- **DevOps:** `proxy_http_version 1.1` en el ejemplo de Nginx de staging y guía para activar gzip en el Nginx del host, con verificación y reversión, en `infra/vps/README.md` §8 (`#233`).
-
-### Security
-
-- **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
-- **Frontend:** actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
-### Added
-
 - **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
 - **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
 
 ### Changed
 
+- **Docs:** Actualización de `docs/process/revision-de-prs.md` §5 ítem 6 formalizando la medición obligatoria del 90 % de líneas en `frontend/` mediante `npm run test:coverage` y retirando la excepción temporal de cobertura no verificada (`#276`).
+- **Docs:** Documentados los límites de ingesta, el contrato de error 413 y el runbook operativo en [docs/api.md](docs/api.md) y [docs/runbook-ingesta.md](docs/runbook-ingesta.md).
 - **Docs:** Convención de ramas única `N-slug`, creada desde la issue con *Create a branch*, en la DoD, el manual del Scrum Master y el SAD (`#274`).
 - **Docs:** Dirección de ingesta unificada como `precios-<slug>@margenx.tech` en el README (`#274`).
+- **DevOps:** `proxy_http_version 1.1` en el ejemplo de Nginx de staging y guía para activar gzip en el Nginx del host, con verificación y reversión, en `infra/vps/README.md` §8 (`#233`).
 
 ### Removed
 
 - **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
 
-### Added
+### Fixed
 
-- **Docs:** Guía de contribución (`CONTRIBUTING.md`): documentación como código (qué se actualiza en cada PR y cuándo), convención de numeración y bloqueos de issues, y propuesta de ruleset de `main` (merge commit en los PR de release) pendiente de decisión del Tech Lead (`#267`).
-- **DevOps:** Feature oficial `ghcr.io/devcontainers/features/github-cli:1` en `.devcontainer/devcontainer.json`, para poder usar `gh` dentro del DevContainer (`#267`).
+- **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
+- **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
 
-### Changed
+### Security
 
-- **Docs:** Plantilla de PR (`.github/pull_request_template.md`): casilla de documentación actualizada en el mismo PR, casilla de hallazgos `[RV<PR>-<S><n>]` referenciados, y guía de `Refs #N` para los PR de release (`#267`).
+- **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
+- **Frontend:** Actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
 
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
