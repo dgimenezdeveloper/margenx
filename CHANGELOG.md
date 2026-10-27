@@ -14,6 +14,19 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
 - **Frontend:** actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
+### Added
+
+- **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
+- **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
+
+### Changed
+
+- **Docs:** Convención de ramas única `N-slug`, creada desde la issue con *Create a branch*, en la DoD, el manual del Scrum Master y el SAD (`#274`).
+- **Docs:** Dirección de ingesta unificada como `precios-<slug>@margenx.tech` en el README (`#274`).
+
+### Removed
+
+- **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
 
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 

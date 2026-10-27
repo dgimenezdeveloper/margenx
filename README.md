@@ -23,7 +23,7 @@ When a raw material increases in price (e.g., flour, beef, chemicals, containers
 **MargenX** solves this problem through:
 - **Cascading Recalculation:** Updating an ingredient's cost triggers an automated database transaction that recalculates the total cost and gross profit margin of every finished good using that ingredient across the entire catalog.
 - **Visual & Automated Alerts:** Immediate traffic-light badges on the dashboard and asynchronous alerts via **n8n** (Email / Telegram) when a product falls below the target margin threshold.
-- **Zero-Click Supplier Ingestion:** Business owners forward supplier price lists (Excel/CSV) to a virtual inbox (`precios+<slug>@margenx.tech`). The system updates mapped items and discards unmapped rows (anti-pollution catalog protection).
+- **Zero-Click Supplier Ingestion:** Business owners forward supplier price lists (Excel/CSV) to a virtual inbox (`precios-<slug>@margenx.tech`). The system updates mapped items and discards unmapped rows (anti-pollution catalog protection).
 
 ---
 
@@ -141,7 +141,7 @@ Cuando sube el costo de una materia prima (harina, carne, cloro, envases), los p
 **MargenX** resuelve este problema mediante:
 - **Recálculo en Cascada:** La modificación del costo de un insumo actualiza de forma transaccional el costo total de receta y el margen porcentual de todos los productos vinculados en el catálogo.
 - **Alertas Visuales y Automatizadas:** Semáforo de rentabilidad en el panel principal y notificaciones inmediatas por email o Telegram vía **n8n** ante quiebres del umbral mínimo de rentabilidad.
-- **Ingesta Desatendida "Zero-Click":** El dueño reenvía listas mayoristas en Excel/CSV a una casilla virtual (`precios+<slug>@margenx.tech`). El sistema actualiza los códigos equivalentes y descarta automáticamente los miles de artículos que el negocio no consume (filtro anti-polución).
+- **Ingesta Desatendida "Zero-Click":** El dueño reenvía listas mayoristas en Excel/CSV a una casilla virtual (`precios-<slug>@margenx.tech`). El sistema actualiza los códigos equivalentes y descarta automáticamente los miles de artículos que el negocio no consume (filtro anti-polución).
 
 ---
 
