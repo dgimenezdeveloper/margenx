@@ -17,6 +17,7 @@ import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -156,7 +157,6 @@ export default function SuppliesPageContent() {
   })
 
   const selectedUnit = useWatch({ control, name: 'unit' })
-  const watchedCurrentCost = useWatch({ control, name: 'currentCost' }) as string | number
 
   const filtered = useMemo(
     () => supplies.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())),
@@ -490,8 +490,12 @@ export default function SuppliesPageContent() {
         setValue={setValue}
         errors={errors}
         selectedUnit={selectedUnit}
-        watchedCurrentCost={watchedCurrentCost}
         money={money}
+        onNumericKeyDown={handleNumericKeyDown}
+        onDecimalChange={(event) => {
+          const clean = sanitizeDecimal(event.target.value)
+          setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
+        }}
       />
       <UnsavedChangesDialog
         open={showDiscardConfirm}
