@@ -14,6 +14,7 @@ export const FINANCIAL_FIELDS = new Set([
   'newCost',
   'packagePrice',
   'packageSize',
+  'quantity',
   'unitCost',
   'suppliers',
 ]);
