@@ -6,6 +6,20 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
+### Added
+
+- **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
+- **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
+
+### Changed
+
+- **Docs:** Convención de ramas única `N-slug`, creada desde la issue con *Create a branch*, en la DoD, el manual del Scrum Master y el SAD (`#274`).
+- **Docs:** Dirección de ingesta unificada como `precios-<slug>@margenx.tech` en el README (`#274`).
+
+### Removed
+
+- **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
+
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
 ### Added

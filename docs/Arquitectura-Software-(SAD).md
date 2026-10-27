@@ -696,8 +696,7 @@ Para garantizar la estabilidad del código en producción y permitir integració
 
 * **main:** Rama de producción. Es inmutable mediante push directo; solo recibe código a través de Pull Requests aprobados desde develop o ramas de release. Cada merge exitoso dispara el despliegue automático hacia producción en la VPS Donweb (`margenx.tech`).
 * **develop:** Rama de integración continua del equipo. Es la base de trabajo diaria donde convergen todas las funcionalidades finalizadas y verificadas por CI. Cada merge dispara el despliegue automático hacia staging (`dev.margenx.tech`).
-* **feature/<modulo>-<descripcion>:** Una rama aislada por cada tarjeta del tablero de GitHub Projects (ej. `feature/middleware-errores`, `feature/maquetado-insumos`). Se origina siempre desde `develop` y se reintegra exclusivamente hacia `develop` mediante Pull Request.
-* **fix/<modulo>-<descripcion>:** Rama específica para la resolución rápida de defectos o bugs detectados durante pruebas de QA o revisiones de sprint.
+* **`N-slug` (ramas de trabajo):** Una rama aislada por cada issue del tablero de GitHub Projects, sea funcionalidad, corrección de defectos o documentación. Se crea desde la issue con el botón **Create a branch** de GitHub, con base `develop`, y se reintegra exclusivamente hacia `develop` mediante Pull Request. `N` es el número de la issue y `slug` su título en minúsculas ASCII con guiones (ej. `31-fe-maquetado-insumos`); si el título tiene tildes o eñes, se editan en el diálogo del botón. El número de la issue debe ser el primer número del nombre, porque es el que usa la automatización del tablero (ver `docs/definition-of-done.md` §1).
 
 ### 7.3. Reglas de Pull Requests
 
