@@ -6,7 +6,10 @@ import {
   calculateMarginAmount,
   calculateMarginPercent,
   calculateUnitCost,
+  applyIngredientCostChange,
 } from './marginCalculator';
+import { vi } from 'vitest';
+
 
 const D = (v: string | number) => new Prisma.Decimal(v);
 
@@ -142,5 +145,58 @@ describe('calculateUnitCost', () => {
 
   it('lanza un error si el resultado redondeado queda en 0.00', () => {
     expect(() => calculateUnitCost(D('0.01'), D('100'))).toThrow(/mayor a cero/i);
+  });
+
+  describe('Casos de frontera (Issue #277 / Reporte Sprint 4 §3.2)', () => {
+    it('lanza error cuando packagePrice <= 0 en calculateUnitCost (Líneas 59-60)', () => {
+      expect(() =>
+        calculateUnitCost(new Prisma.Decimal(0), new Prisma.Decimal(10))
+      ).toThrow('El campo "packagePrice" debe ser mayor a cero.');
+  
+      expect(() =>
+        calculateUnitCost(new Prisma.Decimal(-50), new Prisma.Decimal(10))
+      ).toThrow('El campo "packagePrice" debe ser mayor a cero.');
+    });
+  
+    it('lanza error cuando unitCost excede MAX_MONEY_VALUE en calculateUnitCost (Líneas 67-68)', () => {
+      const hugePrice = new Prisma.Decimal('999999999999');
+      const tinySize = new Prisma.Decimal('0.001');
+      expect(() => calculateUnitCost(hugePrice, tinySize)).toThrow(
+        'El costo unitario calculado no puede superar $99.999.999,99.'
+      );
+    });
+  
+    it('registra priceHistory cuando oldCost difiere de newCost en applyIngredientCostChange (Líneas 129-132)', async () => {
+      const mockTx = {
+        ingredient: {
+          findUnique: vi.fn().mockResolvedValue({ currentCost: new Prisma.Decimal('100') }),
+        },
+        priceHistory: {
+          create: vi.fn().mockResolvedValue({}),
+        },
+        productIngredient: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        product: {
+          findUnique: vi.fn(),
+          update: vi.fn(),
+        },
+      };
+  
+      await applyIngredientCostChange(
+        mockTx,
+        'ing-1',
+        new Prisma.Decimal('100'),
+        new Prisma.Decimal('120')
+      );
+  
+      expect(mockTx.priceHistory.create).toHaveBeenCalledWith({
+        data: {
+          ingredientId: 'ing-1',
+          oldCost: new Prisma.Decimal('100'),
+          newCost: new Prisma.Decimal('120'),
+        },
+      });
+    });
   });
 });

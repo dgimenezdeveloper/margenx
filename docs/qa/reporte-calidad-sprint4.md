@@ -99,6 +99,8 @@ Capturas reales tomadas durante esta misma corrida (no mockups), con sesiones de
 
 Líneas sin cubrir (confirmadas línea por línea en esta revisión, vía el reporte `json` de `v8`): **59, 60, 67, 68, 129, 130, 131, 132**. Las líneas 59-60 son la guarda `packagePrice.lte(0)` de `calculateUnitCost` — una validación de dinero, no un caso límite trivial; la v1 de este reporte las omitió de la lista. 67-68 son la guarda de monto máximo de la misma función; 129-132 son guardas equivalentes en el cálculo de métricas de producto. Son rutas de validación de borde que no se ejercitan en los tests actuales — no caminos de negocio del happy path, pero tampoco "sin importancia": matizando la frase de la v1, estas sí son validaciones de dinero sin cobertura, ninguna crítica para el release pero sí candidatas a un test adicional en la issue de seguimiento.
 
+> **Nota de actualización Sprint 5 (Issue #277):** Las líneas 59-60 (`packagePrice <= 0`), 67-68 (`unitCost > MAX_MONEY_VALUE`) y 129-132 (`clampDecimal` / límites) de `marginCalculator.ts` quedaron 100 % cubiertas con pruebas automatizadas en `backend/tests/unit/marginCalculator.test.ts`.
+
 ## 4. Matriz de Defectos
 
 Taxonomía de la issue: **Crítico (Bloqueante)** / **Mayor** / **Menor (Visual)**. Una fila por aserción fallida; el mismo ID de matriz se repite cuando dos aserciones comparten la misma causa raíz. La suma de filas (12) coincide con el total de fallos de §3.
