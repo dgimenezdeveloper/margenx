@@ -574,7 +574,7 @@ const accounts = [
   },
 ];
 
-// Usuarios ficticios de base de datos: no registran usuarios en Clerk.
+// Usuarios de prueba de base de datos.
 const prisma = new PrismaClient();
 
 function confirmDatabaseTarget() {
@@ -640,27 +640,38 @@ async function main() {
       });
 
       for (const user of account.users) {
-        const matchingUsers = await tx.user.findMany({
+        // Buscamos si el usuario ya existe en base de datos por ID o por email
+        const existingUser = await tx.user.findFirst({
           where: {
             OR: [
               { id: user.id },
               { email: user.email },
-              { authProviderId: user.authProviderId },
             ],
           },
         });
 
-        if (matchingUsers.some((row) =>
-          row.id !== user.id || row.accountId !== account.id ||
-          row.email !== user.email || row.authProviderId !== user.authProviderId
-        )) {
+        // Verificamos que no haya colisión cruzada (ej. que el email pertenezca a otra cuenta u otro ID)
+        if (existingUser && (existingUser.id !== user.id || existingUser.accountId !== account.id || existingUser.email !== user.email)) {
           throw new Error("Conflicto de identidad del usuario de prueba " + user.email + ".");
         }
 
+        // Si el usuario ya existe en la base de datos, PRESERVAMOS su authProviderId activo
+        // para no romper sesiones de Clerk en producción o staging. Solo usamos el del seed si el usuario es nuevo.
+        const authProviderIdToPersist = existingUser?.authProviderId ?? user.authProviderId;
+
         await tx.user.upsert({
           where: { id: user.id },
-          create: { ...user, accountId: account.id },
-          update: { role: user.role },
+          create: {
+            id: user.id,
+            accountId: account.id,
+            email: user.email,
+            role: user.role,
+            authProviderId: user.authProviderId,
+          },
+          update: {
+            role: user.role,
+            authProviderId: authProviderIdToPersist,
+          },
         });
       }
 
