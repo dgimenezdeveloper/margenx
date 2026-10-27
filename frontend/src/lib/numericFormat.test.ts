@@ -17,8 +17,10 @@ describe('numericFormat', () => {
       expect(parseNumeroAR('1.500.000,00')).toBe('1500000.00');
     });
 
-    it('un solo punto con exactamente 3 dígitos se toma como miles', () => {
+    it('un solo punto con 1 a 3 dígitos iniciales y 3 dígitos finales se toma como miles', () => {
       expect(parseNumeroAR('1.234')).toBe('1234');
+      expect(parseNumeroAR('12.345')).toBe('12345');
+      expect(parseNumeroAR('123.456')).toBe('123456');
       expect(parseNumeroAR('-5.000')).toBe('-5000');
     });
 
@@ -40,10 +42,12 @@ describe('numericFormat', () => {
       expect(parseNumeroAR('12,34,56')).toBe('');
     });
 
-    it('cualquier otro caso con un punto se toma como decimal', () => {
+    it('cualquier otro caso con un punto se toma como decimal (RV279-M1)', () => {
       expect(parseNumeroAR('12.5')).toBe('12.5');
       expect(parseNumeroAR('123.45')).toBe('123.45');
       expect(parseNumeroAR('12.5000')).toBe('12.5000');
+      // Más de 3 dígitos antes del punto con 3 decimales no es miles, se toma como decimal
+      expect(parseNumeroAR('12345.678')).toBe('12345.678');
     });
 
     it('caracteres alfabéticos devuelven vacío', () => {
@@ -57,18 +61,23 @@ describe('numericFormat', () => {
       expect(formatNumeroAR(1234.56)).toBe('1.234,56');
       expect(formatNumeroAR('1234.56')).toBe('1.234,56');
       expect(formatNumeroAR(1234)).toBe('1.234');
+      expect(formatNumeroAR(0)).toBe('0');
+      expect(formatNumeroAR('0')).toBe('0');
     });
 
-    it('formatea números grandes sin cortar en 1,5 (caso B1)', () => {
+    it('formatea números grandes sin cortar en 1,5', () => {
       expect(formatNumeroAR(1500000)).toBe('1.500.000');
       expect(formatNumeroAR('1500000')).toBe('1.500.000');
       expect(formatNumeroAR('1.500.000')).toBe('1.500.000');
       expect(formatNumeroAR('1.500.000,50')).toBe('1.500.000,5');
     });
 
-    it('devuelve vacío ante entradas inválidas', () => {
+    it('devuelve vacío ante entradas inválidas (RV279-B1)', () => {
       expect(formatNumeroAR('abc')).toBe('');
       expect(formatNumeroAR('1.2.3')).toBe('');
+      expect(formatNumeroAR('')).toBe('');
+      expect(formatNumeroAR(null)).toBe('');
+      expect(formatNumeroAR(undefined)).toBe('');
     });
   });
 });

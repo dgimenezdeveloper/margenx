@@ -50,4 +50,10 @@ describe('NumericInput', () => {
     render(<NumericInput value="" error="El costo debe ser mayor a 0" />);
     expect(screen.getByText('El costo debe ser mayor a 0')).toBeInTheDocument();
   });
+
+  it('no muestra "0" si se monta con un valor inválido (RV279-B1)', () => {
+    render(<NumericInput value="abc" />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toBe('');
+  });
 });

@@ -22,22 +22,18 @@ export function parseNumeroAR(value: string | number | undefined | null): string
   }
 
   // 2. Si no hay coma:
-  // Caso A: Grupos de miles con puntos (ej: "1.234", "1.500.000", "12.345.678")
+  // Caso A: Grupos estándar de miles con puntos (ej: "1.234", "12.345", "1.500.000", "12.345.678")
+  // Exige de 1 a 3 dígitos iniciales seguidos de uno o más bloques de exactamente 3 dígitos.
   if (/^-?\d{1,3}(\.\d{3})+$/.test(str)) {
     return str.replace(/\./g, '');
   }
 
-  // Caso B: Un solo punto seguido de exactamente 3 dígitos (ej: "1.234")
-  if (/^-?\d+\.\d{3}$/.test(str)) {
-    return str.replace('.', '');
-  }
-
-  // Caso C: Múltiples puntos que NO cumplen el formato de miles (ej: "1.2.3" o "12.34.56") -> Inválido
+  // Caso B: Múltiples puntos que NO cumplen el formato de miles (ej: "1.2.3" o "12.34.56") -> Inválido
   if ((str.match(/\./g) || []).length > 1) {
     return '';
   }
 
-  // Caso D: Un solo punto decimal (ej: "12.5", "1234.56") o entero sin puntos (ej: "1500")
+  // Caso C: Un solo punto decimal (ej: "12.5", "1234.56", "12345.678") o entero sin puntos (ej: "1500")
   if (/^-?\d+(\.\d+)?$/.test(str)) {
     return str;
   }
@@ -49,12 +45,21 @@ export function parseNumeroAR(value: string | number | undefined | null): string
 export function formatNumeroAR(value: string | number | undefined | null, maxDecimals = 2): string {
   if (value === undefined || value === null || value === '') return '';
 
-  // Si es string, se normaliza con parseNumeroAR para evitar los cortes de parseFloat en múltiples puntos
-  const parsed = typeof value === 'number' ? value : Number(parseNumeroAR(String(value)));
-  if (isNaN(parsed) || !Number.isFinite(parsed)) return '';
+  let num: number;
+  if (typeof value === 'number') {
+    num = value;
+  } else {
+    const parsedStr = parseNumeroAR(String(value));
+    // Si parseNumeroAR devolvió vacío (por ser texto inválido), retornamos vacío inmediatamente.
+    // Esto evita que Number("") evalúe a 0 en JavaScript y formatee "0" por error.
+    if (parsedStr === '') return '';
+    num = Number(parsedStr);
+  }
+
+  if (isNaN(num) || !Number.isFinite(num)) return '';
 
   return new Intl.NumberFormat('es-AR', {
     maximumFractionDigits: maxDecimals,
     useGrouping: true,
-  }).format(parsed);
+  }).format(num);
 }
