@@ -6,6 +6,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
+### Added
+
+- **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
+- **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
+- **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.
+
+### Changed
+
+- **Docs:** documentados los límites de ingesta, el contrato de error 413 y el runbook operativo en [docs/api.md](docs/api.md) y [docs/runbook-ingesta.md](docs/runbook-ingesta.md).
 ### Changed
 
 - **DevOps:** `proxy_http_version 1.1` en el ejemplo de Nginx de staging y guía para activar gzip en el Nginx del host, con verificación y reversión, en `infra/vps/README.md` §8 (`#233`).
@@ -45,14 +54,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** Modularización de la Despensa de Insumos (`/insumos`): tablas desktop `SuppliesTableDesktop`, tarjetas táctiles `SuppliesCardsMobile`, `IngredientSupplierList` y modal `IngredientUpsertSheet` (`#165`, PR `#185`).
 - **Frontend:** Modularización del Dashboard (`/dashboard`): componentes especializados `DashboardKpiCards`, `HealthDistributionHistogram` y `MonitoredCatalogGrid` (`#166`, PR `#192`).
 - **Frontend:** Bandeja visual de cuarentena de precios (`/proveedores/cuarentena`) para listar, liberar y rechazar anomalías de proveedores con recálculo automático (`#203`, PR `#217`).
-- **Frontend:** Cola secuencial de notificaciones Toast interactivas (`ToastAlert`) con soporte de descarte táctil (*swipe-to-dismiss*) para recálculos en cascada (`#168`, PR `#211`).
+- **Frontend:** Cola secuencial de notificaciones Toast interactivas (`ToastAlert`) con soporte de descarte táctil (_swipe-to-dismiss_) para recálculos en cascada (`#168`, PR `#211`).
 - **DevOps:** Infraestructura de correo perimetral con Cloudflare Email Routing Catch-All (`*@margenx.tech`) para habilitar alias virtuales comerciales por comercio (`precios+<slug>@margenx.tech`) (`#169`, PR `#186`).
 - **DevOps:** Workflow n8n de ingesta: trigger IMAP vía IDLE sobre Gmail, extracción de slug comercial, parseo de planillas XLSX/XLS/CSV y normalización de columnas (`#170`, PR `#206`).
 - **DevOps:** Workflow n8n de despacho HTTP con política de reintentos exponenciales ante fallos de red y armado de correo con resumen de importación al dueño (`#171`, PR `#207`).
 - **DevOps:** Workflow n8n de alertas críticas de margen: despacho asíncrono SMTP vía Brevo Relay con plantilla HTML responsive accesible sin dependencias externas (`#172`, PR `#187`).
 - **DevOps:** Script centinela `monitor-memory.sh` en el host VPS con inspección periódica de consumo de memoria RAM, top de contenedores Docker y alertas enriquecidas a Discord (`#173`, PR `#188`).
-- **Datos:** Cuenta de demostración *Demo MargenX* (usuarios ADMIN y COLLABORATOR, 2 proveedores, 8 insumos, 3 productos y un caso de cuarentena) mediante el script independiente `prisma/seed-demo.ts` y el comando `npm run seed:demo`, con confirmación explícita del destino vía `SEED_DEMO_CONFIRM` (`#220`, PR `#221`).
-- **QA:** Protocolo, ejecución presencial y bitácora firmada de pruebas de ergonomía y usabilidad in-situ en 360px en *Química GyJ* (`#174`, PR `#191`).
+- **Datos:** Cuenta de demostración _Demo MargenX_ (usuarios ADMIN y COLLABORATOR, 2 proveedores, 8 insumos, 3 productos y un caso de cuarentena) mediante el script independiente `prisma/seed-demo.ts` y el comando `npm run seed:demo`, con confirmación explícita del destino vía `SEED_DEMO_CONFIRM` (`#220`, PR `#221`).
+- **QA:** Protocolo, ejecución presencial y bitácora firmada de pruebas de ergonomía y usabilidad in-situ en 360px en _Química GyJ_ (`#174`, PR `#191`).
 - **QA:** Suite de pruebas automatizadas E2E en Playwright para el recálculo en cascada (`cascade-recalculation.spec.ts`) (`#175`, PR `#216`).
 - **QA:** Colección automatizada de pruebas de estrés y resiliencia en Postman/Newman para el webhook de ingesta con lotes de 3.000 filas y 95% de polución (`#176`, PR `#215`).
 - **QA:** Suite de regresión general integral y matriz de clasificación de defectos de release (`#177`, PR `#218`).
@@ -63,16 +72,16 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Changed
 
-- **Frontend:** Actualización comercial de la Landing Page institucional (`/`) reflejando los casos de uso reales de *Panadería Central* y *Química GyJ* e ingesta Zero-Click (`#167`, PR `#197`).
+- **Frontend:** Actualización comercial de la Landing Page institucional (`/`) reflejando los casos de uso reales de _Panadería Central_ y _Química GyJ_ e ingesta Zero-Click (`#167`, PR `#197`).
 - **Frontend:** Normalización y validación estricta de unidades de medida en formularios reactivos de insumos (`#201`, PR `#204`).
-- **Datos:** Actualización del script de seed idempotente (`prisma/seed.ts`) con proveedores mayoristas reales (*Distribuidora MarJuanC*, *Don Roque* y *Limpikorn*) y homologación de códigos SKU (`#178`, PR `#196`).
+- **Datos:** Actualización del script de seed idempotente (`prisma/seed.ts`) con proveedores mayoristas reales (_Distribuidora MarJuanC_, _Don Roque_ y _Limpikorn_) y homologación de códigos SKU (`#178`, PR `#196`).
 - **Testing:** Configuración de ejecución serial (`workers: 1`) en `playwright.config.ts` para evitar colisiones de concurrencia en pruebas E2E que mutan insumos compartidos.
 
 ### Fixed
 
 - **Backend:** Los links de las alertas de margen respetan el entorno: el despachador envía `appBaseUrl` (desde `APP_BASE_URL`, opcional) y el workflow n8n lo valida contra una lista cerrada de dominios (`#222`, PR `#223`).
 - **Frontend:** Corrección del scroll de fondo en modales sobre iOS Safari mediante bloqueo con `position: fixed` y conteo de referencias en `useBodyScrollLock` (`#193`, PR `#195`).
-- **Frontend:** Eliminación del parpadeo visual (*zero-flicker*) y textos transitorios `NaN%` en badges de margen durante la resolución de sesión y rol en el Dashboard.
+- **Frontend:** Eliminación del parpadeo visual (_zero-flicker_) y textos transitorios `NaN%` en badges de margen durante la resolución de sesión y rol en el Dashboard.
 - **Backend:** Prevención de transacciones innecesarias en base de datos al editar insumos mediante guarda Zero-Variation (`previousCost.equals(nextCost)`) (`#28`, PR `#182`).
 - **DevOps:** Confinamiento de memoria a 1024 MB y configuración de `NODE_OPTIONS=--max-old-space-size=768` en el contenedor n8n para prevenir fallos por agotamiento de heap al procesar planillas extensas.
 
