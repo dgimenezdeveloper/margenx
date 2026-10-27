@@ -45,6 +45,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
 
+### Added
+
+- **Docs:** Guía de contribución (`CONTRIBUTING.md`): documentación como código (qué se actualiza en cada PR y cuándo), convención de numeración y bloqueos de issues, y propuesta de ruleset de `main` (merge commit en los PR de release) pendiente de decisión del Tech Lead (`#267`).
+- **DevOps:** Feature oficial `ghcr.io/devcontainers/features/github-cli:1` en `.devcontainer/devcontainer.json`, para poder usar `gh` dentro del DevContainer (`#267`).
+
+### Changed
+
+- **Docs:** Plantilla de PR (`.github/pull_request_template.md`): casilla de documentación actualizada en el mismo PR, casilla de hallazgos `[RV<PR>-<S><n>]` referenciados, y guía de `Refs #N` para los PR de release (`#267`).
+
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
 ### Added
