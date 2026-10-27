@@ -126,8 +126,23 @@ describe('calculateUnitCost', () => {
     expect(calculateUnitCost(D('35000'), D('50')).toString()).toBe('700');
   });
 
-  it('calcula 18500 / 25 = 740', () => {
-    expect(calculateUnitCost(D('18500'), D('25')).toString()).toBe('740');
+  it('consulta oldCost a DB cuando previousCost es null en applyIngredientCostChange (Líneas 129-132)', async () => {
+    const mockTx = {
+      ingredient: {
+        findUnique: vi.fn().mockResolvedValue({ currentCost: new Prisma.Decimal('100') }),
+      },
+      priceHistory: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+      productIngredient: { findMany: vi.fn().mockResolvedValue([]) },
+      product: { findUnique: vi.fn(), update: vi.fn() },
+    };
+
+    // previousCost es null, forzamos la llamada a la DB
+    await applyIngredientCostChange(mockTx, 'ing-1', null, new Prisma.Decimal('120'));
+
+    expect(mockTx.ingredient.findUnique).toHaveBeenCalled();
+    expect(mockTx.priceHistory.create).toHaveBeenCalled();
   });
 
   it('redondea 10000 / 3 con HALF_UP a 3333.33', () => {
