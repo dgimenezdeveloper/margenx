@@ -11,6 +11,7 @@ import { LogoutDialog } from '@/components/logout-dialog'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
+import { NumericInput } from '@/components/NumericInput'
 
 const profileTitle = 'Perfil y Configuración'
 
