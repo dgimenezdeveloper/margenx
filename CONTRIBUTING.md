@@ -51,7 +51,7 @@ Si ya existe un encabezado del mismo tipo más abajo en `[Unreleased]` por un PR
 
 ## 3. Plantilla de Pull Request
 
-Todo PR usa `.github/pull_request_template.md`. Además de la Definition of Done (`docs/definition-of-done.md`), la plantilla pide:
+Todo PR usa `.github/PULL_REQUEST_TEMPLATE.md`. Además de la Definition of Done (`docs/definition-of-done.md`), la plantilla pide:
 
 - **Documentación actualizada en este mismo PR**, según la tabla de la sección 1. Se marca "No aplica" solo cuando el cambio genuinamente no vuelve inexacta ninguna documentación existente.
 - **Hallazgos de revisión referenciados**, cuando el PR corrige observaciones de una revisión anterior: se cita el ID exacto (`[RV<PR>-<S><n>]`) tal como lo publicó quien revisó, para que quede trazable al cerrar el sprint (`docs/process/revision-de-prs.md` §3 y §6). Un ID publicado no se renumera.
@@ -59,20 +59,15 @@ Todo PR usa `.github/pull_request_template.md`. Además de la Definition of Done
 
 ---
 
-## 4. Propuesta abierta: método de merge hacia `main`
+## 4. Método de Merge hacia `main` y `develop`
 
-**Estado: ⏳ pendiente de decisión de Darío Giménez** (único administrador del repositorio con acceso a configurar el ruleset).
+**Estado: ✅ Decisión ratificada por Darío Giménez (Tech Lead) el 27/10/2026.**
 
-**Problema (origen: retro, ítem N-06):** hoy, tanto los merges de una rama de feature hacia `develop` como el PR de release `develop` → `main` usan *Squash and Merge* (`docs/manual-scrum-master.md` §2.3). Para feature → `develop` esto es intencional y no cambia. Pero cuando el PR de release también se squashea, `main` recibe un único commit nuevo por cada release que no corresponde a ningún commit real de `develop` — el contenido es el mismo, pero el historial de ambas ramas queda distinto. Eso puede confundir a Git en el próximo release (diffs que muestran como "nuevo" algo que ya estaba, o la sensación de que `develop` y `main` están desincronizadas aunque no lo estén en contenido).
+Para garantizar la estabilidad del historial de versiones y evitar desincronizaciones entre ramas, se adopta la siguiente diferenciación técnica obligatoria:
 
-**Propuesta:** que el PR de release (`develop` → `main`) se mergee siempre con **"Create a merge commit"**, nunca con squash ni rebase, dejando intacta la convención de squash para feature → `develop`. Esto mantiene a `main` como un historial real de los commits de `develop`, sin inventar uno nuevo en cada release.
-
-Esto no es una idea nueva: el release del Sprint 4 (v0.5.0, [PR #231](https://github.com/dgimenezdeveloper/margenx/pull/231)) ya se mergeó así, manualmente, sin squash. Lo que falta es que el ruleset lo exija — para no depender de que quien lo mergee se acuerde de elegir la opción correcta cada vez.
-
-**Qué falta para cerrar esto:**
-1. Darío confirma si la acepta, la ajusta o la rechaza.
-2. Si la acepta, la aplica él mismo en la configuración del repositorio (es administrador exclusivo): ya sea restringiendo el método de merge permitido en el ruleset de `main` (`docs/politica-proteccion-main.md` §1), o, si GitHub no expone esa restricción por rama en el plan del repositorio, dejando constancia acá de que es una disciplina del equipo y no una regla forzada por GitHub.
-3. Una vez decidido, este párrafo se reemplaza por el resultado (qué se decidió, quién, cuándo) y, si corresponde, `docs/politica-proteccion-main.md` §1 se actualiza para reflejar la restricción real.
+1. **Ramas de Feature hacia `develop`:** Se fusionan **exclusivamente mediante Squash and Merge**. Esto condensa los commits intermedios de trabajo en un único commit descriptivo que referencia la issue (`Closes #N`), facilitando la trazabilidad y la lectura del log en Staging.
+2. **Ramas de Release (`develop` hacia `main`):** Se fusionan **únicamente mediante "Create a merge commit"**, sin squash ni rebase. Esto preserva la genealogía exacta de los commits aprobados en Staging, evitando que `main` reciba un hash inventado que confunda a Git en futuros diffs y sincronizaciones de releases.
+3. **Disciplina del Equipo:** Al no permitir GitHub una restricción de método de merge segmentada por rama sin afectar al resto del repositorio, esta política constituye una disciplina obligatoria de pre-release auditada en el checklist del Scrum Master antes de ejecutar la fusión en producción.
 
 ---
 
