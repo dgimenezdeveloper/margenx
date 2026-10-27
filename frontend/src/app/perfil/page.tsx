@@ -196,16 +196,14 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
                     <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
                     <div className="flex items-center gap-1">
-                      <input
+                      <NumericInput
                         value={currentMarginValue}
-                        onChange={(e) => setCustomMargin(e.target.value.replace(/[^0-9.]/g, ''))}
-                        inputMode="decimal"
-                        type="number"
-                        step="any"
-                        min="0"
-                        max="100"
+                        onChange={setCustomMargin}
+                        suffixSymbol="%"
+                        suffixClassName="font-bold text-sm text-gray-400"
                         disabled={isSavingGlobalMargin}
-                        className="no-spinners w-16 bg-transparent text-right font-black text-xl text-indigo-600 outline-none disabled:opacity-50"
+                        containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
+                        className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
                       />
                       <span className="font-bold text-sm text-gray-400">%</span>
                     </div>
