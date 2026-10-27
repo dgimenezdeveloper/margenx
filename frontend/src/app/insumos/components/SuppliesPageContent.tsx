@@ -68,8 +68,6 @@ export default function SuppliesPageContent() {
   useEffect(() => {
     let active = true
 
-    // Si getQuarantine falla, se captura silenciosamente devolviendo array vacío
-    // para que la pantalla principal de insumos NUNCA sea bloqueada.
     Promise.all([
       ingredientService.getAll(getToken),
       !isCollaborator
@@ -159,6 +157,7 @@ export default function SuppliesPageContent() {
   })
 
   const selectedUnit = useWatch({ control, name: 'unit' })
+
   const filtered = useMemo(
     () => supplies.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())),
     [supplies, query]

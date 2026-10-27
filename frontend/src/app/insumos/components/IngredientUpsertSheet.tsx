@@ -36,6 +36,7 @@ interface IngredientUpsertSheetProps {
   money: (value: number) => string
   onNumericKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onDecimalChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  watchedCurrentCost?: string | number
 }
 
 /**
