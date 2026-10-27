@@ -8,8 +8,8 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 ---
 
 ### 1. Control de Versiones y Flujo Git
-- **Origen de la rama:** La rama de trabajo debe crearse siempre a partir de `develop`.
-- **Nomenclatura de ramas:** La rama debe contener obligatoriamente el número de issue (ej. `31-fe-maquetado-insumos` o `feat/35-middleware-errores`) para permitir la automatización del tablero.
+- **Origen de la rama:** La rama de trabajo se crea desde la propia issue, con el botón **Create a branch** de GitHub (sección *Development* de la issue), con base `develop`.
+- **Nomenclatura de ramas:** formato `N-slug`, donde `N` es el número de la issue y `slug` el título en minúsculas ASCII separado por guiones (ej. `31-fe-maquetado-insumos`). El botón propone el nombre a partir del título, pero conserva tildes y eñes: si el título las tiene, editá el nombre en el diálogo del botón antes de crear la rama. El número de la issue debe ser el primer número del nombre: el workflow `.github/workflows/auto-move-issues.yml` toma ese número para mover la tarjeta del tablero.
 - **Formato de Commits:** Los mensajes de commit deben seguir el estándar Conventional Commits en español o inglés (ej. `feat(ingredients): agregar paginacion y ordenamiento`, `fix(auth): corregir expiracion de token jwt`, `docs: ...`).
 - **Pull Request:** Debe estar abierto hacia `develop`, con descripción clara utilizando la plantilla estándar y vinculando la issue correspondiente (ej. `Closes #35`).
 - **Code Review:** Requiere la aprobación obligatoria de al menos **1 compañero de equipo** (Peer Review) antes de habilitar el merge.

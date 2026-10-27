@@ -26,13 +26,25 @@ export class AppError extends Error {
  * handler por tener 4 parámetros, aunque `next` no se use explícitamente).
  */
 export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
+  const payloadError = err as Error & { type?: string; status?: number; statusCode?: number; expose?: boolean };
+
   // 1) JSON malformado en el body — lo lanza express.json() antes de
   //    llegar a cualquier ruta (body-parser marca el error con `.type`).
   if (err instanceof SyntaxError && 'body' in err) {
     return res.status(400).json({ error: 'El cuerpo de la solicitud contiene JSON inválido.' });
   }
 
-  // 2) Errores de dominio lanzados explícitamente con `throw new AppError(...)`.
+  // 2) Body demasiado grande: Express/body-parser explica el error con
+  //    `type === 'entity.too.large'` y status 413. Se traduce a un código estable
+  //    para que n8n pueda mostrar un mensaje amigable y pedir dividir la lista.
+  if (payloadError.type === 'entity.too.large' || payloadError.statusCode === 413 || payloadError.status === 413) {
+    return res.status(413).json({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: 'La lista es demasiado grande. Dividila en varios lotes más pequeños.',
+    });
+  }
+
+  // 3) Errores de dominio lanzados explícitamente con `throw new AppError(...)`.
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({ error: err.message });
   }

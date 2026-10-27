@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
 import authRoutes from './routes/auth';
 import ingredientsRoutes from './routes/ingredients';
 import productsRoutes from './routes/products';
@@ -15,8 +16,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;  // Utiliza el puerto definido en .env o 3000 como valor por defecto.
 
+app.use(helmet());
 app.use(cors());  // Permite solicitudes desde otros orígenes.
-app.use(express.json({ limit: '1mb' }));  // Permite recibir payloads de ingestión masiva sin romper el límite de validación de negocio.
+app.use('/api/webhooks', express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '256kb' }));  // Límite general conservador para evitar cuerpos desmedidos en rutas no dedicadas a ingesta.
 app.use('/api/auth', authRoutes); // Registra las rutas relacionadas con autenticación.
 app.use('/api/ingredients', ingredientsRoutes); // Registra las rutas CRUD de insumos (protegidas por authMiddleware).
 app.use('/api/products', productsRoutes);

@@ -1,5 +1,8 @@
 // src/middlewares/errorHandler.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import helmet from 'helmet';
 import { Prisma } from '@prisma/client';
 import { errorHandler, AppError } from './errorHandler';
 
@@ -34,6 +37,59 @@ describe('errorHandler', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'El cuerpo de la solicitud contiene JSON inválido.',
     });
+  });
+
+  it('responde 413 con código estable cuando el cuerpo supera el límite permitido', () => {
+    const res = buildRes();
+    const err = Object.assign(new Error('request entity too large'), {
+      type: 'entity.too.large',
+      status: 413,
+      statusCode: 413,
+      expose: true,
+    });
+
+    errorHandler(err, req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: 'La lista es demasiado grande. Dividila en varios lotes más pequeños.',
+    });
+  });
+
+  it('incluye cabeceras de seguridad por defecto de Helmet', async () => {
+    const app = express();
+    app.use(helmet());
+    app.get('/health', (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['x-dns-prefetch-control']).toBe('off');
+    expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('responde 413 en otra ruta cuando el cuerpo supera el límite global', async () => {
+    const app = express();
+    app.use(express.json({ limit: '256kb' }));
+    app.post('/api/other', (_req, res) => {
+      res.json({ ok: true });
+    });
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .post('/api/other')
+      .send({ payload: 'x'.repeat(1_000_000) });
+
+    expect(response.status).toBe(413);
+    expect(response.body).toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: expect.stringContaining('demasiado grande'),
+    });
+    expect(response.status).not.toBe(500);
   });
 
   it('respeta status y mensaje de un AppError', () => {
