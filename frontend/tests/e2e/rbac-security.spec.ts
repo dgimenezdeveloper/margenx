@@ -191,3 +191,17 @@ test.describe('TC-RBAC-03: Fuga de datos financieros en tráfico de red (issue #
     ).toEqual([])
   })
 })
+
+test.describe('TC-RBAC-04: Intercepción de ruta administrativa /productos/nuevo', () => {
+  test('forzar la navegación a /productos/nuevo redirige de inmediato a /productos', async ({ page }) => {
+    // Se intenta acceder directamente a la ruta de creación de productos,
+    // la cual ahora está protegida por AdminOnlyRoute.
+    await page.goto('/productos/nuevo')
+
+    // El colaborador debe ser redirigido al catálogo de productos.
+    await expect(page).toHaveURL(/\/productos$/)
+
+    // Confirma que la redirección fue efectiva y no se renderizó el formulario de alta.
+    await expect(page.getByRole('heading', { name: /nuevo producto/i })).toHaveCount(0)
+  })
+})
