@@ -167,6 +167,8 @@ Un mayorista manda su catálogo completo (miles de artículos). Si el sistema lo
 
 ### 5.2. Canal de entrada · *Disponible (activación en producción: Planificado)*
 
+El canal de ingesta desatendida y su filtro de descarte están formalizados en **ADR-005** §3 (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`).
+
 ```
 Proveedor ──(email o WhatsApp)──> Dueño del comercio
                                        │ reenvía la lista
@@ -209,7 +211,10 @@ POST /api/webhooks/supplier-prices
   }>
 }
 // 200 OK | 400 payload inválido | 401 no autorizado | 404 slug inexistente o cuenta inactiva
+// 413 cuerpo mayor a 5 MB (código PAYLOAD_TOO_LARGE): n8n debe dividir la lista en lotes más chicos
 ```
+
+El límite de 5 MB es propio de esta ruta; el resto de la API acepta hasta 256 KB (`backend/src/index.ts`, detalle en `docs/api.md`).
 
 Reglas, en orden:
 
@@ -290,7 +295,7 @@ MargenX tiene dos roles por cuenta, gestionados con Clerk (ADR-001). El control 
 
 - Implementación: `backend/src/middlewares/rbac.ts` (`requireRole`, `blockCollaboratorMutations`, `sanitizeFinancialData`) y, en la interfaz, `AdminOnlyRoute` y `useUserRole`.
 - El colaborador **no edita costos**. Este documento reemplaza en ese punto al RF-12 y al RNF-09 de `docs/propuesta-proyecto.md`, que decían que el colaborador podía editar costos y que no veía el precio de venta.
-- **Ocultar la receta al colaborador** · *Planificado*.
+- **Receta para el colaborador** · *Disponible*: ve qué insumos lleva cada producto, pero no las cantidades, los costos ni los subtotales, y no tiene acciones de edición. La API quita `quantity` de las respuestas para este rol (`FINANCIAL_FIELDS` en `rbac.ts`). En el perfil no ve el margen objetivo global ni la configuración de alertas. Detalle para el usuario: `docs/manual-usuario/03-colaborador.md`.
 - **Vista de precios vigentes para el colaborador** · *Propuesta*: una vista simple con los precios de venta y un indicador de "modificados recientemente", para actualizar la pizarra o la caja.
 
 ---
@@ -349,7 +354,7 @@ Account (CASCADE)
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes | Propuesta |
-| Receta oculta al colaborador | Planificado |
+| Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 
 ## 12. Decisiones pendientes
