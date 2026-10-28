@@ -8,6 +8,7 @@ import { errorHandler, AppError } from './errorHandler';
 
 import type { Request, Response } from 'express';
 
+
 function buildRes(): Response {
   const json = vi.fn();
   const status = vi.fn(() => ({ json }));
@@ -39,6 +40,67 @@ describe('errorHandler', () => {
     });
   });
 
+  it('maneja errores genéricos como 500 (Catch-all)', () => {
+    // 1. Forzamos el entorno a producción para este caso específico
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    
+    // 2. Inicializamos 'res' usando la función auxiliar que ya tienes
+    const res = buildRes();
+    
+    const genericErr = new Error('Database connection lost');
+    
+    // 3. Ejecutamos el middleware
+    errorHandler(genericErr, req, res, next);
+    
+    // 4. Verificamos
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Error interno del servidor.' });
+    
+    // 5. Restauramos el entorno
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('mapea P2002 de Prisma a 409 para asociación duplicada (Líneas 66-69)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['supplierId', 'ingredientId'] },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe una asociación de este insumo con el proveedor.',
+    });
+  });
+
+  it('mapea P2003 de Prisma a 409 (Línea 81)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('FK violation', {
+      code: 'P2003',
+      clientVersion: '6.19.3',
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'La operación viola una relación existente con otro recurso.',
+    });
+  });
+
+  it('mapea P2020 de Prisma a 400 (Línea 95)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Overflow', {
+      code: 'P2020',
+      clientVersion: '6.19.3',
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Uno de los valores numéricos excede la capacidad máxima admitida.',
+    });
+  });
+  
   it('responde 413 con código estable cuando el cuerpo supera el límite permitido', () => {
     const res = buildRes();
     const err = Object.assign(new Error('request entity too large'), {
