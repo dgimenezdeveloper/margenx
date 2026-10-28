@@ -1,18 +1,22 @@
 # Política de Protección de la Rama Main
 
-Este documento describe la configuración de seguridad, validación automática y gobernanza de despliegue aplicada sobre la rama `main` en GitHub.
+Este documento describe la configuración de seguridad, validación automática y gobernanza de despliegue aplicada sobre las ramas `main` y `develop` en GitHub.
 
 ---
 
 ## 1. Reglas de Protección Activas (Ruleset)
 
-Para evitar despliegues accidentales o código defectuoso en producción, la rama `main` cuenta con las siguientes restricciones obligatorias:
+Para evitar despliegues accidentales o código defectuoso en producción, la rama `main` cuenta con las siguientes restricciones obligatorias (ruleset "Protección de Producción (main)"). La rama `develop` tiene su propio ruleset, "Protección de Ramas Principales", con los mismos status checks requeridos:
 
 1. **Pull Request Obligatorio:** Ningún usuario (incluidos administradores) puede realizar push directo a `main`. Todo cambio debe ingresar vía Pull Request desde `develop`.
 2. **Bloqueo de Force Push y Deletion:** Protección contra sobreescritura del historial (`git push --force`) y eliminación accidental de la rama.
-3. **Status Checks Requeridos (CI Verde):** El botón de merge permanece bloqueado hasta que los siguientes jobs de GitHub Actions finalicen en estado exitoso (Passed):
-   - `Backend Lint & Typecheck` (Compilación TypeScript del backend).
-   - `Frontend Lint & Build` (Linter y compilación de producción con Vite).
+3. **Status Checks Requeridos (CI Verde):** El botón de merge permanece bloqueado hasta que los siguientes jobs de `.github/workflows/ci.yml` finalicen en estado exitoso (Passed). Los rulesets los exigen **por nombre**: si se renombra un job, se actualizan los dos rulesets y esta lista en el mismo cambio.
+   - `Backend Build & Tests` (compilación TypeScript y Vitest del backend; todavía no corre linter).
+   - `Frontend Lint & Build` (ESLint y compilación de producción con Vite).
+   - `Frontend Unit Tests` (Vitest del frontend con el umbral de cobertura del 90 %).
+   - `n8n Nodes Tests` (prueba de los nodos de código de los workflows de ingesta).
+   - `Dependency Audit` (`npm audit --omit=dev` en ambos paquetes; falla con cualquier vulnerabilidad alta o crítica que no esté en `.github/audit-allowlist.json`, donde cada excepción lleva motivo y condición de salida).
+   - `E2E Tests Suite (Playwright)` (suite E2E contra backend y base de prueba). Necesita los secrets de Clerk; para que también corra en los PRs de Dependabot, esos secrets se cargan además como *Dependabot secrets*.
 4. **Aprobación de Code Review Requerida:** Mínimo una aprobación formal de par y aprobación de QA.
 
 ---

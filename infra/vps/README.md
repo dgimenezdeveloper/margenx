@@ -33,6 +33,13 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
 
 **Principio de diseño:** ningún contenedor clona código fuente ni corre `npm install` en la VPS. GitHub Actions compila en sus runners, publica las imágenes en Docker Hub, y la VPS solo ejecuta `docker compose pull` + `up -d --no-deps` por SSH.
 
+**Versión de Node:** las imágenes del backend y del build del frontend parten de `node:22-alpine` (Node 22 LTS), la misma versión que fija `.nvmrc` en la raíz y que usan el CI y el devcontainer. La VPS no tiene Node instalado ni lo necesita: el cambio de versión llega con la imagen nueva en el próximo deploy. Para confirmar la versión que corre en un entorno:
+
+```bash
+# Staging (dev.margenx.tech); en producción, el servicio es backend-prod
+docker compose exec backend-dev node -v   # debe responder v22.x
+```
+
 ---
 
 ## 2. Estrategia de Entornos de Base de Datos (Dev local vs. Staging VPS vs. Prod VPS)
