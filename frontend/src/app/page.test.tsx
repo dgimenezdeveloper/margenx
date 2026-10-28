@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import LandingPage from './page'
 import { useAuth } from '@clerk/clerk-react'
-// @ts-expect-error - El alias next/navigation está definido en tsconfig.app.json pero excluye los tests
 import { useRouter } from 'next/navigation'
 
 vi.mock('@clerk/clerk-react', () => ({
