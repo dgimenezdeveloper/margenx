@@ -13,7 +13,7 @@
 - **Base de datos objetivo:** `margenx_prod` (PostgreSQL 16 en contenedor `margenx_postgres_prod`).
 - **Frecuencia:** Diaria a las **03:00 hs ART** (06:00 UTC), momento de menor concurrencia operativa de los comercios gastronómicos.
 - **Formato del dump:** Formato Custom de PostgreSQL (`pg_dump -Fc`), el cual incluye compresión nativa zlib, soporta restauración selectiva de tablas y reordenamiento seguro por dependencias.
-- **Ruta unificada:** `/opt/margenx-infra/backups`
+- **Ruta unificada en VPS:** `/opt/margenx-infra/backups`
   - `/opt/margenx-infra/backups/daily/`: conserva los últimos 7 dumps diarios.
   - `/opt/margenx-infra/backups/weekly/`: conserva los 4 dumps semanales más recientes (emitidos los domingos).
   - `/opt/margenx-infra/backups/logs/`: bitácora de ejecución con rotación natural.
@@ -40,7 +40,7 @@ Añadir la siguiente línea:
 
 ## 3. Ensayo de Restauración y Benchmark de Tiempos
 
-El ensayo de restauración se ejecuta de forma controlada mediante `infra/scripts/restore-test.sh`, levantando la base temporal efímera `margenx_restore_test` sin interferir con la base de staging (`margenx_dev`) ni de producción (`margenx_prod`).
+El ensayo de restauración se ejecuta de forma controlada mediante `/opt/margenx-infra/scripts/restore-test.sh` (versionado en el repositorio como `infra/scripts/restore-test.sh`), levantando la base temporal efímera `margenx_restore_test` sin interferir con la base de staging (`margenx_dev`) ni de producción (`margenx_prod`).
 
 ### Resultados del Ensayo de Integridad Real (27/10/2026)
 
@@ -51,7 +51,7 @@ El ensayo de restauración se ejecuta de forma controlada mediante `infra/script
 | **Tiempo de restauración (`pg_restore`)** | **981 ms** (~0.98 s) | Medido en VPS Donweb SSD |
 | **Tablas auditadas** | 8 tablas de dominio | `Account` (2), `User` (4), `Ingredient` (20), `Product` (20), `ProductIngredient` (87), `PriceHistory` (1), `Supplier` (0), `SupplierIngredient` (0) |
 | **Discrepancias de tuplas** | **0 (100% MATCH)** | Coincidencia exacta sin inconsistencias referenciales |
-| **Base temporal efímera** | Eliminada | `DROP DATABASE margenx_restore_test` confirmado vía trap |
+| **Base temporal efímera** | Eliminada | `DROP DATABASE margenx_restore_test WITH (FORCE)` confirmado vía trap |
 
 ---
 
@@ -73,8 +73,8 @@ Si la base de datos de producción sufre corrupción, borrado accidental o falla
 
 3. **Recrear y restaurar la base de producción:**
    ```bash
-   # Recrear la base limpia
-   docker exec -i margenx_postgres_prod psql -U postgres -c "DROP DATABASE IF EXISTS margenx_prod;"
+   # Recrear la base limpia forzando el cierre de conexiones residuales
+   docker exec -i margenx_postgres_prod psql -U postgres -c "DROP DATABASE IF EXISTS margenx_prod WITH (FORCE);"
    docker exec -i margenx_postgres_prod psql -U postgres -c "CREATE DATABASE margenx_prod;"
 
    # Restaurar desde el dump seleccionado
@@ -84,6 +84,7 @@ Si la base de datos de producción sufre corrupción, borrado accidental o falla
 4. **Reactivar servicios y verificar estado:**
    ```bash
    docker compose start backend-prod
+   # Aguardar 5 segundos para inicialización de pool Prisma y verificar:
    curl -I https://api.margenx.tech/api/health
    ```
 
