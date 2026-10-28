@@ -62,6 +62,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** Cabeceras de seguridad perimetral HTTP en Nginx: HSTS de 1 semana (`max-age=604800`), `X-Content-Type-Options: nosniff`, `X-Frame-Options`, `Referrer-Policy`, `X-Robots-Tag: noindex` en staging y CSP en modo reporte (`Content-Security-Policy-Report-Only`) (`#261`).
 - **DevOps:** Límite `client_max_body_size 6m` específico en los bloques de servidor de API (`api` y `api-dev`), descartando cargas superiores a 6 MB con HTTP 413 antes de alcanzar Node.js (`#261`).
 - **DevOps:** Configuraciones de Nginx del host versionadas sin secretos en `infra/vps/nginx/` y registro de vencimientos de certificados en `infra/vps/README.md` (`#261`).
+- **DevOps:** Automatización de backup diario de base de datos (`margenx_prod`) con compresión nativa `pg_dump -Fc`, rotación (7 diarios y 4 semanales), alerta por fallo a Discord, script de ensayo de restauración (`restore-test.sh`) y runbook operativo (`#239`).
 
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
