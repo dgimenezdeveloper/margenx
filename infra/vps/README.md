@@ -104,6 +104,8 @@ DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<VPS_HOST>:<DB_PORT>/margenx_
 
 ## 6. Recuperación ante Desastres (Disaster Recovery)
 
+Los backups diarios de `margenx_prod`, su rotación, el ensayo de restauración y el procedimiento para recuperar la base están en `docs/runbook-backup.md` (scripts en `infra/scripts/`).
+
 Para re-desplegar la infraestructura completa en un nuevo servidor:
 
 ```bash

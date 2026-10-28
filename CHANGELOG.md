@@ -56,6 +56,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** Actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
 - **DevOps / CI:** El CI falla ante cualquier vulnerabilidad alta o crítica en dependencias de producción. Única excepción aceptada: `deepmerge-ts` (GHSA-ggr8-5vv4-36mx), que llega por `prisma` y se resuelve con Prisma 7 (`#260`).
 
+### Added
+
+- **DevOps:** Automatización de backup diario de base de datos (`margenx_prod`) con compresión nativa `pg_dump -Fc`, rotación (7 diarios y 4 semanales), alerta por fallo a Discord, script de ensayo de restauración (`restore-test.sh`) y runbook operativo (`#239`).
+
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
 ### Added
