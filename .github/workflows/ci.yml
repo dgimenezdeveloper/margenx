@@ -12,8 +12,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # No corre linter: compila TypeScript y ejecuta Vitest. El linter real del
+  # backend queda para el Sprint 6 (issue #260). El nombre del job es el que
+  # exigen los rulesets: si se cambia, actualizar docs/politica-proteccion-main.md.
   backend-check:
-    name: Backend Lint & Typecheck
+    name: Backend Build & Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,6 +69,76 @@ jobs:
 
       - name: Verificar Build de Producción
         run: npm run build
+
+  frontend-unit:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (versión de .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Vitest con el umbral de cobertura del 90 % definido en vitest.config.ts.
+      - name: Ejecutar Tests Unitarios con cobertura (Vitest)
+        run: npm run test:coverage
+
+  n8n-nodes:
+    name: n8n Nodes Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (versión de .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Probar los nodos de código de los workflows de ingesta
+        run: node infra/n8n/tests/ingesta-nodos.test.mjs
+
+  # npm audit sobre dependencias de producción. Falla con cualquier advisory
+  # alto o crítico que no esté en .github/audit-allowlist.json.
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (versión de .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Probar el filtro de auditoría
+        run: node --test .github/scripts/audit-check.test.mjs
+
+      # npm audit lee el package-lock.json: no hace falta npm ci. Sale con
+      # código distinto de 0 cuando encuentra algo, por eso se guarda el JSON
+      # y decide audit-check.mjs (que también falla si npm no pudo consultar).
+      - name: Auditar dependencias de producción del Backend
+        run: |
+          (cd backend && npm audit --omit=dev --json > "$RUNNER_TEMP/audit-backend.json") || true
+          node .github/scripts/audit-check.mjs "$RUNNER_TEMP/audit-backend.json" .github/audit-allowlist.json backend
+
+      - name: Auditar dependencias de producción del Frontend
+        if: success() || failure()
+        run: |
+          (cd frontend && npm audit --omit=dev --json > "$RUNNER_TEMP/audit-frontend.json") || true
+          node .github/scripts/audit-check.mjs "$RUNNER_TEMP/audit-frontend.json" .github/audit-allowlist.json frontend
 
   e2e-tests:
     name: E2E Tests Suite (Playwright)
@@ -193,7 +266,7 @@ jobs:
   notify-ci-failure:
     name: Notificar Fallo en Discord
     runs-on: ubuntu-latest
-    needs: [backend-check, frontend-check, e2e-tests]
+    needs: [backend-check, frontend-check, frontend-unit, n8n-nodes, dependency-audit, e2e-tests]
     if: failure()
     steps:
       - name: Enviar alerta a Discord
@@ -212,7 +285,7 @@ jobs:
 
           PAYLOAD=$(jq -n \
             --arg content "🚨 **Fallo en Pipeline de CI — MargenX**" \
-            --arg title "Falló la verificación de CI (Lint / Build / E2E Suite)" \
+            --arg title "Falló la verificación de CI (Build / Tests / Auditoría / E2E)" \
             --arg run_url "$RUN_URL" \
             --arg branch "$BRANCH_OR_REF" \
             --arg author "$AUTHOR" \
