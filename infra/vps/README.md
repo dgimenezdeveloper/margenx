@@ -293,5 +293,9 @@ docker ps --format '{{.Names}}\t{{.Ports}}' | grep '^margenx_'
 Quedan registrados para decidirlos con los dueños de cada proyecto:
 
 - **`ufw` inactivo** y la cadena `INPUT` de `iptables` con política `ACCEPT`. Activar `ufw` no cierra los puertos de Docker, porque Docker publica sus puertos con reglas propias que se evalúan antes. Para restringirlos hay que publicar en `127.0.0.1` en cada `docker-compose` o usar la cadena `DOCKER-USER`.
-- **Puertos de otros proyectos publicados en `0.0.0.0`:** 3002, 4000, 4173, 8080 y 8082, y dos bases PostgreSQL accesibles desde afuera (5433 y 5434).
-- **Postfix escuchando en el puerto 25** en todas las interfaces.
+- **Puertos de otros proyectos publicados en `0.0.0.0`:** el 8080 de otro proyecto. El 28/10/2026 se cerraron (pasaron a `127.0.0.1` o se dieron de baja) los que antes estaban expuestos: 3002, 4000, 4173, 8082 y las bases PostgreSQL en 5433 y 5434.
+- **Postfix escuchando en el puerto 25** en todas las interfaces (cola vacía y sin envíos registrados).
+
+Puertos públicos al 28/10/2026: 22 y 5371 (SSH), 25 (Postfix), 80 y 443 (Nginx) y 8080.
+
+Nginx tiene un sitio por defecto (`000-default-reject`) que responde `444` a los dominios sin `server_name` propio. Sin él, un dominio dado de baja que todavía apunte a la VPS recibe el primer sitio HTTPS que encuentre Nginx, que es el de otro proyecto.
