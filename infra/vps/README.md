@@ -328,10 +328,16 @@ Todas las respuestas de producción y staging incorporan cabeceras defensivas pa
 ### Estado y Vigilancia de Vencimiento de Certificados SSL
 Certificados emitidos por Let's Encrypt mediante Certbot con temporizador systemd (`certbot.timer`):
 
-| Certificado / Dominios | Emisión / Estado | Vencimiento Inicial Auditado | Renovación Automática |
+| Certificado / Dominios | Emisión / Estado | Vencimiento | Renovación Automática |
 |---|---|---|---|
-| `margenx.tech`, `www.margenx.tech`, `api.margenx.tech`, `dev.margenx.tech`, `api-dev.margenx.tech` | Activo (expandido con `www`) | **07/12/2026** | Sí (`systemd certbot.timer`) |
-| `n8n.margenx.tech` | Activo | **30/11/2026** | Sí (`systemd certbot.timer`) |
+| `margenx.tech`, `www.margenx.tech`, `api.margenx.tech`, `dev.margenx.tech`, `api-dev.margenx.tech` | Emitido el 28/10/2026 al expandirlo con `www` | **26/01/2027** | Sí (`systemd certbot.timer`) |
+| `n8n.margenx.tech` | Emitido el 01/09/2026 | **30/11/2026** | Sí (`systemd certbot.timer`) |
+
+Fechas leídas del certificado público el 28/10/2026. Cada renovación (automática a los ~60 días) o expansión con un dominio nuevo emite un certificado nuevo y corre el vencimiento unos 90 días: para el valor actual, usar `sudo certbot certificates` en la VPS, o desde cualquier máquina:
+
+```bash
+echo | openssl s_client -connect margenx.tech:443 -servername margenx.tech 2>/dev/null | openssl x509 -noout -dates
+```
 
 Comando de verificación periódica de renovación:
 ```bash
