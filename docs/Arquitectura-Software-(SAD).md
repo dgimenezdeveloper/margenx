@@ -1,7 +1,7 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 2.1 (Consolidada Cierre Sprint 4 — Ingesta Zero-Click y Cuarentena)
+**Versión:** 2.2 (Sincronización Sprint 5 — integración real con n8n y backlog reprogramado)
 **Fecha de Actualización:** 24 de Octubre de 2026
 
 ---
@@ -91,22 +91,25 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 
 ## 2. Arquitectura de Integración con n8n
 
-### Webhooks salientes del backend (eventos trigger)
+### Comunicación entre el backend y n8n
 
-| Evento | Disparado por | Payload mínimo | Endpoint n8n |
-| :---- | :---- | :---- | :---- |
-| `margin.alert.triggered` | Backend, tras recalcular márgenes y detectar que un producto cruzó el umbral mínimo | `{ accountId, tradeName, ownerEmail, ingredient, criticalProducts }` | `POST /webhook/margin-alert` |
-| `report.weekly.requested` | Cron interno del backend (o cron nativo de n8n consultando la API) cada lunes 08:00 | `{ accountId, ownerEmail, periodStart, periodEnd }` | `POST /webhook/weekly-report` |
-| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | `POST /webhook/ingredient-updated` |
-| `supplier.pricelist.received` | n8n al recibir lista mayorista adjunta por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` |
+Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
+
+| Evento | Dirección y disparador | Payload principal | Destino | Estado |
+| :---- | :---- | :---- | :---- | :---- |
+| `margin.alert.triggered` | Backend → n8n, después de la transacción en la que un producto cruzó su margen mínimo (edición manual del costo, presentación predeterminada o liberación de cuarentena) | `{ accountId, accountSlug, tradeName, ownerEmail, ingredient: { id, name }, affectedProductsCount, criticalProducts, triggeredAt }` | Webhook `margin-alert` de n8n (URL en `N8N_MARGIN_ALERT_WEBHOOK_URL`) | Implementado |
+| `supplier.pricelist.received` | n8n → backend, al recibir una lista mayorista por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` | Implementado (reglas en ADR-005) |
+| `report.weekly.requested` | Cron de n8n los lunes a las 08:00, consultando la API | `{ accountId, ownerEmail, periodStart, periodEnd }` | A definir | Planificado (Sprint 6) |
+| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | A definir | Propuesta (no planificado) |
 
 ### Tareas resueltas por n8n
 
 1. **Alertas de margen bajo:** al recibir `margin.alert.triggered`, n8n responde inmediatamente con `200 OK` al backend y procesa de forma asíncrona una plantilla HTML responsive con diseño accesible (WCAG AA). Despacha el correo a través del relay SMTP autenticado de Brevo (`smtp-relay.brevo.com:587`, STARTTLS) firmado por `alertas@margenx.tech`.
-2. **Reporte PDF semanal:** n8n consulta la API del backend (`GET /api/accounts/:id/margin-report`), genera un PDF con la tabla de márgenes de todos los productos y lo envía por email al Administrador todos los lunes.
-3. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
+2. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
+3. **Reporte PDF semanal** · *Planificado (Sprint 6)*: n8n consultaría la API del backend, generaría un PDF con los márgenes de todos los productos y lo enviaría al Administrador los lunes. El endpoint de consulta todavía no existe.
+4. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
 
-**Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n solo consume eventos/API y orquesta notificaciones — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
+**Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n consume eventos, orquesta notificaciones y envía las listas de precios a la API, que es la única que escribe — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
 ### Observabilidad de Infraestructura
 Para mitigar el riesgo de saturación de memoria RAM en el servidor ante procesos masivos de ingesta, se implementó en el host de la VPS Donweb un script centinela (`/opt/margenx-infra/scripts/monitor-memory.sh`) ejecutado vía `crontab` cada 5 minutos:
@@ -647,36 +650,52 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA] Suite E2E en Playwright para validación del flujo integral de recálculo en cascada (Completado).
   * [QA] Pruebas de concurrencia y estrés sobre recálculos masivos de recetas (Completado).
 
-#### Sprint 5: Smart Purchasing, Reportes PDF y Endurecimiento (25/10 al 07/11)
+#### Sprint 5: Proveedores, PWA, Deuda Técnica y Endurecimiento (25/10 al 07/11) — [En curso]
 * **Hito Cátedra:** Ensayo general de defensa y revisión integral (Clase 14/11).
-* **Entregable:** Motor de sugerencia de compras al proveedor más económico (Smart Purchasing), generador de orden de compra sugerida, reporte PDF semanal generado por n8n, base de datos optimizada con índices y ensayo de recuperación ante desastres (Restore).
-* **Backend (Mauricio Barreras):**
-  * [BE] Motor de compras inteligentes (`/api/purchasing/smart-suggestions`) y agrupación por proveedor óptimo (RF-15).
-  * [BE] Endpoint consolidado `/api/reports/margin-summary` para generación de reportes ejecutivos.
-  * [BE] Optimización de índices relacionales en PostgreSQL y auditoría de seguridad (RNF-01, RNF-08).
-* **Frontend (Federico Paal):**
-  * [FE] Vista de Smart Purchasing con comparador de ofertas y generador de orden de compra sugerida (RF-15).
-  * [FE] Interfaz de solicitud y descarga manual de reportes consolidados en PDF/Excel.
-* **QA / PO (Leandro Herrera):**
-  * [QA/FE] Auditoría de accesibilidad (a11y) y performance con Google Lighthouse > 90 pts (RNF-01, RNF-02).
-  * [QA] Suite completa de regresión automatizada y redacción preliminar del Manual de Usuario.
-* **DevOps / n8n (Darío Giménez):**
-  * [N8N] Workflow con trigger Cron semanal para generación y envío del PDF de márgenes.
-  * [DEVOPS] Automatización de backups diarios de PostgreSQL en la VPS y ensayo de Disaster Recovery.
+* **Entregable:** Vista y detalle de proveedores con cuarentena integrada, código de artículo y carga masiva de insumos (camino B); PWA instalable con sesión persistente y página offline; accesibilidad de diálogos y formularios; backup diario con ensayo de restauración; endurecimiento de la VPS y de Nginx; Node 22 LTS con CI completo; documentación sincronizada con el código. Smart Purchasing, el reporte PDF semanal y la meta de Lighthouse se reprogramaron al Sprint 6.
+* **Backend:**
+  * [BE] Integridad de datos en la base (unicidad y validación de decimales).
+  * [BE] Código de artículo en el alta de presentaciones y detalle de proveedor.
+  * [BE] Carga masiva de insumos por plantilla (camino B).
+  * [BE] Recálculo en cascada en lote.
+  * [BE] Límites de cuerpo, error 413 y cabeceras de seguridad con helmet.
+  * [BE] Receta sin cantidades ni costos para el colaborador.
+* **Frontend:**
+  * [FE] Guards de rutas y nombres de producto; entrada numérica en formato es-AR; asociar empaque sin pisar el predeterminado.
+  * [FE] Vista de proveedores, detalle de proveedor, cuarentena integrada y dirección de ingesta.
+  * [FE] Carga masiva de insumos (camino B).
+  * [FE] PWA instalable, sesión persistente en modo standalone, service worker y página offline; página de privacidad y guía de instalación (RNF-11).
+  * [FE] Errores con reintento, diálogos accesibles y teclado, etiquetas y validación de formularios.
+* **DevOps / n8n:**
+  * [DEVOPS] Clerk de producción en una cuenta empresarial y cuenta Demo en producción.
+  * [DEVOPS] Backup diario de PostgreSQL y ensayo de restauración.
+  * [DEVOPS] Endurecimiento de la VPS y de Nginx (cabeceras, www y vencimientos de certificados).
+  * [DEVOPS] Node 22 LTS, CI completo con auditoría de dependencias y Dependabot.
+  * [N8N] Activación de la ingesta automática y rediseño del correo de resumen.
+* **QA / Documentación:**
+  * [QA] Cobertura unitaria del 90 % en backend y frontend; colecciones de Postman al contrato vigente.
+  * [QA] Recorrido por rol en dispositivos reales y regresión del sprint con matriz de defectos.
+  * [DOCS] ADR del costo vigente, la cuarentena y el canal de ingesta; especificación funcional unificada; convención de docs como código; documentos históricos; READMEs, runbook y manual de usuario.
 
-#### Sprint 6: PWA Instalable, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
+#### Sprint 6: Smart Purchasing, Reporte PDF, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
 * **Hito Cátedra:** ENTREGA FINAL Y DEFENSA DE PPS (Clase 28/11).
-* **Entregable:** Versión final Release v1.0 congelada, aplicación Mobile-First instalable como Progressive Web App (PWA), documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
+* **Entregable:** Versión final Release v1.0 congelada, Smart Purchasing, reporte PDF semanal, documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
 * **Frontend (Federico Paal):**
-  * [FE] Configuración de Progressive Web App (PWA) con Service Workers y soporte offline básico (RNF-11).
+  * [FE] Vista de Smart Purchasing con comparador de ofertas y orden de compra sugerida (RF-15). *Reprogramado desde el Sprint 5.*
+  * [FE] Solicitud y descarga del reporte consolidado de márgenes. *Reprogramado desde el Sprint 5.*
   * [FE] Verificación de compatibilidad cross-browser y pulido final de microinteracciones (RNF-07).
 * **Backend (Mauricio Barreras):**
+  * [BE] Motor de compras inteligentes y agrupación por proveedor óptimo (RF-15). *Reprogramado desde el Sprint 5.*
+  * [BE] Endpoint de consulta para el reporte de márgenes. *Reprogramado desde el Sprint 5.*
   * [BE] Publicación de documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
   * [BE] Congelamiento de código, remoción de endpoints de test y limpieza final.
 * **QA / PO (Leandro Herrera):**
+  * [QA/FE] Auditoría de accesibilidad y performance con Google Lighthouse > 90 pts (RNF-01, RNF-02). *Reprogramado desde el Sprint 5.*
   * [QA/PO] Versión final del Manual de Usuario y Guía Rápida para el comercio en formato PDF.
   * [QA] Reporte final de métricas de calidad y cierre formal de la matriz de trazabilidad.
 * **DevOps / SM (Darío Giménez):**
+  * [N8N] Workflow con disparador semanal para generar y enviar el PDF de márgenes. *Reprogramado desde el Sprint 5.*
+  * [DEVOPS] Vitest y su cobertura en la misma versión mayor en backend y frontend.
   * [DEVOPS] Tagging formal de Release `v1.0.0` en Git y congelamiento de rama `main`.
   * [SCRUM/ALL] Grabación del Video Demo comercial, redacción del Acta de Cierre y diapositivas de defensa.
 
