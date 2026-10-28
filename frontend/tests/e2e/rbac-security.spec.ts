@@ -16,7 +16,7 @@ import { test, expect, type Page, type Response } from '@playwright/test'
 // completo de FINANCIAL_FIELDS del backend (PR #143 esconde más campos,
 // como minMarginPercent, oldCost/newCost o toda la info de proveedores) —
 // se audita exactamente lo que pide la Historia de Usuario de esta issue.
-const FORBIDDEN_KEYS = ['cost', 'marginAmount', 'marginPercent'] as const
+const FORBIDDEN_KEYS = ['cost', 'marginAmount', 'marginPercent', 'quantity'] as const
 
 interface KeyMatch {
   key: string
@@ -136,6 +136,7 @@ test.describe('TC-RBAC-01: Ocultamiento de costo y margen en /productos (issue #
     // únicos datos que la Historia de Usuario permite ver al colaborador).
     await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
 
+    await expect(page.getByText(/subtotal/i)).toHaveCount(0)
     await expect(page.getByText(COSTO_TEXT)).toHaveCount(0)
     await expect(page.getByText(MARGEN_TEXT)).toHaveCount(0)
     await expect(page.getByText(/simulador financiero/i)).toHaveCount(0)

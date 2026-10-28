@@ -33,6 +33,13 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
 
 **Principio de diseño:** ningún contenedor clona código fuente ni corre `npm install` en la VPS. GitHub Actions compila en sus runners, publica las imágenes en Docker Hub, y la VPS solo ejecuta `docker compose pull` + `up -d --no-deps` por SSH.
 
+**Versión de Node:** las imágenes del backend y del build del frontend parten de `node:22-alpine` (Node 22 LTS), la misma versión que fija `.nvmrc` en la raíz y que usan el CI y el devcontainer. La VPS no tiene Node instalado ni lo necesita: el cambio de versión llega con la imagen nueva en el próximo deploy. Para confirmar la versión que corre en un entorno:
+
+```bash
+# Staging (dev.margenx.tech); en producción, el servicio es backend-prod
+docker compose exec backend-dev node -v   # debe responder v22.x
+```
+
 ---
 
 ## 2. Estrategia de Entornos de Base de Datos (Dev local vs. Staging VPS vs. Prod VPS)
@@ -200,7 +207,109 @@ Si solo hay que quitar `proxy_http_version 1.1`, borrar esa línea de cada `loca
 
 ---
 
-## 9. Configuración de Nginx Perimetral y Gestión de Certificados SSL
+## 9. Acceso SSH y hallazgos fuera de alcance
+
+Estado al 28/10/2026, después del endurecimiento de la issue #266. Alcance: solo el acceso por SSH y los puertos de MargenX. Los servicios de los otros proyectos de la VPS se registran como hallazgos, sin modificarlos.
+
+### Configuración aplicada
+
+Los cambios están en un archivo propio, `/etc/ssh/sshd_config.d/00-margenx-hardening.conf`. `sshd` usa el **primer** valor que lee para cada opción, y el `Include` de `sshd_config.d/*.conf` está al principio de `/etc/ssh/sshd_config`. Por eso el prefijo `00-` hace que estas líneas ganen sobre `custom.conf` (que trae `PermitRootLogin yes`) y sobre el `X11Forwarding yes` del archivo principal.
+
+```text
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+AllowAgentForwarding no
+X11Forwarding no
+```
+
+Rige para los dos puertos (22 y 5371). Se mantienen activos:
+
+- `AllowTcpForwarding yes`: lo necesitan los túneles `ssh -L` hacia la base (sección 3).
+- `80-step.conf` (`TrustedUserCAKeys` y `AuthorizedPrincipalsFile`): es el acceso por certificado del soporte de Donweb. Sigue funcionando porque es autenticación por clave.
+
+El puerto 22 escucha en la VPS, pero no responde desde internet (lo filtra el perímetro del proveedor). El acceso externo y el deploy de CI usan el 5371.
+
+### Cómo aplicar o repetir el cambio sin quedar afuera
+
+```bash
+# 1. Dejar abierta una segunda sesión SSH durante todo el procedimiento.
+# 2. Copia previa
+TS=$(date +%Y%m%d-%H%M%S)
+cp -a /etc/ssh /root/backup-etc-ssh-$TS
+cp -p /root/.ssh/authorized_keys /root/.ssh/authorized_keys.$TS
+# 3. Crear o editar /etc/ssh/sshd_config.d/00-margenx-hardening.conf
+# 4. Validar y ver la configuración efectiva
+sshd -t
+sshd -T | grep -E '^(permitrootlogin|passwordauthentication|kbdinteractiveauthentication|allowagentforwarding|x11forwarding) '
+# 5. Recargar (no reinicia las sesiones abiertas)
+systemctl reload ssh
+```
+
+### Verificación
+
+```bash
+# Con clave: debe entrar por los dos puertos (el 22 se prueba con salto por el 5371)
+ssh -p 5371 root@<VPS_HOST> 'echo ok'
+ssh -J root@<VPS_HOST>:5371 -p 22 root@127.0.0.1 'echo ok'
+
+# Con contraseña: debe responder "Permission denied (publickey)", sin ofrecer password
+ssh -v -p 5371 -o PubkeyAuthentication=no -o PreferredAuthentications=password root@<VPS_HOST> true 2>&1 | grep -E 'can continue|denied'
+```
+
+Resultado del 28/10/2026: antes del cambio ambos puertos ofrecían `publickey,password`; después, solo `publickey`. La clave del equipo entra por los dos.
+
+### Cómo revertirlo
+
+```bash
+rm /etc/ssh/sshd_config.d/00-margenx-hardening.conf
+sshd -t && systemctl reload ssh
+# Para volver a la configuración anterior completa: restaurar /root/backup-etc-ssh-<fecha>
+```
+
+Si nadie puede entrar por SSH, se accede por la consola del panel de Donweb.
+
+### Dueños de las claves de `authorized_keys`
+
+`/root/.ssh/authorized_keys`, después de la revisión:
+
+| Clave (comentario) | Dueño | Uso |
+|---|---|---|
+| Bloques `## DonWeb - ...` (47 claves RSA) | Personal de soporte de Donweb, agrupado por área (CS, ITI, NOC, Soporte L2, Cloud IaaS, etc.) | Soporte del proveedor. Donweb administra este bloque y lo actualiza (hay copias fechadas en `/root/.ssh/`). No se toca. |
+| `dgimenez.developer@...` (dos claves ed25519) | Darío (DevOps) | Acceso administrativo. |
+| `github-actions-margenx` | GitHub Actions de MargenX | Deploy (`.github/workflows/deploy.yml`). |
+| `github-actions-ignisec` | CI del proyecto IgniSec | Deploy de otro proyecto. También está en `/home/deploy/.ssh/authorized_keys`. No se toca. |
+
+Se quitaron el 28/10/2026, con copia en `authorized_keys.20261028-132854`:
+
+- `tu_email@dominio.com`: clave RSA con comentario de plantilla y sin dueño identificado; no aparece en ningún ingreso de los logs.
+- `allmart-cicd-deploy`: CI del proyecto Allmart, que se da de baja.
+
+El usuario `deploy` tiene la contraseña bloqueada y solo la clave de IgniSec.
+
+### Puertos de MargenX
+
+`docker ps` del 28/10/2026: todos los contenedores de MargenX publican solo en `127.0.0.1` (frontend 3010/3020, backend 3011/3021, Postgres 5435, n8n 5678). Ninguno está en `0.0.0.0`. Para repetir el control:
+
+```bash
+docker ps --format '{{.Names}}\t{{.Ports}}' | grep '^margenx_'
+```
+
+### Hallazgos fuera de alcance
+
+Quedan registrados para decidirlos con los dueños de cada proyecto:
+
+- **`ufw` inactivo** y la cadena `INPUT` de `iptables` con política `ACCEPT`. Activar `ufw` no cierra los puertos de Docker, porque Docker publica sus puertos con reglas propias que se evalúan antes. Para restringirlos hay que publicar en `127.0.0.1` en cada `docker-compose` o usar la cadena `DOCKER-USER`.
+- **Puertos de otros proyectos publicados en `0.0.0.0`:** el 8080 de otro proyecto. El 28/10/2026 se cerraron (pasaron a `127.0.0.1` o se dieron de baja) los que antes estaban expuestos: 3002, 4000, 4173, 8082 y las bases PostgreSQL en 5433 y 5434.
+- **Postfix escuchando en el puerto 25** en todas las interfaces (cola vacía y sin envíos registrados).
+
+Puertos públicos al 28/10/2026: 22 y 5371 (SSH), 25 (Postfix), 80 y 443 (Nginx) y 8080.
+
+Nginx tiene un sitio por defecto (`000-default-reject`) que responde `444` a los dominios sin `server_name` propio. Sin él, un dominio dado de baja que todavía apunte a la VPS recibe el primer sitio HTTPS que encuentre Nginx, que es el de otro proyecto.
+
+---
+
+## 10. Configuración de Nginx Perimetral y Gestión de Certificados SSL
 
 ### Cabeceras de Seguridad Implementadas
 Todas las respuestas de producción y staging incorporan cabeceras defensivas para cumplimiento de buenas prácticas OWASP:

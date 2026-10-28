@@ -6,6 +6,8 @@ import { Prisma } from '@prisma/client';
 import type { AuthenticatedRequest } from './auth';
 import type { Response, NextFunction } from 'express';
 
+import { blockCollaboratorMutations } from './rbac';
+
 const productFindManyMock = vi.fn();
 const productCountMock = vi.fn();
 const findManyIngredientMock = vi.fn();
@@ -129,7 +131,7 @@ describe('rbac middleware', () => {
         salePrice: 250,
         packagePrice: 200,
         currentCost: 150,
-        ingredients: [{ unitCost: 10, quantity: 2 }],
+        ingredients: [{ unitCost: 10, quantity: 2, ingredient: { currentCost: 12, name: 'Harina' } }],
       },
       nested: [{ marginPercent: 40 }, { oldCost: 50 }],
     };
@@ -146,9 +148,9 @@ describe('rbac middleware', () => {
 
     expect(returned).toBeDefined();
     expect(returned!.account).toEqual({ businessName: 'Panadería' });
-    expect(returned!.product).toEqual({ salePrice: 250, ingredients: [{ quantity: 2 }] });
+    expect(returned!.product).toEqual({ salePrice: 250, ingredients: [{ ingredient: { name: 'Harina' } }] });
     expect(returned!.nested).toEqual([{}, {}]);
-    expect(JSON.stringify(returned!)).not.toMatch(/defaultMinMarginPercent|marginPercent|oldCost|packagePrice|unitCost|currentCost/i);
+    expect(JSON.stringify(returned!)).not.toMatch(/defaultMinMarginPercent|marginPercent|oldCost|packagePrice|unitCost|currentCost|quantity/i);
   });
 
   it('sanitizeFinancialData: no-op para ADMIN y no muta el objeto original', () => {
@@ -341,5 +343,25 @@ describe('rbac middleware', () => {
     expect(collaboratorRes.status).toBe(403);
     expect(collaboratorRes.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
     expect(accountUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve el cuerpo original si es undefined en sanitizeFinancialData (Línea 25-26)', () => {
+    const req = { user: { role: 'COLLABORATOR' } } as any;
+    const res = { setHeader: vi.fn(), json: vi.fn() } as any;
+    const next = vi.fn();
+    
+    sanitizeFinancialData(req, res, next);
+    // El middleware inyecta el json interceptor. Si llamamos json(undefined), debe ser transparente.
+    const jsonInterceptor = res.json;
+    const result = jsonInterceptor(undefined);
+    expect(result).toBeUndefined();
+  });
+
+  it('retorna 401 si no hay usuario en blockCollaboratorMutations (Línea 61-62)', () => {
+    const req = { method: 'POST' } as any;
+    const res = {} as any;
+    const next = vi.fn();
+    blockCollaboratorMutations(req, res, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 });
