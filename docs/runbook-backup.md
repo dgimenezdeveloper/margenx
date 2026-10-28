@@ -42,15 +42,16 @@ Añadir la siguiente línea:
 
 El ensayo de restauración se ejecuta de forma controlada mediante `infra/scripts/restore-test.sh`, levantando la base temporal efímera `margenx_restore_test` sin interferir con la base de staging (`margenx_dev`) ni de producción (`margenx_prod`).
 
-### Resultados del Ensayo de Integridad
+### Resultados del Ensayo de Integridad Real (27/10/2026)
 
 | Métrica / Ensayo | Valor Obtenido | Observaciones |
 |---|---|---|
 | **Base origen** | `margenx_prod` | Contenedor `margenx_postgres_prod` |
-| **Tamaño del dump (-Fc)** | ~180 KB – 2.5 MB | Con compresión zlib activa |
-| **Tiempo de restauración (`pg_restore`)** | < 1.2 segundos | Ejecución local sobre disco SSD VPS |
-| **Discrepancias de conteo de tuplas** | **0** | Coincidencia en las 8 tablas de dominio |
-| **Limpieza de base temporal** | Inmediata | Eliminada vía trap al finalizar el script |
+| **Tamaño del dump (-Fc)** | 24 KB | Compresión zlib nativa (`pg_dump -Fc`) |
+| **Tiempo de restauración (`pg_restore`)** | **981 ms** (~0.98 s) | Medido en VPS Donweb SSD |
+| **Tablas auditadas** | 8 tablas de dominio | `Account` (2), `User` (4), `Ingredient` (20), `Product` (20), `ProductIngredient` (87), `PriceHistory` (1), `Supplier` (0), `SupplierIngredient` (0) |
+| **Discrepancias de tuplas** | **0 (100% MATCH)** | Coincidencia exacta sin inconsistencias referenciales |
+| **Base temporal efímera** | Eliminada | `DROP DATABASE margenx_restore_test` confirmado vía trap |
 
 ---
 
