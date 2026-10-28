@@ -39,6 +39,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** Migración a Node 22 LTS en `backend/Dockerfile`, `frontend/Dockerfile`, el devcontainer y el CI (Node 20 salió de soporte). Quien tenga el devcontainer creado debe reconstruirlo (`#260`).
 - **DevOps / CI:** El job `Backend Lint & Typecheck` pasa a llamarse `Backend Build & Tests`, porque no corre linter; el linter real del backend queda para el Sprint 6. Checks requeridos actualizados en `docs/politica-proteccion-main.md` (`#260`).
 - **DevOps:** `auto-move-issues.yml` toma el número de issue solo de ramas con formato `N-slug`, para que las ramas de Dependabot no muevan tarjetas ajenas (`#260`).
+- **DevOps:** `auto-move-issues.yml` omite los PRs y ramas de Dependabot (no reciben `PROJECT_TOKEN` ni tienen tarjeta), y `dependabot.yml` ignora las versiones mayores de npm, que se planifican como issue propia (`#305`).
 
 ### Removed
 

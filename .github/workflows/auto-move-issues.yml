@@ -193,7 +193,8 @@ jobs:
   # ============================================================
   move_to_in_progress_branch:
     name: "Branch creada → IN PROGRESS"
-    if: github.event_name == 'create' && github.event.ref_type == 'branch'
+    # Dependabot no recibe PROJECT_TOKEN y sus ramas no tienen tarjeta.
+    if: github.event_name == 'create' && github.event.ref_type == 'branch' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Extraer número de issue y mover a IN PROGRESS
@@ -272,8 +273,10 @@ jobs:
   # ============================================================
   move_to_in_review:
     name: "PR Abierto / Re-Review → IN REVIEW"
+    # Los PRs de Dependabot no tienen tarjeta ni reciben PROJECT_TOKEN.
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'review_requested')
     runs-on: ubuntu-latest
     steps:
@@ -399,7 +402,7 @@ jobs:
   # ============================================================
   handle_qa_review:
     name: "Decisión QA → QA APPROVED o IN PROGRESS"
-    if: github.event_name == 'pull_request_review' && github.event.action == 'submitted'
+    if: github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Validar si el reviewer es QA
@@ -727,6 +730,7 @@ jobs:
     name: "PR mergeado → DONE"
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -835,6 +839,7 @@ jobs:
     name: "PR cerrado sin merge → BACKLOG"
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == false
     runs-on: ubuntu-latest
