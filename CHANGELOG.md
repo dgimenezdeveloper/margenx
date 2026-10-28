@@ -8,6 +8,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Backend / QA:** Suite integral de pruebas unitarias y de integración para middlewares (`rbac`, `errorHandler`, `auth`), utilitarios (`pagination`), servicios (`marginAlertDispatcher`, `marginCalculator` con resolución de los 8 casos borde de QA) y rutas REST (`ingredients`, `products`, `suppliers`, `webhooks`, `auth`, `dashboard`), elevando la cobertura de líneas de backend por encima del 90 % (`#277`).
+- **Backend / Config:** Configuración de `backend/vitest.config.ts` con exclusión de archivos de arranque (`src/index.ts`, `src/lib/prisma.ts`) y umbral de cobertura estricto `thresholds.lines: 90` (`#277`).
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.

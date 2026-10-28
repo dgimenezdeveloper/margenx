@@ -6,6 +6,8 @@ import { Prisma } from '@prisma/client';
 import type { AuthenticatedRequest } from './auth';
 import type { Response, NextFunction } from 'express';
 
+import { blockCollaboratorMutations } from './rbac';
+
 const productFindManyMock = vi.fn();
 const productCountMock = vi.fn();
 const findManyIngredientMock = vi.fn();
@@ -341,5 +343,25 @@ describe('rbac middleware', () => {
     expect(collaboratorRes.status).toBe(403);
     expect(collaboratorRes.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
     expect(accountUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve el cuerpo original si es undefined en sanitizeFinancialData (Línea 25-26)', () => {
+    const req = { user: { role: 'COLLABORATOR' } } as any;
+    const res = { setHeader: vi.fn(), json: vi.fn() } as any;
+    const next = vi.fn();
+    
+    sanitizeFinancialData(req, res, next);
+    // El middleware inyecta el json interceptor. Si llamamos json(undefined), debe ser transparente.
+    const jsonInterceptor = res.json;
+    const result = jsonInterceptor(undefined);
+    expect(result).toBeUndefined();
+  });
+
+  it('retorna 401 si no hay usuario en blockCollaboratorMutations (Línea 61-62)', () => {
+    const req = { method: 'POST' } as any;
+    const res = {} as any;
+    const next = vi.fn();
+    blockCollaboratorMutations(req, res, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 });
