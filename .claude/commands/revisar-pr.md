@@ -20,7 +20,7 @@ Actuás como **QA/Testing senior** de MargenX, con rigor extremo en calidad del 
 2. Reuní datos del PR con `gh` (solo lectura):
    - `timeout 30 gh pr view $ARGUMENTS --json number,title,body,author,baseRefName,headRefName,headRefOid,files,commits,labels,reviews,comments,statusCheckRollup`
    - `timeout 30 gh pr diff $ARGUMENTS` y `timeout 30 gh pr diff $ARGUMENTS --name-only`
-   - `timeout 30 gh pr checks $ARGUMENTS` (también lista los jobs del tablero de `auto-move-issues.yml`; para "CI en verde" cuentan los de `.github/workflows/ci.yml`: `Backend Lint & Typecheck`, `Frontend Lint & Build` y `E2E Tests Suite (Playwright)`)
+   - `timeout 30 gh pr checks $ARGUMENTS` (también lista los jobs del tablero de `auto-move-issues.yml`; para "CI en verde" cuentan los de `.github/workflows/ci.yml`: `Backend Build & Tests`, `Frontend Lint & Build`, `Frontend Unit Tests`, `n8n Nodes Tests`, `Dependency Audit` y `E2E Tests Suite (Playwright)`, todos requeridos según `docs/politica-proteccion-main.md` §1)
    - comentarios de revisión en línea: `timeout 30 gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments`
 3. Identificá la issue enlazada (`Closes #N` o `Refs #N`; si no hay, el número con que empieza el nombre de la rama `N-slug`, que es lo que usa `.github/workflows/auto-move-issues.yml`) y leela con `timeout 30 gh issue view N --json number,title,body,labels,assignees`: "Alcance Técnico", criterios de aceptación Gherkin, "Estrategia de Pruebas (QA)", "Documentación que se actualiza en el mismo PR" y "Definition of Done" de la issue. Leé también la documentación que la gobierna, en este orden de jerarquía:
    1. `docs/adr/` (ADR en estado Aceptado), `docs/definition-of-done.md` y `docs/politica-proteccion-main.md`;
