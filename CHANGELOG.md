@@ -7,7 +7,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
 ### Added
-
+- **DevOps:** Bloque de servidor Nginx y certificado SSL expandido para `www.margenx.tech` con redirección permanente 301 a `margenx.tech` (`#261`).
+- **DevOps:** Cabeceras de seguridad perimetral HTTP en Nginx: HSTS de 1 semana (`max-age=604800`), `X-Content-Type-Options: nosniff`, `X-Frame-Options`, `Referrer-Policy`, `X-Robots-Tag: noindex` en staging y CSP en modo reporte (`Content-Security-Policy-Report-Only`) (`#261`).
+- **DevOps:** Límite `client_max_body_size 6m` específico en los bloques de servidor de API (`api` y `api-dev`), descartando cargas superiores a 6 MB con HTTP 413 antes de alcanzar Node.js (`#261`).
+- **DevOps:** Configuraciones de Nginx del host versionadas sin secretos en `infra/vps/nginx/` y registro de vencimientos de certificados en `infra/vps/README.md` (`#261`).
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.

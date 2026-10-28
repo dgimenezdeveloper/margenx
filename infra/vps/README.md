@@ -199,3 +199,31 @@ sudo nginx -t && sudo systemctl reload nginx
 Si solo hay que quitar `proxy_http_version 1.1`, borrar esa línea de cada `location`, volver a correr `sudo nginx -t` y recargar.
 
 ---
+
+## 9. Configuración de Nginx Perimetral y Gestión de Certificados SSL
+
+### Cabeceras de Seguridad Implementadas
+Todas las respuestas de producción y staging incorporan cabeceras defensivas para cumplimiento de buenas prácticas OWASP:
+- `Strict-Transport-Security: max-age=604800; includeSubDomains` (HSTS de 1 semana).
+- `X-Content-Type-Options: nosniff`.
+- `X-Frame-Options: SAMEORIGIN` (Frontend) / `DENY` (API).
+- `Referrer-Policy: strict-origin-when-cross-origin`.
+- `X-Robots-Tag: noindex, nofollow, noarchive` (exclusivo para `dev.margenx.tech`, `api-dev.margenx.tech` y `n8n.margenx.tech`).
+- `Content-Security-Policy-Report-Only`: activa en modo observación sin bloqueo de recursos.
+
+### Límites de Cuerpo (client_max_body_size)
+- **API (`api.margenx.tech` y `api-dev.margenx.tech`):** `6 MB`. Nginx rechaza con `413 Request Entity Too Large` solicitudes mayores a 6 MB antes de sobrecargar Express. El webhook de ingesta de backend acepta hasta 5 MB.
+- **Frontend:** `2 MB`.
+- **Satélite n8n:** `20 MB` para tolerar planillas mayoristas antes del fraccionamiento.
+
+### Estado y Vigilancia de Vencimiento de Certificados SSL
+Certificados emitidos por Let's Encrypt mediante Certbot con temporizador systemd (`certbot.timer`):
+
+| Certificado / Dominios | Emisión / Estado | Vencimiento Inicial Auditado | Renovación Automática |
+|---|---|---|---|
+| `margenx.tech`, `www.margenx.tech`, `api.margenx.tech`, `dev.margenx.tech`, `api-dev.margenx.tech` | Activo (expandido con `www`) | **07/12/2026** | Sí (`systemd certbot.timer`) |
+| `n8n.margenx.tech` | Activo | **30/11/2026** | Sí (`systemd certbot.timer`) |
+
+Comando de verificación periódica de renovación:
+```bash
+sudo certbot renew --dry-run
