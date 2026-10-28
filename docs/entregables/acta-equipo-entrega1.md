@@ -77,3 +77,7 @@ El equipo cuenta con dos comercios reales para la toma de requerimientos, valida
 - **Mauricio Barreras** *(Lead Backend & Data Architect)*
 - **Federico Paal** *(Lead Frontend & UX/UI Mobile-First)*
 - **Leandro Herrera** *(QA Engineer & Enlace Cliente Real)*
+
+---
+
+> **Documento histórico.** Acta del equipo para la primera entrega; se conserva como registro. La organización y las reglas de trabajo vigentes están en `docs/manual-scrum-master.md` y `docs/definition-of-done.md`.

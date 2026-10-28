@@ -109,3 +109,7 @@ En cumplimiento de las pautas del manual operativo de MargenX, al completarse el
 - Mauricio Barreras _(Lead Backend & Data Architect)_
 - Federico Paal _(Lead Frontend & UX/UI — SM entrante)_
 - Leandro Herrera _(QA Engineer & Enlace Cliente — SM saliente)_
+
+---
+
+> **Aclaración (28/10/2026).** Este acta se conserva como registro del cierre del Sprint 3. Donde dice "pantallas de alta/edición de proveedores", lo que se entregó en la interfaz fue el alta rápida de proveedor y la edición de la presentación desde la ficha del insumo; el CRUD completo de proveedores existe en la API. La vista y el detalle de proveedores son del Sprint 5 (`docs/especificacion-funcional.md` §11).
