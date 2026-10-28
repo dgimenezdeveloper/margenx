@@ -120,9 +120,13 @@ export function SupplierPackagingModal({
       .getAll(getToken)
       .then((data) => {
         if (!active) return
-        setSuppliers(data)
-        if (data.length > 0 && !existingConnection) {
-          setValue('supplierId', data[0].id)
+        const availableSuppliers = data.filter((s) =>
+          existingConnection?.supplierId === s.id ||
+          !ingredient.supplierConnections?.some((conn) => conn.supplierId === s.id)
+        )
+        setSuppliers(availableSuppliers)
+        if (availableSuppliers.length > 0 && !existingConnection) {
+          setValue('supplierId', availableSuppliers[0].id)
         }
       })
       .catch(() => {
@@ -135,7 +139,7 @@ export function SupplierPackagingModal({
     return () => {
       active = false
     }
-  }, [isOpen, getToken, setValue, existingConnection])
+  }, [isOpen, getToken, setValue, existingConnection, ingredient.supplierConnections])
 
   const numericSize = Number(watchedSize) || 0
   const numericPrice = Number(watchedPrice) || 0
@@ -181,6 +185,11 @@ export function SupplierPackagingModal({
   }
 
   const onSubmit = async (data: SupplierPackagingFormValues) => {
+    if (existingConnection?.isDefault && !data.isDefault) {
+      setErrorBanner('No puedes quitar el proveedor predeterminado sin asignar otro. Marca otro proveedor como predeterminado para reemplazarlo.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setErrorBanner(null)
@@ -198,10 +207,10 @@ export function SupplierPackagingModal({
           ? result.unitCost
           : Number(result.unitCost)
 
-      const selectedSupplier = suppliers.find(s => s.id === data.supplierId)
+      const selectedSupplier = suppliers.find((s) => s.id === data.supplierId)
       const newConnection: SupplierIngredient = {
         ...result.supplierIngredient,
-        supplier: selectedSupplier ? { id: selectedSupplier.id, name: selectedSupplier.name } : undefined
+        supplier: selectedSupplier ? { id: selectedSupplier.id, name: selectedSupplier.name } : undefined,
       }
 
       onSuccess(data.isDefault ? finalCost : undefined, newConnection)
@@ -315,14 +324,16 @@ export function SupplierPackagingModal({
               </div>
             ) : suppliers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 p-3.5 text-center dark:border-gray-800">
-                <p className="text-xs text-gray-500">No tienes proveedores registrados.</p>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingQuickSupplier(true)}
-                  className="mt-2 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 cursor-pointer"
-                >
-                  + Agregar primer proveedor
-                </button>
+                <p className="text-xs text-gray-500">No tienes proveedores disponibles para este insumo.</p>
+                {!existingConnection && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingQuickSupplier(true)}
+                    className="mt-2 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 cursor-pointer"
+                  >
+                    + Agregar nuevo proveedor
+                  </button>
+                )}
               </div>
             ) : (
               <div className="relative">
@@ -479,7 +490,9 @@ export function SupplierPackagingModal({
                 Marcar como proveedor predeterminado
               </span>
               <p className="mt-0.5 text-gray-500 dark:text-gray-400">
-                {watchedIsDefault
+                {existingConnection?.isDefault && !watchedIsDefault
+                  ? <span className="text-rose-500 font-bold">No puedes quitar el predeterminado. Marca otro proveedor para reemplazarlo.</span>
+                  : watchedIsDefault
                   ? `Se actualizará el costo unitario de "${ingredient.name}" al valor calculado (${
                       calculatedUnitCost !== null
                         ? money(calculatedUnitCost)
