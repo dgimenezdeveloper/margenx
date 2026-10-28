@@ -56,6 +56,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** Actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
 - **DevOps / CI:** El CI falla ante cualquier vulnerabilidad alta o crítica en dependencias de producción. Única excepción aceptada: `deepmerge-ts` (GHSA-ggr8-5vv4-36mx), que llega por `prisma` y se resuelve con Prisma 7 (`#260`).
 
+### Changed
+
+- **Docs:** Especificación funcional sincronizada con el código: el canal de ingesta enlaza a ADR-005, el contrato de ingesta suma el 413 de 5 MB y la receta para el colaborador figura como disponible (`#269`).
+- **Docs:** Notas de vigencia en ADR-001 y ADR-003 (enmendado por ADR-005) sin reescribir sus decisiones, y fecha definitiva de ADR-002 (`#269`).
+- **Docs:** SAD 2.2: la integración con n8n distingue lo implementado de lo planificado y el backlog del Sprint 5 refleja el tablero; Smart Purchasing, el reporte PDF y la meta de Lighthouse pasan al Sprint 6 (`#269`).
+- **Docs:** DoD §4: los datos de prueba son realistas de los rubros piloto, en las cuentas del seed o en Demo MargenX, nunca sobre la cuenta real de un comercio (`#269`).
+- **Docs:** Documentos históricos marcados con nota al pie y `casos-prueba-sprint1.md` archivado en `docs/historicos/` (`#269`).
+
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
 ### Added
