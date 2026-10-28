@@ -9,9 +9,11 @@ import { join } from 'node:path';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
 
+let currentUserRole: 'ADMIN' | 'COLLABORATOR' = 'ADMIN';
+
 vi.mock('../middlewares/auth', () => ({
   authMiddleware: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: 'ADMIN' };
+    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: currentUserRole };
     next();
   },
 }));
@@ -67,7 +69,12 @@ function buildApp() {
   return app;
 }
 
+function setAuthRole(role: 'ADMIN' | 'COLLABORATOR') {
+  currentUserRole = role;
+}
+
 beforeEach(() => {
+  setAuthRole('ADMIN');
   productFindManyMock.mockReset();
   productCountMock.mockReset();
   productFindFirstMock.mockReset();
@@ -291,6 +298,70 @@ describe('GET /api/products/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.product).toEqual(product);
     expect(productFindFirstMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' }, include: { ingredients: { include: { ingredient: true } } } });
+  });
+
+  it('oculta quantity cost y margin para COLLABORATOR en la respuesta real del endpoint', async () => {
+    setAuthRole('COLLABORATOR');
+    const product = {
+      id: 'p1',
+      accountId: 'account-1',
+      name: 'Prod',
+      cost: '120.00',
+      marginAmount: '30.00',
+      marginPercent: '25.00',
+      ingredients: [
+        {
+          ingredientId: 'ing-1',
+          quantity: '2.5',
+          ingredient: {
+            id: 'ing-1',
+            name: 'Harina',
+            currentCost: '10.00',
+          },
+        },
+      ],
+    };
+    productFindFirstMock.mockResolvedValue(product);
+
+    const res = await request(buildApp()).get('/api/products/p1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.product).not.toHaveProperty('cost');
+    expect(res.body.product).not.toHaveProperty('marginAmount');
+    expect(res.body.product).not.toHaveProperty('marginPercent');
+    expect(res.body.product.ingredients[0]).not.toHaveProperty('quantity');
+  });
+
+  it('mantiene quantity cost y margin visibles para ADMIN en la respuesta real del endpoint', async () => {
+    setAuthRole('ADMIN');
+    const product = {
+      id: 'p1',
+      accountId: 'account-1',
+      name: 'Prod',
+      cost: '120.00',
+      marginAmount: '30.00',
+      marginPercent: '25.00',
+      ingredients: [
+        {
+          ingredientId: 'ing-1',
+          quantity: '2.5',
+          ingredient: {
+            id: 'ing-1',
+            name: 'Harina',
+            currentCost: '10.00',
+          },
+        },
+      ],
+    };
+    productFindFirstMock.mockResolvedValue(product);
+
+    const res = await request(buildApp()).get('/api/products/p1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.product.cost).toBe('120.00');
+    expect(res.body.product.marginAmount).toBe('30.00');
+    expect(res.body.product.marginPercent).toBe('25.00');
+    expect(res.body.product.ingredients[0].quantity).toBe('2.5');
   });
 });
 

@@ -6,6 +6,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
+
+### Fixed
+
+- **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
+- **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
+- **Security:** Se ocultó la cantidad de receta y los campos financieros para el rol `COLLABORATOR` en la API real y en la UI, y se cubrió con validación de regresión por endpoint y perfil.
+
 ### Added
 
 - **Docs:** ADR-005 formalizando las decisiones de arquitectura sobre costo vigente de materias primas por proveedor predeterminado, umbrales de retención en cuarentena preventiva y canal de ingesta por correo (`precios-<slug>@margenx.tech`) (`#234`).
