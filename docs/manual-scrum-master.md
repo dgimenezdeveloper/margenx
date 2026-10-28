@@ -64,7 +64,7 @@ Cuando el equipo tome una decisión técnica de impacto estructural (ej. incorpo
 
 ### 2.3. Sincronización entre Tablero y GitFlow
 - [ ] **Nomenclatura de Ramas:** Toda rama se crea desde la issue con el botón **Create a branch** de GitHub, con base `develop`, y queda con el formato `N-slug` en minúsculas ASCII con guiones (ej. `66-be-motor-margen`). Ver `docs/definition-of-done.md` §1.
-  * *Mecánica:* El script `.github/workflows/auto-move-issues.yml` toma el primer número del nombre de la rama como número de issue y mueve la tarjeta automáticamente de `To Do` a `In Progress`.
+  * *Mecánica:* El script `.github/workflows/auto-move-issues.yml` toma el número con que empieza el nombre de la rama (formato `N-slug`) como número de issue y mueve la tarjeta automáticamente de `To Do` a `In Progress`.
 - [ ] **Vinculación en Pull Request:** El cuerpo del PR debe contener la palabra clave de cierre: `Closes #<numero-issue>`.
 - [ ] **Ciclo de Estados en Tablero:**
   * Al abrir PR hacia `develop` $\rightarrow$ la tarjeta pasa automáticamente a **`In Review`**.
