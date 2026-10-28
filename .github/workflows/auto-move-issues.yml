@@ -203,7 +203,9 @@ jobs:
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
         run: |
           BRANCH="${{ github.ref_name }}"
-          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+          # Solo ramas N-slug (DoD §1). Así las ramas de Dependabot, que llevan
+          # versiones o hashes en el nombre, no mueven tarjetas ajenas.
+          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '^\d+(?=-)' | head -1)
           [ -z "$ISSUE_NUMBER" ] && echo "No se detectó número de issue en la rama '$BRANCH'. Omitiendo." && exit 0
 
           ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
@@ -330,7 +332,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -484,7 +486,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -603,7 +605,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -780,7 +782,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -888,7 +890,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
