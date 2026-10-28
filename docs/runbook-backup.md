@@ -42,6 +42,8 @@ Añadir la siguiente línea:
 
 El ensayo de restauración se ejecuta de forma controlada mediante `/opt/margenx-infra/scripts/restore-test.sh` (versionado en el repositorio como `infra/scripts/restore-test.sh`), levantando la base temporal efímera `margenx_restore_test` sin interferir con la base de staging (`margenx_dev`) ni de producción (`margenx_prod`).
 
+> **Correr el ensayo inmediatamente después de `backup-db.sh`.** El script compara los conteos del dump restaurado con los de `margenx_prod` **en el momento del ensayo**. Si entre el backup y el ensayo hubo escrituras (un producto nuevo, un precio actualizado), va a informar `MISMATCH` aunque el backup esté bien. Ante un `MISMATCH`, primero generar un backup nuevo y repetir el ensayo enseguida.
+
 ### Resultados del Ensayo de Integridad Real (27/10/2026)
 
 | Métrica / Ensayo | Valor Obtenido | Observaciones |
