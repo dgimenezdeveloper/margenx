@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { SupplierPackagingModal } from '../supplier-packaging-modal'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import type { Ingredient } from '@/services/ingredientService'
