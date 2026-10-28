@@ -89,8 +89,8 @@ export default function ProductDetailPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  const watchedSalePrice = useWatch({ control, name: 'salePrice' })
-  const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
+  const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
+  const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
   const targetMargin = watchedMinMargin !== '' && !isNaN(Number(watchedMinMargin)) ? Number(watchedMinMargin) : (product?.minMarginPercent ?? 30)
 
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(!isCollaborator && isDirty && !isSaving && !isDeleting)
@@ -218,7 +218,7 @@ export default function ProductDetailPage() {
         <form onSubmit={onSave} noValidate>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
             <div className={`space-y-6 ${isCollaborator ? 'lg:col-span-12 max-w-3xl mx-auto w-full' : 'lg:col-span-7'}`}>
-              <ProductMasterDataForm isCollaborator={isCollaborator} isDirty={isDirty} productName={product.name} salePrice={product.salePrice} register={register} setValue={setValue} errors={errors} />
+              <ProductMasterDataForm isCollaborator={isCollaborator} isDirty={isDirty} productName={product.name} salePrice={product.salePrice} register={register} setValue={setValue} errors={errors} watchedMinMargin={watchedMinMargin} />
               <ProductRecipeBOM isCollaborator={isCollaborator} items={items} onAddIngredient={() => setShowAddModal(true)} onRemoveIngredient={(id, name) => setIngredientToDelete({ id, name })} />
               {!isCollaborator && (
                 <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
