@@ -28,6 +28,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Changed
 
+- **DevOps / Security:** SSH de la VPS solo con clave (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`), sin reenvío de agente ni X11, en los puertos 22 y 5371; revisión de dueños de `authorized_keys` (se quitaron una clave sin dueño y la del CI de Allmart); confirmación de que MargenX solo publica en `127.0.0.1`; y hallazgos fuera de alcance (`ufw` inactivo, puertos de otros proyectos en `0.0.0.0`, Postfix en el 25) en `infra/vps/README.md` §9 (`#266`).
 - **Docs:** Actualización de `docs/process/revision-de-prs.md` §5 ítem 6 formalizando la medición obligatoria del 90 % de líneas en `frontend/` mediante `npm run test:coverage` y retirando la excepción temporal de cobertura no verificada (`#276`).
 - **Docs:** Documentados los límites de ingesta, el contrato de error 413 y el runbook operativo en [docs/api.md](docs/api.md) y [docs/runbook-ingesta.md](docs/runbook-ingesta.md).
 - **Docs:** Convención de ramas única `N-slug`, creada desde la issue con *Create a branch*, en la DoD, el manual del Scrum Master y el SAD (`#274`).
