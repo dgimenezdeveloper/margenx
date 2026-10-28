@@ -1,0 +1,74 @@
+# Actualizaciones automáticas de dependencias (issue #260).
+# Un PR semanal agrupado por ecosistema con las versiones menores y parches,
+# siempre hacia develop (las releases a main siguen el flujo de
+# docs/politica-proteccion-main.md §2). Las versiones mayores llegan en PRs
+# individuales porque suelen pedir cambios de código (por ejemplo, Prisma 7).
+#
+# Los PRs de Dependabot no reciben los secrets de Actions: el E2E necesita que
+# los de Clerk estén cargados también como "Dependabot secrets" (Settings →
+# Secrets and variables → Dependabot).
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      backend-menores:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend-menores:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      acciones:
+        patterns: ["*"]
+
+  # Imágenes base de los Dockerfiles. Node se mantiene en la línea 22 LTS
+  # (.nvmrc): el salto a otra mayor se decide a mano, no por Dependabot.
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    commit-message:
+      prefix: "build(deps)"
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+    groups:
+      imagenes-base:
+        patterns: ["*"]

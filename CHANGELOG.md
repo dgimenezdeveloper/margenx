@@ -25,6 +25,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.
 - **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
 - **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
+- **DevOps / CI:** Jobs `Frontend Unit Tests` (Vitest con el umbral de cobertura del 90 %), `n8n Nodes Tests` y `Dependency Audit` (`npm audit --omit=dev` en ambos paquetes, con lista de excepciones en `.github/audit-allowlist.json` y su filtro probado en `.github/scripts/`) (`#260`).
+- **DevOps:** `.github/dependabot.yml`: PR semanal agrupado de versiones menores y parches hacia `develop` para npm (backend y frontend), GitHub Actions e imágenes base de Docker (`#260`).
+- **DevOps:** `.nvmrc` con Node 22 como versión única para el entorno local, el CI y las imágenes (`#260`).
 
 ### Changed
 
@@ -33,6 +36,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Convención de ramas única `N-slug`, creada desde la issue con *Create a branch*, en la DoD, el manual del Scrum Master y el SAD (`#274`).
 - **Docs:** Dirección de ingesta unificada como `precios-<slug>@margenx.tech` en el README (`#274`).
 - **DevOps:** `proxy_http_version 1.1` en el ejemplo de Nginx de staging y guía para activar gzip en el Nginx del host, con verificación y reversión, en `infra/vps/README.md` §8 (`#233`).
+- **DevOps:** Migración a Node 22 LTS en `backend/Dockerfile`, `frontend/Dockerfile`, el devcontainer y el CI (Node 20 salió de soporte). Quien tenga el devcontainer creado debe reconstruirlo (`#260`).
+- **DevOps / CI:** El job `Backend Lint & Typecheck` pasa a llamarse `Backend Build & Tests`, porque no corre linter; el linter real del backend queda para el Sprint 6. Checks requeridos actualizados en `docs/politica-proteccion-main.md` (`#260`).
+- **DevOps:** `auto-move-issues.yml` toma el número de issue solo de ramas con formato `N-slug`, para que las ramas de Dependabot no muevan tarjetas ajenas (`#260`).
 
 ### Removed
 
@@ -47,6 +53,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
 - **Frontend:** Actualización compatible de dependencias vulnerables: `zod` 4.6.7, `fast-uri` 3.1.9, `undici` 7.30.1, `brace-expansion` 5.0.12 y `source-map-js` 1.2.2; 0 vulnerabilidades en producción. `vite`, `vitest` y `@vitest/mocker` (solo desarrollo) quedan pendientes: `npm audit fix` falla con un error interno del resolvedor de npm (`Cannot read properties of null (reading 'edgesOut')`) al recalcular sus dependencias peer (`#233`).
+- **DevOps / CI:** El CI falla ante cualquier vulnerabilidad alta o crítica en dependencias de producción. Única excepción aceptada: `deepmerge-ts` (GHSA-ggr8-5vv4-36mx), que llega por `prisma` y se resuelve con Prisma 7 (`#260`).
 
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 

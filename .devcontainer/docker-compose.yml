@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
+    image: mcr.microsoft.com/devcontainers/typescript-node:22-bookworm
     volumes:
       - ..:/workspace:cached
     working_dir: /workspace
