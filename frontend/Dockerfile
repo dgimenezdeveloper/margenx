@@ -23,7 +23,7 @@ RUN npm run build
 # ==========================================
 # STAGE 2: Nginx Minimal Static Web Server
 # ==========================================
-FROM nginx:1.27-alpine AS runner
+FROM nginx:1.31-alpine AS runner
 
 # Copiar configuración optimizada para SPA
 COPY nginx.conf /etc/nginx/conf.d/default.conf
