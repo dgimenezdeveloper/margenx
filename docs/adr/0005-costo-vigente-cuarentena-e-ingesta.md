@@ -24,7 +24,7 @@ MargenX protege la rentabilidad de las PyMEs manufactureras y gastronómicas rec
 * **Fórmula de costo unitario:**
   $$\text{unitCost} = \frac{\text{packagePrice}}{\text{packageSize}} \quad (\text{redondeo } \text{ROUND\_HALF\_UP} \text{ a 2 decimales con } Prisma.Decimal)$$
 * **Sobrescritura deliberada de ediciones manuales:** Si el Administrador edita a mano `Ingredient.currentCost` desde `/insumos`, ese costo opera como *override* temporal. La próxima actualización legítima proveniente de la presentación predeterminada (sea por ingesta de lista o actualización del empaque) **sobrescribe el costo manual**, garantizando coherencia con la compra física.
-* **Unicidad de presentación:** Existe como máximo una presentación por par proveedor-insumo (`@@unique([supplierId, ingredientId])`). No es posible desmarcar una presentación predeterminada dejándola en `isDefault: false` sin designar un reemplazo (el sistema rechaza estados huérfanos con HTTP 409).
+* **Unicidad de presentación y estado predeterminado:** Existe como máximo una presentación por par proveedor-insumo (`@@unique([supplierId, ingredientId])`). La regla de negocio exige que todo insumo con proveedores asociados conserve siempre una presentación predeterminada activa; el bloqueo defensivo con HTTP 409 ante desmarques manuales que dejen estados huérfanos queda registrado como requerimiento a instrumentar en la evolución de endpoints de proveedores.
 
 ### 2. Bandeja de Cuarentena Preventiva de Precios Anómalos
 Para evitar distorsiones en las recetas ante listas con errores o saltos bruscos de precios, el backend aplica un buffer de retención transaccional previo a impactar `Ingredient.currentCost`:
@@ -60,16 +60,16 @@ Esta decisión arquitectónica se materializa en los siguientes puntos críticos
 
 1. **Liberación de Cuarentena con Recálculo en Cascada:**
    * Archivo: `backend/src/routes/suppliers.ts`
-   * Función: `POST /api/suppliers/quarantine/:id/release`
-   * Bloque: Líneas 236 a 270 (comprueba `quarantined.isDefault`, actualiza `Ingredient.currentCost = unitCost` y ejecuta `applyIngredientCostChange`).
+   * Handler: `router.post('/quarantine/:id/release')`
+   * Detalle: Comprueba `quarantined.isDefault`, actualiza `Ingredient.currentCost = unitCost` y ejecuta `applyIngredientCostChange`.
 2. **Homologación y Conmutación de Proveedor Predeterminado (Upsert):**
    * Archivo: `backend/src/routes/suppliers.ts`
-   * Función: `POST /api/suppliers/:id/ingredients`
-   * Bloque: Líneas 480 a 535 (desmarca defaults previos mediante `updateMany({ where: { ingredientId, id: { not: ... } }, data: { isDefault: false } })`, actualiza el costo unitario del insumo y liquida la cascada transaccional).
+   * Handler: `router.post('/:id/ingredients')`
+   * Detalle: Desmarca defaults previos mediante `updateMany({ where: { ingredientId, id: { not: ... } }, data: { isDefault: false } })`, actualiza el costo unitario del insumo y liquida la cascada transaccional.
 3. **Ingesta Batch con Filtro Anti-Pollution y Retención de Cuarentena:**
    * Archivo: `backend/src/routes/webhooks.ts`
-   * Función: `POST /api/webhooks/supplier-prices`
-   * Bloque: Líneas 220 a 305 (evalúa variación $>50\%$ y costo $\le \$0.01$, retiene en `pendingPackagePrice` o actualiza `Ingredient.currentCost` disparando `applyIngredientCostChange` para ítems con `mapped.isDefault`).
+   * Handler: `router.post('/supplier-prices')`
+   * Detalle: Evalúa variación $>50\%$ y costo $\le \$0.01$, retiene en `pendingPackagePrice` o actualiza `Ingredient.currentCost` disparando `applyIngredientCostChange` para ítems con `mapped.isDefault`.
 
 ---
 
