@@ -25,3 +25,7 @@ Se decide adoptar **Clerk** como proveedor de identidad delegada (IdP).
 * **Compromisos (Trade-offs):**
   * Dependencia de un servicio SaaS externo de terceros.
   * Obligatoriedad de sincronizar variables de entorno (`CLERK_SECRET_KEY` y `VITE_CLERK_PUBLISHABLE_KEY`) en todos los entornos (local, CI y Azure).
+
+## Nota de vigencia (28/10/2026)
+
+La decisión sigue vigente. Donde el texto dice "local, CI y Azure", hoy los entornos son local, CI y la VPS (ADR-002). Hay dos instancias de Clerk: la de desarrollo, usada en local, CI y `dev.margenx.tech`, y la de producción, que `deploy.yml` usa al construir desde `main` (`VITE_CLERK_PUBLISHABLE_KEY_PROD`).

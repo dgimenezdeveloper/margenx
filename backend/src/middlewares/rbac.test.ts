@@ -131,7 +131,7 @@ describe('rbac middleware', () => {
         salePrice: 250,
         packagePrice: 200,
         currentCost: 150,
-        ingredients: [{ unitCost: 10, quantity: 2 }],
+        ingredients: [{ unitCost: 10, quantity: 2, ingredient: { currentCost: 12, name: 'Harina' } }],
       },
       nested: [{ marginPercent: 40 }, { oldCost: 50 }],
     };
@@ -148,9 +148,9 @@ describe('rbac middleware', () => {
 
     expect(returned).toBeDefined();
     expect(returned!.account).toEqual({ businessName: 'Panadería' });
-    expect(returned!.product).toEqual({ salePrice: 250, ingredients: [{ quantity: 2 }] });
+    expect(returned!.product).toEqual({ salePrice: 250, ingredients: [{ ingredient: { name: 'Harina' } }] });
     expect(returned!.nested).toEqual([{}, {}]);
-    expect(JSON.stringify(returned!)).not.toMatch(/defaultMinMarginPercent|marginPercent|oldCost|packagePrice|unitCost|currentCost/i);
+    expect(JSON.stringify(returned!)).not.toMatch(/defaultMinMarginPercent|marginPercent|oldCost|packagePrice|unitCost|currentCost|quantity/i);
   });
 
   it('sanitizeFinancialData: no-op para ADMIN y no muta el objeto original', () => {

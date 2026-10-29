@@ -358,3 +358,7 @@ ajeno: ambos deben responder `404` con el mismo body, nunca `200` ni `403`.
   comportamiento real de `backend/src/routes/ingredients.ts` en `develop`;
   los de Productos documentan el contrato esperado, pendiente de
   implementación del endpoint `/api/products`.
+
+---
+
+> **Documento histórico.** Se conserva como registro de la matriz de pruebas del Sprint 1. Ya no describe el sistema: la API de Productos se implementó al cierre del Sprint 1 (versión 0.2.0) y el formato de error vigente lo define `backend/src/middlewares/errorHandler.ts` (códigos relevantes en `docs/api.md`). Las pruebas vigentes son las colecciones de Postman (`backend/tests/postman/`, guía en `docs/qa/ejecutar-colecciones-postman.md`) y la suite E2E (`frontend/tests/e2e/`).

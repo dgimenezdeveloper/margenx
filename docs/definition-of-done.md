@@ -32,7 +32,7 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 ### 4. Criterios de Aceptación y Testing (QA)
 - **Criterios Gherkin:** Cumplimiento verificado de todos los escenarios (Dado/Cuando/Entonces) especificados en la issue.
 - **Prueba en Local:** Funcionalidad probada y funcionando en el entorno estandarizado de DevContainers.
-- **Datos Realistas:** Prohibido el uso de cadenas genéricas ("test1", "asdasd", "1234"). Todo testing manual o semilla debe usar datos reales de Panadería Central o Química GyJ.
+- **Datos Realistas:** Prohibido el uso de cadenas genéricas ("test1", "asdasd", "1234"). Todo testing manual o semilla debe usar datos realistas de los rubros piloto (panadería y química de limpieza), en las cuentas del seed o en la cuenta Demo MargenX; nunca sobre la cuenta real de un comercio.
 - **Pruebas Automatizadas (según sprint):** Tests unitarios, colecciones de Postman o suites E2E con Playwright creados o actualizados si la tarea afecta el flujo crítico.
 - **Aprobación de QA:** El responsable de QA debe verificar y aprobar el PR (disparando el estado QA Approved en el tablero).
 

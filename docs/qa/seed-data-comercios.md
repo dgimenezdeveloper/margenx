@@ -420,3 +420,7 @@ realizadas por el seed del Sprint 1.
 - [ ] Adjuntar las evidencias de terminal y Prisma Studio al PR.
 - [ ] Abrir un PR hacia `develop` que referencie la issue #30.
 - [ ] Verificar el pipeline de CI en verde.
+
+---
+
+> **Nota de vigencia (28/10/2026).** La fuente de verdad de los datos sembrados es `backend/prisma/seed.ts`. Los correos de la tabla "Usuarios de prueba" no coinciden con los que usa hoy el seed, y el documento mezcla el alcance del Sprint 1 con datos agregados después. La cuenta para demostraciones es Demo MargenX (`backend/prisma/seed-demo.ts`). No uses estos datos sobre la cuenta real de un comercio (`docs/definition-of-done.md` §4).

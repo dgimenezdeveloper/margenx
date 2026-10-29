@@ -58,6 +58,10 @@ export default function ProfilePage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
 
+  const isCollaborator = user?.role === 'COLLABORATOR'
+  const roleLabel = isCollaborator ? 'COLABORADOR' : 'ADMINISTRADOR'
+  const roleShort = isCollaborator ? 'CL' : 'AD'
+
   const currentMarginValue =
     customMargin !== null ? customMargin : String(defaultMinMarginPercent ?? 30)
 
@@ -129,7 +133,7 @@ export default function ProfilePage() {
                   {isLoading ? (
                     <div className="size-8 animate-pulse rounded-full bg-indigo-400" />
                   ) : (
-                    user?.role === 'COLLABORATOR' ? 'CL' : 'AD'
+                    roleShort
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -139,10 +143,10 @@ export default function ProfilePage() {
                     ) : (
                       <>
                         <h2 className="truncate font-bold text-lg">
-                          {user?.role === 'COLLABORATOR' ? 'Colaborador' : 'Administrador'}
+                          {isCollaborator ? 'Colaborador' : 'Administrador'}
                         </h2>
                         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                          {user?.role || 'ADMIN'}
+                          {roleLabel}
                         </span>
                       </>
                     )}
@@ -178,83 +182,84 @@ export default function ProfilePage() {
               </section>
             </div>
 
-            {/* Columna Derecha: Margen Objetivo Global con Guardado y Alertas */}
-            <div className="space-y-6">
-              <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Target className="size-5 text-indigo-600" />
-                  <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Este porcentaje se usará como sugerencia inicial al crear nuevos productos y determinará el umbral de alerta en tu negocio.
-                </p>
+            {!isCollaborator && (
+              <div className="space-y-6">
+                <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Target className="size-5 text-indigo-600" />
+                    <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Este porcentaje se usará como sugerencia inicial al crear nuevos productos y determinará el umbral de alerta en tu negocio.
+                  </p>
 
-                <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
-                  <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
-                  <div className="flex items-center gap-1">
-                    <NumericInput
-                      value={currentMarginValue}
-                      onChange={setCustomMargin}
-                      suffixSymbol="%"
-                      suffixClassName="font-bold text-sm text-gray-400"
-                      disabled={isSavingGlobalMargin}
-                      containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
-                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                  <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
+                    <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
+                    <div className="flex items-center gap-1">
+                      <NumericInput
+                        value={currentMarginValue}
+                        onChange={setCustomMargin}
+                        suffixSymbol="%"
+                        suffixClassName="font-bold text-sm text-gray-400"
+                        disabled={isSavingGlobalMargin}
+                        containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
+                        className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                      />
+                      <span className="font-bold text-sm text-gray-400">%</span>
+                    </div>
+                  </div>
+
+                  {marginError && (
+                    <p className="text-xs font-bold text-rose-500">{marginError}</p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSaveGlobalMargin}
+                    disabled={isSavingGlobalMargin || user?.role !== 'ADMIN'}
+                    className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingGlobalMargin ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {isSavingGlobalMargin ? 'Guardando Margen...' : 'Guardar Margen'}
+                  </button>
+                </section>
+
+                <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Bell className="size-5 text-indigo-600" />
+                    <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 pt-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
+                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando sube un insumo</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={emailAlerts}
+                      onChange={setEmailAlerts}
+                      ariaLabel="Alerta de Margen Crítico"
                     />
                   </div>
-                </div>
 
-                {marginError && (
-                  <p className="text-xs font-bold text-rose-500">{marginError}</p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSaveGlobalMargin}
-                  disabled={isSavingGlobalMargin || user?.role !== 'ADMIN'}
-                  className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSavingGlobalMargin ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  {isSavingGlobalMargin ? 'Guardando Margen...' : 'Guardar Margen'}
-                </button>
-              </section>
-
-              {/* Automatizaciones n8n */}
-              <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Bell className="size-5 text-indigo-600" />
-                  <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
-                    <p className="text-xs text-gray-500">Aviso inmediato por email cuando sube un insumo</p>
+                  <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
+                      <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={weeklyReport}
+                      onChange={setWeeklyReport}
+                      ariaLabel="Reporte Semanal en PDF"
+                    />
                   </div>
-                  <ToggleSwitch
-                    checked={emailAlerts}
-                    onChange={setEmailAlerts}
-                    ariaLabel="Alerta de Margen Crítico"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
-                    <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
-                  </div>
-                  <ToggleSwitch
-                    checked={weeklyReport}
-                    onChange={setWeeklyReport}
-                    ariaLabel="Reporte Semanal en PDF"
-                  />
-                </div>
-              </section>
-            </div>
+                </section>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 md:flex md:justify-end md:pt-6">

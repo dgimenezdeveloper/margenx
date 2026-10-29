@@ -162,3 +162,6 @@ Si el cronograma lo permite hacia el final del proyecto (Sprint 5-6), se evaluar
 
 El equipo ya cuenta con una cuenta de Meta Developers previamente verificada (usada en un proyecto anterior de chatbot), lo que reduce el riesgo de demoras por aprobación de negocio. A partir de octubre de 2026, Meta comienza a cobrar por mensajes de utilidad y servicio en WhatsApp Business API, por lo que el canal de email queda garantizado en el MVP, con WhatsApp como mejora incorporable una vez validado el costo por mensaje.
 
+---
+
+> **Documento histórico parcial (28/10/2026).** Es la propuesta inicial del proyecto y se conserva como registro. **Siguen vigentes** los requerimientos funcionales y no funcionales de §7 y §8, salvo donde los reemplaza `docs/especificacion-funcional.md` (por ejemplo, RF-12 y RNF-09: el colaborador no edita costos y sí ve el precio de venta, §8 de la especificación). **Están superados** la infraestructura en Azure (reemplazada por el despliegue 100 % en la VPS, `docs/adr/0002-arquitectura-hibrida-vps.md`) y el cronograma de sprints (vigente en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`).

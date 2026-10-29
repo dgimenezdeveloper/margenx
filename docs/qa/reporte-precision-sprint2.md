@@ -127,3 +127,7 @@ corresponda a este PR de QA):
 - [ ] Corrida contra Staging (`https://api-dev.margenx.tech`) — pendiente,
       requiere acceso de red que este entorno no tiene (ver §2).
 - [x] PR abierto hacia `develop` con CI en verde.
+
+---
+
+> **Documento histórico.** Reporte de precisión aritmética del Sprint 2; se conserva como registro. `frontend/src/app/productos/detalle/page.tsx` hoy solo reexporta `frontend/src/app/productos/[id]/page.tsx`, y los valores que se guardan los calcula el backend con `Prisma.Decimal` (`backend/src/services/marginCalculator.ts`, ADR-004); la interfaz sigue calculando vistas previas, por ejemplo en el simulador de la ficha del producto. La prueba vigente es `backend/tests/postman/precision-aritmetica.test.ts`.
