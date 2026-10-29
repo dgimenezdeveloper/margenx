@@ -17,3 +17,7 @@ En cada cierre de sprint se evalúa el producto bajo dos roles complementarios:
 | **Sprint 6** | 14/11 al 27/11<br>*(Hito: Entrega Final y Defensa)* | Swagger / OpenAPI interactivo en `/api/docs`, Git limpio con Squash merges, tag formal `v1.0.0`, suites de regresión al 100% y perimetral de VPS asegurado. | Aplicación Mobile-First instalable en el celular como **PWA nativa** sin stores, manual de usuario ilustrado, video demo comercial de 3 minutos y balance de impacto en comercios piloto. | **Aprobado:** Instalación PWA en smartphone, navegación fluida a 360px y defensa del proyecto con métricas reales. |
 
 ---
+
+---
+
+> **Documento histórico.** Se conserva como registro del plan de entregas inicial. Las fechas no se reescriben: el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`, y el backlog actualizado de cada sprint en `docs/Arquitectura-Software-(SAD).md` §6.

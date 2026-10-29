@@ -240,3 +240,7 @@ Una tarea se considera **DONE** solo cuando: (1) tiene un PR desde una rama de f
 * **Darío Giménez** — DevOps, infraestructura y automatización
 * **Mauricio Barreras** — Lead Backend y arquitectura de datos
 * **Leandro Herrera** — QA y enlace con comercios piloto
+
+---
+
+> **Documento histórico.** Es el entregable académico presentado al cierre del Sprint 4 y se conserva tal como se entregó. Las fechas y estados que menciona corresponden a ese momento: el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`; el estado actual del sistema, en `docs/especificacion-funcional.md` §11.
