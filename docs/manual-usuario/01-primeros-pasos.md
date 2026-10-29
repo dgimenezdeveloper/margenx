@@ -12,3 +12,9 @@ Para facilitar la carga de datos y evitar errores, MargenX está adaptado al for
 - **Formateo automático:** Al terminar de escribir y salir del campo, el sistema acomodará visualmente el número al formato oficial argentino (ej. `1.234,56` o `1.500.000`) para que puedas confirmar de un vistazo que se interpretó correctamente.
 
 Si ingresás un formato ambiguo o texto con letras (como `1.2.3` o `abc`), el sistema te mostrará un mensaje de error debajo del campo y no te permitirá guardar hasta que lo corrijas.
+
+## Proveedor Predeterminado
+
+Cuando asocies empaques de proveedores a tus insumos, tené en cuenta lo siguiente:
+- Solo un proveedor puede ser el **predeterminado** para cada insumo. El costo de este proveedor es el que se usará para calcular tus recetas.
+- Para proteger tus costos, **no podés quitar el proveedor predeterminado sin elegir otro**. Si querés cambiar de proveedor, simplemente marcá el nuevo como predeterminado y el sistema se encargará de desmarcar el anterior y recalcular tus productos automáticamente.

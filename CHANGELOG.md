@@ -25,9 +25,12 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **QA:** Cosecha de los comentarios no bloqueantes dejados en las revisiones de los PR #215 a #218: etiqueta `review-followup` y 5 issues nuevas agrupadas por tema (`#310`-`#314`); tabla de trazabilidad completa (28 ítems: resueltos, descartados o agrupados) en `docs/qa/reporte-calidad-sprint5.md` (`#265`).
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
+- **Backend:** Bloqueo con error 422 al intentar quitar el proveedor predeterminado de un insumo sin asignar otro en su lugar.
+- **Frontend:** Exclusión de proveedores ya vinculados en el modal de asociación de empaques y aviso claro al intentar desmarcar el proveedor predeterminado.
 - **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.
 - **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
 - **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
+- **Docs:** ADR-005 sobre costo vigente, cuarentena e ingesta (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`), y actualización del manual de usuario con la regla del proveedor predeterminado.
 - **DevOps / CI:** Jobs `Frontend Unit Tests` (Vitest con el umbral de cobertura del 90 %), `n8n Nodes Tests` y `Dependency Audit` (`npm audit --omit=dev` en ambos paquetes, con lista de excepciones en `.github/audit-allowlist.json` y su filtro probado en `.github/scripts/`) (`#260`).
 - **DevOps:** `.github/dependabot.yml`: PR semanal agrupado de versiones menores y parches hacia `develop` para npm (backend y frontend), GitHub Actions e imágenes base de Docker (`#260`).
 - **DevOps:** `.nvmrc` con Node 22 como versión única para el entorno local, el CI y las imágenes (`#260`).
