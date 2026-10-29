@@ -175,7 +175,10 @@ const accounts = [
     // sobrescritos con el costo real de esa presentación mayorista (ver el
     // paso de sincronización en main(), más abajo).
     ingredients: [
-      { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "742.98" },
+      // 736.25 == el costo activo post-seed (coincide a propósito, issue #265;
+      // ver docs/qa/seed-data-comercios.md). Los demás insumos de abajo sí
+      // difieren entre valor declarado y activo: es el comportamiento esperado.
+      { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "736.25" },
       { id: "30b00001-0000-4000-8000-000000000002", name: "Harina de trigo 0000 Olavarriense", unit: "kg", currentCost: "868.77" },
       { id: "30b00001-0000-4000-8000-000000000003", name: "Azúcar común tipo A", unit: "kg", currentCost: "1150.00" },
       { id: "30b00001-0000-4000-8000-000000000004", name: "Manteca en bloque mayorista", unit: "kg", currentCost: "12090.00" },

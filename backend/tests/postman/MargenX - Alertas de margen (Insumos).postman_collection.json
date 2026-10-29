@@ -59,7 +59,7 @@
           "script": {
             "exec": [
               "// Reenvía el mismo currentCost que dejó el request 01 (9500.00), no el",
-              "// costo base original (742.98): este request comparte el insumo con el",
+              "// costo base original (736.25): este request comparte el insumo con el",
               "// 01 dentro de la misma corrida, así que \"sin cambio real\" tiene que",
               "// probarse contra el valor vigente en este momento, no contra la base.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
@@ -133,8 +133,10 @@
           "listen": "test",
           "script": {
             "exec": [
-              "// Vuelve el costo a la base del seed (742.98): es un cambio real otra",
-              "// vez (esta vez hacia abajo), así que de paso deja la colección",
+              "// Vuelve el costo a la base del seed (736.25, el costo activo post-seed",
+              "// de la presentación mayorista por defecto - ver docs/qa/seed-data-comercios.md,",
+              "// no el valor histórico declarado en prisma/seed.ts): es un cambio real",
+              "// otra vez (esta vez hacia abajo), así que de paso deja la colección",
               "// reproducible sin una limpieza aparte y sin pisar el baseline que",
               "// usan otras colecciones y las suites E2E.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
@@ -164,7 +166,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"742.98\"\n}"
+          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"736.25\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",

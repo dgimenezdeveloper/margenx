@@ -3,6 +3,9 @@ node_modules/
 dist/
 build/
 
+# Reportes de cobertura (Vitest/v8) - se regeneran con test:coverage
+coverage/
+
 # Variables de entorno
 .env
 .env.local
