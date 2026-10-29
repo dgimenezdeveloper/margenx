@@ -34,7 +34,7 @@ Consolidar el MVP base de MargenX dotando al sistema de persistencia robusta, fl
 
 ### D. Calidad, Testing y Enlace con Dominio Real (Leandro Herrera)
 - **Script de Seed Idempotente (`prisma/seed.ts`):** Creación del script de población de datos con validaciones estrictas de entorno, control de colisiones y el dataset verídico correspondiente a los comercios piloto (*Panadería Central* y *Química GyJ*) (Issue #30 / PR #52).
-- **Matriz de Pruebas Gherkin y Contratos HTTP:** Documentación formal de casos de prueba funcionales, de seguridad multi-tenant y de validación de códigos de estado HTTP en `docs/qa/casos-prueba-sprint1.md` (Issue #39 / PR #54).
+- **Matriz de Pruebas Gherkin y Contratos HTTP:** Documentación formal de casos de prueba funcionales, de seguridad multi-tenant y de validación de códigos de estado HTTP en `docs/historicos/casos-prueba-sprint1.md` (Issue #39 / PR #54).
 - **Pruebas Automatizadas de API (Postman/Newman):** Confección de colecciones de prueba automatizadas para el módulo de Insumos y Productos, validadas contra entornos locales y de staging (Issue #37 & #38 / PR #56 & #64).
 - **Scaffolding E2E con Playwright:** Configuración de la suite de pruebas de extremo a extremo con autenticación global automatizada (`auth.setup.ts`) para persistir la sesión de Clerk sin re-autenticar en cada test (Issue #67 & #69).
 

@@ -53,10 +53,10 @@ The application is structured into four core operational modules:
 - **Progressive Complexity Strategy:** Decoupled ingredients from mandatory suppliers on Day 1, allowing draft "Uncosted" products (`cost = 0, margin = 0`) to prevent blocking commercial onboarding.
 
 #### DevOps, Cloud Infrastructure & Automation
-- **Standardized DevContainers:** Configured Dockerized VS Code environments (Node.js 20, TypeScript, PostgreSQL 16) ensuring zero configuration drift between Windows, macOS, and Linux.
+- **Standardized DevContainers:** Configured Dockerized VS Code environments (Node.js 22 LTS, TypeScript, PostgreSQL 16) ensuring zero configuration drift between Windows, macOS, and Linux.
 - **Production VPS Deployment:** Configured a dedicated Ubuntu VPS hosting persistent PostgreSQL 16 (port 5435), n8n orchestrator (port 5678), Docker Compose, and Nginx reverse proxy with SSL certificates.
 - **CI/CD Pipelines:**
-  - `ci.yml`: Automated GitHub Actions pipeline verifying TypeScript compilation, ESLint, and Vite production build with Discord failure alerts.
+  - `ci.yml`: Automated GitHub Actions pipeline on Node.js 22 LTS: backend build and Vitest, frontend ESLint, Vite build and Vitest with a 90% coverage gate, n8n node tests, production `npm audit`, and the Playwright E2E suite, with Discord failure alerts. Dependabot opens weekly grouped minor/patch update PRs; npm major versions are planned as issues.
   - `deploy.yml`: Automated continuous deployment building Docker Hub images, executing SSH deployment to VPS, running `prisma migrate deploy`, and notifying success/failure to team channels.
 - **Satellite Automation with n8n:** Offloaded heavy reporting and email delivery to a self-hosted n8n instance via HTTP webhooks, ensuring n8n never directly writes to production PostgreSQL.
 
@@ -66,7 +66,7 @@ The application is structured into four core operational modules:
 
 #### Tech Stack
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7, Zustand, React Hook Form, Zod, Base UI, Lucide Icons.
-- **Backend:** Node.js 20, Express 5, TypeScript, Prisma ORM 6.
+- **Backend:** Node.js 22 LTS, Express 5, TypeScript, Prisma ORM 6.
 - **Database:** PostgreSQL 16 (strict multi-tenant partitioning by `accountId`).
 - **Identity & RBAC:** Clerk (asymmetric JWT verification; `ADMIN` with full financial visibility vs. `COLLABORATOR` with sanitized operational access).
 - **Automation & Alerts:** n8n (self-hosted), Cloudflare Email Routing Catch-All, Discord Webhooks.
@@ -171,10 +171,10 @@ Módulos principales del sistema:
 - **Estrategia de Complejidad Progresiva:** Desacoplamiento de insumos y proveedores para permitir productos en borrador "Sin Costear" (`cost = 0, margin = 0`), evitando trabas en el onboarding inicial.
 
 #### DevOps, Infraestructura y Automatización
-- **DevContainers Estandarizados:** Configuración de contenedores en VS Code (Node 20, TypeScript, PostgreSQL 16 local) para que cualquier integrante levante el stack en menos de 10 minutos sin discrepancias de entorno.
+- **DevContainers Estandarizados:** Configuración de contenedores en VS Code (Node 22 LTS, TypeScript, PostgreSQL 16 local) para que cualquier integrante levante el stack en menos de 10 minutos sin discrepancias de entorno.
 - **Infraestructura en VPS Linux:** Despliegue en servidor propio Ubuntu con PostgreSQL 16 persistente (puerto 5435), n8n (puerto 5678), red aislada en Docker Compose y Nginx con certificados SSL.
 - **Pipelines de CI/CD:**
-  - `ci.yml`: Integración continua validando compilación de backend y build de frontend con alertas enriquecidas en Discord.
+  - `ci.yml`: Integración continua sobre Node.js 22 LTS: build y Vitest del backend, ESLint, build y Vitest del frontend (con umbral de cobertura del 90 %), prueba de los nodos de n8n, `npm audit` de producción y suite E2E de Playwright, con alertas en Discord. Los checks obligatorios para mergear están en `docs/politica-proteccion-main.md`. Dependabot abre cada semana PRs agrupados de versiones menores y parches hacia `develop`; las versiones mayores de npm se planifican como issue propia y sus PRs no pasan por el tablero.
   - `deploy.yml`: Despliegue continuo hacia Staging (`dev.margenx.tech`) y Producción (`margenx.tech`) mediante Docker Hub, conexión SSH a VPS y ejecución de migraciones automáticas (`prisma migrate deploy`).
 - **Automatización Satélite con n8n:** Desacoplamiento de reportes PDF y correos transaccionales en n8n mediante webhooks HTTP, preservando la regla: *n8n nunca escribe directamente en la base de datos de producción.*
 
@@ -184,7 +184,7 @@ Módulos principales del sistema:
 
 #### Stack Tecnológico
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7, Zustand, React Hook Form, Zod, Base UI, Lucide Icons.
-- **Backend:** Node.js 20, Express 5, TypeScript, Prisma ORM 6.
+- **Backend:** Node.js 22 LTS, Express 5, TypeScript, Prisma ORM 6.
 - **Base de Datos:** PostgreSQL 16 (particionamiento multiempresa por `accountId`).
 - **Autenticación:** Clerk (JWT asimétrico con roles `ADMIN` y `COLLABORATOR`).
 - **Automatización:** n8n, Cloudflare Email Routing Catch-All, Webhooks Discord.
@@ -210,9 +210,11 @@ Módulos principales del sistema:
    cd margenx
    code .
    ```
-4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configurará automáticamente Node.js 20 y PostgreSQL 16.
+4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configurará automáticamente Node.js 22 LTS y PostgreSQL 16. Si ya tenías el contenedor creado con Node 20, ejecutá **"Dev Containers: Rebuild Container"** para tomar la imagen nueva.
 
 #### Opción B: Ejecución Manual
+Requiere Node.js 22 LTS. La versión está fijada en `.nvmrc` (con nvm: `nvm use`); es la misma que usan el CI y las imágenes Docker.
+
 ```bash
 # 1. Iniciar PostgreSQL 16
 docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=<tu_password_local> -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine

@@ -1,6 +1,6 @@
 # 2. Despliegue Consolidado 100% en VPS
 * **Estado:** Aceptado (reemplaza al ADR-002 original: "Arquitectura Híbrida — Cómputo en Azure y Base de Datos en VPS")
-* **Fecha:** 2026-09 (confirmar fecha exacta de la decisión con el equipo)
+* **Fecha:** 2026-09-12 (registrada con el PR #62, versión 0.2.0 del CHANGELOG)
 * **Decisores:** Darío Giménez (DevOps/SM)
 
 ## Contexto y Planteamiento del Problema

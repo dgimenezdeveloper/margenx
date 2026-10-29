@@ -128,3 +128,7 @@ graph LR
 
 ### 6. Definition of Done (DoD) del Equipo
 Una tarjeta se considera **DONE** únicamente cuando: (1) Cuenta con PR originado desde `develop` hacia `develop` con *Conventional Commits*; (2) Posee aprobación formal de al menos un par (Peer Review) y de QA; (3) 0 errores de compilación TypeScript y 0 advertencias de linter; (4) Pipeline de CI (`ci.yml`) en verde; (5) Criterios Gherkin cumplidos con datos verídicos; (6) Interfaz responsive Mobile-First verificada en 360px; (7) Consultas blindadas por `accountId` (multi-tenant); (8) Desplegado y verificado en Staging (`dev.margenx.tech`).
+
+---
+
+> **Documento histórico.** Es el entregable académico presentado al cierre del Sprint 1 y se conserva tal como se entregó. Las fechas y estados que menciona corresponden a ese momento: el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`; el estado actual del sistema, en `docs/especificacion-funcional.md` §11.

@@ -9,7 +9,8 @@
 - **Qué describe:** el comportamiento del producto y las reglas de dominio. No repite lo que ya tiene una fuente propia:
   - el esquema de base de datos completo está en `backend/prisma/schema.prisma` (§9 solo resume las reglas);
   - la fórmula del margen y su justificación están en `docs/adr/0004-calculo-margen-ventas-vs-markup.md`;
-  - la regla de n8n y la arquitectura de despliegue están en `docs/adr/` y en `docs/Arquitectura-Software-(SAD).md`;
+  - la regla de costo vigente, retención en cuarentena y canal de ingesta están formalizadas en `docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`;
+  - la regla de n8n y la arquitectura de despliegue están en `docs/adr/0003-automatizacion-satelite-n8n.md` y en `docs/Arquitectura-Software-(SAD).md`;
   - el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`.
 - **Jerarquía:** los ADR aceptados y la Definition of Done mandan sobre el SAD, y el SAD manda sobre este documento. Si encontrás una contradicción, gana la fuente de mayor jerarquía y este documento se corrige.
 - **Estado de cada funcionalidad:**
@@ -128,9 +129,9 @@ Ejemplo: bolsa de 25 kg a $18.406,25 → $736,25 por kg.
 
 ### Reglas vigentes
 
-- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada ("Hacer predeterminado" en la ficha del insumo). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
-- Si el administrador edita a mano el costo de un insumo que tiene presentación predeterminada, la próxima actualización de precio de esa presentación lo reemplaza.
-- **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo.
+- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada ("Hacer predeterminado" en la ficha del insumo). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). La justificación y el comportamiento ante ediciones manuales están formalizados en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
+- Si el administrador edita a mano el costo de un insumo que tiene presentación predeterminada, la próxima actualización de precio de esa presentación lo reemplaza (ADR-005).
+- **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo (restricción `@@unique([supplierId, ingredientId])`).
 - Asociar una presentación a un par que ya existe la actualiza (upsert), no la duplica.
 - Borrar un proveedor borra sus presentaciones; el costo actual de los insumos no cambia.
 - Todas las operaciones de proveedores son solo para ADMIN.
@@ -165,6 +166,8 @@ Un mayorista manda su catálogo completo (miles de artículos). Si el sistema lo
 > La lista de un proveedor **nunca** crea insumos. **Solo** actualiza precios de presentaciones cuyo `supplierCode` ya está vinculado en la cuenta.
 
 ### 5.2. Canal de entrada · *Disponible (activación en producción: Planificado)*
+
+El canal de ingesta desatendida y su filtro de descarte están formalizados en **ADR-005** §3 (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`).
 
 ```
 Proveedor ──(email o WhatsApp)──> Dueño del comercio
@@ -208,7 +211,10 @@ POST /api/webhooks/supplier-prices
   }>
 }
 // 200 OK | 400 payload inválido | 401 no autorizado | 404 slug inexistente o cuenta inactiva
+// 413 cuerpo mayor a 5 MB (código PAYLOAD_TOO_LARGE): n8n debe dividir la lista en lotes más chicos
 ```
+
+El límite de 5 MB es propio de esta ruta; el resto de la API acepta hasta 256 KB (`backend/src/index.ts`, detalle en `docs/api.md`).
 
 Reglas, en orden:
 
@@ -227,7 +233,7 @@ Todo el lote se procesa en una única transacción. La respuesta informa recibid
 
 ### 5.4. Cuarentena de precios anómalos · *Disponible*
 
-Un precio queda **retenido** (no se aplica) cuando:
+Un precio queda **retenido** (no se aplica) bajo las reglas formalizadas en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`):
 
 | Motivo (`quarantineReason`) | Condición |
 |---|---|
@@ -237,7 +243,7 @@ Un precio queda **retenido** (no se aplica) cuando:
 - El precio retenido se guarda en `pendingPackagePrice`; el vigente sigue en uso.
 - El administrador resuelve la cuarentena en **`/proveedores/cuarentena`**:
   - **Liberar** aplica el precio retenido; si la presentación es la predeterminada, actualiza el costo del insumo, recalcula en cascada y, si algún producto cruza su margen mínimo, dispara la alerta (§6).
-  - **Rechazar** descarta el precio retenido y conserva el vigente. Hoy no avisa a nadie.
+  - **Rechazar** descarta el precio retenido y conserva el vigente. Hoy no avisa a nadie (ADR-005).
 - Si una lista posterior trae otra vez el precio vigente, la presentación sale de la cuarentena.
 
 ---
@@ -289,7 +295,7 @@ MargenX tiene dos roles por cuenta, gestionados con Clerk (ADR-001). El control 
 
 - Implementación: `backend/src/middlewares/rbac.ts` (`requireRole`, `blockCollaboratorMutations`, `sanitizeFinancialData`) y, en la interfaz, `AdminOnlyRoute` y `useUserRole`.
 - El colaborador **no edita costos**. Este documento reemplaza en ese punto al RF-12 y al RNF-09 de `docs/propuesta-proyecto.md`, que decían que el colaborador podía editar costos y que no veía el precio de venta.
-- **Ocultar la receta al colaborador** · *Planificado*.
+- **Receta para el colaborador** · *Disponible*: ve qué insumos lleva cada producto, pero no las cantidades, los costos ni los subtotales, y no tiene acciones de edición. La API quita `quantity` de las respuestas para este rol (`FINANCIAL_FIELDS` en `rbac.ts`). En el perfil no ve el margen objetivo global ni la configuración de alertas. Detalle para el usuario: `docs/manual-usuario/03-colaborador.md`.
 - **Vista de precios vigentes para el colaborador** · *Propuesta*: una vista simple con los precios de venta y un indicador de "modificados recientemente", para actualizar la pizarra o la caja.
 
 ---
@@ -348,7 +354,7 @@ Account (CASCADE)
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes | Propuesta |
-| Receta oculta al colaborador | Planificado |
+| Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 
 ## 12. Decisiones pendientes
