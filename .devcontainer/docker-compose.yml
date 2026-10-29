@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: devpassword123
+      POSTGRES_PASSWORD: local_devcontainer_only
       POSTGRES_DB: margenx_dev
     ports:
       - "5432:5432"

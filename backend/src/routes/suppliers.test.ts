@@ -117,7 +117,7 @@ beforeEach(() => {
     id: 'account-1',
     businessName: 'Panadería Central',
     slug: 'panaderia-central',
-    users: [{ email: 'admin.panaderia@hotmail.com' }],
+    users: [{ email: 'admin.panaderia@seed.example.test' }],
   });
 });
 
@@ -923,7 +923,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       id: 'account-1',
       businessName: 'Panadería Central',
       slug: 'panaderia-central',
-      users: [{ email: 'admin.panaderia@hotmail.com' }],
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
     };
     accountFindUniqueMock.mockResolvedValue(body);
 

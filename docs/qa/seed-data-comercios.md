@@ -256,12 +256,14 @@ No se recalculan automáticamente a partir de los precios nuevos.
 | Comercio | email | role |
 |---|---|---|
 | Panadería Central | admin.panaderia@seed.example.test | ADMIN |
-| Panadería Central | colaborador.panaderia@seed.example.test | COLLABORATOR |
+| Panadería Central | colab.panaderia@seed.example.test | COLLABORATOR |
 | Química GyJ | admin.quimica@seed.example.test | ADMIN |
-| Química GyJ | colaborador.quimica@seed.example.test | COLLABORATOR |
+| Química GyJ | colab.quimica@seed.example.test | COLLABORATOR |
 
-Son usuarios ficticios de base de datos. Sus `authProviderId` utilizan
-identificadores locales con prefijo `seed_local_`.
+Los emails son ficticios (dominio `seed.example.test`, reservado para pruebas
+por la RFC 2606 — issue #268). Sus `authProviderId` son los de las cuentas
+reales de Clerk del equipo (ver `backend/prisma/seed.ts`), no identificadores
+locales: el login E2E/manual contra estas cuentas funciona de verdad.
 
 El script no crea usuarios en Clerk ni habilita el inicio de sesión
 con estas identidades.
