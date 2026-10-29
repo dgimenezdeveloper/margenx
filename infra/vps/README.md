@@ -104,6 +104,8 @@ DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<VPS_HOST>:<DB_PORT>/margenx_
 
 ## 6. Recuperación ante Desastres (Disaster Recovery)
 
+Los backups diarios de `margenx_prod`, su rotación, el ensayo de restauración y el procedimiento para recuperar la base están en `docs/runbook-backup.md` (scripts en `infra/scripts/`).
+
 Para re-desplegar la infraestructura completa en un nuevo servidor:
 
 ```bash
@@ -306,3 +308,39 @@ Quedan registrados para decidirlos con los dueños de cada proyecto:
 Puertos públicos al 28/10/2026: 22 y 5371 (SSH), 25 (Postfix), 80 y 443 (Nginx) y 8080.
 
 Nginx tiene un sitio por defecto (`000-default-reject`) que responde `444` a los dominios sin `server_name` propio. Sin él, un dominio dado de baja que todavía apunte a la VPS recibe el primer sitio HTTPS que encuentre Nginx, que es el de otro proyecto.
+
+---
+
+## 10. Configuración de Nginx Perimetral y Gestión de Certificados SSL
+
+### Cabeceras de Seguridad Implementadas
+Todas las respuestas de producción y staging incorporan cabeceras defensivas para cumplimiento de buenas prácticas OWASP:
+- `Strict-Transport-Security: max-age=604800; includeSubDomains` (HSTS de 1 semana).
+- `X-Content-Type-Options: nosniff`.
+- `X-Frame-Options: SAMEORIGIN` (Frontend) / `DENY` (API).
+- `Referrer-Policy: strict-origin-when-cross-origin`.
+- `X-Robots-Tag: noindex, nofollow, noarchive` (exclusivo para `dev.margenx.tech`, `api-dev.margenx.tech` y `n8n.margenx.tech`).
+- `Content-Security-Policy-Report-Only`: activa en modo observación sin bloqueo de recursos.
+
+### Límites de Cuerpo (client_max_body_size)
+- **API (`api.margenx.tech` y `api-dev.margenx.tech`):** `6 MB`. Nginx rechaza con `413 Request Entity Too Large` solicitudes mayores a 6 MB antes de sobrecargar Express. El webhook de ingesta de backend acepta hasta 5 MB.
+- **Frontend:** `2 MB`.
+- **Satélite n8n:** `20 MB` para tolerar planillas mayoristas antes del fraccionamiento.
+
+### Estado y Vigilancia de Vencimiento de Certificados SSL
+Certificados emitidos por Let's Encrypt mediante Certbot con temporizador systemd (`certbot.timer`):
+
+| Certificado / Dominios | Emisión / Estado | Vencimiento | Renovación Automática |
+|---|---|---|---|
+| `margenx.tech`, `www.margenx.tech`, `api.margenx.tech`, `dev.margenx.tech`, `api-dev.margenx.tech` | Emitido el 28/10/2026 al expandirlo con `www` | **26/01/2027** | Sí (`systemd certbot.timer`) |
+| `n8n.margenx.tech` | Emitido el 01/09/2026 | **30/11/2026** | Sí (`systemd certbot.timer`) |
+
+Fechas leídas del certificado público el 28/10/2026. Cada renovación (automática a los ~60 días) o expansión con un dominio nuevo emite un certificado nuevo y corre el vencimiento unos 90 días: para el valor actual, usar `sudo certbot certificates` en la VPS, o desde cualquier máquina:
+
+```bash
+echo | openssl s_client -connect margenx.tech:443 -servername margenx.tech 2>/dev/null | openssl x509 -noout -dates
+```
+
+Comando de verificación periódica de renovación:
+```bash
+sudo certbot renew --dry-run

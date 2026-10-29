@@ -1,8 +1,9 @@
 # Actualizaciones automáticas de dependencias (issue #260).
 # Un PR semanal agrupado por ecosistema con las versiones menores y parches,
 # siempre hacia develop (las releases a main siguen el flujo de
-# docs/politica-proteccion-main.md §2). Las versiones mayores llegan en PRs
-# individuales porque suelen pedir cambios de código (por ejemplo, Prisma 7).
+# docs/politica-proteccion-main.md §2). Las versiones mayores de npm se
+# ignoran: piden cambios de código (Prisma 7, Vitest 5) y se planifican como
+# issue propia. Las vulnerabilidades las frena el job Dependency Audit del CI.
 #
 # Los PRs de Dependabot no reciben los secrets de Actions: el E2E necesita que
 # los de Clerk estén cargados también como "Dependabot secrets" (Settings →
@@ -21,6 +22,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     groups:
       backend-menores:
         update-types: [minor, patch]
@@ -36,6 +40,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     groups:
       frontend-menores:
         update-types: [minor, patch]
