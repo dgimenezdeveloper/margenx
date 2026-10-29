@@ -11,6 +11,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
 - **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
+- **Backend:** Costo declarado de "Harina de trigo 000 Olavarriense" en el seed corregido de `742.98` a `736.25`, igual al costo activo real de su presentación mayorista por defecto (que siempre lo sobrescribía; el valor viejo nunca llegaba a la base y generaba confusión en revisiones). Se alinearon también la colección Postman `Alertas de margen (Insumos)` y `backend/scripts/check-ingredient-cost-change.ts`, que citaban la cifra vieja como si fuera la base real (`#265`).
+- **QA:** `coverage/` agregado al `.gitignore` — quedaba sin rastrear después de correr `npm run test:coverage` (`#265`).
 - **Security:** Se ocultó la cantidad de receta y los campos financieros para el rol `COLLABORATOR` en la API real y en la UI, y se cubrió con validación de regresión por endpoint y perfil.
 
 ### Added
@@ -20,6 +22,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Backend / Config:** Configuración de `backend/vitest.config.ts` con exclusión de archivos de arranque (`src/index.ts`, `src/lib/prisma.ts`) y umbral de cobertura estricto `thresholds.lines: 90` (`#277`).
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
+- **QA:** Cosecha de los comentarios no bloqueantes dejados en las revisiones de los PR #215 a #218: etiqueta `review-followup` y 5 issues nuevas agrupadas por tema (`#310`-`#314`); tabla de trazabilidad completa (28 ítems: resueltos, descartados o agrupados) en `docs/qa/reporte-calidad-sprint5.md` (`#265`).
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
 - **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.

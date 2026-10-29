@@ -50,7 +50,7 @@ Salida esperada: **0 failures** en las 6.
 
 - Insumos se autolimpia (borra el insumo de prueba al final).
 - Productos **no** se autolimpia: no existe `DELETE /api/products/:id`. Los productos de prueba quedan persistidos (prefijo `"Producto QA"` / `"Producto Precio Cero"` / `"Producto Precio Negativo"`); borrarlos a mano desde Prisma Studio si hace falta una base piloto limpia.
-- Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" en su costo del seed (`742.98`) al final de la propia colección — no hace falta limpieza aparte, y se puede correr repetidas veces sin pisar el baseline que también usan `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E).
+- Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" en su costo activo real post-seed (`736.25`, la presentación mayorista por defecto — ver `docs/qa/seed-data-comercios.md`) al final de la propia colección — no hace falta limpieza aparte, y se puede correr repetidas veces. `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E) fijan su propio costo base (`742.98`) por `beforeEach` antes de cada test, así que no dependen de en qué quede este insumo al terminar la colección.
 - Proveedores, Webhooks y Colaborador RBAC no modifican datos que haga falta restaurar.
 
 ## Para cada README específico
