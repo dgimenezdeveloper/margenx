@@ -56,7 +56,7 @@ The application is structured into four core operational modules:
 - **Standardized DevContainers:** Configured Dockerized VS Code environments (Node.js 22 LTS, TypeScript, PostgreSQL 16) ensuring zero configuration drift between Windows, macOS, and Linux.
 - **Production VPS Deployment:** Configured a dedicated Ubuntu VPS hosting persistent PostgreSQL 16 (port 5435), n8n orchestrator (port 5678), Docker Compose, and Nginx reverse proxy with SSL certificates.
 - **CI/CD Pipelines:**
-  - `ci.yml`: Automated GitHub Actions pipeline on Node.js 22 LTS: backend build and Vitest, frontend ESLint, Vite build and Vitest with a 90% coverage gate, n8n node tests, production `npm audit`, and the Playwright E2E suite, with Discord failure alerts. Dependabot opens weekly grouped update PRs.
+  - `ci.yml`: Automated GitHub Actions pipeline on Node.js 22 LTS: backend build and Vitest, frontend ESLint, Vite build and Vitest with a 90% coverage gate, n8n node tests, production `npm audit`, and the Playwright E2E suite, with Discord failure alerts. Dependabot opens weekly grouped minor/patch update PRs; npm major versions are planned as issues.
   - `deploy.yml`: Automated continuous deployment building Docker Hub images, executing SSH deployment to VPS, running `prisma migrate deploy`, and notifying success/failure to team channels.
 - **Satellite Automation with n8n:** Offloaded heavy reporting and email delivery to a self-hosted n8n instance via HTTP webhooks, ensuring n8n never directly writes to production PostgreSQL.
 
@@ -174,7 +174,7 @@ Módulos principales del sistema:
 - **DevContainers Estandarizados:** Configuración de contenedores en VS Code (Node 22 LTS, TypeScript, PostgreSQL 16 local) para que cualquier integrante levante el stack en menos de 10 minutos sin discrepancias de entorno.
 - **Infraestructura en VPS Linux:** Despliegue en servidor propio Ubuntu con PostgreSQL 16 persistente (puerto 5435), n8n (puerto 5678), red aislada en Docker Compose y Nginx con certificados SSL.
 - **Pipelines de CI/CD:**
-  - `ci.yml`: Integración continua sobre Node.js 22 LTS: build y Vitest del backend, ESLint, build y Vitest del frontend (con umbral de cobertura del 90 %), prueba de los nodos de n8n, `npm audit` de producción y suite E2E de Playwright, con alertas en Discord. Los checks obligatorios para mergear están en `docs/politica-proteccion-main.md`. Dependabot abre cada semana PRs agrupados de actualizaciones hacia `develop`.
+  - `ci.yml`: Integración continua sobre Node.js 22 LTS: build y Vitest del backend, ESLint, build y Vitest del frontend (con umbral de cobertura del 90 %), prueba de los nodos de n8n, `npm audit` de producción y suite E2E de Playwright, con alertas en Discord. Los checks obligatorios para mergear están en `docs/politica-proteccion-main.md`. Dependabot abre cada semana PRs agrupados de versiones menores y parches hacia `develop`; las versiones mayores de npm se planifican como issue propia y sus PRs no pasan por el tablero.
   - `deploy.yml`: Despliegue continuo hacia Staging (`dev.margenx.tech`) y Producción (`margenx.tech`) mediante Docker Hub, conexión SSH a VPS y ejecución de migraciones automáticas (`prisma migrate deploy`).
 - **Automatización Satélite con n8n:** Desacoplamiento de reportes PDF y correos transaccionales en n8n mediante webhooks HTTP, preservando la regla: *n8n nunca escribe directamente en la base de datos de producción.*
 
