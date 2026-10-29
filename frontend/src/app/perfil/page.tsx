@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Check, LoaderCircle, LogOut, Save, Target } from 'lucide-react'
+import { Bell, Building2, Check, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -262,7 +263,22 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="pt-2 md:flex md:justify-end md:pt-6">
+          <div className="pt-2 md:flex md:items-center md:justify-between md:pt-6">
+            <div className="mb-4 flex flex-wrap gap-3 md:mb-0">
+              <Link
+                to="/privacidad"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <ShieldCheck className="size-4" /> Política de privacidad
+              </Link>
+              <Link
+                to="/instalar"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <Smartphone className="size-4" /> Guía de instalación
+              </Link>
+            </div>
+
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
@@ -277,6 +293,8 @@ export default function ProfilePage() {
         {/* Footer Móvil de Perfil */}
         <div className="mt-8 flex flex-col items-center gap-4 pb-8 md:hidden">
           <div className="flex items-center gap-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
+            <Link to="/privacidad" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Política</Link>
+            <Link to="/instalar" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Instalar</Link>
             <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Soporte</button>
             <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Documentación</button>
           </div>
