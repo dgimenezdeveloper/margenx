@@ -244,6 +244,42 @@ describe('POST /api/ingredients', () => {
     expect(res.body.error).toMatch(/mayor a cero/);
   });
 
+  it('devuelve 400 si currentCost es negativo, aunque el formato sea decimal', async () => {
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina', unit: 'kg', currentCost: '-10.5' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/mayor a cero/);
+  });
+
+  it('devuelve 400 si currentCost usa notación científica o escala inválida', async () => {
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina', unit: 'kg', currentCost: '1e-3' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/decimal válido/);
+
+    const res2 = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina', unit: 'kg', currentCost: '742.985' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.error).toMatch(/decimal válido/);
+  });
+
+  it('devuelve 409 si el nombre del insumo ya existe con distinto casing', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', accountId: 'account-1' });
+
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'HARINA', unit: 'kg', currentCost: '10.00' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un insumo con ese nombre.');
+  });
+
   it('devuelve 400 si currentCost excede el máximo permitido por la base', async () => {
     const res = await request(buildApp())
       .post('/api/ingredients')
@@ -327,6 +363,20 @@ describe('PUT /api/ingredients/:id', () => {
     });
     expect(productFindUniqueMock).not.toHaveBeenCalled();
     expect(productUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve 409 si se intenta renombrar un insumo a uno ya existente con distinto casing', async () => {
+    findFirstMock
+      .mockResolvedValueOnce({ id: 'ing-1', name: 'Levadura', unit: 'kg', currentCost: new Prisma.Decimal('10.00') })
+      .mockResolvedValueOnce({ id: 'ing-2', name: 'Harina', unit: 'kg', currentCost: new Prisma.Decimal('12.00') });
+    updateMock.mockResolvedValue({ id: 'ing-1', name: 'HARINA', unit: 'kg', currentCost: '10.00' });
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'HARINA', unit: 'kg', currentCost: '10.00' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un insumo con ese nombre.');
   });
 
   it('registra un PriceHistory cuando el costo cambia', async () => {

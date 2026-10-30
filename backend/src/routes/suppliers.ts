@@ -82,7 +82,10 @@ function parseSupplierIngredientDecimal(value: unknown, field: string): Prisma.D
   }
 
   const asText = String(value).trim();
-  if (!/^-?\d+(\.\d+)?$/.test(asText)) {
+  const maxDecimals = field === 'packageSize' ? 3 : 2;
+  const regex = new RegExp(`^-?\\d+(\\.\\d{1,${maxDecimals}})?$`);
+
+  if (!regex.test(asText)) {
     throw new AppError(`El campo "${field}" debe ser un valor decimal válido.`, 400);
   }
 

@@ -213,6 +213,20 @@ describe('errorHandler', () => {
     });
   });
 
+  it('mapea P2002 de Prisma a 409 para índices funcionales lower_name_key', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['Ingredient_accountId_lower_name_key'], modelName: 'Ingredient' },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe un insumo con ese nombre.',
+    });
+  });
+
   it('mapea P2003 de Prisma a 409', () => {
     const res = buildRes();
     const err = new Prisma.PrismaClientKnownRequestError('FK violation', {

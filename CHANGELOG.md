@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend / QA:** Se corrige la integridad de datos en productos e insumos: `salePrice: 0` queda permitido solo para productos en borrador sin receta, mientras que la presencia de receta exige precio mayor a cero; se refuerza la validación case-insensitive por cuenta y se mapean conflictos de unicidad con `409 Conflict` en la API (`SPRINT5-BE-01`).
 - **Frontend / Backend:** El nombre del producto se guarda y se muestra tal como lo escribió el usuario ("Pan de Campo"): se quitó el `toLowerCase()` al guardar en `POST`/`PUT /api/products` y el `toUpperCase()` del listado. La unicidad de nombre por cuenta sigue siendo case-insensitive y queda cubierta por pruebas automatizadas (`#236`).
 - **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).

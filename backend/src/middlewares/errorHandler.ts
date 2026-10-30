@@ -55,11 +55,18 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
       case 'P2025': // Registro no encontrado (ej. update/delete sobre un id inexistente)
         return res.status(404).json({ error: 'Recurso no encontrado.' });
       case 'P2002': {
-        const targets = Array.isArray(err.meta?.target) ? err.meta.target : [];
-        if (targets.includes('accountId') && targets.includes('name')) {
-          if (err.meta?.modelName === 'Supplier') {
-            return res.status(409).json({ error: 'Ya existe un proveedor con ese nombre.' });
-          }
+        const rawTargets = Array.isArray(err.meta?.target) ? err.meta.target : typeof err.meta?.target === 'string' ? [err.meta.target] : [];
+        const targets = rawTargets.map((item) => String(item));
+        const targetText = targets.join('|');
+        const modelName = typeof err.meta?.modelName === 'string' ? err.meta.modelName : '';
+
+        if (targetText.includes('Supplier_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Supplier')) {
+          return res.status(409).json({ error: 'Ya existe un proveedor con ese nombre.' });
+        }
+        if (targetText.includes('Ingredient_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Ingredient')) {
+          return res.status(409).json({ error: 'Ya existe un insumo con ese nombre.' });
+        }
+        if (targetText.includes('Product_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Product')) {
           return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
         }
         if (targets.includes('supplierId') && targets.includes('ingredientId')) {

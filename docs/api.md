@@ -27,8 +27,9 @@ La propiedad `code` es estable para que `n8n` pueda detectar el caso y mostrar u
 ## Códigos HTTP relevantes
 
 - `200`: operación exitosa.
-- `400`: JSON inválido o payload de negocio inválido.
+- `400`: JSON inválido o payload de negocio inválido. Casos del sprint actual: `salePrice = 0` con receta, `salePrice`/`quantity` fuera de escala decimal, valores negativos no permitidos, nombres vacíos, insumo repetido dentro de la misma receta y recetas con ingredientes inexistentes.
 - `401`: secreto del webhook inválido o ausente.
 - `404`: recurso inexistente o cuenta inactiva.
+- `409`: conflicto de unicidad por nombre duplicado (producto, insumo o proveedor) o asociación duplicada.
 - `413`: cuerpo demasiado grande.
 - `500`: error interno no controlado.

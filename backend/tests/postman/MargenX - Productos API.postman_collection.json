@@ -135,6 +135,48 @@
           "response": []
         },
         {
+          "name": "POST Validación - salePrice en cero con receta (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el precio debe ser mayor a cero cuando hay receta', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "});",
+                  "",
+                  "pm.test('No se creó ningún registro (respuesta no incluye un product)', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('product');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Producto Precio Cero Con Receta {{$timestamp}}\",\n  \"salePrice\": \"0\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": [{\"ingredientId\": \"{{ingredientId_cuentaA_harina}}\", \"quantity\": \"1\"}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "POST Validación - salePrice negativo (400)",
           "event": [
             {
