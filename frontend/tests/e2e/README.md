@@ -25,6 +25,10 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
 - **Proyecto `chromium-collaborator`:** el único que carga `collaborator.json` y el único que corre `rbac-security.spec.ts` (vía `testMatch`). Los proyectos `chromium`/`firefox`/`webkit` excluyen ese archivo explícitamente (`testIgnore`) para no correrlo dos veces con la sesión equivocada.
 - Acotado a un solo browser (Chromium): alcanza para auditar ocultamiento de datos y no justifica triplicar el tiempo de CI.
 
+### 1.2. Cuarentena de Precios (issue #310)
+
+`quarantine-queue.spec.ts` no mockea el escenario de cuarentena: lo dispara de verdad a través del mismo webhook de ingesta que usa producción (`POST /api/webhooks/supplier-prices`), con un precio cuya variación supera el 50% sobre un `supplierCode` real del seed. Para eso necesita `INTERNAL_WEBHOOK_SECRET` (ver más abajo) — es el único spec de la suite que llama directamente a la API en vez de solo interactuar con la UI.
+
 ---
 
 ## 2. Requisitos Previos
@@ -34,10 +38,12 @@ Copiá la plantilla de pruebas a tu entorno local:
 ```bash
 cp frontend/.env.test.example frontend/.env.test
 ```
-Completá `E2E_CLERK_COLLAB_EMAIL` además de las variables ya existentes (ver `.env.test.example`) para poder correr `rbac-security.spec.ts`.
+Completá `E2E_CLERK_COLLAB_EMAIL` además de las variables ya existentes (ver `.env.test.example`) para poder correr `rbac-security.spec.ts`. Completá `INTERNAL_WEBHOOK_SECRET` con el mismo valor que tengas en `backend/.env` para poder correr `quarantine-queue.spec.ts`.
 
 ### Secret Nuevo en CI (issue #127)
 Además de los secrets ya configurados (`VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `E2E_CLERK_TEST_EMAIL`, `E2E_CLERK_TEST_PASSWORD`), GitHub Actions necesita `E2E_CLERK_COLLAB_EMAIL` (cuenta de pruebas definida en los secrets de GitHub) en *Settings → Secrets and variables → Actions* para que `chromium-collaborator` pueda correr.
+
+`INTERNAL_WEBHOOK_SECRET` (issue #310) no necesitó un secret nuevo en GitHub: en el job de CI el backend y el Postgres son efímeros y nadie externo los alcanza, así que `.github/workflows/ci.yml` lo fija con un valor fijo en vez de pedirlo por secret.
 
 ### Migración pendiente a la cuenta Demo (issue #268)
 
