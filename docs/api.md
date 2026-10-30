@@ -53,6 +53,7 @@ Contrato de alta/update de presentaciones de proveedor para un insumo.
 
 - `supplierCode`: opcional, se recorta el contenido a los extremos y se valida con un máximo conservador de 64 caracteres.
 - `rawDescription`: opcional, se recorta y se guarda como descripción tal cual la lista del proveedor la enviará.
+- La comparación de `supplierCode` es insensible a mayúsculas/minúsculas tanto en PostgreSQL como durante la ingesta de precios; esto evita desalineaciones de casing entre la lista del proveedor y la base de datos.
 - Si el código ya existe para ese proveedor, la API responde `409 Conflict` indicando qué insumo lo está usando.
 - Si no se envía `supplierCode`, la asociación se guarda igual, pero la respuesta incluye un `message` avisando que ese insumo no recibirá precios por ingesta hasta que el administrador cargue el código.
 
@@ -60,9 +61,17 @@ Contrato de alta/update de presentaciones de proveedor para un insumo.
 
 ```json
 {
-  "supplierIngredient": { "id": "si-123", "isDefault": true },
+  "supplierIngredient": {
+    "id": "si-123",
+    "supplierId": "s-1",
+    "ingredientId": "ing-123",
+    "supplierCode": "HAR-000",
+    "rawDescription": "Harina 000 bolsa 50kg",
+    "isDefault": true
+  },
   "unitCost": "700",
-  "ingredient": { "id": "ing-123", "name": "Harina 000" }
+  "ingredient": { "id": "ing-123", "name": "Harina 000" },
+  "ingestEnabled": true
 }
 ```
 
@@ -73,6 +82,7 @@ Contrato de alta/update de presentaciones de proveedor para un insumo.
   "supplierIngredient": { "id": "si-456", "isDefault": false },
   "unitCost": "700",
   "ingredient": { "id": "ing-456", "name": "Manteca" },
+  "ingestEnabled": false,
   "message": "La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor."
 }
 ```
