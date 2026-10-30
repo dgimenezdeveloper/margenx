@@ -13,7 +13,7 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
 3. **Persistencia de Sesión (`storageState`):**  
    Una vez logueado en `/dashboard`, almacena cookies y localStorage en `frontend/playwright/.auth/user.json`.
 4. **Herencia de Sesión:**  
-   Los proyectos `chromium`, `firefox` y `webkit` declaran `dependencies: ['setup']` y cargan `storageState: authFile`. Todas las pruebas inician con la sesión activa del usuario administrador de Panadería Central.
+   Los proyectos `chromium`, `firefox` y `webkit` declaran `dependencies: ['setup']` y cargan `storageState: authFile`. Todas las pruebas inician con la sesión activa de quien inicie sesión como `E2E_CLERK_TEST_EMAIL` (hoy, en CI, el administrador de Panadería Central — ver nota de migración a la cuenta Demo más abajo).
 5. **Seguridad y Git:**  
    La carpeta `playwright/.auth/` y el archivo `.env.test` están estrictamente excluidos en `.gitignore`. Ninguna credencial ni cookie se versiona.
 
@@ -38,3 +38,27 @@ Completá `E2E_CLERK_COLLAB_EMAIL` además de las variables ya existentes (ver `
 
 ### Secret Nuevo en CI (issue #127)
 Además de los secrets ya configurados (`VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `E2E_CLERK_TEST_EMAIL`, `E2E_CLERK_TEST_PASSWORD`), GitHub Actions necesita `E2E_CLERK_COLLAB_EMAIL` (cuenta de pruebas definida en los secrets de GitHub) en *Settings → Secrets and variables → Actions* para que `chromium-collaborator` pueda correr.
+
+### Migración pendiente a la cuenta Demo (issue #268)
+
+`frontend/.env.test.example` ya recomienda para uso **local** las credenciales de
+la cuenta "Demo MargenX" (`backend/prisma/seed-demo.ts`) en vez de las de
+Panadería Central, para dejar de depender del comercio piloto real en algo
+que cualquiera puede clonar y correr. Los 5 specs (`home`, `smoke`,
+`cascade-recalculation`, `margin-recalculation`, `rbac-security`) **todavía
+aseveran contra los datos de Panadería Central** (nombres de insumos,
+productos, montos) — no se reescribieron en esta issue, porque requiere
+acceso real a Clerk/CI para verificarlo de punta a punta sin romper el
+pipeline en el intento.
+
+**No cambiar los secrets `E2E_CLERK_TEST_EMAIL`/`E2E_CLERK_COLLAB_EMAIL` de
+GitHub Actions a la cuenta Demo todavía** — el aislamiento multiempresa hace
+que esa cuenta solo vea su propio catálogo (torta de chocolate, insumos con
+sufijo "(demo)", etc.), así que cambiar el secret sin reescribir antes los
+asserts de los 5 specs tira todo el E2E del CI abajo. Orden correcto para
+quien tome esto:
+1. Reescribir los 5 specs contra el catálogo de `seed-demo.ts`.
+2. Correrlos en local contra la cuenta Demo real y confirmarlos en verde.
+3. Recién ahí actualizar los secrets de GitHub Actions.
+4. Agregar `npm run seed:demo` al paso de seed del job E2E en `ci.yml` (hoy
+   solo corre `prisma db seed`, el de Panadería Central/Química GyJ).

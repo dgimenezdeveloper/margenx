@@ -8,6 +8,8 @@ import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
 import ProductDetailPage from './app/productos/[id]/page'
 import ProfilePage from './app/perfil/page'
+import PrivacyPage from './app/privacidad/page'
+import InstallPage from './app/instalar/page'
 import QuarantinePage from './app/proveedores/cuarentena/page' // NUEVO
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
@@ -20,6 +22,14 @@ export const router = createBrowserRouter([
   {
     path: '/login/*',
     element: <LoginPage />,
+  },
+  {
+    path: '/privacidad',
+    element: <PrivacyPage />,
+  },
+  {
+    path: '/instalar',
+    element: <InstallPage />,
   },
   {
     path: '/dashboard',

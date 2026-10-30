@@ -1,75 +1,85 @@
-# React + TypeScript + Vite
+# MargenX — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + TypeScript + Vite. Consume la API del [backend](../backend) y se autentica contra Clerk. Ver el [README principal](../README.md) para el modelo de datos completo y el panorama general del sistema.
 
-Currently, two official plugins are available:
+## Cómo correr
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Necesita el backend corriendo (ver `backend/README.md` si existe, o la sección "Local Setup" del README principal) — por defecto en `http://localhost:3000`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo de Vite con HMR. |
+| `npm run build` | `tsc -b` (typecheck) + build de producción. Falla si hay errores de tipos. |
+| `npm run lint` | ESLint sobre todo el proyecto. |
+| `npm run preview` | Sirve el build de producción localmente. |
+| `npm run test` | Suite unitaria (Vitest). |
+| `npm run test:coverage` | Igual, con reporte de cobertura (`coverage/`, no se versiona). Umbral del 90% de líneas — lo exige el CI (`frontend/vitest.config.ts`). |
+| `npm run test:e2e` | Suite E2E (Playwright). Ver [Pruebas E2E](#pruebas-e2e) abajo. |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Variables de entorno
+
+`.env.example` cubre lo que necesita `npm run dev`/`build` (`VITE_API_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, y opcionalmente `VITE_INACTIVITY_TIMEOUT_MS`, en milisegundos — por defecto 30 minutos de inactividad antes de cerrar la sesión, ver `src/hooks/useSessionSecurity.ts`). Copiarlo a `.env` o `.env.local`.
+
+`.env.test.example` es aparte y solo lo necesita la suite E2E — ver [Pruebas E2E](#pruebas-e2e).
+
+## Estructura
 
 ```
+src/
+├── app/              # Una carpeta por ruta (page.tsx + sus propios componentes)
+│   ├── dashboard/
+│   ├── insumos/              # Solo ADMIN (redirige a /productos si no)
+│   ├── login/
+│   ├── perfil/
+│   ├── productos/
+│   │   ├── [id]/             # Ficha técnica + receta de un producto
+│   │   └── nuevo/
+│   └── proveedores/
+│       └── cuarentena/       # Solo ADMIN — bandeja de precios en cuarentena
+├── components/       # Compartidos entre rutas (navbar, toasts, diálogos, guards de ruta)
+├── hooks/            # useUserRole, useTheme, useSessionSecurity, etc.
+├── lib/              # Clientes y utilidades de bajo nivel (Clerk, formato numérico)
+├── schemas/          # Validación con Zod (productSchema, ingredientSchema, supplierPackagingSchema)
+├── services/         # Llamadas HTTP a la API, una por recurso
+├── stores/           # Estado global con Zustand (useQuarantineStore, useRecipeStore, useUserStore)
+└── routes.tsx        # Mapa de rutas (react-router-dom) — fuente de verdad de qué existe
+```
+
+`src/routes.tsx` es la referencia real de las rutas (algunas carpetas viejas bajo `app/productos/` que no aparecen ahí, como `detalle/`, son restos sin usar).
+
+Guards de ruta (`src/components/protected-route.tsx`, `admin-only-route.tsx`) aplican el control de acceso en el cliente; el backend repite la misma regla en cada endpoint — ninguno de los dos alcanza solo.
+
+## Pruebas
+
+### Unitarias (Vitest)
+
+`*.test.ts(x)` junto al archivo que prueban, o en una carpeta `__tests__/` al lado. `npm run test` para correrlas una vez, `npm run test:coverage` para el reporte con el umbral del 90% que exige el CI.
+
+### E2E (Playwright)
+
+Specs en `frontend/tests/e2e/`. Documentación completa de cómo funciona la autenticación global y qué secrets hacen falta en `frontend/tests/e2e/README.md` — incluye una nota pendiente sobre migrar las credenciales de prueba a la cuenta Demo (issue #268).
+
+Resumen rápido para correrlas en local:
+```bash
+cp .env.test.example .env.test   # completar las credenciales (pedirlas al equipo)
+npx playwright install            # una sola vez, si falta algún navegador
+npm run test:e2e
+```
+Necesita el backend y el frontend corriendo contra una base con el seed cargado (`npx prisma db seed` en `backend/`).
+
+## Instalabilidad PWA
+
+Pendiente — la añade la issue de Sprint 5 S5-FE-05 (manifest + service worker), que todavía no está mergeada a `develop` al escribir esto. Una vez que esté:
+
+1. `npm run build && npm run preview` (una PWA no es instalable en el servidor de desarrollo, solo sobre el build de producción).
+2. Chrome/Edge DevTools → pestaña **Application** → **Manifest**: confirmar que carga sin errores y que el ícono es el correcto.
+3. Lighthouse (DevTools → **Lighthouse** → categoría **PWA**, o `npx lighthouse http://localhost:4173 --view`): el audit de instalabilidad debe pasar.
+4. Confirmar en un dispositivo real (Android/Chrome o iOS/Safari) que aparece el prompt o la opción "Agregar a pantalla de inicio".
+
+Esta sección se actualiza con los pasos reales en cuanto S5-FE-05 esté mergeada.

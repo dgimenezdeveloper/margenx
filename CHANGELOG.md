@@ -14,9 +14,12 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Backend:** Costo declarado de "Harina de trigo 000 Olavarriense" en el seed corregido de `742.98` a `736.25`, igual al costo activo real de su presentación mayorista por defecto (que siempre lo sobrescribía; el valor viejo nunca llegaba a la base y generaba confusión en revisiones). Se alinearon también la colección Postman `Alertas de margen (Insumos)` y `backend/scripts/check-ingredient-cost-change.ts`, que citaban la cifra vieja como si fuera la base real (`#265`).
 - **QA:** `coverage/` agregado al `.gitignore` — quedaba sin rastrear después de correr `npm run test:coverage` (`#265`).
 - **Security:** Se ocultó la cantidad de receta y los campos financieros para el rol `COLLABORATOR` en la API real y en la UI, y se cubrió con validación de regresión por endpoint y perfil.
+- **Security:** Datos sensibles fuera del repositorio: los emails de los comercios piloto en `backend/prisma/seed.ts`, sus tests y la colección Postman de Webhooks pasan al dominio reservado para pruebas `seed.example.test` (RFC 2606); la contraseña del Postgres del devcontainer deja de ser `devpassword123`. Búsqueda confirmada sin coincidencias de emails reales, IP de la VPS ni esa contraseña fuera del historial (`#268`).
+- **Docs:** `backend/.env.example` e `infra/vps/.env.example` sin variables muertas que no lee ningún archivo real (`N8N_WEBHOOK_URL`, `POSTGRES_DB`/`POSTGRES_PORT` sueltos, los 4 `*_PORT` de la app — todos los puertos de `docker-compose.prod.yml` están fijos, no son variables); `frontend/.env.example` suma `VITE_INACTIVITY_TIMEOUT_MS` (faltaba) y cambia el ejemplo de producción de una URL de Azure ya inexistente a los dominios reales de la VPS (`#268`).
 
 ### Added
 
+- **Frontend:** Páginas públicas `/privacidad` y `/instalar` con contenido de política de datos y guía de instalación para Android, iPhone y escritorio, enlaces visibles desde login y perfil, y navegación sin sesión dentro de la SPA (`#244`).
 - **Docs:** ADR-005 formalizando las decisiones de arquitectura sobre costo vigente de materias primas por proveedor predeterminado, umbrales de retención en cuarentena preventiva y canal de ingesta por correo (`precios-<slug>@margenx.tech`) (`#234`).
 - **Backend / QA:** Suite integral de pruebas unitarias y de integración para middlewares (`rbac`, `errorHandler`, `auth`), utilitarios (`pagination`), servicios (`marginAlertDispatcher`, `marginCalculator` con resolución de los 8 casos borde de QA) y rutas REST (`ingredients`, `products`, `suppliers`, `webhooks`, `auth`, `dashboard`), elevando la cobertura de líneas de backend por encima del 90 % (`#277`).
 - **Backend / Config:** Configuración de `backend/vitest.config.ts` con exclusión de archivos de arranque (`src/index.ts`, `src/lib/prisma.ts`) y umbral de cobertura estricto `thresholds.lines: 90` (`#277`).
@@ -36,6 +39,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps / CI:** Jobs `Frontend Unit Tests` (Vitest con el umbral de cobertura del 90 %), `n8n Nodes Tests` y `Dependency Audit` (`npm audit --omit=dev` en ambos paquetes, con lista de excepciones en `.github/audit-allowlist.json` y su filtro probado en `.github/scripts/`) (`#260`).
 - **DevOps:** `.github/dependabot.yml`: PR semanal agrupado de versiones menores y parches hacia `develop` para npm (backend y frontend), GitHub Actions e imágenes base de Docker (`#260`).
 - **DevOps:** `.nvmrc` con Node 22 como versión única para el entorno local, el CI y las imágenes (`#260`).
+- **Docs:** `frontend/README.md` propio (antes la plantilla genérica de Vite): cómo correr, variables de entorno, estructura de `src/`, cómo correr las pruebas unitarias y E2E, y una guía de verificación de instalabilidad PWA a completar cuando se mergee S5-FE-05 (`#268`).
+- **Docs:** `README.md` principal: `Supplier`/`SupplierIngredient` y la cuarentena de precios en el modelo de datos, el módulo `/proveedores/cuarentena` en la lista de pantallas, y una nota exacta de qué ve y a qué pantallas llega el rol `COLLABORATOR` (`#268`).
+- **Docs:** `infra/vps/README.md` §11-12: Cloudflare Email Routing, la casilla IMAP y Brevo (dónde vive cada credencial, no el flujo — eso sigue en `infra/n8n/README.md`), e inventario de titularidad de los servicios (VPS, dominio, Cloudflare, Clerk, Gmail, Brevo, Docker Hub) para preparar el traspaso a una cuenta empresarial en la fase 2; columna de titular actual a completar por Darío (`#268`).
 
 ### Changed
 
@@ -49,6 +55,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps / CI:** El job `Backend Lint & Typecheck` pasa a llamarse `Backend Build & Tests`, porque no corre linter; el linter real del backend queda para el Sprint 6. Checks requeridos actualizados en `docs/politica-proteccion-main.md` (`#260`).
 - **DevOps:** `auto-move-issues.yml` toma el número de issue solo de ramas con formato `N-slug`, para que las ramas de Dependabot no muevan tarjetas ajenas (`#260`).
 - **DevOps:** `auto-move-issues.yml` omite los PRs y ramas de Dependabot (no reciben `PROJECT_TOKEN` ni tienen tarjeta), y `dependabot.yml` ignora las versiones mayores de npm, que se planifican como issue propia (`#305`).
+- **QA:** `frontend/.env.test.example` y `frontend/tests/e2e/README.md` recomiendan para uso local las credenciales de la cuenta Demo (`backend/prisma/seed-demo.ts`) en vez de las del comercio piloto Panadería Central. **Pendiente, documentado explícitamente:** los 5 specs E2E todavía aseveran contra los datos de Panadería Central — no se reescribieron contra el catálogo de Demo en esta issue porque requiere acceso real a Clerk/CI para verificarlo sin arriesgar el pipeline; el secret de GitHub Actions tampoco se cambia hasta que esa reescritura esté hecha y verificada (`#268`).
+- **Docs:** `infra/vps/README.md` §6 aclara que `/opt/margenx-infra` no es un repositorio git a propósito (es solo el destino de despliegue) y que `infra/vps/docker-compose.prod.yml`, ya versionado en este repositorio, es la fuente de verdad real que se copia ahí (`#268`).
 
 ### Removed
 
