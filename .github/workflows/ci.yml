@@ -172,6 +172,12 @@ jobs:
       # que E2E_CLERK_TEST_EMAIL arriba: va como secret (no hardcodeado) para
       # mantener un único lugar de verdad si el equipo rota la cuenta de prueba.
       E2E_CLERK_COLLAB_EMAIL: ${{ secrets.E2E_CLERK_COLLAB_EMAIL }}
+      # Issue #310: quarantine-queue.spec.ts dispara una cuarentena real vía
+      # POST /api/webhooks/supplier-prices. A diferencia de las credenciales
+      # de Clerk de arriba, este valor no protege nada fuera de este job (el
+      # backend y el Postgres son efímeros, nadie más los alcanza), así que
+      # alcanza con un valor fijo acá en vez de un secret nuevo en GitHub.
+      INTERNAL_WEBHOOK_SECRET: "qa-e2e-webhook-secret-ci-only"
     steps:
       - name: Checkout del código
         uses: actions/checkout@v7
