@@ -56,7 +56,7 @@ Hay tres caminos de entrada. Los tres terminan en el mismo lugar, insumos en la 
 | Camino | Para quién | Cómo funciona | Estado |
 |---|---|---|---|
 | **A. Arranque rápido** (carga manual) | Comercios con pocos insumos | En **Insumos**, "Nuevo insumo": nombre, unidad y costo por unidad (ej. *Harina 000 — kg — $736,25*). | **Disponible** |
-| **B. Plantilla oficial** (CSV o Excel) | Comercios con muchos insumos ya en una planilla | Descargar la plantilla (Nombre, Unidad, Costo en formato `1.234,56` o `1234.56`), completarla y subirla desde **Insumos**. Una vista previa muestra filas válidas, filas con error y nombres duplicados; al confirmar se crean los insumos válidos en una sola operación. | **Planificado** |
+| **B. Plantilla oficial** (CSV o Excel) | Comercios con muchos insumos ya en una planilla | Descargar la plantilla (Nombre, Unidad, Costo en formato `1.234,56` o `1234.56`), completarla y subirla desde **Insumos**. Una vista previa muestra filas válidas, filas con error y nombres duplicados; al confirmar se crean los insumos válidos en una sola operación. | **Disponible** |
 | **C. Starter pack por rubro** | Comercios que arrancan de cero | Al primer ingreso se elige el rubro (panadería, hamburguesería, química de limpieza), se ve la lista sugerida con su unidad, se desmarca lo que no se usa, se ajusta el costo y se confirma. | **Propuesta** |
 
 Reglas del camino A (vigentes):
@@ -342,7 +342,7 @@ Account (CASCADE)
 | Capacidad | Estado |
 |---|---|
 | Carga manual de insumos (camino A) | Disponible |
-| Plantilla oficial CSV/Excel (camino B) | Planificado |
+| Plantilla oficial CSV/Excel (camino B) | Disponible |
 | Starter pack por rubro (camino C) | Propuesta |
 | Productos en borrador y recetas | Disponible |
 | Alta de insumo desde la receta | Propuesta |
