@@ -370,8 +370,16 @@ describe('POST /api/products', () => {
 
     expect(res.status).toBe(201);
     expect(txProductCreateMock).toHaveBeenCalled();
-    const createData = txProductCreateMock.mock.calls[0][0].data as { ingredients: { create: Array<{ quantity: Prisma.Decimal }> } };
-    expect(createData.ingredients.create[0].quantity.toString()).toBe('1.234');
+
+    const call = txProductCreateMock.mock.calls[0];
+    expect(call).toBeDefined();
+
+    const createData = (call as [{ data: { ingredients: { create: Array<{ quantity: Prisma.Decimal }> } } }])[0].data;
+    expect(createData.ingredients.create).toHaveLength(1);
+
+    const quantity = createData.ingredients.create[0]?.quantity;
+    expect(quantity).toBeDefined();
+    expect(quantity!.toString()).toBe('1.234');
   });
 
   it('sigue rechazando salePrice negativo con 400', async () => {
