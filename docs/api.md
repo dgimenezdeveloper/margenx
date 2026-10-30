@@ -32,3 +32,47 @@ La propiedad `code` es estable para que `n8n` pueda detectar el caso y mostrar u
 - `404`: recurso inexistente o cuenta inactiva.
 - `413`: cuerpo demasiado grande.
 - `500`: error interno no controlado.
+
+## POST /api/suppliers/:id/ingredients
+
+Contrato de alta/update de presentaciones de proveedor para un insumo.
+
+### Campos soportados
+
+```json
+{
+  "ingredientId": "ing-123",
+  "packageSize": "50",
+  "packageUnit": "kg",
+  "packagePrice": "35000",
+  "isDefault": true,
+  "supplierCode": "HAR-000",
+  "rawDescription": "Harina 000 bolsa 50kg"
+}
+```
+
+- `supplierCode`: opcional, se recorta el contenido a los extremos y se valida con un máximo conservador de 64 caracteres.
+- `rawDescription`: opcional, se recorta y se guarda como descripción tal cual la lista del proveedor la enviará.
+- Si el código ya existe para ese proveedor, la API responde `409 Conflict` indicando qué insumo lo está usando.
+- Si no se envía `supplierCode`, la asociación se guarda igual, pero la respuesta incluye un `message` avisando que ese insumo no recibirá precios por ingesta hasta que el administrador cargue el código.
+
+### Respuesta exitosa
+
+```json
+{
+  "supplierIngredient": { "id": "si-123", "isDefault": true },
+  "unitCost": "700",
+  "ingredient": { "id": "ing-123", "name": "Harina 000" }
+}
+```
+
+### Respuesta con advertencia de ingesta deshabilitada
+
+```json
+{
+  "supplierIngredient": { "id": "si-456", "isDefault": false },
+  "unitCost": "700",
+  "ingredient": { "id": "ing-456", "name": "Manteca" },
+  "message": "La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor."
+}
+```

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
@@ -96,6 +97,27 @@ function parseSupplierIngredientDecimal(value: unknown, field: string): Prisma.D
 
   return decimalValue;
 }
+
+const supplierMetadataSchema = z.object({
+  supplierCode: z.preprocess((value) => {
+    if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+      return undefined;
+    }
+
+    if (typeof value === 'string') return value.trim();
+    if (typeof value === 'number') return String(value).trim();
+    return value;
+  }, z.string().max(64, 'El campo "supplierCode" no puede superar 64 caracteres.').optional()),
+  rawDescription: z.preprocess((value) => {
+    if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+      return undefined;
+    }
+
+    if (typeof value === 'string') return value.trim();
+    if (typeof value === 'number') return String(value).trim();
+    return value;
+  }, z.string().max(500, 'El campo "rawDescription" no puede superar 500 caracteres.').optional()),
+});
 
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers                                                   */
@@ -423,6 +445,16 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   }
 
   const payload = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+  const metadataParse = supplierMetadataSchema.safeParse(payload);
+  if (!metadataParse.success) {
+    const issue = metadataParse.error.issues[0];
+    throw new AppError(issue?.message ?? 'Payload inválido.', 400);
+  }
+
+  const { supplierCode, rawDescription } = metadataParse.data;
+  const normalizedSupplierCode = supplierCode && supplierCode.trim() !== '' ? supplierCode.trim() : undefined;
+  const normalizedRawDescription = rawDescription && rawDescription.trim() !== '' ? rawDescription.trim() : undefined;
+
   const { ingredientId: rawIngredientId, packageSize, packageUnit, packagePrice, isDefault, accountId: _ignored } = payload;
 
   if (typeof rawIngredientId !== 'string' || rawIngredientId.trim() === '') {
@@ -473,6 +505,26 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     select: { id: true, isDefault: true },
   });
 
+  if (normalizedSupplierCode) {
+    const duplicate = await prisma.supplierIngredient.findFirst({
+      where: {
+        supplierId,
+        supplierCode: { equals: normalizedSupplierCode, mode: 'insensitive' },
+        ingredientId: { not: ingredientId },
+      },
+      include: {
+        ingredient: { select: { id: true, name: true } },
+      },
+    });
+
+    if (duplicate?.ingredient?.name) {
+      throw new AppError(
+        `El código de proveedor "${normalizedSupplierCode}" ya lo usa el insumo "${duplicate.ingredient.name}".`,
+        409
+      );
+    }
+  }
+
   const isUpdate = Boolean(existingAssociation);
   const statusCode = isUpdate ? 200 : 201;
 
@@ -487,6 +539,8 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   }
 
   const associationData = {
+    supplierCode: normalizedSupplierCode ?? null,
+    rawDescription: normalizedRawDescription ?? null,
     packageSize: parsedPackageSize,
     packageUnit: normalizedPackageUnit,
     packagePrice: parsedPackagePrice,
@@ -510,7 +564,20 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
         },
       });
 
-    return res.status(statusCode).json({ supplierIngredient, unitCost, ingredient });
+    const responseBody = {
+      supplierIngredient,
+      unitCost,
+      ingredient,
+      ingestEnabled: Boolean(normalizedSupplierCode),
+    };
+    if (!normalizedSupplierCode) {
+      return res.status(statusCode).json({
+        ...responseBody,
+        message: 'La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor.',
+      });
+    }
+
+    return res.status(statusCode).json(responseBody);
   }
 
   const result = await prisma.$transaction(async (tx: any) => {
@@ -583,11 +650,21 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
     });
   }
 
-  return res.status(statusCode).json({
+  const responseBody = {
     supplierIngredient: result.supplierIngredient,
     unitCost: result.unitCost,
     ingredient: result.ingredient,
-  });
+    ingestEnabled: Boolean(normalizedSupplierCode),
+  };
+
+  if (!normalizedSupplierCode) {
+    return res.status(statusCode).json({
+      ...responseBody,
+      message: 'La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor.',
+    });
+  }
+
+  return res.status(statusCode).json(responseBody);
 });
 
 /* ------------------------------------------------------------------ */
