@@ -267,22 +267,22 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
     const name = String(candidate.name ?? candidate.nombre ?? '').trim();
     const unit = String(candidate.unit ?? candidate.unidad ?? '').trim().toLowerCase();
     const rawCost = candidate.cost ?? candidate.costo ?? candidate.currentCost;
-    const normalizedName = name.trim().toLowerCase();
+    const normalizedName = name.toLowerCase();
 
     const validationErrors: string[] = [];
+
+    // 1. Validación de nombre
     if (!name) {
       validationErrors.push('El campo "name" es obligatorio y debe ser un texto no vacío.');
     }
 
+    // 2. Validación de unidad
     if (!VALID_UNITS.includes(unit as Unit)) {
       validationErrors.push(`El campo "unit" debe ser uno de: ${VALID_UNITS.join(', ')}.`);
     }
 
-    if (existingNames.has(normalizedName) || seenInBatch.has(normalizedName)) {
-      skipped += 1;
-      continue;
-    }
-
+    // 3. Validación de costo
+    let parsedCost: Prisma.Decimal | null = null;
     if (rawCost === undefined || rawCost === null || (typeof rawCost === 'string' && rawCost.trim() === '')) {
       validationErrors.push('El campo "cost" es obligatorio.');
     } else {
@@ -292,30 +292,33 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
           validationErrors.push('El campo "cost" debe ser mayor a cero.');
         } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE)) {
           validationErrors.push('El insumo no puede superar $99.999.999,99.');
-        }
-
-        if (validationErrors.length === 0) {
-          validRows.push({ name, unit: unit as Unit, cost: decimalValue });
-          seenInBatch.add(normalizedName);
+        } else {
+          parsedCost = decimalValue;
         }
       } catch (error) {
         validationErrors.push((error as Error).message || 'El campo "cost" debe ser un valor decimal válido.');
       }
     }
 
+    // Si hubo cualquier error de validación, se reporta y NO se considera como skipped
     if (validationErrors.length > 0) {
       errors.push({ row: index + 1, reason: validationErrors.join(' ') });
+      continue;
     }
+
+    // 4. Chequeo de duplicado (solo sobre filas sintáctica y semánticamente válidas)
+    if (existingNames.has(normalizedName) || seenInBatch.has(normalizedName)) {
+      skipped += 1;
+      continue;
+    }
+
+    // 5. Fila válida y no duplicada: se encola para inserción
+    validRows.push({ name, unit: unit as Unit, cost: parsedCost! });
+    seenInBatch.add(normalizedName);
   }
 
   const transactionResult = await prisma.$transaction(async (tx) => {
-    const createdRows: Array<{ name: string; unit: Unit; cost: Prisma.Decimal }> = [];
-
     for (const item of validRows) {
-      createdRows.push(item);
-    }
-
-    for (const item of createdRows) {
       await tx.ingredient.create({
         data: {
           name: item.name,
@@ -326,7 +329,7 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
       });
     }
 
-    return createdRows.length;
+    return validRows.length;
   });
 
   return res.status(200).json({

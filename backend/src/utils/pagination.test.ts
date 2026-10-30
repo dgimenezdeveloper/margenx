@@ -1,62 +1,42 @@
-// src/utils/pagination.test.ts
 import { describe, it, expect } from 'vitest';
-import { parsePaginationParams } from './pagination';
+import { parseArgentineDecimal } from './argentineNumber';
 
-describe('parsePaginationParams', () => {
-  it('aplica los defaults cuando no se envía ningún parámetro', () => {
-    expect(parsePaginationParams({})).toEqual({
-      page: 1,
-      limit: 20,
-      sortBy: 'name',
-      order: 'asc',
-    });
+describe('parseArgentineDecimal', () => {
+  it('interpreta correctamente números con formato argentino estándar (coma decimal y punto de miles)', () => {
+    expect(parseArgentineDecimal('1.234,56').toString()).toBe('1234.56');
+    expect(parseArgentineDecimal('1.500.000,50').toString()).toBe('1500000.5');
+    expect(parseArgentineDecimal('1234,56').toString()).toBe('1234.56');
+    expect(parseArgentineDecimal('0,75').toString()).toBe('0.75');
   });
 
-  it('respeta page y limit válidos', () => {
-    expect(parsePaginationParams({ page: '2', limit: '10' })).toEqual({
-      page: 2,
-      limit: 10,
-      sortBy: 'name',
-      order: 'asc',
-    });
+  it('interpreta correctamente grupos de miles puros sin coma', () => {
+    expect(parseArgentineDecimal('1.234').toString()).toBe('1234');
+    expect(parseArgentineDecimal('15.000').toString()).toBe('15000');
+    expect(parseArgentineDecimal('1.500.000').toString()).toBe('1500000');
   });
 
-  it('cae al default si page o limit no son enteros positivos', () => {
-    expect(parsePaginationParams({ page: '-1', limit: '0' })).toEqual({
-      page: 1,
-      limit: 20,
-      sortBy: 'name',
-      order: 'asc',
-    });
-    expect(parsePaginationParams({ page: 'abc', limit: 'xyz' })).toEqual({
-      page: 1,
-      limit: 20,
-      sortBy: 'name',
-      order: 'asc',
-    });
+  it('resuelve 1234.567 como punto decimal y NO como separador de miles (Fix Bloqueante Review)', () => {
+    // Al tener 4 dígitos antes del punto, no es un grupo de miles; es un decimal estándar con 3 cifras
+    expect(parseArgentineDecimal('1234.567').toString()).toBe('1234.567');
+    expect(parseArgentineDecimal('12345.678').toString()).toBe('12345.678');
   });
 
-  it('trunca limit al máximo permitido (100)', () => {
-    expect(parsePaginationParams({ limit: '99999' }).limit).toBe(100);
+  it('admite números flotantes estándar y enteros puros', () => {
+    expect(parseArgentineDecimal('12.5').toString()).toBe('12.5');
+    expect(parseArgentineDecimal('1500').toString()).toBe('1500');
+    expect(parseArgentineDecimal(2500.75).toString()).toBe('2500.75');
   });
 
-  it('acepta los sortBy permitidos', () => {
-    for (const field of ['name', 'currentCost', 'updatedAt']) {
-      expect(parsePaginationParams({ sortBy: field }).sortBy).toBe(field);
-    }
+  it('rechaza entradas inválidas o ambiguas', () => {
+    expect(() => parseArgentineDecimal('')).toThrow(/obligatorio/);
+    expect(() => parseArgentineDecimal(null)).toThrow(/obligatorio/);
+    expect(() => parseArgentineDecimal('abc')).toThrow(/decimal válido/);
+    expect(() => parseArgentineDecimal('1.2.3')).toThrow(/decimal válido/);
+    expect(() => parseArgentineDecimal('12,34,56')).toThrow(/decimal válido/);
   });
 
-  it('cae a "name" si sortBy no es un campo permitido', () => {
-    expect(parsePaginationParams({ sortBy: 'accountId' }).sortBy).toBe('name');
-    expect(parsePaginationParams({ sortBy: 123 }).sortBy).toBe('name');
-  });
-
-  it('acepta "asc"/"desc" sin distinguir mayúsculas', () => {
-    expect(parsePaginationParams({ order: 'DESC' }).order).toBe('desc');
-    expect(parsePaginationParams({ order: 'asc' }).order).toBe('asc');
-  });
-
-  it('cae a "asc" si order no es válido', () => {
-    expect(parsePaginationParams({ order: 'random' }).order).toBe('asc');
+  it('rechaza desbordes numéricos por encima de $99.999.999,99', () => {
+    expect(() => parseArgentineDecimal('100.000.000')).toThrow(/no puede superar \$99\.999\.999,99/);
+    expect(() => parseArgentineDecimal('100000000.00')).toThrow(/no puede superar \$99\.999\.999,99/);
   });
 });

@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** Corregido el parser de números argentinos para costos en `backend/src/utils/argentineNumber.ts`: el punto solo se interpreta como separador de miles cuando cumple el patrón canónico `^-?\d{1,3}(\.\d{3})+$`; así, valores como `1234.567` se mantienen como decimal válido y no se multiplican por 1000. La corrección queda alineada con n8n y el frontend, y cierra la revisión de la issue `#247` / PR `#319` (`RV319-B1`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
 - **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
 - **Backend:** Costo declarado de "Harina de trigo 000 Olavarriense" en el seed corregido de `742.98` a `736.25`, igual al costo activo real de su presentación mayorista por defecto (que siempre lo sobrescribía; el valor viejo nunca llegaba a la base y generaba confusión en revisiones). Se alinearon también la colección Postman `Alertas de margen (Insumos)` y `backend/scripts/check-ingredient-cost-change.ts`, que citaban la cifra vieja como si fuera la base real (`#265`).
@@ -60,7 +61,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Removed
 
-- **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
+- **Docs:** Documentación funcional y de dominio consolidada en `docs/especificacion-funcional.md`, tras fusionar los contenidos previos de los archivos dedicados a abastecimiento y diseño operativo en un único documento (`#274`).
 
 ### Fixed
 

@@ -445,6 +445,44 @@ describe('PUT /api/ingredients/:id', () => {
       }),
     });
   });
+  
+  it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'unidad-invalida', cost: '100' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(0);
+    expect(res.body.skipped).toBe(0); // No debe ser skipped, es un error de validación
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0]).toMatchObject({
+      row: 1,
+      reason: expect.stringMatching(/unit/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('falla con 500 y no confirma inserciones si ocurre un error inesperado durante la transacción', async () => {
+    findManyMock.mockResolvedValue([]);
+    // Simulamos fallo en la segunda inserción
+    createMock
+      .mockResolvedValueOnce({ id: 'ing-1' })
+      .mockRejectedValueOnce(new Error('Fallo simulado de conexión en base de datos'));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Insumo 1', unit: 'kg', cost: '100' },
+        { name: 'Insumo 2', unit: 'kg', cost: '200' },
+      ]);
+
+    expect(res.status).toBe(500);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
 
   it('no abre transacción ni crea PriceHistory cuando no hubo cambio real en costo, nombre ni unidad', async () => {
     findFirstMock.mockResolvedValue({
