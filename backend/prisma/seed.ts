@@ -7,6 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { resolveSeedUser } from "./seed-identity";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
 // Issue #178 — proveedores mayoristas reales y mapeo de SKU por SupplierIngredient.
@@ -643,38 +644,18 @@ async function main() {
       });
 
       for (const user of account.users) {
-        // Buscamos si el usuario ya existe en base de datos por ID o por email
-        const existingUser = await tx.user.findFirst({
-          where: {
-            OR: [
-              { id: user.id },
-              { email: user.email },
-            ],
-          },
+        const existingUsers = await tx.user.findMany({
+          where: { OR: [{ id: user.id }, { email: user.email }] },
         });
 
-        // Verificamos que no haya colisión cruzada (ej. que el email pertenezca a otra cuenta u otro ID)
-        if (existingUser && (existingUser.id !== user.id || existingUser.accountId !== account.id || existingUser.email !== user.email)) {
-          throw new Error("Conflicto de identidad del usuario de prueba " + user.email + ".");
-        }
-
-        // Si el usuario ya existe en la base de datos, PRESERVAMOS su authProviderId activo
-        // para no romper sesiones de Clerk en producción o staging. Solo usamos el del seed si el usuario es nuevo.
-        const authProviderIdToPersist = existingUser?.authProviderId ?? user.authProviderId;
+        // Un usuario existente conserva su email y su authProviderId: en
+        // producción difieren del seed y pisarlos rompería el login de Clerk.
+        const identity = resolveSeedUser(existingUsers, user, account.id);
 
         await tx.user.upsert({
           where: { id: user.id },
-          create: {
-            id: user.id,
-            accountId: account.id,
-            email: user.email,
-            role: user.role,
-            authProviderId: user.authProviderId,
-          },
-          update: {
-            role: user.role,
-            authProviderId: authProviderIdToPersist,
-          },
+          create: { id: user.id, accountId: account.id, role: user.role, ...identity },
+          update: { role: user.role, ...identity },
         });
       }
 
