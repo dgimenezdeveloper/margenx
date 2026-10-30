@@ -420,7 +420,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     );
     expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
       where: {
-        supplierCode: { in: ['MC-990', 'ART-001', 'ART-002'] },
+        supplierCode: { in: ['MC-990', 'ART-001', 'ART-002'], mode: 'insensitive' },
         ingredient: { accountId: 'acc-123' },
       },
       include: {
