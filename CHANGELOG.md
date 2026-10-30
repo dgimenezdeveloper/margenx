@@ -10,6 +10,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Fixed
 
 - **Backend:** Corregido el parser de números argentinos para costos en `backend/src/utils/argentineNumber.ts`: el punto solo se interpreta como separador de miles cuando cumple el patrón canónico `^-?\d{1,3}(\.\d{3})+$`; así, valores como `1234.567` se mantienen como decimal válido y no se multiplican por 1000. La corrección queda alineada con n8n y el frontend, y cierra la revisión de la issue `#247` / PR `#319` (`RV319-B1`).
+- **Frontend / Backend:** El nombre del producto se guarda y se muestra tal como lo escribió el usuario ("Pan de Campo"): se quitó el `toLowerCase()` al guardar en `POST`/`PUT /api/products` y el `toUpperCase()` del listado. La unicidad de nombre por cuenta sigue siendo case-insensitive y queda cubierta por pruebas automatizadas (`#236`).
+- **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
 - **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
 - **Backend:** Costo declarado de "Harina de trigo 000 Olavarriense" en el seed corregido de `742.98` a `736.25`, igual al costo activo real de su presentación mayorista por defecto (que siempre lo sobrescribía; el valor viejo nunca llegaba a la base y generaba confusión en revisiones). Se alinearon también la colección Postman `Alertas de margen (Insumos)` y `backend/scripts/check-ingredient-cost-change.ts`, que citaban la cifra vieja como si fuera la base real (`#265`).
@@ -20,6 +22,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** Página 404 dentro del panel (con el menú y un botón al dashboard) para cualquier ruta inexistente, y redirección de `/` al dashboard cuando hay sesión activa. Se eliminó el código muerto `productos/detalle` (`#236`).
+- **Docs:** Tabla de rutas y accesos por rol en `docs/manual-usuario/02-rutas-y-roles.md` (`#236`).
 - **Frontend:** Páginas públicas `/privacidad` y `/instalar` con contenido de política de datos y guía de instalación para Android, iPhone y escritorio, enlaces visibles desde login y perfil, y navegación sin sesión dentro de la SPA (`#244`).
 - **Docs:** ADR-005 formalizando las decisiones de arquitectura sobre costo vigente de materias primas por proveedor predeterminado, umbrales de retención en cuarentena preventiva y canal de ingesta por correo (`precios-<slug>@margenx.tech`) (`#234`).
 - **Backend / QA:** Suite integral de pruebas unitarias y de integración para middlewares (`rbac`, `errorHandler`, `auth`), utilitarios (`pagination`), servicios (`marginAlertDispatcher`, `marginCalculator` con resolución de los 8 casos borde de QA) y rutas REST (`ingredients`, `products`, `suppliers`, `webhooks`, `auth`, `dashboard`), elevando la cobertura de líneas de backend por encima del 90 % (`#277`).
