@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** `POST /api/suppliers/:id/ingredients` acepta `supplierCode` y `rawDescription`, normaliza y valida el código (sin espacios externos y máximo 64 caracteres), evita duplicados por proveedor con respuesta `409` e indica el insumo que ya lo usa, y permite guardar la asociación sin código con aviso explícito de que no recibirá precios por ingesta.
 - **Frontend / Backend:** El nombre del producto se guarda y se muestra tal como lo escribió el usuario ("Pan de Campo"): se quitó el `toLowerCase()` al guardar en `POST`/`PUT /api/products` y el `toUpperCase()` del listado. La unicidad de nombre por cuenta sigue siendo case-insensitive y queda cubierta por pruebas automatizadas (`#236`).
 - **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).

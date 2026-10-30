@@ -997,6 +997,136 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(res.body.error).toBe('Proveedor no encontrado.');
   });
 
+  it('guarda supplierCode y rawDescription al crear la asociación', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-1',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      supplierCode: 'HAR-000',
+      rawDescription: 'Harina 000 bolsa 50kg',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('35000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    priceHistoryCreateMock.mockResolvedValue({ id: 'ph-1' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        isDefault: true,
+        supplierCode: ' HAR-000 ',
+        rawDescription: ' Harina 000 bolsa 50kg ',
+      });
+
+    expect(res.status).toBe(201);
+    expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        supplierId: 's-1',
+        ingredientId: 'ing-1',
+        supplierCode: 'HAR-000',
+        rawDescription: 'Harina 000 bolsa 50kg',
+      }),
+    });
+  });
+
+  it('devuelve 409 con el insumo que ya tiene ese supplierCode', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'si-dup',
+        supplierId: 's-1',
+        ingredientId: 'ing-2',
+        supplierCode: 'har-000',
+        ingredient: { id: 'ing-2', name: 'Manteca' },
+      });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        supplierCode: 'har-000',
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/Manteca|har-000|código/i);
+    expect(supplierIngredientCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('guarda la asociación sin supplierCode y avisa que no recibirá precios por ingesta', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-1',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      supplierCode: null,
+      rawDescription: 'Harina 000 bolsa 50kg',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('35000'),
+      isDefault: false,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        isDefault: false,
+        rawDescription: 'Harina 000 bolsa 50kg',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toMatch(/no recibirá precios por ingesta|código de proveedor/i);
+    expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        supplierCode: null,
+        rawDescription: 'Harina 000 bolsa 50kg',
+      }),
+    });
+  });
+
   it('ignora accountId enviado en el body', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
     ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });

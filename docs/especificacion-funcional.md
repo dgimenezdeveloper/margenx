@@ -152,7 +152,7 @@ La receta solo conoce el insumo, la cantidad y el costo actual. Quién vendió l
 ### Código de artículo del proveedor
 
 - La ingesta por correo (§5) identifica cada fila de la lista por su `supplierCode`. Sin código cargado, la presentación no se actualiza sola.
-- Hoy el código solo se carga con el seed: el alta de presentaciones desde la app no lo acepta. Cargarlo desde la app está **Planificado**.
+- El alta de presentaciones desde la app acepta `supplierCode` y `rawDescription`; si el código no se completa, la asociación se conserva y el backend avisa explícitamente que ese insumo no recibirá precios por ingesta hasta que se complete el mapping.
 - **Bandeja de códigos no mapeados** · *Propuesta*: guardar los códigos recibidos sin vínculo para que el administrador los asocie a un insumo ("aprender una sola vez"). Hoy esos códigos se descartan y solo se informan en el resumen por correo.
 
 ---

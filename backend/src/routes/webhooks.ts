@@ -139,7 +139,7 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
   const incomingCodes = uniqueItems.map((item) => item.code);
   const mappedRows = await prisma.supplierIngredient.findMany({
     where: {
-      supplierCode: { in: incomingCodes },
+      supplierCode: { in: incomingCodes, mode: 'insensitive' },
       ingredient: { accountId: account.id },
     },
     include: {
@@ -150,7 +150,7 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
 
   const mappedByCode = new Map<string, typeof mappedRows>();
   for (const row of mappedRows) {
-    const key = row.supplierCode ?? '';
+    const key = row.supplierCode?.trim().toLowerCase() ?? '';
     if (!key) continue;
     const bucket = mappedByCode.get(key) ?? [];
     bucket.push(row);
@@ -173,15 +173,16 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
   let discarded = 0;
 
   await prisma.$transaction(async (tx: any) => {
-    for (const item of uniqueItems) {
-      const rows = mappedByCode.get(item.code) ?? [];
-      const activeRows = rows.filter((row) => row.supplier?.isActive !== false);
+  for (const item of uniqueItems) {
+    const lookupKey = item.code.trim().toLowerCase();
+    const rows = mappedByCode.get(lookupKey) ?? [];
+    const activeRows = rows.filter((row) => row.supplier?.isActive !== false);
 
-      if (rows.length === 0) {
-        discarded += 1;
-        discardedCodes.push({ code: item.code, reason: 'NOT_FOUND' });
-        continue;
-      }
+    if (rows.length === 0) {
+      discarded += 1;
+      discardedCodes.push({ code: item.code, reason: 'NOT_FOUND' });
+      continue;
+    }
 
       if (activeRows.length === 0) {
         discarded += 1;
