@@ -31,7 +31,7 @@ const accountFindUniqueMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
-    ingredient: { update: updateMock },
+    ingredient: { findMany: findManyMock, create: createMock, update: updateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
     product: { findUnique: productFindUniqueMock, update: productUpdateMock },
     priceHistory: { create: priceHistoryCreateMock },
@@ -276,6 +276,97 @@ describe('POST /api/ingredients', () => {
   });
 });
 
+describe('POST /api/ingredients/bulk', () => {
+  it('crea una lista válida y devuelve created/skipped/errors correctos', async () => {
+    findManyMock.mockResolvedValue([]);
+    createMock.mockResolvedValue({ id: 'ing-1' });
+
+    const rows = [
+      { name: 'Harina 000', unit: 'kg', cost: '1.234,56' },
+      ...Array.from({ length: 19 }, (_, index) => ({
+        name: `Insumo ${index + 2}`,
+        unit: 'kg',
+        cost: (index + 1) * 10,
+      })),
+    ];
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send(rows);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ created: 20, skipped: 0, errors: [] });
+    expect(createMock).toHaveBeenCalledTimes(20);
+  });
+
+  it('devuelve errores por fila y crea las válidas aunque haya filas inválidas', async () => {
+    findManyMock.mockResolvedValue([]);
+    createMock.mockResolvedValue({ id: 'ing-1' });
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Harina 000', unit: 'kg', cost: '123,50' },
+        { name: '', unit: 'kg', cost: '100' },
+        { name: 'Azúcar', unit: 'kg', cost: 'abc' },
+        { name: 'Sal', unit: 'kg', cost: '25.50' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(2);
+    expect(res.body.skipped).toBe(0);
+    expect(res.body.errors).toHaveLength(2);
+    expect(res.body.errors[0]).toMatchObject({ row: 2, reason: expect.stringMatching(/obligatorio|vacío/i) });
+    expect(res.body.errors[1]).toMatchObject({ row: 3, reason: expect.stringMatching(/cost|decimal|numérico|valor/i) });
+    expect(createMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('omite insumos repetidos sin cambiar el costo existente', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'kg', cost: '250,75' },
+        { name: 'Levadura', unit: 'kg', cost: '50' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ created: 1, skipped: 1, errors: [] });
+    expect(createMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('responde 403 para colaborador y no crea nada', async () => {
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .set('x-role', 'COLLABORATOR')
+      .send([{ name: 'Harina', unit: 'kg', cost: '100' }]);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza más de 500 filas con 413 y mensaje claro', async () => {
+    const rows = Array.from({ length: 501 }, (_, index) => ({
+      name: `Insumo ${index + 1}`,
+      unit: 'kg',
+      cost: '10',
+    }));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send(rows);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: expect.stringMatching(/500|demasiadas|lote/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('PUT /api/ingredients/:id', () => {
   it('devuelve 400 si el Content-Type no es application/json', async () => {
     const res = await request(buildApp())
@@ -353,6 +444,44 @@ describe('PUT /api/ingredients/:id', () => {
         newCost: new Prisma.Decimal('9500.00'),
       }),
     });
+  });
+  
+  it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'unidad-invalida', cost: '100' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(0);
+    expect(res.body.skipped).toBe(0); // No debe ser skipped, es un error de validación
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0]).toMatchObject({
+      row: 1,
+      reason: expect.stringMatching(/unit/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('falla con 500 y no confirma inserciones si ocurre un error inesperado durante la transacción', async () => {
+    findManyMock.mockResolvedValue([]);
+    // Simulamos fallo en la segunda inserción
+    createMock
+      .mockResolvedValueOnce({ id: 'ing-1' })
+      .mockRejectedValueOnce(new Error('Fallo simulado de conexión en base de datos'));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Insumo 1', unit: 'kg', cost: '100' },
+        { name: 'Insumo 2', unit: 'kg', cost: '200' },
+      ]);
+
+    expect(res.status).toBe(500);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
   });
 
   it('no abre transacción ni crea PriceHistory cuando no hubo cambio real en costo, nombre ni unidad', async () => {

@@ -5,6 +5,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
 import { parsePaginationParams } from '../utils/pagination';
+import { parseArgentineDecimal } from '../utils/argentineNumber';
 import { applyIngredientCostChange } from '../services/marginCalculator';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
 
@@ -25,6 +26,7 @@ const VALID_UNITS = ['kg', 'l', 'u'] as const;
 type Unit = (typeof VALID_UNITS)[number];
 const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
 const MAX_MONEY_VALUE_NUMBER = 99_999_999.99;
+const BULK_MAX_ROWS = 500;
 
 interface IngredientInputDTO {
   name?: unknown;
@@ -62,33 +64,18 @@ function validateIngredientInput(
     (typeof rawCost === 'string' && rawCost.trim() === '')
   ) {
     errors.push('El campo "currentCost" es obligatorio.');
-  } else if (typeof rawCost !== 'string' && typeof rawCost !== 'number') {
-    errors.push('El campo "currentCost" debe ser un número o un string numérico.');
   } else {
-    const asString = String(rawCost).trim();
-    const numericValue = Number(asString);
-    const isNumericValue = Number.isFinite(numericValue);
-
-    if (typeof rawCost === 'number' && (!isNumericValue || Math.abs(rawCost) > MAX_MONEY_VALUE_NUMBER)) {
-      errors.push('El insumo no puede superar $99.999.999,99.');
-    } else {
-      const isNumericFormat = /^-?\d+(\.\d+)?$/.test(asString);
-      if (!isNumericFormat && !isNumericValue) {
-        errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
+    try {
+      const decimalValue = parseArgentineDecimal(rawCost, 'currentCost');
+      if (decimalValue.lessThanOrEqualTo(0)) {
+        errors.push('El campo "currentCost" debe ser mayor a cero.');
+      } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE) || Math.abs(Number(rawCost)) > MAX_MONEY_VALUE_NUMBER) {
+        errors.push('El insumo no puede superar $99.999.999,99.');
       } else {
-        try {
-          const decimalValue = new Prisma.Decimal(asString);
-          if (decimalValue.lessThanOrEqualTo(0)) {
-            errors.push('El campo "currentCost" debe ser mayor a cero.');
-          } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE) || Math.abs(numericValue) > MAX_MONEY_VALUE_NUMBER) {
-            errors.push('El insumo no puede superar $99.999.999,99.');
-          } else {
-            currentCost = decimalValue;
-          }
-        } catch {
-          errors.push('El campo "currentCost" debe ser un valor decimal válido.');
-        }
+        currentCost = decimalValue;
       }
+    } catch (error) {
+      errors.push((error as Error).message || 'El campo "currentCost" debe ser un valor decimal válido.');
     }
   }
 
@@ -229,6 +216,127 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   });
 
   return res.status(201).json({ ingredient });
+});
+
+/**
+ * Carga masiva de insumos por planilla.
+ *
+ * El payload principal es un array de filas, pero aceptamos también un wrapper
+ * con { rows: [...] } para tolerar futuras integraciones del frontend sin romper
+ * la contractibilidad del PR. La validación es por fila, nunca bloquea el resto,
+ * y la operación completa queda envuelta en una única transacción.
+ */
+router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const rawPayload = req.body as unknown;
+  const rows: unknown[] = Array.isArray(rawPayload)
+    ? rawPayload
+    : Array.isArray((rawPayload as { rows?: unknown[] } | null)?.rows)
+      ? (rawPayload as { rows: unknown[] }).rows
+      : [];
+
+  if (!Array.isArray(rawPayload) && !Array.isArray((rawPayload as { rows?: unknown[] } | null)?.rows)) {
+    throw new AppError('La carga masiva debe enviarse como un array de filas.', 400);
+  }
+
+  if (rows.length > BULK_MAX_ROWS) {
+    throw new AppError(
+      `La lista supera el tope de ${BULK_MAX_ROWS} filas por lote. Dividila en varios lotes más pequeños.`,
+      413
+    );
+  }
+
+  const errors: Array<{ row: number; reason: string }> = [];
+  const validRows: Array<{ name: string; unit: Unit; cost: Prisma.Decimal }> = [];
+  const existingNames = new Set(
+    (await prisma.ingredient.findMany({
+      where: { accountId },
+      select: { name: true },
+    })).map((row) => row.name.trim().toLowerCase())
+  );
+  const seenInBatch = new Set<string>();
+  let skipped = 0;
+
+  for (const [index, row] of rows.entries()) {
+    if (!row || typeof row !== 'object') {
+      errors.push({ row: index + 1, reason: 'La fila debe contener un objeto con nombre, unidad y costo.' });
+      continue;
+    }
+
+    const candidate = row as Record<string, unknown>;
+    const name = String(candidate.name ?? candidate.nombre ?? '').trim();
+    const unit = String(candidate.unit ?? candidate.unidad ?? '').trim().toLowerCase();
+    const rawCost = candidate.cost ?? candidate.costo ?? candidate.currentCost;
+    const normalizedName = name.toLowerCase();
+
+    const validationErrors: string[] = [];
+
+    // 1. Validación de nombre
+    if (!name) {
+      validationErrors.push('El campo "name" es obligatorio y debe ser un texto no vacío.');
+    }
+
+    // 2. Validación de unidad
+    if (!VALID_UNITS.includes(unit as Unit)) {
+      validationErrors.push(`El campo "unit" debe ser uno de: ${VALID_UNITS.join(', ')}.`);
+    }
+
+    // 3. Validación de costo
+    let parsedCost: Prisma.Decimal | null = null;
+    if (rawCost === undefined || rawCost === null || (typeof rawCost === 'string' && rawCost.trim() === '')) {
+      validationErrors.push('El campo "cost" es obligatorio.');
+    } else {
+      try {
+        const decimalValue = parseArgentineDecimal(rawCost, 'cost');
+        if (decimalValue.lessThanOrEqualTo(0)) {
+          validationErrors.push('El campo "cost" debe ser mayor a cero.');
+        } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE)) {
+          validationErrors.push('El insumo no puede superar $99.999.999,99.');
+        } else {
+          parsedCost = decimalValue;
+        }
+      } catch (error) {
+        validationErrors.push((error as Error).message || 'El campo "cost" debe ser un valor decimal válido.');
+      }
+    }
+
+    // Si hubo cualquier error de validación, se reporta y NO se considera como skipped
+    if (validationErrors.length > 0) {
+      errors.push({ row: index + 1, reason: validationErrors.join(' ') });
+      continue;
+    }
+
+    // 4. Chequeo de duplicado (solo sobre filas sintáctica y semánticamente válidas)
+    if (existingNames.has(normalizedName) || seenInBatch.has(normalizedName)) {
+      skipped += 1;
+      continue;
+    }
+
+    // 5. Fila válida y no duplicada: se encola para inserción
+    validRows.push({ name, unit: unit as Unit, cost: parsedCost! });
+    seenInBatch.add(normalizedName);
+  }
+
+  const transactionResult = await prisma.$transaction(async (tx) => {
+    for (const item of validRows) {
+      await tx.ingredient.create({
+        data: {
+          name: item.name,
+          unit: item.unit,
+          currentCost: item.cost,
+          accountId,
+        },
+      });
+    }
+
+    return validRows.length;
+  });
+
+  return res.status(200).json({
+    created: transactionResult,
+    skipped,
+    errors,
+  });
 });
 
 /* ------------------------------------------------------------------ */

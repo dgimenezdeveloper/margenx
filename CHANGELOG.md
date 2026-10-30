@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** Corregido el parser de números argentinos para costos en `backend/src/utils/argentineNumber.ts`: el punto solo se interpreta como separador de miles cuando cumple el patrón canónico `^-?\d{1,3}(\.\d{3})+$`; así, valores como `1234.567` se mantienen como decimal válido y no se multiplican por 1000. La corrección queda alineada con n8n y el frontend, y cierra la revisión de la issue `#247` / PR `#319` (`RV319-B1`).
 - **Frontend / Backend:** El nombre del producto se guarda y se muestra tal como lo escribió el usuario ("Pan de Campo"): se quitó el `toLowerCase()` al guardar en `POST`/`PUT /api/products` y el `toUpperCase()` del listado. La unicidad de nombre por cuenta sigue siendo case-insensitive y queda cubierta por pruebas automatizadas (`#236`).
 - **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
@@ -30,6 +31,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
 - **QA:** Cosecha de los comentarios no bloqueantes dejados en las revisiones de los PR #215 a #218: etiqueta `review-followup` y 5 issues nuevas agrupadas por tema (`#310`-`#314`); tabla de trazabilidad completa (28 ítems: resueltos, descartados o agrupados) en `docs/qa/reporte-calidad-sprint5.md` (`#265`).
+- **Backend:** Carga masiva de insumos por planilla (`POST /api/ingredients/bulk`) con validación por fila, omisión de duplicados, tope de 500 filas por lote, transacción y respuesta resumida `{ created, skipped, errors }`.
+- **Backend:** Parser compartido de números argentinos para costos (`1.234,56` y `1234.56`) aplicado a la carga manual y masiva para evitar inconsistencias entre rutas.
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
 - **Backend:** Bloqueo con error 422 al intentar quitar el proveedor predeterminado de un insumo sin asignar otro en su lugar.
@@ -62,7 +65,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Removed
 
-- **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
+- **Docs:** Documentación funcional y de dominio consolidada en `docs/especificacion-funcional.md`, tras fusionar los contenidos previos de los archivos dedicados a abastecimiento y diseño operativo en un único documento (`#274`).
 
 ### Fixed
 
