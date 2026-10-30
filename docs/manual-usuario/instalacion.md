@@ -14,11 +14,22 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 
 1. Abre MargenX en Safari.
 2. Toca el botón de compartir en la parte inferior.
-3. Seleccioná “Agregar a pantalla de inicio”.
+
+   ![Landing de MargenX en Safari con el botón de compartir en la barra inferior](../../frontend/public/guia-instalacion/iphone-1-safari-compartir.png)
+
+3. Seleccioná “Agregar a Inicio” (puede que tengas que deslizar la lista para encontrarla).
+
+   ![Panel para compartir de Safari con la opción "Agregar a Inicio" visible en la lista](../../frontend/public/guia-instalacion/iphone-2-agregar-a-inicio.png)
+
 4. Confirmá el nombre y tocá “Agregar”.
+
+   ![Diálogo de confirmación "Agregar a Inicio" con el botón Agregar](../../frontend/public/guia-instalacion/iphone-3-confirmar.png)
+
 5. Quedará disponible en tu home screen como una aplicación independiente.
 
 > Si no aparece la opción, revisá que estés usando Safari y no otra app de navegador.
+>
+> El ícono que ves en las capturas es genérico (la "M" por defecto) porque todavía no se mergeó la issue que agrega el ícono real de MargenX (#243). Una vez mergeada, el ícono de la pantalla de confirmación va a ser el de la app.
 
 ## Escritorio con Chrome o Edge
 

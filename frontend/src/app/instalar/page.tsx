@@ -3,35 +3,59 @@
 import { ArrowLeft, Check, Monitor, Phone, Smartphone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-const guideSections = [
+interface GuideStep {
+  text: string
+  image?: string
+  imageAlt?: string
+}
+
+interface GuideSection {
+  title: string
+  steps: GuideStep[]
+  icon: typeof Smartphone
+}
+
+const guideSections: GuideSection[] = [
   {
     title: 'Android · Chrome',
     steps: [
-      'Abre MargenX en Chrome y toca el botón de menú en la esquina superior derecha.',
-      'Selecciona “Instalar app” o “Agregar a pantalla de inicio”.',
-      'Confirmá la instalación y accederás desde el acceso directo en la pantalla principal.',
+      { text: 'Abre MargenX en Chrome y toca el botón de menú en la esquina superior derecha.' },
+      { text: 'Selecciona “Instalar app” o “Agregar a pantalla de inicio”.' },
+      { text: 'Confirmá la instalación y accederás desde el acceso directo en la pantalla principal.' },
     ],
     icon: Smartphone,
   },
   {
     title: 'iPhone · Safari',
     steps: [
-      'Abre la web en Safari y toca el botón de compartir en la parte inferior.',
-      'Elegí “Agregar a pantalla de inicio”.',
-      'Confirmá el nombre y el acceso quedará disponible desde tu home screen.',
+      {
+        text: 'Abre la web en Safari y toca el botón de compartir en la parte inferior.',
+        image: '/guia-instalacion/iphone-1-safari-compartir.png',
+        imageAlt: 'Landing de MargenX en Safari con el botón de compartir resaltado en la barra inferior',
+      },
+      {
+        text: 'Elegí “Agregar a Inicio” (puede que tengas que deslizar la lista para encontrarla).',
+        image: '/guia-instalacion/iphone-2-agregar-a-inicio.png',
+        imageAlt: 'Panel para compartir de Safari con la opción “Agregar a Inicio” visible en la lista',
+      },
+      {
+        text: 'Confirmá el nombre y tocá “Agregar”: el acceso quedará disponible desde tu home screen.',
+        image: '/guia-instalacion/iphone-3-confirmar.png',
+        imageAlt: 'Diálogo de confirmación “Agregar a Inicio” con el botón Agregar',
+      },
     ],
     icon: Phone,
   },
   {
     title: 'Escritorio · Chrome o Edge',
     steps: [
-      'Entrá a MargenX desde Chrome o Edge.',
-      'Buscá el ícono de instalación en la barra de direcciones o el menú de la pestaña.',
-      'Elegí “Instalar” para crear un acceso directo del sistema en tu computadora.',
+      { text: 'Entrá a MargenX desde Chrome o Edge.' },
+      { text: 'Buscá el ícono de instalación en la barra de direcciones o el menú de la pestaña.' },
+      { text: 'Elegí “Instalar” para crear un acceso directo del sistema en tu computadora.' },
     ],
     icon: Monitor,
   },
-] as const
+]
 
 export default function InstallPage() {
   return (
@@ -65,33 +89,48 @@ export default function InstallPage() {
           </p>
 
           <div className="mt-6 grid gap-4 md:mt-8 md:grid-cols-3">
-            {guideSections.map(({ title, steps, icon: Icon }) => (
-              <section key={title} className="rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/60">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                    <Icon className="size-4" />
+            {guideSections.map(({ title, steps, icon: Icon }) => {
+              const hasAnyImage = steps.some((step) => step.image)
+              return (
+                <section key={title} className="rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/60">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                      <Icon className="size-4" />
+                    </div>
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-white md:text-lg">{title}</h2>
                   </div>
-                  <h2 className="text-sm font-bold text-gray-900 dark:text-white md:text-lg">{title}</h2>
-                </div>
 
-                <div className="mb-4 rounded-2xl border border-dashed border-gray-300 bg-white p-3 dark:border-gray-600 dark:bg-gray-900/80">
-                  <div className="flex h-36 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-gray-100 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 dark:from-gray-800 dark:to-gray-900 dark:text-gray-500">
-                    <span className="block">Captura del paso</span>
-                  </div>
-                </div>
+                  {!hasAnyImage && (
+                    <div className="mb-4 rounded-2xl border border-dashed border-gray-300 bg-white p-3 dark:border-gray-600 dark:bg-gray-900/80">
+                      <div className="flex h-36 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-gray-100 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 dark:from-gray-800 dark:to-gray-900 dark:text-gray-500">
+                        <span className="block">Captura pendiente</span>
+                      </div>
+                    </div>
+                  )}
 
-                <ol className="space-y-3">
-                  {steps.map((step, idx) => (
-                    <li key={step} className="flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300 md:text-sm md:leading-6">
-                      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white">
-                        {idx + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ))}
+                  <ol className="space-y-4">
+                    {steps.map((step, idx) => (
+                      <li key={step.text} className="space-y-2">
+                        <div className="flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300 md:text-sm md:leading-6">
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white">
+                            {idx + 1}
+                          </span>
+                          <span>{step.text}</span>
+                        </div>
+                        {step.image && (
+                          <img
+                            src={step.image}
+                            alt={step.imageAlt ?? ''}
+                            loading="lazy"
+                            className="ml-8 w-36 rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700"
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )
+            })}
           </div>
 
           <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-5 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 md:text-sm md:leading-6">
