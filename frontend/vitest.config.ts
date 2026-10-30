@@ -1,50 +1,42 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { fileURLToPath } from 'node:url'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
   test: {
+    environment: 'jsdom',
     globals: true,
-    environment: 'happy-dom',
+    setupFiles: [],
     include: ['src/**/*.test.{ts,tsx}'],
-    exclude: ['tests/**', '**/node_modules/**', '**/dist/**'],
+    exclude: ['tests/e2e/**/*'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      all: false,
-      // Inclusión explícita sobre la capa de lógica pura, stores, esquemas y hooks de dominio
       include: [
-        'src/stores/**',
-        'src/schemas/**',
-        'src/lib/**',
-        'src/hooks/**',
+        'src/stores/**/*.ts',
+        'src/schemas/**/*.ts',
+        'src/lib/**/*.ts',
+        'src/hooks/**/*.ts',
         'src/components/MarginBadge.tsx',
+        'src/components/error-state.tsx'
       ],
       exclude: [
-        'src/components/ui/**',
-        'src/shims/**',
-        'src/hooks/useSessionSecurity.ts',
-        'src/hooks/useUnsavedChangesWarning.ts',
-        'src/lib/useCurrentUser.ts',
-        'src/lib/clerkConfig.ts',
-        'src/stores/useUserStore.ts',
-        'src/**/*.d.ts',
-        '**/*.test.{ts,tsx}',
-        '**/__tests__/**',
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx'
       ],
       thresholds: {
         lines: 90,
         functions: 90,
         statements: 90,
-        branches: 85,
-      },
+        branches: 85
+      }
+    }
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+      'next/link': path.resolve(import.meta.dirname, './src/shims/next-link.tsx'),
+      'next/navigation': path.resolve(import.meta.dirname, './src/shims/next-navigation.ts'),
     },
   },
 })
