@@ -32,11 +32,12 @@ To ensure an intuitive user experience and validate recipe creation flows prior 
 
 🔗 **[View Interactive Figma Prototype](https://www.figma.com/proto/VP7NOtPGVwSCPZex5wYpmZ/Margen-X?node-id=0-1&t=AkoTRJ9OMR8ePuRU-1)**
 
-The application is structured into four core operational modules:
+The application is structured into five core operational modules:
 1. **Authentication & Onboarding (`/login`):** Streamlined sign-in with delegated identity management and multi-tenant domain isolation.
 2. **Main Dashboard (`/dashboard`):** Real-time financial summary displaying monitored catalog items, average profitability, and risk alerts with WCAG AA compliant contrast badges (Green $\ge 30\%$, Red $< 30\%$).
 3. **Pantry & Supply Management (`/insumos`):** Responsive inventory catalog with live unit cost tracking, search filtering, and inline modal creation.
 4. **Products & Recipes (`/productos`, `/productos/nuevo`):** Bill of Materials (BOM) constructor with dynamic supply row additions, yield factor conversions, and interactive pricing simulator (+5%, +10%, target 30%).
+5. **Supplier Price Quarantine (`/proveedores/cuarentena`):** Review tray for supplier price updates that triggered the anti-pollution anomaly guard (>50% variation or a near-zero computed unit cost) — an ADMIN releases the update to apply it or rejects it to keep the current price.
 
 ---
 
@@ -75,9 +76,13 @@ The application is structured into four core operational modules:
 #### Relational Schema Overview
 - `Account`: Multi-tenant business account with unique routing slug and subscription status.
 - `User`: Team operators linked to Clerk `authProviderId` with assigned role (`ADMIN` or `COLLABORATOR`).
-- `Ingredient`: Raw materials with internal unit of measure (`kg`, `l`, `u`) and current cost.
+- `Ingredient`: Raw materials with internal unit of measure (`kg`, `l`, `u`) and current cost — derived from its default supplier presentation when one exists (see `Supplier`/`SupplierIngredient` below).
+- `Supplier`: Wholesale vendor for an account's ingredients.
+- `SupplierIngredient`: A supplier's specific presentation of an ingredient (package size/unit/price, and whether it is the default source for that ingredient). A price update that moves the computed unit cost by more than 50% or drops it near zero is held in **price quarantine** (`isQuarantined`) instead of applying automatically, pending an ADMIN's manual release or rejection.
 - `Product`: Finished goods with sale price, minimum margin threshold, and calculated financial metrics.
 - `ProductIngredient`: Relational recipe matrix joining products and ingredients with specific yield quantities.
+
+**Role-based visibility:** `/insumos` and `/proveedores/cuarentena` redirect `COLLABORATOR` sessions to `/productos` outright. On the screens a `COLLABORATOR` *can* reach (`/productos`, `/dashboard`, `/perfil`), every financial field is stripped from both the API response and the UI — cost, margin amount/percent, and recipe quantities are invisible, not merely hidden with CSS.
 
 ---
 
@@ -155,6 +160,7 @@ Módulos principales del sistema:
 2. **Dashboard Principal (`/dashboard`):** Resumen de rentabilidad en tiempo real con semáforo de alerta visual accesible bajo estándar WCAG AA (Verde $\ge 30\%$, Rojo $< 30\%$).
 3. **Insumos (`/insumos`):** Gestión de materias primas con buscador, unidades de medida (`kg`, `l`, `u`) y formulario modal de alta y edición rápida.
 4. **Productos y Recetas (`/productos`, `/productos/nuevo`):** Ficha técnica con selector dinámico de ingredientes por receta, conversión de unidades y simulador interactivo de precios de venta (+5%, +10%, margen 30%).
+5. **Cuarentena de Precios de Proveedores (`/proveedores/cuarentena`):** Bandeja de revisión para los cambios de precio de proveedor que disparan el filtro anti-polución (variación mayor al 50% o costo unitario calculado casi nulo) — un ADMIN libera el cambio para aplicarlo o lo rechaza para mantener el precio vigente.
 
 ---
 
@@ -193,9 +199,13 @@ Módulos principales del sistema:
 #### Entidades Principales de Persistencia
 - `Account`: Comercio registrado con slug único para la recepción de listas por correo.
 - `User`: Usuarios vinculados al proveedor Clerk con rol asignado.
-- `Ingredient`: Insumo con unidad de costeo y costo vigente.
+- `Ingredient`: Insumo con unidad de costeo y costo vigente — tomado de la presentación de su proveedor predeterminado cuando existe uno (ver `Supplier`/`SupplierIngredient` abajo).
+- `Supplier`: Proveedor mayorista de los insumos de una cuenta.
+- `SupplierIngredient`: Presentación concreta de un insumo en un proveedor (tamaño de paquete, precio, y si es la fuente predeterminada de ese insumo). Un cambio de precio que mueve el costo unitario calculado más de un 50% o lo deja casi en cero queda retenido en **cuarentena de precios** (`isQuarantined`) en vez de aplicarse solo: un ADMIN tiene que liberarlo o rechazarlo a mano.
 - `Product`: Producto final con precio de venta, costo calculado y margen resultante.
 - `ProductIngredient`: Receta compuesta que vincula producto con insumos y sus cantidades.
+
+**Visibilidad según el rol:** `/insumos` y `/proveedores/cuarentena` redirigen directamente a `/productos` a las sesiones `COLLABORATOR`. En las pantallas a las que sí llegan (`/productos`, `/dashboard`, `/perfil`), todo campo financiero queda afuera — ni en la respuesta de la API ni en la UI: costo, margen (monto y porcentaje) y cantidades de receta quedan invisibles, no solo ocultos con CSS.
 
 ---
 

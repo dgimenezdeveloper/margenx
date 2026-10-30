@@ -145,7 +145,7 @@
               "    pm.expect(json.discardedCodes).to.be.an('array').with.lengthOf(100);",
               "    pm.expect(json.discardedCodes[0]).to.have.all.keys(['code', 'reason']);",
               "    pm.expect(json.discardedCodes[0].reason).to.eql('NOT_FOUND');",
-              "    pm.expect(json.account).to.eql({ tradeName: 'Panadería Central', ownerEmail: 'admin.panaderia@hotmail.com' });",
+              "    pm.expect(json.account).to.eql({ tradeName: 'Panadería Central', ownerEmail: 'admin.panaderia@seed.example.test' });",
               "    pm.expect(json.criticalProductsAlerts).to.eql([]);",
               "});"
             ]

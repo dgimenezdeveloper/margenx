@@ -21,8 +21,8 @@ const accounts = [
     businessName: "Panadería Central",
     slug: "panaderia-central",
     users: [
-      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3LHkU9OL8FBdKxkZOsI0CvoVJ1j" },
-      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3LHkX5fpp3AcI7HvYn42PBV1xwP" },
+      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@seed.example.test", role: Role.ADMIN, authProviderId: "user_3LHkU9OL8FBdKxkZOsI0CvoVJ1j" },
+      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@seed.example.test", role: Role.COLLABORATOR, authProviderId: "user_3LHkX5fpp3AcI7HvYn42PBV1xwP" },
     ],
     suppliers: [
       {
@@ -334,8 +334,8 @@ const accounts = [
     businessName: "Química GyJ",
     slug: "quimica-gyj",
     users: [
-      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
-      { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
+      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@seed.example.test", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
+      { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@seed.example.test", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
     ],
     suppliers: [
       {

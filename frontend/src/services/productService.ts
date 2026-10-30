@@ -74,7 +74,7 @@ interface SingleProductResponse {
 function normalizeProduct(product: RawProduct): Product {
   return {
     ...product,
-    name: typeof product.name === 'string' ? product.name.replace(/(^|\s)\S/g, (t) => t.toUpperCase()) : String(product.name),
+    name: String(product.name),
     salePrice: Number(product.salePrice),
     minMarginPercent: product.minMarginPercent !== undefined ? Number(product.minMarginPercent) : undefined,
     cost: product.cost !== undefined ? Number(product.cost) : undefined,
@@ -93,7 +93,6 @@ function normalizeProduct(product: RawProduct): Product {
   }
 }
 
-// 1. Funciones con firmas sobrecargadas válidas a nivel de módulo
 async function getAll(getToken: TokenGetter): Promise<Product[]> {
   const response = await fetchApi<ProductResponse>('/products', getToken)
   const list = response.data ?? response.products ?? []
@@ -155,7 +154,6 @@ async function deleteProduct(arg1: string | TokenGetter, arg2: string | TokenGet
   })
 }
 
-// 2. Exportación consolidada en el objeto productService
 export const productService = {
   getAll,
   getById,

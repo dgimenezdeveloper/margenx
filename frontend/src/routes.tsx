@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 
 import LandingPage from './app/page'
 import LoginPage from './app/login/page'
@@ -8,7 +8,10 @@ import ProductsPage from './app/productos/page'
 import NewProductPage from './app/productos/nuevo/page'
 import ProductDetailPage from './app/productos/[id]/page'
 import ProfilePage from './app/perfil/page'
-import QuarantinePage from './app/proveedores/cuarentena/page' // NUEVO
+import PrivacyPage from './app/privacidad/page'
+import InstallPage from './app/instalar/page'
+import QuarantinePage from './app/proveedores/cuarentena/page'
+import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
 
@@ -20,6 +23,14 @@ export const router = createBrowserRouter([
   {
     path: '/login/*',
     element: <LoginPage />,
+  },
+  {
+    path: '/privacidad',
+    element: <PrivacyPage />,
+  },
+  {
+    path: '/instalar',
+    element: <InstallPage />,
   },
   {
     path: '/dashboard',
@@ -36,7 +47,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/proveedores/cuarentena', // NUEVO
+    path: '/proveedores/cuarentena',
     element: (
       <ProtectedRoute>
         <AdminOnlyRoute>
@@ -51,7 +62,13 @@ export const router = createBrowserRouter([
   },
   {
     path: '/productos/nuevo',
-    element: <ProtectedRoute><NewProductPage /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <AdminOnlyRoute>
+          <NewProductPage />
+        </AdminOnlyRoute>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/productos/:id',
@@ -63,6 +80,10 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/" replace />,
+    element: (
+      <ProtectedRoute>
+        <NotFoundPage />
+      </ProtectedRoute>
+    ),
   },
 ])

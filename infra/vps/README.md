@@ -116,6 +116,8 @@ cp .env.example /opt/margenx-infra/.env # Configurar variables
 docker compose up -d
 ```
 
+**`/opt/margenx-infra` en sí no es un repositorio git** — es solo el destino de despliegue en la VPS (ver el "Principio de diseño" de la sección 1: ningún contenedor clona código ahí). La versión real y fuente de verdad del compose es `docker-compose.prod.yml`, en este mismo directorio del repositorio; `/opt/margenx-infra/docker-compose.yml` es una copia operativa que se actualiza con el comando de arriba cada vez que cambia. El `.env` real de la VPS nunca se versiona (`.gitignore` ya excluye `.env`); `.env.example` sí, sin valores reales.
+
 ---
 
 ## 7. Verificación Perimetral y SSL de Producción (margenx.tech y api.margenx.tech)
@@ -344,3 +346,35 @@ echo | openssl s_client -connect margenx.tech:443 -servername margenx.tech 2>/de
 Comando de verificación periódica de renovación:
 ```bash
 sudo certbot renew --dry-run
+```
+
+---
+
+## 11. Cloudflare, casilla IMAP y Brevo
+
+Las tres piezas de infraestructura de correo de la ingesta automática de listas de precios (issue #170/#171, detalle del flujo en `infra/n8n/README.md`). Esta sección cubre solo lo operativo — dónde vive cada credencial y quién puede rotarla; el comportamiento del workflow está documentado en `infra/n8n/README.md`.
+
+| Pieza | Rol | Dónde se configura | Credenciales |
+|---|---|---|---|
+| **Cloudflare Email Routing** | Redirige `precios-<slug>@margenx.tech` (y variantes `precios.<slug>@`, `precios+<slug>@`) a la casilla IMAP central. Catch-all sobre el dominio `margenx.tech`. | Panel de Cloudflare, zona `margenx.tech` → *Email* → *Email Routing*. No requiere API key en la app: es ruteo DNS/MX, nada que vivir en `.env`. | Cuenta de Cloudflare del equipo (ver inventario de titularidad, §12). |
+| **Casilla IMAP (Gmail)** | Recibe los correos que Cloudflare redirige; n8n la consulta por IMAP IDLE. | Credencial **IMAP** de n8n, nombre `Gmail IMAP MargenX` (host `imap.gmail.com`, puerto 993, SSL) — se carga a mano en la interfaz de n8n, no sale de `.env` aunque `IMAP_USER`/`IMAP_HOST`/`IMAP_PORT` sí estén ahí (ver `infra/vps/.env.example`). | Cuenta de Google `margenx.saas@gmail.com` con contraseña de aplicación (no la contraseña real de la cuenta). |
+| **Brevo** | Envía el correo de resumen al dueño tras cada ingesta exitosa (`Enviar Resumen (Brevo)` en `ingesta-listas.json`). | Credencial **SMTP** de n8n, nombre `Brevo MargenX SMTP Relay` — igual que IMAP, se carga a mano en n8n, no en `.env`. | Cuenta de Brevo del equipo (ver inventario de titularidad, §12). |
+
+Si cualquiera de las tres credenciales de n8n se pierde o vence, el flujo de ingesta sigue recibiendo el correo (si Cloudflare/IMAP siguen bien) pero falla al avisar al dueño o al leer la casilla — revisar primero las credenciales dentro de n8n antes de tocar DNS o `.env`.
+
+---
+
+## 12. Inventario de Titularidad (preparación para el traspaso, fase 2)
+
+Qué cuenta real está detrás de cada servicio que usa MargenX en producción, para poder traspasarlas a una cuenta empresarial del cliente en la fase 2 del proyecto. **Columna "Titular actual" a completar y confirmar por Darío** — no es un dato que viva en el código ni en este repositorio.
+
+| Servicio | Para qué se usa | Titular actual | Notas para el traspaso |
+|---|---|---|---|
+| VPS (Donweb) | Hosting de Postgres, n8n, backend y frontend (prod + staging) | _(completar)_ | Ver §9 para el inventario de accesos SSH; la clave de Darío queda, la de soporte de Donweb es del proveedor, no del cliente. |
+| Dominio `margenx.tech` | DNS, Cloudflare Email Routing, certificados Let's Encrypt | _(completar)_ | El registrar del dominio decide quién puede cambiar DNS/MX — confirmar antes de traspasar nada más. |
+| Cloudflare | Email Routing del dominio | _(completar)_ | Puede ser la misma cuenta que administra el dominio o una distinta — confirmar cuál. |
+| Clerk | Autenticación (una sola instancia de desarrollo para prod + staging, ver `.env.example`) | _(completar)_ | Separar una instancia de producción real de Clerk es deuda pendiente (ver `infra/vps/.env.example`) — conviene resolverlo antes o durante el traspaso, no después. |
+| Gmail (`margenx.saas@gmail.com`) | Casilla IMAP de ingesta | _(completar)_ | La contraseña de aplicación de Google vive solo dentro de la credencial de n8n (§11) — rotarla ahí, no hace falta tocar `.env`. |
+| Brevo | Envío del correo de resumen al dueño | _(completar)_ | Igual que Gmail: la credencial vive dentro de n8n. |
+| Docker Hub | Imágenes de `backend`/`frontend` que `deploy.yml` publica y la VPS descarga | _(completar)_ | `DOCKER_USERNAME` en `.env.example` asume la cuenta actual; cambiarla implica actualizar ese valor y el secret de login en GitHub Actions. |
+| GitHub Actions (secrets del repo) | CI/CD, deploy por SSH, Discord | No aplica — pertenecen a la organización/cuenta del repositorio, no a una persona. | Revisar que ningún secret individual (ej. una clave SSH personal) quede huérfano si alguien del equipo se desvincula. |
