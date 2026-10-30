@@ -7,6 +7,7 @@ import { Plus, LoaderCircle } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
+import { ErrorState } from '@/components/error-state'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { productService, type Product } from '@/services/productService'
 import { dashboardService, type DashboardMetrics } from '@/services/dashboardService'
@@ -17,7 +18,6 @@ import { MonitoredCatalogGrid } from './components/MonitoredCatalogGrid'
 
 export default function DashboardPage() {
   const { getToken } = useAuth()
-  // Extraemos isLoadingUser para saber si todavía estamos resolviendo la sesión
   const { user, isLoading: isLoadingUser } = useCurrentUser()
   const isCollaborator = user?.role === 'COLLABORATOR'
 
@@ -26,52 +26,67 @@ export default function DashboardPage() {
 
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
   const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isRetrying, setIsRetrying] = useState<boolean>(false)
+  const [retryTrigger, setRetryTrigger] = useState(0)
 
   const [selectedBucket, setSelectedBucket] = useState<HealthBucketKey | null>(null)
 
   useEffect(() => {
-    // BLOQUEO RBAC: No disparamos ninguna petición hasta saber con certeza el rol del usuario
     if (isLoadingUser) return
 
     let active = true
 
-    const fetchMetrics = async () => {
+    async function fetchData() {
       try {
-        const res = await (isCollaborator
-          ? Promise.resolve(null)
-          : dashboardService.getMetrics(getToken))
-
+        if (isCollaborator) {
+          const prodRes = await productService.getAll(getToken)
+          if (active) {
+            setProducts(prodRes ?? [])
+            setMetrics(null)
+          }
+        } else {
+          const [metricRes, prodRes] = await Promise.all([
+            dashboardService.getMetrics(getToken),
+            productService.getAll(getToken),
+          ])
+          if (active) {
+            setMetrics(metricRes ?? null)
+            setProducts(prodRes ?? [])
+          }
+        }
+      } catch (err: unknown) {
         if (active) {
-          if (res) setMetrics(res)
+          const msg = err instanceof Error ? err.message : 'No se pudieron cargar los datos del panel.'
+          setLoadError(msg)
+          setMetrics(null)
+          setProducts([])
+        }
+      } finally {
+        if (active) {
           setIsLoadingMetrics(false)
-        }
-      } catch {
-        if (active) setIsLoadingMetrics(false)
-      }
-    }
-
-    const fetchProducts = async () => {
-      try {
-        const res = await productService.getAll(getToken)
-        if (active) {
-          setProducts(res)
           setIsLoadingProducts(false)
+          setIsRetrying(false)
         }
-      } catch {
-        if (active) setIsLoadingProducts(false)
       }
     }
 
-    void fetchMetrics()
-    void fetchProducts()
+    void fetchData()
 
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator, isLoadingUser])
+  }, [getToken, isCollaborator, isLoadingUser, retryTrigger])
+
+  const handleRetry = () => {
+    setLoadError(null)
+    setIsLoadingMetrics(true)
+    setIsLoadingProducts(true)
+    setIsRetrying(true)
+    setRetryTrigger((prev) => prev + 1)
+  }
 
   // BLOQUEO RBAC VISUAL: Mostramos un skeleton global mientras se resuelve el rol.
-  // Esto garantiza que los componentes financieros NUNCA se monten por error en el DOM.
   if (isLoadingUser) {
     return (
       <main className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
@@ -124,26 +139,36 @@ export default function DashboardPage() {
             )}
           </section>
 
-          {/* Bloques modulares y protegidos por RBAC */}
-          {!isCollaborator && (
+          {loadError ? (
+            <ErrorState
+              title="Error al cargar el panel"
+              description={loadError}
+              onRetry={handleRetry}
+              isRetrying={isRetrying}
+            />
+          ) : (
             <>
-              <DashboardKpiCards metrics={metrics} isLoading={isLoadingMetrics} />
-              <HealthDistributionHistogram
+              {!isCollaborator && (
+                <>
+                  <DashboardKpiCards metrics={metrics} isLoading={isLoadingMetrics} />
+                  <HealthDistributionHistogram
+                    products={products}
+                    isLoading={isLoadingProducts}
+                    selectedBucket={selectedBucket}
+                    onSelectBucket={setSelectedBucket}
+                  />
+                </>
+              )}
+
+              <MonitoredCatalogGrid
                 products={products}
                 isLoading={isLoadingProducts}
+                isCollaborator={isCollaborator}
                 selectedBucket={selectedBucket}
-                onSelectBucket={setSelectedBucket}
+                onClearFilter={() => setSelectedBucket(null)}
               />
             </>
           )}
-
-          <MonitoredCatalogGrid
-            products={products}
-            isLoading={isLoadingProducts}
-            isCollaborator={isCollaborator}
-            selectedBucket={selectedBucket}
-            onClearFilter={() => setSelectedBucket(null)}
-          />
         </div>
 
         <DesktopFooter />

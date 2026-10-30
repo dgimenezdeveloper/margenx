@@ -18,7 +18,7 @@ interface HealthBucket {
 }
 
 interface HealthDistributionHistogramProps {
-  products: Product[]
+  products?: Product[]
   isLoading: boolean
   selectedBucket: HealthBucketKey | null
   onSelectBucket: (key: HealthBucketKey | null) => void
@@ -29,13 +29,14 @@ interface HealthDistributionHistogramProps {
  * Calcula internamente los buckets y maneja su propio skeleton de carga.
  */
 export function HealthDistributionHistogram({
-  products,
+  products = [],
   isLoading,
   selectedBucket,
   onSelectBucket,
 }: HealthDistributionHistogramProps) {
-  const activeRecipeProducts = useMemo(() => products.filter((p) => p.ingredients.length > 0), [products])
-  const draftProductsCount = useMemo(() => products.filter((p) => p.ingredients.length === 0).length, [products])
+  const safeProducts = useMemo(() => products ?? [], [products])
+  const activeRecipeProducts = useMemo(() => safeProducts.filter((p) => (p?.ingredients ?? []).length > 0), [safeProducts])
+  const draftProductsCount = useMemo(() => safeProducts.filter((p) => (p?.ingredients ?? []).length === 0).length, [safeProducts])
 
   const healthBuckets = useMemo<HealthBucket[]>(() => {
     const total = activeRecipeProducts.length
