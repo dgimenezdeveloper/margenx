@@ -106,6 +106,8 @@ DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<VPS_HOST>:<DB_PORT>/margenx_
 
 Los backups diarios de `margenx_prod`, su rotación, el ensayo de restauración y el procedimiento para recuperar la base están en `docs/runbook-backup.md` (scripts en `infra/scripts/`).
 
+Para sembrar o resembrar las cuentas piloto y la Demo en staging o producción (con respaldo previo automático), ver `docs/runbook-operacion.md` (script `infra/scripts/seed-remoto.sh`).
+
 Para re-desplegar la infraestructura completa en un nuevo servidor:
 
 ```bash
@@ -373,7 +375,7 @@ Qué cuenta real está detrás de cada servicio que usa MargenX en producción, 
 | VPS (Donweb) | Hosting de Postgres, n8n, backend y frontend (prod + staging) | _(completar)_ | Ver §9 para el inventario de accesos SSH; la clave de Darío queda, la de soporte de Donweb es del proveedor, no del cliente. |
 | Dominio `margenx.tech` | DNS, Cloudflare Email Routing, certificados Let's Encrypt | _(completar)_ | El registrar del dominio decide quién puede cambiar DNS/MX — confirmar antes de traspasar nada más. |
 | Cloudflare | Email Routing del dominio | _(completar)_ | Puede ser la misma cuenta que administra el dominio o una distinta — confirmar cuál. |
-| Clerk | Autenticación (una sola instancia de desarrollo para prod + staging, ver `.env.example`) | _(completar)_ | Separar una instancia de producción real de Clerk es deuda pendiente (ver `infra/vps/.env.example`) — conviene resolverlo antes o durante el traspaso, no después. |
+| Clerk | Autenticación: una aplicación con instancia de producción (`backend-prod`) y de desarrollo (`backend-dev`), ver `.env.example` | Cuenta `margenx.saas@gmail.com` | Los `user_id` cambian entre instancias: al recrear usuarios, resembrar la Demo con los IDs nuevos (`docs/runbook-operacion.md` §3). |
 | Gmail (`margenx.saas@gmail.com`) | Casilla IMAP de ingesta | _(completar)_ | La contraseña de aplicación de Google vive solo dentro de la credencial de n8n (§11) — rotarla ahí, no hace falta tocar `.env`. |
 | Brevo | Envío del correo de resumen al dueño | _(completar)_ | Igual que Gmail: la credencial vive dentro de n8n. |
 | Docker Hub | Imágenes de `backend`/`frontend` que `deploy.yml` publica y la VPS descarga | _(completar)_ | `DOCKER_USERNAME` en `.env.example` asume la cuenta actual; cambiarla implica actualizar ese valor y el secret de login en GitHub Actions. |
