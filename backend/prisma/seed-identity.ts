@@ -66,3 +66,15 @@ export function resolveSeedUser(
     authProviderId: current?.authProviderId ?? seedUser.authProviderId,
   };
 }
+
+// rows: registros encontrados por el id del seed o por su nombre en la cuenta.
+// El mismo id en la misma cuenta no es conflicto aunque lo hayan renombrado:
+// el seed restaura el nombre. Sí lo es otro registro con ese nombre, o el id
+// en otra cuenta.
+export function hasIdentityConflict(
+  rows: Array<{ id: string; accountId: string }>,
+  id: string,
+  accountId: string,
+): boolean {
+  return rows.some((row) => row.id !== id || row.accountId !== accountId);
+}

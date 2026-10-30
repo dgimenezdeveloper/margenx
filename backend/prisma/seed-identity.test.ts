@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveDemoAuthProviderIds, resolveSeedUser } from './seed-identity';
+import { hasIdentityConflict, resolveDemoAuthProviderIds, resolveSeedUser } from './seed-identity';
 
 const DEV_IDS = { admin: 'user_3LHZsMObG8rtQEjZnIR9hB83047', collaborator: 'user_3LHa1sLQjQk7uUtluUfEII9pbFR' };
 
@@ -65,5 +65,26 @@ describe('resolveSeedUser', () => {
   it('falla si el email del seed ya lo usa otro usuario', () => {
     const existing = [{ id: 'otro-id', accountId, email: seedUser.email, authProviderId: 'user_x' }];
     expect(() => resolveSeedUser(existing, seedUser, accountId)).toThrow(/Conflicto de identidad/);
+  });
+});
+
+describe('hasIdentityConflict', () => {
+  const accountId = '30a00000-0000-4000-8000-000000000001';
+  const id = '30c00001-0000-4000-8000-000000000002';
+
+  it('no hay conflicto si no existe ningún registro', () => {
+    expect(hasIdentityConflict([], id, accountId)).toBe(false);
+  });
+
+  it('no hay conflicto si el mismo registro fue renombrado: el seed restaura el nombre', () => {
+    expect(hasIdentityConflict([{ id, accountId }], id, accountId)).toBe(false);
+  });
+
+  it('hay conflicto si otro registro de la cuenta ya usa el nombre', () => {
+    expect(hasIdentityConflict([{ id: 'otro-id', accountId }], id, accountId)).toBe(true);
+  });
+
+  it('hay conflicto si el ID pertenece a otra cuenta', () => {
+    expect(hasIdentityConflict([{ id, accountId: 'otra-cuenta' }], id, accountId)).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
-import { type DemoAuthProviderIds, resolveDemoAuthProviderIds } from "./seed-identity";
+import { type DemoAuthProviderIds, hasIdentityConflict, resolveDemoAuthProviderIds } from "./seed-identity";
 
 // Cuenta de demostración "Demo MargenX": script independiente de seed.ts.
 // Datos 100% ficticios, importes en ARS. IDs fijos con prefijo 31..., distintos
@@ -247,9 +247,9 @@ async function main() {
 
     for (const ingredient of ingredients) {
       const matching = await tx.ingredient.findMany({
-        where: { OR: [{ id: ingredient.id }, { accountId: ACCOUNT.id, name: ingredient.name }] },
+        where: { OR: [{ id: ingredient.id }, { accountId: ACCOUNT.id, name: { equals: ingredient.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== ingredient.id || row.accountId !== ACCOUNT.id || row.name !== ingredient.name)) {
+      if (hasIdentityConflict(matching, ingredient.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
       }
 
@@ -273,9 +273,9 @@ async function main() {
 
     for (const supplier of suppliers) {
       const matching = await tx.supplier.findMany({
-        where: { OR: [{ id: supplier.id }, { accountId: ACCOUNT.id, name: supplier.name }] },
+        where: { OR: [{ id: supplier.id }, { accountId: ACCOUNT.id, name: { equals: supplier.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== supplier.id || row.accountId !== ACCOUNT.id || row.name !== supplier.name)) {
+      if (hasIdentityConflict(matching, supplier.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
       }
 
@@ -316,9 +316,9 @@ async function main() {
 
     for (const product of products) {
       const matching = await tx.product.findMany({
-        where: { OR: [{ id: product.id }, { accountId: ACCOUNT.id, name: product.name }] },
+        where: { OR: [{ id: product.id }, { accountId: ACCOUNT.id, name: { equals: product.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== product.id || row.accountId !== ACCOUNT.id || row.name !== product.name)) {
+      if (hasIdentityConflict(matching, product.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el producto " + product.name + ".");
       }
 

@@ -7,7 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
-import { resolveSeedUser } from "./seed-identity";
+import { hasIdentityConflict, resolveSeedUser } from "./seed-identity";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
 // Issue #178 — proveedores mayoristas reales y mapeo de SKU por SupplierIngredient.
@@ -681,16 +681,12 @@ async function main() {
           where: {
             OR: [
               { id: ingredient.id },
-              { accountId: account.id, name: ingredient.name },
+              { accountId: account.id, name: { equals: ingredient.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingIngredients.some((row) =>
-          row.id !== ingredient.id ||
-          row.accountId !== account.id ||
-          row.name !== ingredient.name
-        )) {
+        if (hasIdentityConflict(matchingIngredients, ingredient.id, account.id)) {
           throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
         }
 
@@ -727,16 +723,12 @@ async function main() {
           where: {
             OR: [
               { id: supplier.id },
-              { accountId: account.id, name: supplier.name },
+              { accountId: account.id, name: { equals: supplier.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingSuppliers.some((row) =>
-          row.id !== supplier.id ||
-          row.accountId !== account.id ||
-          row.name !== supplier.name
-        )) {
+        if (hasIdentityConflict(matchingSuppliers, supplier.id, account.id)) {
           throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
         }
 
@@ -805,16 +797,12 @@ async function main() {
           where: {
             OR: [
               { id: product.id },
-              { accountId: account.id, name: product.name },
+              { accountId: account.id, name: { equals: product.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingProducts.some((row) =>
-          row.id !== product.id ||
-          row.accountId !== account.id ||
-          row.name !== product.name
-        )) {
+        if (hasIdentityConflict(matchingProducts, product.id, account.id)) {
           throw new Error("Conflicto de identidad en el producto " + product.name + ".");
         }
 
