@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'next/link': fileURLToPath(new URL('./src/shims/next-link.tsx', import.meta.url)),
+      'next/navigation': fileURLToPath(new URL('./src/shims/next-navigation.ts', import.meta.url)),
     },
   },
   test: {
@@ -18,7 +20,6 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      all: false,
       // Inclusión explícita sobre la capa de lógica pura, stores, esquemas y hooks de dominio
       include: [
         'src/stores/**',

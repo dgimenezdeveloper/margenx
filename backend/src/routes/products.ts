@@ -143,7 +143,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const payload = req.body && typeof req.body === 'object' && 'product' in req.body
     ? (req.body as { product?: unknown }).product
-    : req.body; const input = parseBody(payload as ProductBody);
+    : req.body;
+  const input = parseBody(payload as ProductBody);
   const accountId = req.user!.accountId;
 
   // Ejecutar la creación de forma atómica en una transacción.
@@ -173,9 +174,7 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
     const created = await tx.product.create({
       data: {
         accountId,
-        // Guardamos el nombre en minúsculas en la base de datos para
-        // normalizar y facilitar comparaciones case-insensitive.
-        name: input.name.toLowerCase(),
+        name: input.name, // Respetamos el formato original del usuario
         salePrice: input.salePrice,
         minMarginPercent: input.minMarginPercent,
         cost,
@@ -294,7 +293,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
       return tx.product.update({
         where: { id },
         data: {
-          name: name ? name.toLowerCase() : existing.name,
+          name: name ?? existing.name, // Respetamos el formato original del usuario
           salePrice: finalSalePrice,
           minMarginPercent: finalMinMargin,
           cost: finalCost,
@@ -309,7 +308,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     return tx.product.update({
       where: { id },
       data: {
-        name: name ? name.toLowerCase() : existing.name,
+        name: name ?? existing.name, // Respetamos el formato original del usuario
         salePrice: finalSalePrice,
         minMarginPercent: finalMinMargin,
         cost: finalCost,

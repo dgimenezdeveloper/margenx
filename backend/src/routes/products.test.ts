@@ -525,3 +525,96 @@ describe('DELETE /api/products/:id', () => {
     expect(productDeleteManyMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' } });
   });
 });
+
+/* Nombres de producto: se guardan tal como los escribe el usuario (#236) y la
+ * unicidad por cuenta es case-insensitive. Desde que se quitó el toLowerCase()
+ * al guardar, la restricción @@unique([accountId, name]) de Postgres distingue
+ * mayúsculas, así que la única barrera contra "Pan de Campo" / "PAN DE CAMPO"
+ * es la validación con mode: 'insensitive' de la ruta. */
+describe('Nombres de producto: formato original y unicidad case-insensitive', () => {
+  const existingProduct = {
+    id: 'p1',
+    name: 'Pan de Campo',
+    salePrice: new Prisma.Decimal('30.00'),
+    minMarginPercent: new Prisma.Decimal('10'),
+    cost: new Prisma.Decimal('0'),
+    marginAmount: new Prisma.Decimal('0'),
+    marginPercent: new Prisma.Decimal('0'),
+  };
+
+  beforeEach(() => {
+    // Prisma siempre devuelve un array; los POST de este bloque van sin receta.
+    txIngredientFindManyMock.mockResolvedValue([]);
+  });
+
+  it('POST guarda el nombre con las mayúsculas y minúsculas que escribió el usuario', async () => {
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockResolvedValue({ id: 'p1', name: 'Pan de Campo' });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Pan de Campo', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(201);
+    expect(txProductCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ name: 'Pan de Campo' }) })
+    );
+  });
+
+  it('POST busca duplicados sin distinguir mayúsculas y dentro de la misma cuenta', async () => {
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockResolvedValue({ id: 'p2', name: 'PAN DE CAMPO' });
+
+    await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'PAN DE CAMPO', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(txProductFindFirstMock).toHaveBeenCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'PAN DE CAMPO', mode: 'insensitive' } },
+    });
+  });
+
+  it('POST rechaza con 400 un nombre que solo difiere en mayúsculas de uno existente', async () => {
+    txProductFindFirstMock.mockResolvedValue(existingProduct);
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'PAN DE CAMPO', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Ya existe un producto con ese nombre.');
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT rechaza con 400 renombrar a un nombre de otro producto con distinto casing', async () => {
+    txProductFindFirstMock
+      .mockResolvedValueOnce({ ...existingProduct, id: 'p2', name: 'Medialuna' })
+      .mockResolvedValueOnce(existingProduct);
+    txProductIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp())
+      .put('/api/products/p2')
+      .send({ name: 'pan de campo' });
+
+    expect(res.status).toBe(400);
+    expect(txProductFindFirstMock).toHaveBeenLastCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'pan de campo', mode: 'insensitive' } },
+    });
+    expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT permite corregir solo el casing del propio nombre y lo guarda tal cual', async () => {
+    txProductFindFirstMock.mockResolvedValueOnce({ ...existingProduct, name: 'pan de campo' });
+    txProductIngredientCountMock.mockResolvedValue(0);
+    txProductUpdateMock.mockResolvedValue({ id: 'p1', name: 'Pan de Campo' });
+
+    const res = await request(buildApp())
+      .put('/api/products/p1')
+      .send({ name: 'Pan de Campo' });
+
+    expect(res.status).toBe(200);
+    // Solo la búsqueda del producto existente: no hay chequeo de duplicado contra sí mismo
+    expect(txProductFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(firstUpdateData().name).toBe('Pan de Campo');
+  });
+});
