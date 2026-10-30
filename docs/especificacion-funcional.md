@@ -69,6 +69,7 @@ Reglas del camino A (vigentes):
 Decisiones de diseño del camino B:
 
 - El archivo se lee **en el navegador** y se envía a un endpoint autenticado de alta masiva, solo para ADMIN, con validación por fila, tope de filas, transacción y respuesta con creados, omitidos y errores.
+- La carga masiva procesa cada fila independientemente: una inválida no frena el resto; si hay un nombre repetido en la cuenta, esa fila se omite sin tocar el costo vigente; y si la lista supera 500 filas, la API responde con `413` y un mensaje claro para dividir el lote.
 - **No** usa el webhook de ingesta (§5): ese webhook está reservado a n8n, exige un secreto interno que no puede viajar al navegador y solo actualiza precios de artículos ya vinculados; no crea catálogo. La plantilla y la ingesta comparten solo las reglas de lectura (nombres de columna y formato de números), no el contrato.
 
 Decisión de diseño del camino C: los costos "de referencia de mercado" envejecen rápido con la inflación. Si se implementa, los insumos sugeridos se precargan con su fecha de referencia o con el costo marcado "a confirmar", y la carga reutiliza el alta masiva del camino B.
