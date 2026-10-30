@@ -80,6 +80,9 @@ export default function PrivacyPage() {
                 <span className="font-bold text-gray-900 dark:text-white">Brevo:</span> recibe y despacha correos de alertas y reportes del sistema, cuando corresponda.
               </li>
               <li>
+                <span className="font-bold text-gray-900 dark:text-white">Vercel Analytics:</span> mide páginas visitadas y rendimiento de la app en todas las pantallas, incluidas estas públicas. No usa cookies ni identifica a la persona; no procesa datos de costos, productos ni proveedores.
+              </li>
+              <li>
                 <span className="font-bold text-gray-900 dark:text-white">MargenX:</span> accede a la información necesaria para operar la gestión de costos, productos y proveedores del comercio.
               </li>
             </ul>
