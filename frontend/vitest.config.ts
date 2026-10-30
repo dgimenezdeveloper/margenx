@@ -10,6 +10,26 @@ export default defineConfig({
     setupFiles: [],
     include: ['src/**/*.test.{ts,tsx}'], // Solo busca tests dentro de src/
     exclude: ['tests/e2e/**/*'],         // Ignora los tests de Playwright
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/stores/**/*.ts',
+        'src/schemas/**/*.ts',
+        'src/lib/**/*.ts',
+        'src/hooks/**/*.ts',
+        'src/components/MarginBadge.tsx'
+      ],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx'
+      ],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        statements: 90,
+        branches: 85
+      }
+    }
   },
   resolve: {
     alias: {
