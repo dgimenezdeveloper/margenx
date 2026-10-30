@@ -17,8 +17,9 @@ const TOLERANCE_MONEY = 0.01
  * discrepancias de redondeo entre lo que ve el comerciante en pantalla
  * y lo que liquida el backend.
  *
- * Fuente (mismo patrón en ambos archivos):
- * - frontend/src/app/productos/detalle/page.tsx
+ * Fuente (mismo patrón en todos estos archivos):
+ * - frontend/src/app/productos/[id]/components/ProductRecipeBOM.tsx
+ * - frontend/src/app/productos/nuevo/page.tsx
  * - frontend/src/stores/useRecipeStore.ts
  */
 const frontendMath = {
