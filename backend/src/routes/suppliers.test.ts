@@ -117,7 +117,7 @@ beforeEach(() => {
     id: 'account-1',
     businessName: 'Panadería Central',
     slug: 'panaderia-central',
-    users: [{ email: 'admin.panaderia@hotmail.com' }],
+    users: [{ email: 'admin.panaderia@seed.example.test' }],
   });
 });
 
@@ -835,6 +835,29 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
   });
 
+  it('devuelve 422 si se intenta quitar el predeterminado sin reemplazo', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Cañuelas' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({
+      id: 'si-existente',
+      isDefault: true,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '40000', isDefault: false });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/No puedes quitar el proveedor predeterminado sin asignar otro/);
+    expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+  });
+
   it('si isDefault es false en nueva asociación no actualiza ingredient ni crea historial', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
     ingredientFindFirstMock.mockResolvedValue({
@@ -864,7 +887,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       accountId: 'account-1',
       unit: 'kg',
     });
-    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1' });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1', isDefault: false });
     supplierIngredientUpdateMock.mockResolvedValue({ id: 'si-1', isDefault: false });
 
     const res = await request(buildApp())
@@ -923,7 +946,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       id: 'account-1',
       businessName: 'Panadería Central',
       slug: 'panaderia-central',
-      users: [{ email: 'admin.panaderia@hotmail.com' }],
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
     };
     accountFindUniqueMock.mockResolvedValue(body);
 

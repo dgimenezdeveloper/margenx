@@ -96,7 +96,7 @@ beforeEach(() => {
     id: 'account-1',
     businessName: 'Panadería Central',
     slug: 'panaderia-central',
-    users: [{ email: 'admin.panaderia@hotmail.com' }],
+    users: [{ email: 'admin.panaderia@seed.example.test' }],
   });
 });
 
@@ -453,7 +453,7 @@ describe('PUT /api/ingredients/:id', () => {
       id: 'account-1',
       businessName: 'Panadería Central',
       slug: 'panaderia-central',
-      users: [{ email: 'admin.panaderia@hotmail.com' }],
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
     });
 
     const res = await request(buildApp())
@@ -479,7 +479,7 @@ describe('PUT /api/ingredients/:id', () => {
       accountId: 'account-1',
       accountSlug: 'panaderia-central',
       tradeName: 'Panadería Central',
-      ownerEmail: 'admin.panaderia@hotmail.com',
+      ownerEmail: 'admin.panaderia@seed.example.test',
       ingredient: {
         id: 'ing-1',
         name: 'Harina 000',
@@ -739,7 +739,7 @@ describe('PUT /api/ingredients/:id', () => {
       id: 'account-1',
       businessName: 'Panadería Central',
       slug: 'panaderia-central',
-      users: [{ email: 'admin.panaderia@hotmail.com' }],
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
     });
 
     const res = await request(buildApp())

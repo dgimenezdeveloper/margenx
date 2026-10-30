@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import Link from 'next/link'
+import { Link, useNavigate } from 'react-router-dom'
 import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { isClerkConfigured } from '@/lib/clerkConfig'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -101,7 +100,7 @@ export default function LoginPage() {
         </div>
       )}
       <Link
-        href="/"
+        to="/"
         className="absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-indigo-600"
       >
         <ArrowLeft className="size-4" /> Volver a la web
@@ -114,6 +113,15 @@ export default function LoginPage() {
             className="mx-auto h-20 w-auto object-contain transition-all duration-150 dark:brightness-0 dark:invert"
           />
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
+        </div>
+
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+          <Link to="/privacidad" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
+            Política de privacidad
+          </Link>
+          <Link to="/instalar" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
+            Guía de instalación
+          </Link>
         </div>
 
         {!isLoaded || isStaleSession ? (

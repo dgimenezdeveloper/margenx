@@ -89,7 +89,7 @@ no el valor histórico declarado en el script. Ver issue #178.
 
 | name | unit | currentCost declarado — ARS | costo activo (post-seed) — ARS |
 |---|---|---:|---:|
-| Harina de trigo 000 Olavarriense | kg | 742.98 | **736.25** (MarJuanC) |
+| Harina de trigo 000 Olavarriense | kg | 736.25 † | **736.25** (MarJuanC) |
 | Harina de trigo 0000 Olavarriense | kg | 868.77 | **845.05** (MarJuanC) |
 | Azúcar común tipo A | kg | 1150.00 | **1140.00** (MarJuanC) |
 | Manteca en bloque mayorista | kg | 12090.00 | **10050.94** (MarJuanC) |
@@ -110,6 +110,13 @@ Notas de la referencia:
 - La columna "currentCost declarado" es la referencia histórica del dataset
   (Sprint 1); se conserva en `backend/prisma/seed.ts` como valor de respaldo
   para insumos sin proveedor predeterminado.
+- † Harina de trigo 000: el valor declarado se corrigió de `742.98` a `736.25`
+  (issue #265) para que coincida con el costo activo, porque la cifra vieja
+  no era un respaldo real en uso — este insumo siempre tuvo proveedor
+  predeterminado — y el PR #217 mostró que generaba confusión real al
+  aparecer sin explicación junto al costo vigente de la presentación. El
+  resto de los insumos de esta tabla conserva su valor declarado histórico
+  sin tocar, porque nadie reportó la misma confusión sobre ellos.
 
 ## Insumos de Química GyJ
 
@@ -256,12 +263,14 @@ No se recalculan automáticamente a partir de los precios nuevos.
 | Comercio | email | role |
 |---|---|---|
 | Panadería Central | admin.panaderia@seed.example.test | ADMIN |
-| Panadería Central | colaborador.panaderia@seed.example.test | COLLABORATOR |
+| Panadería Central | colab.panaderia@seed.example.test | COLLABORATOR |
 | Química GyJ | admin.quimica@seed.example.test | ADMIN |
-| Química GyJ | colaborador.quimica@seed.example.test | COLLABORATOR |
+| Química GyJ | colab.quimica@seed.example.test | COLLABORATOR |
 
-Son usuarios ficticios de base de datos. Sus `authProviderId` utilizan
-identificadores locales con prefijo `seed_local_`.
+Los emails son ficticios (dominio `seed.example.test`, reservado para pruebas
+por la RFC 2606 — issue #268). Sus `authProviderId` son los de las cuentas
+reales de Clerk del equipo (ver `backend/prisma/seed.ts`), no identificadores
+locales: el login E2E/manual contra estas cuentas funciona de verdad.
 
 El script no crea usuarios en Clerk ni habilita el inicio de sesión
 con estas identidades.
