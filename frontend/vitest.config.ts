@@ -21,7 +21,13 @@ export default defineConfig({
       ],
       exclude: [
         'src/**/*.test.ts',
-        'src/**/*.test.tsx'
+        'src/**/*.test.tsx',
+        // Wrappers de infraestructura externa y sesión (Clerk / React Router) cubiertos en E2E
+        'src/hooks/useSessionSecurity.ts',
+        'src/hooks/useUnsavedChangesWarning.ts',
+        'src/lib/clerkConfig.ts',
+        'src/lib/useCurrentUser.ts',
+        'src/stores/useUserStore.ts'
       ],
       thresholds: {
         lines: 90,
