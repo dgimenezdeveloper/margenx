@@ -7,13 +7,16 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { type DemoAuthProviderIds, hasIdentityConflict, resolveDemoAuthProviderIds } from "./seed-identity";
 
 // Cuenta de demostración "Demo MargenX": script independiente de seed.ts.
 // Datos 100% ficticios, importes en ARS. IDs fijos con prefijo 31..., distintos
 // de los 30... del seed de QA, para poder re-ejecutar sin duplicar (upsert).
 //
 // Los usuarios deben existir previamente en Clerk (este script no los crea):
-// el authProviderId es el user_id de Clerk de cada uno.
+// el authProviderId es el user_id de Clerk de cada uno. Cada instancia de Clerk
+// tiene sus propios IDs: los de abajo son los de desarrollo; en producción se
+// pasan SEED_DEMO_ADMIN_AUTH_ID y SEED_DEMO_COLAB_AUTH_ID (docs/runbook-operacion.md).
 //
 // Re-ejecutar REINICIA el escenario de demo (costos, precios y la cuarentena
 // pendiente vuelven al estado inicial).
@@ -21,14 +24,19 @@ import {
 // Alertas: el destinatario es el primer usuario ADMIN de la cuenta
 // (demo-admin@margenx.tech); Account no tiene un campo ownerEmail.
 
+const DEV_AUTH_PROVIDER_IDS: DemoAuthProviderIds = {
+  admin: "user_3LHZsMObG8rtQEjZnIR9hB83047",
+  collaborator: "user_3LHa1sLQjQk7uUtluUfEII9pbFR",
+};
+
 const ACCOUNT = {
   id: "31a00000-0000-4000-8000-000000000001",
   businessName: "Demo MargenX",
   slug: "demo-margenx",
   users: [
-    { id: "31d00001-0000-4000-8000-000000000001", email: "demo-admin@margenx.tech", role: Role.ADMIN, authProviderId: "user_3LHZsMObG8rtQEjZnIR9hB83047" },
-    { id: "31d00001-0000-4000-8000-000000000002", email: "demo-colab@margenx.tech", role: Role.COLLABORATOR, authProviderId: "user_3LHa1sLQjQk7uUtluUfEII9pbFR" },
-  ],
+    { id: "31d00001-0000-4000-8000-000000000001", email: "demo-admin@margenx.tech", role: Role.ADMIN, clerkRole: "admin" },
+    { id: "31d00001-0000-4000-8000-000000000002", email: "demo-colab@margenx.tech", role: Role.COLLABORATOR, clerkRole: "collaborator" },
+  ] as const,
 };
 
 const ING = {
@@ -187,6 +195,8 @@ function confirmDatabaseTarget() {
 
 async function main() {
   confirmDatabaseTarget();
+  const authProviderIds = resolveDemoAuthProviderIds(process.env, DEV_AUTH_PROVIDER_IDS);
+  const users = ACCOUNT.users.map(({ clerkRole, ...user }) => ({ ...user, authProviderId: authProviderIds[clerkRole] }));
 
   const counts = await prisma.$transaction(async (tx) => {
     const matchingAccounts = await tx.account.findMany({
@@ -204,13 +214,14 @@ async function main() {
       update: { businessName: ACCOUNT.businessName, slug: ACCOUNT.slug },
     });
 
-    for (const user of ACCOUNT.users) {
+    for (const user of users) {
       const matchingUsers = await tx.user.findMany({
         where: { OR: [{ id: user.id }, { email: user.email }, { authProviderId: user.authProviderId }] },
       });
+      // Mismo id con otro authProviderId es válido: la cuenta se resiembra
+      // sobre otra instancia de Clerk y se actualiza el vínculo.
       if (matchingUsers.some((row) =>
-        row.id !== user.id || row.accountId !== ACCOUNT.id ||
-        row.email !== user.email || row.authProviderId !== user.authProviderId
+        row.id !== user.id || row.accountId !== ACCOUNT.id || row.email !== user.email
       )) {
         throw new Error("Conflicto de identidad del usuario " + user.email + ".");
       }
@@ -218,7 +229,7 @@ async function main() {
       await tx.user.upsert({
         where: { id: user.id },
         create: { ...user, accountId: ACCOUNT.id },
-        update: { role: user.role },
+        update: { role: user.role, authProviderId: user.authProviderId },
       });
     }
 
@@ -236,9 +247,9 @@ async function main() {
 
     for (const ingredient of ingredients) {
       const matching = await tx.ingredient.findMany({
-        where: { OR: [{ id: ingredient.id }, { accountId: ACCOUNT.id, name: ingredient.name }] },
+        where: { OR: [{ id: ingredient.id }, { accountId: ACCOUNT.id, name: { equals: ingredient.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== ingredient.id || row.accountId !== ACCOUNT.id || row.name !== ingredient.name)) {
+      if (hasIdentityConflict(matching, ingredient.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
       }
 
@@ -262,9 +273,9 @@ async function main() {
 
     for (const supplier of suppliers) {
       const matching = await tx.supplier.findMany({
-        where: { OR: [{ id: supplier.id }, { accountId: ACCOUNT.id, name: supplier.name }] },
+        where: { OR: [{ id: supplier.id }, { accountId: ACCOUNT.id, name: { equals: supplier.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== supplier.id || row.accountId !== ACCOUNT.id || row.name !== supplier.name)) {
+      if (hasIdentityConflict(matching, supplier.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
       }
 
@@ -305,9 +316,9 @@ async function main() {
 
     for (const product of products) {
       const matching = await tx.product.findMany({
-        where: { OR: [{ id: product.id }, { accountId: ACCOUNT.id, name: product.name }] },
+        where: { OR: [{ id: product.id }, { accountId: ACCOUNT.id, name: { equals: product.name, mode: "insensitive" } }] },
       });
-      if (matching.some((row) => row.id !== product.id || row.accountId !== ACCOUNT.id || row.name !== product.name)) {
+      if (hasIdentityConflict(matching, product.id, ACCOUNT.id)) {
         throw new Error("Conflicto de identidad en el producto " + product.name + ".");
       }
 
