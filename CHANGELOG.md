@@ -1,10 +1,3 @@
----
-
-### 2. `CHANGELOG.md` (Completo)
-
-*(Recordá reemplazar `#N` por el número de tu issue en las líneas agregadas)*
-
-```markdown
 # Changelog — MargenX
 
 Todos los cambios notables de este proyecto serán documentados en este archivo siguiendo el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y [Semantic Versioning](https://semver.org/lang/es/).
@@ -13,8 +6,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 > Tareas y características planificadas para el Sprint 5 (Smart Purchasing, Reportes PDF periódicos y Backups).
 
+
 ### Fixed
 
+- **Frontend:** `/dashboard` e `/insumos` ya no muestran "0 productos en riesgo", "0 insumos" ni una lista vacía cuando la API falla (5xx) o no hay red: los indicadores se reemplazan por un estado de error con botón Reintentar, y mientras se reintenta se ve el estado de carga. Ante un fallo de red el mensaje es un texto en español y no el error técnico del navegador (`#257`).
 - **Frontend:** La notificación de error o éxito (toast) ahora se muestra correctamente por encima de los modales abiertos (z-index elevado a 100) (`#322`).
 - **Frontend:** El modal de compras mayoristas ahora advierte antes de cerrarse si hay cambios sin guardar, previniendo la pérdida accidental de datos (`#322`).
 - **Backend / DevOps:** `seed.ts` ya no aborta en producción cuando los usuarios piloto tienen otro email que el seed: conserva el email y el `authProviderId` existentes. Ambos seeds restauran el nombre de un insumo, proveedor o producto renombrado (mismo ID) en vez de cortar la carga, y buscan nombres repetidos sin distinguir mayúsculas (`#240`).
@@ -23,12 +18,16 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
 - **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
+- **Backend:** Costo declarado de "Harina de trigo 000 Olavarriense" en el seed corregido de `742.98` a `736.25`, igual al costo activo real de su presentación mayorista por defecto (que siempre lo sobrescribía; el valor viejo nunca llegaba a la base y generaba confusión en revisiones). Se alinearon también la colección Postman `Alertas de margen (Insumos)` y `backend/scripts/check-ingredient-cost-change.ts`, que citaban la cifra vieja como si fuera la base real (`#265`).
+- **QA:** `coverage/` agregado al `.gitignore` — quedaba sin rastrear después de correr `npm run test:coverage` (`#265`).
 - **Security:** Se ocultó la cantidad de receta y los campos financieros para el rol `COLLABORATOR` en la API real y en la UI, y se cubrió con validación de regresión por endpoint y perfil.
 - **Security:** Datos sensibles fuera del repositorio: los emails de los comercios piloto en `backend/prisma/seed.ts`, sus tests y la colección Postman de Webhooks pasan al dominio reservado para pruebas `seed.example.test` (RFC 2606); la contraseña del Postgres del devcontainer deja de ser `devpassword123`. Búsqueda confirmada sin coincidencias de emails reales, IP de la VPS ni esa contraseña fuera del historial (`#268`).
 - **Docs:** `backend/.env.example` e `infra/vps/.env.example` sin variables muertas que no lee ningún archivo real (`N8N_WEBHOOK_URL`, `POSTGRES_DB`/`POSTGRES_PORT` sueltos, los 4 `*_PORT` de la app — todos los puertos de `docker-compose.prod.yml` están fijos, no son variables); `frontend/.env.example` suma `VITE_INACTIVITY_TIMEOUT_MS` (faltaba) y cambia el ejemplo de producción de una URL de Azure ya inexistente a los dominios reales de la VPS (`#268`).
 
 ### Added
 
+- **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con mensaje, botón Reintentar de 44 px de alto y `role="alert"`; lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`, y queda documentado en `frontend/README.md` (`#257`).
+- **QA:** Pruebas de Vitest de `ErrorState`, `DashboardPage` y `SuppliesPageContent` (fallo 500, fallo de red, reintento exitoso y estado de carga durante el reintento) y caso E2E en `smoke.spec.ts` que fuerza un 500 en `/api/dashboard/metrics` (`#257`).
 - **DevOps:** Script `infra/scripts/seed-remoto.sh` para sembrar o resembrar staging y producción: compila los seeds localmente, compara migraciones, hace `pg_dump` previo y corre el seed en un contenedor temporal con la imagen del backend. En producción exige la rama `main` sin cambios sin commitear. Runbook en `docs/runbook-operacion.md` (`#240`).
 - **Backend:** `seed-demo.ts` toma los `user_id` del Clerk de producción de `SEED_DEMO_ADMIN_AUTH_ID` y `SEED_DEMO_COLAB_AUTH_ID` (`#240`).
 - **Frontend:** Página 404 dentro del panel (con el menú y un botón al dashboard) para cualquier ruta inexistente, y redirección de `/` al dashboard cuando hay sesión activa. Se eliminó el código muerto `productos/detalle` (`#236`).
@@ -39,11 +38,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Backend / Config:** Configuración de `backend/vitest.config.ts` con exclusión de archivos de arranque (`src/index.ts`, `src/lib/prisma.ts`) y umbral de cobertura estricto `thresholds.lines: 90` (`#277`).
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
+- **QA:** Cosecha de los comentarios no bloqueantes dejados en las revisiones de los PR #215 a #218: etiqueta `review-followup` y 5 issues nuevas agrupadas por tema (`#310`-`#314`); tabla de trazabilidad completa (28 ítems: resueltos, descartados o agrupados) en `docs/qa/reporte-calidad-sprint5.md` (`#265`).
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
+- **Backend:** Bloqueo con error 422 al intentar quitar el proveedor predeterminado de un insumo sin asignar otro en su lugar.
+- **Frontend:** Exclusión de proveedores ya vinculados en el modal de asociación de empaques y aviso claro al intentar desmarcar el proveedor predeterminado.
 - **Security:** Incorporación de `helmet` con cabeceras por defecto para reforzar la capa de seguridad HTTP sin activar CSP aún.
 - **Docs:** Formato normalizado de revisión de PR (`docs/process/revision-de-prs.md`), con IDs `[RV<PR>-<S><n>]` que reemplazan al prefijo `NB-n`, y comandos de Claude Code `/revisar-pr` y `/resolver-issue` en `.claude/commands/` (`#274`).
 - **Docs:** Especificación funcional unificada (`docs/especificacion-funcional.md`), alineada con el código de `develop` (`#274`).
+- **Docs:** ADR-005 sobre costo vigente, cuarentena e ingesta (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`), y actualización del manual de usuario con la regla del proveedor predeterminado.
 - **DevOps / CI:** Jobs `Frontend Unit Tests` (Vitest con el umbral de cobertura del 90 %), `n8n Nodes Tests` y `Dependency Audit` (`npm audit --omit=dev` en ambos paquetes, con lista de excepciones en `.github/audit-allowlist.json` y su filtro probado en `.github/scripts/`) (`#260`).
 - **DevOps:** `.github/dependabot.yml`: PR semanal agrupado de versiones menores y parches hacia `develop` para npm (backend y frontend), GitHub Actions e imágenes base de Docker (`#260`).
 - **DevOps:** `.nvmrc` con Node 22 como versión única para el entorno local, el CI y las imágenes (`#260`).
@@ -70,6 +73,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
 
+### Fixed
+
+- **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
+- **QA:** `run-tests.sh` (Insumos) usaba un `accountId` que no corresponde a ninguna cuenta del seed; `run-tests-rbac-colaborador.sh` apuntaba al puerto 3021 en vez de 3000 (`#264`).
+
 ### Security
 
 - **Backend:** `npm audit fix` sin `--force`: `body-parser` 2.4.0, `proxy-addr` 2.0.8, `qs` 6.16.1 y `source-map-js` 1.2.2. Las vulnerabilidades restantes requieren versiones mayores de `prisma`, `vitest` y `@vitest/coverage-v8` (`#233`).
@@ -83,7 +91,6 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** SAD 2.2: la integración con n8n distingue lo implementado de lo planificado y el backlog del Sprint 5 refleja el tablero; Smart Purchasing, el reporte PDF y la meta de Lighthouse pasan al Sprint 6 (`#269`).
 - **Docs:** DoD §4: los datos de prueba son realistas de los rubros piloto, en las cuentas del seed o en Demo MargenX, nunca sobre la cuenta real de un comercio (`#269`).
 - **Docs:** Documentos históricos marcados con nota al pie y `casos-prueba-sprint1.md` archivado en `docs/historicos/` (`#269`).
-
 ### Added
 
 - **DevOps:** Bloque de servidor Nginx y certificado SSL expandido para `www.margenx.tech` con redirección permanente 301 a `margenx.tech` (`#261`).
@@ -91,14 +98,6 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** Límite `client_max_body_size 6m` específico en los bloques de servidor de API (`api` y `api-dev`), descartando cargas superiores a 6 MB con HTTP 413 antes de alcanzar Node.js (`#261`).
 - **DevOps:** Configuraciones de Nginx del host versionadas sin secretos en `infra/vps/nginx/` y registro de vencimientos de certificados en `infra/vps/README.md` (`#261`).
 - **DevOps:** Automatización de backup diario de base de datos (`margenx_prod`) con compresión nativa `pg_dump -Fc`, rotación (7 diarios y 4 semanales), alerta por fallo a Discord, script de ensayo de restauración (`restore-test.sh`) y runbook operativo (`#239`).
-- **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con icono, mensaje de error amigable, botón Reintentar (`onRetry`, `isRetrying`), semántica `role="alert"` y tamaño táctil `min-h-11` (WCAG AA) (`#N`).
-- **Frontend:** Manejo de error explícito en `/dashboard` y `/insumos` ante fallos de servidor (5xx) o de red, reemplazando los indicadores numéricos para evitar mostrar engañosamente "0 productos en riesgo" o "0 insumos" (`#N`).
-- **QA:** Suites de pruebas unitarias en Vitest para `ErrorState`, `DashboardPage` y `SuppliesPageContent` simulando fallos 500, verificando la ausencia de indicadores en cero y comprobando el flujo de reintento exitoso (`#N`).
-- **QA:** Caso de prueba E2E en Playwright (`smoke.spec.ts`) con intercepción de ruta (`page.route`) para simular error 500 en `/api/dashboard/metrics` (`#N`).
-
-### Fixed
-
-- **Frontend:** Eliminación del estado falso de "0 productos en riesgo" y "0 insumos" en el Dashboard e Insumos cuando la API responde con error o está caída (`#N`).
 
 ## [0.5.0] - 2026-10-24 (Sprint 4: Recálculo en Cascada, Automatización n8n "Zero-Click" y Cuarentena)
 
