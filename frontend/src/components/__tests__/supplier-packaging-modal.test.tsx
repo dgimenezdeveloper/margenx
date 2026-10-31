@@ -132,7 +132,9 @@ describe('SupplierPackagingModal', () => {
     const cancelButton = screen.getByRole('button', { name: /^Cancelar$/i })
     fireEvent.click(cancelButton)
 
-    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    })
     expect(onCloseMock).not.toHaveBeenCalled()
 
     // Confirmar descarte
@@ -145,6 +147,7 @@ describe('SupplierPackagingModal', () => {
   it('muestra advertencia al intentar cerrar mientras se escribe el nombre de un nuevo proveedor', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
       { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
     ])
 
     const onCloseMock = vi.fn()
@@ -161,8 +164,8 @@ describe('SupplierPackagingModal', () => {
       expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
 
-    // Abrir el sub-formulario para nuevo proveedor
-    const newSupplierBtn = screen.getByRole('button', { name: /Nuevo/i })
+    // Abrir el sub-formulario para nuevo proveedor (usando el texto exacto 'Nuevo')
+    const newSupplierBtn = screen.getByRole('button', { name: 'Nuevo' })
     fireEvent.click(newSupplierBtn)
 
     // Escribir en el campo de texto del nuevo proveedor
@@ -174,7 +177,9 @@ describe('SupplierPackagingModal', () => {
     fireEvent.click(cancelButton)
 
     // Debe mostrar la advertencia
-    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    })
     expect(onCloseMock).not.toHaveBeenCalled()
 
     // Confirmar descarte
@@ -210,7 +215,9 @@ describe('SupplierPackagingModal', () => {
     // Presionar Escape
     fireEvent.keyDown(window, { key: 'Escape' })
 
-    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    })
     expect(onCloseMock).not.toHaveBeenCalled()
   })
 })
