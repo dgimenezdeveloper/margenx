@@ -104,4 +104,113 @@ describe('SupplierPackagingModal', () => {
     })
     expect(supplierService.addPackaging).not.toHaveBeenCalled()
   })
+
+  it('muestra advertencia al intentar cerrar con cambios sin guardar en formulario', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+    ])
+
+    const onCloseMock = vi.fn()
+    render(
+      <SupplierPackagingModal
+        isOpen={true}
+        onClose={onCloseMock}
+        ingredient={mockIngredient}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    // Simular un cambio en el tamaño del bulto
+    const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
+    fireEvent.change(sizeInput, { target: { value: '100' } })
+
+    // Intentar cerrar con Cancelar
+    const cancelButton = screen.getByRole('button', { name: /^Cancelar$/i })
+    fireEvent.click(cancelButton)
+
+    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(onCloseMock).not.toHaveBeenCalled()
+
+    // Confirmar descarte
+    const discardButton = screen.getByRole('button', { name: /Descartar/i })
+    fireEvent.click(discardButton)
+
+    expect(onCloseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('muestra advertencia al intentar cerrar mientras se escribe el nombre de un nuevo proveedor', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+    ])
+
+    const onCloseMock = vi.fn()
+    render(
+      <SupplierPackagingModal
+        isOpen={true}
+        onClose={onCloseMock}
+        ingredient={mockIngredient}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    // Abrir el sub-formulario para nuevo proveedor
+    const newSupplierBtn = screen.getByRole('button', { name: /Nuevo/i })
+    fireEvent.click(newSupplierBtn)
+
+    // Escribir en el campo de texto del nuevo proveedor
+    const supplierInput = screen.getByPlaceholderText('Nombre del proveedor...')
+    fireEvent.change(supplierInput, { target: { value: 'Molino Nuevo S.A.' } })
+
+    // Intentar cerrar haciendo clic en Cancelar
+    const cancelButton = screen.getByRole('button', { name: /^Cancelar$/i })
+    fireEvent.click(cancelButton)
+
+    // Debe mostrar la advertencia
+    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(onCloseMock).not.toHaveBeenCalled()
+
+    // Confirmar descarte
+    const discardButton = screen.getByRole('button', { name: /Descartar/i })
+    fireEvent.click(discardButton)
+
+    expect(onCloseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('permite cerrar con tecla Escape con confirmación si hay cambios pendientes', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+    ])
+
+    const onCloseMock = vi.fn()
+    render(
+      <SupplierPackagingModal
+        isOpen={true}
+        onClose={onCloseMock}
+        ingredient={mockIngredient}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    // Simular cambio
+    const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
+    fireEvent.change(sizeInput, { target: { value: '50' } })
+
+    // Presionar Escape
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(onCloseMock).not.toHaveBeenCalled()
+  })
 })

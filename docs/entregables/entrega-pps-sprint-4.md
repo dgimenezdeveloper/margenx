@@ -1,3 +1,6 @@
+Aquí tenés el archivo `docs/entregables/entrega-pps-sprint-4.md` completo, con la tabla de la sección 5 actualizada para reflejar que los dos hallazgos de UI fueron resueltos en la issue #322.
+
+```markdown
 ---
 ## MARGENX — ENTREGABLE ACADÉMICO PPS (ENTREGA 5)
 **Materia:** Prácticas Profesionales Supervisadas (PPS) · **Fecha de cierre del Sprint 4 y de entrega:** 24/10/2026
@@ -122,9 +125,9 @@
 
 | Hallazgo | Severidad | Estado |
 | :--- | :-: | :--- |
-| El modal de proveedores se cierra sin avisar si hay cambios sin guardar | Media | Planificado en Sprint 5 |
+| El modal de proveedores se cierra sin avisar si hay cambios sin guardar | Media | Resuelto en Sprint 5 (#322) |
 | Moneda única: la base guarda solo ARS; no hay conversión a USD | Media | Decisión del equipo: ARS en este corte; conversión con cotización BCRA/BNA en Sprint 5 |
-| El mensaje de error (toast) queda tapado por el modal abierto | Media | Planificado en Sprint 5 |
+| El mensaje de error (toast) queda tapado por el modal abierto | Media | Resuelto en Sprint 5 (#322) |
 | La sesión de Clerk vuelve a pedir verificación por dispositivo nuevo (*corrección 5 de la cátedra*) | Media | Sigue pendiente: prod y dev comparten una instancia de desarrollo de Clerk; en Sprint 5 se separan las instancias y se ajusta la duración de la sesión |
 | La imagen de producción incluye los archivos de seed pero no puede ejecutarlos (`tsx` es una dependencia de desarrollo y se elimina con `npm prune --omit=dev`) | Baja | Sprint 5 |
 | Nombres de producto con "De" en mayúscula en la interfaz | Baja (cosmético) | Sprint 5 |
@@ -244,3 +247,4 @@ Una tarea se considera **DONE** solo cuando: (1) tiene un PR desde una rama de f
 ---
 
 > **Documento histórico.** Es el entregable académico presentado al cierre del Sprint 4 y se conserva tal como se entregó. Las fechas y estados que menciona corresponden a ese momento: el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`; el estado actual del sistema, en `docs/especificacion-funcional.md` §11.
+```
