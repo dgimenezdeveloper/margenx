@@ -52,7 +52,6 @@ export default function SuppliesPageContent() {
   const [quarantineCount, setQuarantineCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [isRetrying, setIsRetrying] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Ingredient | null>(null)
@@ -69,7 +68,6 @@ export default function SuppliesPageContent() {
   useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
   const handleRetry = () => {
-    setIsRetrying(true)
     setIsLoading(true)
     setLoadError(null)
     setReloadKey((prev) => prev + 1)
@@ -92,7 +90,7 @@ export default function SuppliesPageContent() {
       })
       .catch((error: unknown) => {
         if (active) {
-          const msg = error instanceof Error ? error.message : 'No se pudieron cargar los insumos.'
+          const msg = error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'
           setLoadError(msg)
           setSupplies([])
           setQuarantineCount(0)
@@ -101,7 +99,6 @@ export default function SuppliesPageContent() {
       .finally(() => {
         if (active) {
           setIsLoading(false)
-          setIsRetrying(false)
         }
       })
 
@@ -403,7 +400,6 @@ export default function SuppliesPageContent() {
               title="Error al cargar insumos"
               description={loadError}
               onRetry={handleRetry}
-              isRetrying={isRetrying}
             />
           ) : (
             <>

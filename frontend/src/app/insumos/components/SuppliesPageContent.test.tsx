@@ -4,6 +4,7 @@ import '@testing-library/jest-dom'
 import SuppliesPageContent from './SuppliesPageContent'
 import { ingredientService } from '@/services/ingredientService'
 import { supplierService } from '@/services/supplierService'
+import { ApiError } from '@/services/api'
 
 const mockGetToken = vi.fn().mockResolvedValue('fake-token')
 
@@ -71,7 +72,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
 
   it('Escenario Gherkin: Falla la carga de insumos -> ve ErrorState con Reintentar y no una lista vacía ni KPIs en cero', async () => {
     vi.mocked(ingredientService.getAll).mockRejectedValueOnce(
-      new Error('Fallo al consultar /api/ingredients (500)')
+      new ApiError('Fallo al consultar /api/ingredients (500)', 500)
     )
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
 
@@ -90,7 +91,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   })
 
   it('Escenario Gherkin: Reintento exitoso en Insumos -> recupera la lista completa', async () => {
-    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new Error('Fallo temporal'))
+    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
 
     render(<SuppliesPageContent />)
@@ -112,5 +113,36 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
     })
 
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('Sin red (fetch lanza TypeError) -> muestra un mensaje en español, no el texto técnico del navegador', async () => {
+    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    render(<SuppliesPageContent />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('No se pudieron cargar los insumos.')).toBeInTheDocument()
+    expect(screen.queryByText(/failed to fetch/i)).toBeNull()
+  })
+
+  it('Mientras se reintenta muestra el estado de carga y no el error anterior', async () => {
+    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
+
+    render(<SuppliesPageContent />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+
+    // El reintento queda pendiente para observar el estado intermedio.
+    vi.mocked(ingredientService.getAll).mockReturnValueOnce(new Promise(() => {}))
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }))
+
+    expect(await screen.findByText('Cargando insumos...')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('Fallo temporal')).toBeNull()
   })
 })

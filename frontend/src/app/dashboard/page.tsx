@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/error-state'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { productService, type Product } from '@/services/productService'
 import { dashboardService, type DashboardMetrics } from '@/services/dashboardService'
+import { ApiError } from '@/services/api'
 
 import { DashboardKpiCards } from './components/DashboardKpiCards'
 import { HealthDistributionHistogram, type HealthBucketKey } from './components/HealthDistributionHistogram'
@@ -27,12 +28,12 @@ export default function DashboardPage() {
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
   const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [isRetrying, setIsRetrying] = useState<boolean>(false)
   const [retryTrigger, setRetryTrigger] = useState(0)
 
   const [selectedBucket, setSelectedBucket] = useState<HealthBucketKey | null>(null)
 
   useEffect(() => {
+    // BLOQUEO RBAC: No disparamos ninguna petición hasta saber con certeza el rol del usuario
     if (isLoadingUser) return
 
     let active = true
@@ -57,7 +58,9 @@ export default function DashboardPage() {
         }
       } catch (err: unknown) {
         if (active) {
-          const msg = err instanceof Error ? err.message : 'No se pudieron cargar los datos del panel.'
+          // Solo los errores de la API traen un mensaje pensado para el usuario; un fallo de red
+          // (TypeError de fetch) mostraría el texto técnico del navegador en inglés.
+          const msg = err instanceof ApiError ? err.message : 'No se pudieron cargar los datos del panel.'
           setLoadError(msg)
           setMetrics(null)
           setProducts([])
@@ -66,7 +69,6 @@ export default function DashboardPage() {
         if (active) {
           setIsLoadingMetrics(false)
           setIsLoadingProducts(false)
-          setIsRetrying(false)
         }
       }
     }
@@ -82,11 +84,11 @@ export default function DashboardPage() {
     setLoadError(null)
     setIsLoadingMetrics(true)
     setIsLoadingProducts(true)
-    setIsRetrying(true)
     setRetryTrigger((prev) => prev + 1)
   }
 
   // BLOQUEO RBAC VISUAL: Mostramos un skeleton global mientras se resuelve el rol.
+  // Esto garantiza que los componentes financieros NUNCA se monten por error en el DOM.
   if (isLoadingUser) {
     return (
       <main className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
@@ -144,7 +146,6 @@ export default function DashboardPage() {
               title="Error al cargar el panel"
               description={loadError}
               onRetry={handleRetry}
-              isRetrying={isRetrying}
             />
           ) : (
             <>
