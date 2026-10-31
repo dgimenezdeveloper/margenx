@@ -11,8 +11,8 @@
 #
 # Variables:
 #   SSH_HOST                  alias de ~/.ssh/config hacia la VPS (por defecto vps-donweb)
-#   SEED_DEMO_ADMIN_AUTH_ID   user_id de Clerk del administrador Demo  } obligatorias en prod
-#   SEED_DEMO_COLAB_AUTH_ID   user_id de Clerk del colaborador Demo    } para "demo" y "todo"
+#   SEED_DEMO_ADMIN_AUTH_ID   user_id de Clerk del administrador Demo  } solo prod: obligatorias
+#   SEED_DEMO_COLAB_AUTH_ID   user_id de Clerk del colaborador Demo    } para "demo" y "todo"; en dev se ignoran
 #
 # Qué hace (detalle en docs/runbook-operacion.md):
 #   1. Compila los seeds de la rama actual en un directorio temporal local.
@@ -58,6 +58,15 @@ TARGET="postgres:5432/$DB"   # host:puerto/base que validan los seeds
 
 ADMIN_ID="${SEED_DEMO_ADMIN_AUTH_ID:-}"
 COLAB_ID="${SEED_DEMO_COLAB_AUTH_ID:-}"
+# Los IDs de las variables son del Clerk de producción. Staging usa la instancia
+# de desarrollo, cuyos IDs ya trae seed-demo.ts: pasarle los de producción deja
+# a los usuarios Demo de staging sin acceso (401).
+if [[ "$ENTORNO" == "dev" ]]; then
+  if [[ -n "$ADMIN_ID" || -n "$COLAB_ID" ]]; then
+    echo "Aviso: en dev se ignoran SEED_DEMO_ADMIN_AUTH_ID y SEED_DEMO_COLAB_AUTH_ID (se usan los IDs de desarrollo del seed)." >&2
+  fi
+  ADMIN_ID=""; COLAB_ID=""
+fi
 if [[ "$ENTORNO" == "prod" && "$QUE" != "piloto" && ( -z "$ADMIN_ID" || -z "$COLAB_ID" ) ]]; then
   echo "En prod, la Demo necesita SEED_DEMO_ADMIN_AUTH_ID y SEED_DEMO_COLAB_AUTH_ID (user_id del Clerk de producción)." >&2
   exit 1

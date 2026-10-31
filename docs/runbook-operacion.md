@@ -44,7 +44,7 @@ export SEED_DEMO_ADMIN_AUTH_ID=user_...   # administrador Demo (producción)
 export SEED_DEMO_COLAB_AUTH_ID=user_...   # colaborador Demo (producción)
 ```
 
-Van las dos o ninguna. En staging no hacen falta.
+Van las dos o ninguna. En staging el script las ignora aunque estén exportadas: usa los IDs de la instancia de desarrollo que trae `seed-demo.ts`.
 
 ## 4. Sembrar
 
