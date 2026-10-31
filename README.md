@@ -120,6 +120,8 @@ cp .env.example .env
 npm run dev
 ```
 
+Seeding staging or production on the VPS (pilot accounts and the Demo account): see `docs/runbook-operacion.md`.
+
 ---
 
 ### 6. Project Team & Academic Context
@@ -244,6 +246,8 @@ npm install
 cp .env.example .env
 npm run dev
 ```
+
+Para sembrar staging o producción en la VPS (cuentas piloto y Demo): ver `docs/runbook-operacion.md`.
 
 ---
 
