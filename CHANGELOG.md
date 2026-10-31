@@ -9,7 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
-- **Frontend:** `/dashboard` e `/insumos` ya no muestran "0 productos en riesgo", "0 insumos" ni una lista vacía cuando la API falla (5xx) o no hay red: los indicadores se reemplazan por un estado de error con botón Reintentar, y mientras se reintenta se ve el estado de carga. Ante un fallo de red el mensaje es un texto en español y no el error técnico del navegador (`#257`).
+- **Frontend:** `/dashboard` e `/insumos` ya no muestran "0 productos en riesgo", "0 insumos" ni una lista vacía cuando la API falla (5xx) o no hay red: los indicadores se reemplazan por un estado de error con botón Reintentar, y mientras se reintenta se ve el estado de carga. Ante un fallo de red, estas pantallas y `/proveedores/cuarentena` muestran un texto en español y no el error técnico del navegador ("Failed to fetch") (`#257`).
 - **Frontend:** La notificación de error o éxito (toast) ahora se muestra correctamente por encima de los modales abiertos (z-index elevado a 100) (`#322`).
 - **Frontend:** El modal de compras mayoristas ahora advierte antes de cerrarse si hay cambios sin guardar, previniendo la pérdida accidental de datos (`#322`).
 - **Backend / DevOps:** `seed.ts` ya no aborta en producción cuando los usuarios piloto tienen otro email que el seed: conserva el email y el `authProviderId` existentes. Ambos seeds restauran el nombre de un insumo, proveedor o producto renombrado (mismo ID) en vez de cortar la carga, y buscan nombres repetidos sin distinguir mayúsculas (`#240`).
