@@ -67,7 +67,8 @@
                   "",
                   "// Guarda el id para reutilizarlo en el resto de la colección",
                   "// (verificación de listado y aislamiento multiempresa).",
-                  "pm.environment.set('productId_cuentaA', jsonData.product.id);"
+                  "pm.environment.set('productId_cuentaA', jsonData.product.id);",
+                  "pm.environment.set('productName_cuentaA', jsonData.product.name);"
                 ]
               }
             }
@@ -147,7 +148,7 @@
                   "});",
                   "",
                   "pm.test('El mensaje indica que el precio debe ser mayor a cero cuando hay receta', function () {",
-                  "    pm.expect(pm.response.json().error).to.include('mayor a cero');",
+                  "    pm.expect(pm.response.json().error).to.eql('El precio de venta debe ser mayor a cero cuando el producto tiene ingredientes en su receta.');",
                   "});",
                   "",
                   "pm.test('No se creó ningún registro (respuesta no incluye un product)', function () {",
@@ -166,6 +167,54 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Producto Precio Cero Con Receta {{$timestamp}}\",\n  \"salePrice\": \"0\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": [{\"ingredientId\": \"{{ingredientId_cuentaA_harina}}\", \"quantity\": \"1\"}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Validación - nombre duplicado con distinto casing (409)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Reusa el nombre del producto creado en el primer request, en mayúsculas.",
+                  "pm.environment.set('productName_cuentaA_upper', String(pm.environment.get('productName_cuentaA')).toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica que el nombre ya existe', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Ya existe un producto con ese nombre.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{productName_cuentaA_upper}}\",\n  \"salePrice\": \"15000\",\n  \"minMarginPercent\": \"30\",\n  \"ingredients\": []\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {

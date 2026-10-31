@@ -109,27 +109,39 @@ function firstUpdateData(): ProductUpdateData {
 }
 
 describe('schema Prisma y migración', () => {
-  it('documenta la estrategia case-insensitive y la ejecuta en la migración con lower(name)', () => {
+  // Recorre todas las migraciones en orden, no solo la última: así la prueba no se
+  // rompe cuando se agrega una migración nueva, pero sí falla si alguna posterior
+  // borra los índices (por ejemplo, un `prisma migrate dev` que no los conoce).
+  const migrationDir = join(__dirname, '../../prisma/migrations');
+  const allMigrationsSql = readdirSync(migrationDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .map((dir) => readFileSync(join(migrationDir, dir, 'migration.sql'), 'utf8'))
+    .join('\n');
+
+  it.each(['Product', 'Supplier', 'Ingredient'])(
+    'crea el índice único (accountId, lower(name)) de %s y ninguna migración posterior lo borra',
+    (model) => {
+      const indexName = `${model}_accountId_lower_name_key`;
+      const createSql = `CREATE UNIQUE INDEX "${indexName}" ON "${model}"("accountId", lower("name"));`;
+
+      const createdAt = allMigrationsSql.lastIndexOf(createSql);
+      expect(createdAt).toBeGreaterThanOrEqual(0);
+      expect(allMigrationsSql.indexOf(`DROP INDEX "${indexName}"`, createdAt)).toBe(-1);
+      expect(allMigrationsSql.indexOf(`DROP INDEX IF EXISTS "${indexName}"`, createdAt)).toBe(-1);
+    }
+  );
+
+  it('documenta en schema.prisma que la unicidad case-insensitive vive en la migración SQL', () => {
     const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
-    const migrationDir = join(__dirname, '../../prisma/migrations');
-    const latestMigration = readdirSync(migrationDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort()
-      .at(-1);
-
-    expect(latestMigration).toBeDefined();
-
-    const migrationSql = readFileSync(join(migrationDir, latestMigration!, 'migration.sql'), 'utf8');
 
     expect(schema).toContain('La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE');
-    expect(schema).toContain('CREATE UNIQUE INDEX "Product_accountId_lower_name_key" ON "Product"("accountId", lower("name"));');
-    expect(schema).toContain('CREATE UNIQUE INDEX "Supplier_accountId_lower_name_key" ON "Supplier"("accountId", lower("name"));');
-    expect(schema).toContain('CREATE UNIQUE INDEX "Ingredient_accountId_lower_name_key" ON "Ingredient"("accountId", lower("name"));');
-    expect(migrationSql).toContain('lower("name")');
-    expect(migrationSql).toContain('CREATE UNIQUE INDEX "Product_accountId_lower_name_key"');
-    expect(migrationSql).toContain('CREATE UNIQUE INDEX "Supplier_accountId_lower_name_key"');
-    expect(migrationSql).toContain('CREATE UNIQUE INDEX "Ingredient_accountId_lower_name_key"');
+    for (const model of ['Product', 'Supplier', 'Ingredient']) {
+      expect(schema).toContain(
+        `CREATE UNIQUE INDEX "${model}_accountId_lower_name_key" ON "${model}"("accountId", lower("name"));`
+      );
+    }
   });
 });
 
@@ -272,6 +284,124 @@ describe('POST /api/products', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/precio de venta debe ser mayor a cero/i);
     expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT admite salePrice = 0 en un borrador que sigue sin receta', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p3',
+      name: 'Borrador',
+      salePrice: new Prisma.Decimal('100.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('0'),
+      marginAmount: new Prisma.Decimal('0'),
+      marginPercent: new Prisma.Decimal('0'),
+    });
+    txProductIngredientCountMock.mockResolvedValue(0);
+    txProductUpdateMock.mockResolvedValue({ id: 'p3', salePrice: '0.00', cost: '0.00', marginPercent: '0.00' });
+
+    const res = await request(buildApp()).put('/api/products/p3').send({ salePrice: '0' });
+
+    expect(res.status).toBe(200);
+    const data = firstUpdateData();
+    expect(data.salePrice.toString()).toBe('0');
+    expect(data.cost.toString()).toBe('0');
+    expect(data.marginPercent.toString()).toBe('0');
+  });
+
+  it('PUT admite salePrice = 0 si en el mismo pedido se vacía la receta', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p1',
+      name: 'Prod',
+      salePrice: new Prisma.Decimal('30.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('20.00'),
+      marginAmount: new Prisma.Decimal('10.00'),
+      marginPercent: new Prisma.Decimal('33.33'),
+    });
+    txProductUpdateMock.mockResolvedValue({ id: 'p1' });
+
+    const res = await request(buildApp()).put('/api/products/p1').send({ salePrice: '0', ingredients: [] });
+
+    expect(res.status).toBe(200);
+    expect(txProductIngredientDeleteManyMock).toHaveBeenCalledWith({ where: { productId: 'p1' } });
+    expect(txProductIngredientCountMock).not.toHaveBeenCalled();
+    expect(firstUpdateData().cost.toString()).toBe('0');
+  });
+
+  it('devuelve el mensaje exacto de la issue al rechazar salePrice = 0 con receta', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con receta',
+        salePrice: 0,
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(
+      'El precio de venta debe ser mayor a cero cuando el producto tiene ingredientes en su receta.'
+    );
+    expect(txIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza quantity que no entra en la columna Decimal(10,3)', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con cantidad enorme',
+        salePrice: '100',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '10000000' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('El campo "quantity" excede la capacidad máxima permitida.');
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('acepta quantity en el máximo de la columna (9999999.999)', async () => {
+    txIngredientFindManyMock.mockResolvedValue([{ id: 'ing-1', currentCost: new Prisma.Decimal('0.01') }]);
+    txProductCreateMock.mockResolvedValue({ id: 'p-max' });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto cantidad máxima',
+        salePrice: '100000.00',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '9999999.999' }],
+      });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('indica el formato admitido al rechazar un salePrice con 3 decimales (1500.555)', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Producto precio 3 decimales', salePrice: '1500.555', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('El campo "salePrice" debe ser un valor decimal válido con hasta 2 decimales (ej: "1500.50").');
+  });
+
+  it('devuelve 409 si el índice único case-insensitive rechaza un alta concurrente', async () => {
+    txIngredientFindManyMock.mockResolvedValue([]);
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target: 'Product_accountId_lower_name_key' },
+      })
+    );
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Pan de Campo', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un producto con ese nombre.');
   });
 
   it('rechaza un insumo repetido en la receta en POST', async () => {

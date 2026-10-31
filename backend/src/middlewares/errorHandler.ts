@@ -25,6 +25,14 @@ export class AppError extends Error {
  * DESPUÉS de todas las rutas de la API (Express lo reconoce como error
  * handler por tener 4 parámetros, aunque `next` no se use explícitamente).
  */
+/** Entidades con nombre único por cuenta (índices "<Modelo>_accountId_lower_name_key"). */
+const NAME_UNIQUE_MODELS = ['Supplier', 'Ingredient', 'Product'] as const;
+const NAME_CONFLICT_MESSAGES: Record<(typeof NAME_UNIQUE_MODELS)[number], string> = {
+  Supplier: 'Ya existe un proveedor con ese nombre.',
+  Ingredient: 'Ya existe un insumo con ese nombre.',
+  Product: 'Ya existe un producto con ese nombre.',
+};
+
 export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
   const payloadError = err as Error & { type?: string; status?: number; statusCode?: number; expose?: boolean };
 
@@ -55,19 +63,18 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
       case 'P2025': // Registro no encontrado (ej. update/delete sobre un id inexistente)
         return res.status(404).json({ error: 'Recurso no encontrado.' });
       case 'P2002': {
-        const rawTargets = Array.isArray(err.meta?.target) ? err.meta.target : typeof err.meta?.target === 'string' ? [err.meta.target] : [];
-        const targets = rawTargets.map((item) => String(item));
-        const targetText = targets.join('|');
-        const modelName = typeof err.meta?.modelName === 'string' ? err.meta.modelName : '';
-
-        if (targetText.includes('Supplier_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Supplier')) {
-          return res.status(409).json({ error: 'Ya existe un proveedor con ese nombre.' });
-        }
-        if (targetText.includes('Ingredient_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Ingredient')) {
-          return res.status(409).json({ error: 'Ya existe un insumo con ese nombre.' });
-        }
-        if (targetText.includes('Product_accountId_lower_name_key') || (targetText.includes('accountId') && targetText.includes('name') && modelName === 'Product')) {
-          return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
+        // Con índices sobre expresiones (lower("name")) Prisma informa el nombre del
+        // índice como target; con claves de columnas, la lista de campos.
+        const rawTarget = err.meta?.target;
+        const targets = (Array.isArray(rawTarget) ? rawTarget : rawTarget === undefined ? [] : [rawTarget]).map(String);
+        const modelName = err.meta?.modelName;
+        const nameConflictModel = NAME_UNIQUE_MODELS.find(
+          (model) =>
+            targets.includes(`${model}_accountId_lower_name_key`) ||
+            (modelName === model && targets.includes('accountId') && targets.includes('name'))
+        );
+        if (nameConflictModel) {
+          return res.status(409).json({ error: NAME_CONFLICT_MESSAGES[nameConflictModel] });
         }
         if (targets.includes('supplierId') && targets.includes('ingredientId')) {
           return res.status(409).json({

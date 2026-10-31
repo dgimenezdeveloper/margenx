@@ -158,7 +158,7 @@ erDiagram
     INGREDIENT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Nombre del insumo"
+        string name "Nombre del insumo (UK con accountId, sin distinguir mayúsculas)"
         string unit "Unidad base: kg, l, u"
         decimal currentCost "Decimal(10,2) Costo activo de costeo"
         datetime updatedAt
@@ -167,7 +167,7 @@ erDiagram
     SUPPLIER {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Razón social / Nombre fantasía (UK con accountId)"
+        string name "Razón social / Nombre fantasía (UK con accountId, sin distinguir mayúsculas)"
         string contactPhone "Teléfono comercial (opcional)"
         string email "Correo de contacto (opcional)"
         string address "Dirección física (opcional)"
@@ -201,7 +201,7 @@ erDiagram
     PRODUCT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Denominación comercial (UK con accountId)"
+        string name "Denominación comercial (UK con accountId, sin distinguir mayúsculas)"
         decimal salePrice "Decimal(10,2) Precio de venta al público"
         decimal minMarginPercent "Decimal(5,2) Umbral de alerta"
         decimal cost "Decimal(10,2) Costo total de receta"

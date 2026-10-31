@@ -223,23 +223,18 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
     throw new AppError('Ya existe un insumo con ese nombre.', 409);
   }
 
-  try {
-    const ingredient = await prisma.ingredient.create({
-      data: {
-        name,
-        unit,
-        currentCost,
-        accountId,
-      },
-    });
+  // Un alta concurrente que choque con "Ingredient_accountId_lower_name_key" la
+  // traduce errorHandler a 409 con el mismo mensaje.
+  const ingredient = await prisma.ingredient.create({
+    data: {
+      name,
+      unit,
+      currentCost,
+      accountId,
+    },
+  });
 
-    return res.status(201).json({ ingredient });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw new AppError('Ya existe un insumo con ese nombre.', 409);
-    }
-    throw error;
-  }
+  return res.status(201).json({ ingredient });
 });
 
 /* ------------------------------------------------------------------ */
@@ -268,11 +263,10 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
   const nextCost = new Prisma.Decimal(currentCost.toString());
   const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
-  const existingName = typeof existing.name === 'string' ? existing.name : '';
   const hasNoActualChange =
-    previousCostForComparison.equals(nextCost) && existingName === name && existing.unit === unit;
+    previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
 
-  if (existingName && name.toLowerCase() !== existingName.toLowerCase()) {
+  if (name.toLowerCase() !== existing.name.toLowerCase()) {
     const duplicate = await prisma.ingredient.findFirst({
       where: { accountId, name: { equals: name, mode: 'insensitive' } },
     });
@@ -293,21 +287,14 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const previousCost = existing.currentCost ?? null;
 
   const result = await prisma.$transaction(async (tx) => {
-    try {
-      const ingredient = await tx.ingredient.update({
-        where: { id },
-        data: { name, unit, currentCost: nextCost },
-      });
+    const ingredient = await tx.ingredient.update({
+      where: { id },
+      data: { name, unit, currentCost: nextCost },
+    });
 
-      const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);
+    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);
 
-      return { ingredient, affectedProductsCount, affectedProducts, criticalProducts };
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new AppError('Ya existe un insumo con ese nombre.', 409);
-      }
-      throw error;
-    }
+    return { ingredient, affectedProductsCount, affectedProducts, criticalProducts };
   });
 
   if (result.criticalProducts.length > 0) {

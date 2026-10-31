@@ -269,12 +269,52 @@ describe('POST /api/ingredients', () => {
     expect(res2.body.error).toMatch(/decimal válido/);
   });
 
-  it('devuelve 409 si el nombre del insumo ya existe con distinto casing', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', accountId: 'account-1' });
+  it('devuelve 409 si el nombre del insumo ya existe con distinto casing en la misma cuenta', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' });
 
     const res = await request(buildApp())
       .post('/api/ingredients')
-      .send({ name: 'HARINA', unit: 'kg', currentCost: '10.00' });
+      .send({ name: 'harina 000', unit: 'kg', currentCost: '10.00' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un insumo con ese nombre.');
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'harina 000', mode: 'insensitive' } },
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('crea con 201 un insumo cuyo nombre solo existe en otra cuenta (la búsqueda se limita a la cuenta del token)', async () => {
+    // findFirst filtra por accountId del token: el "Harina 000" de otra cuenta no aparece.
+    findFirstMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: 'ing-b', name: 'Harina 000', unit: 'kg', currentCost: '10.00', accountId: 'account-1' });
+
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '10.00' });
+
+    expect(res.status).toBe(201);
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'Harina 000', mode: 'insensitive' } },
+    });
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ accountId: 'account-1', name: 'Harina 000' }),
+    });
+  });
+
+  it('devuelve 409 si el índice único case-insensitive rechaza un alta concurrente', async () => {
+    findFirstMock.mockResolvedValue(null);
+    createMock.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target: 'Ingredient_accountId_lower_name_key' },
+      })
+    );
+
+    const res = await request(buildApp())
+      .post('/api/ingredients')
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '10.00' });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('Ya existe un insumo con ese nombre.');
@@ -346,7 +386,7 @@ describe('PUT /api/ingredients/:id', () => {
   });
 
   it('actualiza el insumo cuando pertenece a la cuenta y el payload es válido (sin productos afectados)', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina 000', unit: 'kg' });
     const updated = { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '120.00' };
     updateMock.mockResolvedValue(updated);
     productIngredientFindManyMock.mockResolvedValue([]);
@@ -380,7 +420,7 @@ describe('PUT /api/ingredients/:id', () => {
   });
 
   it('registra un PriceHistory cuando el costo cambia', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1', currentCost: new Prisma.Decimal('8000.00') });
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Manteca', unit: 'kg', currentCost: new Prisma.Decimal('8000.00') });
     updateMock.mockResolvedValue({
       id: 'ing-1',
       name: 'Manteca',
@@ -838,7 +878,7 @@ describe('PUT /api/ingredients/:id', () => {
   });
 
   it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg' });
     updateMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg', currentCost: '150.00' });
 
     productIngredientFindManyMock.mockResolvedValue([
@@ -883,7 +923,7 @@ describe('PUT /api/ingredients/:id', () => {
   });
 
   it('no duplica el recálculo si un producto tiene el insumo repetido en la lista de afectados', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg' });
     updateMock.mockResolvedValue({ id: 'ing-1' });
 
     productIngredientFindManyMock.mockResolvedValue([
