@@ -108,7 +108,9 @@ curl -s -X POST http://127.0.0.1:3011/api/webhooks/supplier-prices \
   -d '{"accountSlug":"demo-margenx","items":[{"code":"DEMO-HAR-25","price":21000}]}'
 ```
 
-Alerta de margen crítico: en la Demo, "Alfajores de dulce de leche — docena" queda con 29,21 % sobre un mínimo de 28 %. Subir la manteca del "Proveedor Demo con códigos" un 10 % (`DEMO-MAN-02` de 19000 a 20900, desde la UI o por el webhook) cruza el mínimo y envía el mail a `demo-admin@margenx.tech`. El botón "Ajustar" debe apuntar a `https://margenx.tech`. Después, resembrar con `prod demo` para volver al estado inicial.
+Alerta de margen crítico: en la Demo, "Alfajores de dulce de leche — docena" queda con 29,21 % sobre un mínimo de 28 %. Con el administrador Demo, editar el insumo "Manteca (demo)" y subir su costo un 10 % (de 9500 a 10450 por kg): cruza el mínimo y el backend envía el aviso a n8n, que manda el mail a `demo-admin@margenx.tech` (Cloudflare lo reenvía a la casilla configurada en Email Routing). El botón "Ajustar" debe apuntar a `https://margenx.tech`. Después, resembrar con `prod demo` para volver al estado inicial.
+
+El mail de alerta sale cuando el costo cambia desde la app (editar un insumo o liberar una cuarentena). El webhook `supplier-prices` no lo envía: devuelve las alertas en `criticalProductsAlerts` y el workflow de ingesta de n8n las incluye en el resumen al dueño. Un `curl` directo al webhook actualiza el precio y muestra la alerta en la respuesta, pero no manda ningún mail.
 
 ## 6. Restaurar
 
