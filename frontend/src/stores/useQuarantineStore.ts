@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supplierService, type QuarantinedItem } from '@/services/supplierService'
-import type { TokenGetter } from '@/services/api'
+import { ApiError, type TokenGetter } from '@/services/api'
 
 interface QuarantineState {
   items: QuarantinedItem[]
@@ -21,7 +21,9 @@ export const useQuarantineStore = create<QuarantineState>((set) => ({
       const items = await supplierService.getQuarantine(getToken)
       set({ items, isLoading: false })
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al cargar la cuarentena'
+      // Solo ApiError trae un mensaje pensado para el usuario; un fallo de red
+      // (TypeError de fetch) mostraría el texto técnico del navegador en inglés.
+      const msg = err instanceof ApiError ? err.message : 'No se pudieron cargar los precios en cuarentena.'
       set({ error: msg, isLoading: false })
     }
   },

@@ -8,7 +8,8 @@ interface DashboardKpiCardsProps {
 
 /**
  * Componente especializado para mostrar las métricas clave (KPIs) del negocio.
- * Incluye su propio estado de carga (Skeleton) independiente.
+ * Incluye su propio estado de carga (Skeleton) independiente y guarda defensiva
+ * para evitar mostrar ceros ficticios cuando metrics es null debido a un fallo.
  */
 export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps) {
   if (isLoading) {
@@ -21,6 +22,12 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
     )
   }
 
+  // Guarda defensiva: si metrics es null y no está cargando (falla de API),
+  // no renderiza tarjetas en cero para evitar la falsa sensación de salud financiera.
+  if (!metrics) {
+    return null
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <section className="flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-800/80 dark:bg-rose-950/40">
@@ -29,8 +36,8 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
         </div>
         <div>
           <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
-            {metrics?.criticalProductsCount ?? 0}{' '}
-            {metrics?.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
+            {metrics.criticalProductsCount}{' '}
+            {metrics.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
           </p>
           <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
             Margen por debajo del umbral mínimo
@@ -45,7 +52,7 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
         <div>
           <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
           <p className="text-xl font-black text-gray-900 dark:text-white">
-            {metrics?.activeIngredientsCount ?? 0} Insumos
+            {metrics.activeIngredientsCount} Insumos
           </p>
         </div>
       </div>
@@ -57,7 +64,7 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
         <div>
           <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
           <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">
-            {metrics?.averageMarginPercent != null
+            {metrics.averageMarginPercent != null
               ? Number(metrics.averageMarginPercent).toFixed(1)
               : '0.0'}
             %

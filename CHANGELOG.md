@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** `/dashboard` e `/insumos` ya no muestran "0 productos en riesgo", "0 insumos" ni una lista vacía cuando la API falla (5xx) o no hay red: los indicadores se reemplazan por un estado de error con botón Reintentar, y mientras se reintenta se ve el estado de carga. Ante un fallo de red, estas pantallas y `/proveedores/cuarentena` muestran un texto en español y no el error técnico del navegador ("Failed to fetch") (`#257`).
 - **Frontend:** La notificación de error o éxito (toast) ahora se muestra correctamente por encima de los modales abiertos (z-index elevado a 100) (`#322`).
 - **Frontend:** El modal de compras mayoristas ahora advierte antes de cerrarse si hay cambios sin guardar, previniendo la pérdida accidental de datos (`#322`).
 - **Backend / DevOps:** `seed.ts` ya no aborta en producción cuando los usuarios piloto tienen otro email que el seed: conserva el email y el `authProviderId` existentes. Ambos seeds restauran el nombre de un insumo, proveedor o producto renombrado (mismo ID) en vez de cortar la carga, y buscan nombres repetidos sin distinguir mayúsculas (`#240`).
@@ -25,6 +26,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con mensaje, botón Reintentar de 44 px de alto y `role="alert"`; lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`, y queda documentado en `frontend/README.md` (`#257`).
+- **QA:** Pruebas de Vitest de `ErrorState`, `DashboardPage` y `SuppliesPageContent` (fallo 500, fallo de red, reintento exitoso y estado de carga durante el reintento) y caso E2E en `smoke.spec.ts` que fuerza un 500 en `/api/dashboard/metrics` (`#257`).
 - **DevOps:** Script `infra/scripts/seed-remoto.sh` para sembrar o resembrar staging y producción: compila los seeds localmente, compara migraciones, hace `pg_dump` previo y corre el seed en un contenedor temporal con la imagen del backend. En producción exige la rama `main` sin cambios sin commitear. Runbook en `docs/runbook-operacion.md` (`#240`).
 - **Backend:** `seed-demo.ts` toma los `user_id` del Clerk de producción de `SEED_DEMO_ADMIN_AUTH_ID` y `SEED_DEMO_COLAB_AUTH_ID` (`#240`).
 - **Frontend:** Página 404 dentro del panel (con el menú y un botón al dashboard) para cualquier ruta inexistente, y redirección de `/` al dashboard cuando hay sesión activa. Se eliminó el código muerto `productos/detalle` (`#236`).
