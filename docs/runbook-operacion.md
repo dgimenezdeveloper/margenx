@@ -134,3 +134,16 @@ Para el procedimiento completo de recuperación y los respaldos diarios, ver `do
 | `Conflicto de identidad del usuario ...` | El email o el `user_id` de Clerk ya está en otro usuario. | Revisar los IDs del punto 3. |
 | `Configurá las dos variables ...` | Se pasó una sola variable de Clerk. | Exportar las dos. |
 | Login correcto en Clerk pero `401` en la app | El `authProviderId` de la base no coincide con el `user_id` de esa instancia de Clerk. | Resembrar la Demo con los IDs correctos (punto 3). |
+
+## 8. Auditar nombres duplicados antes de desplegar la migración de la issue #242
+
+La migración `20261030224224_case_insensitive_unique_names` crea índices únicos `(accountId, lower(name))` en `Supplier`, `Ingredient` y `Product`. Si una base ya tiene, en la misma cuenta, dos registros que solo difieren en mayúsculas ("Pan" y "pan"), `prisma migrate deploy` falla y el deploy se corta. Antes de mergear a `develop` (staging) y antes de promover a `main` (producción), correr la auditoría de solo lectura:
+
+```bash
+# En la VPS, desde el clon del repositorio. Staging: cambiar margenx_prod por margenx_dev.
+docker exec -i margenx_postgres_prod sh -c 'psql -U "$POSTGRES_USER" -d margenx_prod -v ON_ERROR_STOP=1' \
+  < backend/prisma/sql/auditar-nombres-duplicados.sql
+```
+
+Resultado esperado: `(0 rows)`. Si lista filas, renombrar o borrar desde la app los registros de la columna `variantes`, volver a correr la auditoría hasta que dé 0 filas y recién ahí desplegar. Dejar el resultado de cada entorno como comentario en la issue de seguimiento.
+

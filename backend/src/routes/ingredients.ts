@@ -69,25 +69,22 @@ function validateIngredientInput(
     const numericValue = Number(asString);
     const isNumericValue = Number.isFinite(numericValue);
 
-    if (typeof rawCost === 'number' && (!isNumericValue || Math.abs(rawCost) > MAX_MONEY_VALUE_NUMBER)) {
-      errors.push('El insumo no puede superar $99.999.999,99.');
+    const isStrictDecimalFormat = /^-?\d+(\.\d{1,2})?$/.test(asString);
+
+    if (!isStrictDecimalFormat || (typeof rawCost === 'number' && !isNumericValue)) {
+      errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
     } else {
-      const isNumericFormat = /^-?\d+(\.\d+)?$/.test(asString);
-      if (!isNumericFormat && !isNumericValue) {
-        errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
-      } else {
-        try {
-          const decimalValue = new Prisma.Decimal(asString);
-          if (decimalValue.lessThanOrEqualTo(0)) {
-            errors.push('El campo "currentCost" debe ser mayor a cero.');
-          } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE) || Math.abs(numericValue) > MAX_MONEY_VALUE_NUMBER) {
-            errors.push('El insumo no puede superar $99.999.999,99.');
-          } else {
-            currentCost = decimalValue;
-          }
-        } catch {
-          errors.push('El campo "currentCost" debe ser un valor decimal válido.');
+      try {
+        const decimalValue = new Prisma.Decimal(asString);
+        if (decimalValue.lessThanOrEqualTo(0)) {
+          errors.push('El campo "currentCost" debe ser mayor a cero.');
+        } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE) || Math.abs(numericValue) > MAX_MONEY_VALUE_NUMBER) {
+          errors.push('El insumo no puede superar $99.999.999,99.');
+        } else {
+          currentCost = decimalValue;
         }
+      } catch {
+        errors.push('El campo "currentCost" debe ser un valor decimal válido.');
       }
     }
   }
@@ -219,6 +216,15 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   const accountId = req.user!.accountId;
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
 
+  const existing = await prisma.ingredient.findFirst({
+    where: { accountId, name: { equals: name, mode: 'insensitive' } },
+  });
+  if (existing) {
+    throw new AppError('Ya existe un insumo con ese nombre.', 409);
+  }
+
+  // Un alta concurrente que choque con "Ingredient_accountId_lower_name_key" la
+  // traduce errorHandler a 409 con el mismo mensaje.
   const ingredient = await prisma.ingredient.create({
     data: {
       name,
@@ -255,10 +261,19 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   }
 
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
-  const nextCost = new Prisma.Decimal(currentCost.toString()).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const nextCost = new Prisma.Decimal(currentCost.toString());
   const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
   const hasNoActualChange =
     previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
+
+  if (name.toLowerCase() !== existing.name.toLowerCase()) {
+    const duplicate = await prisma.ingredient.findFirst({
+      where: { accountId, name: { equals: name, mode: 'insensitive' } },
+    });
+    if (duplicate) {
+      throw new AppError('Ya existe un insumo con ese nombre.', 409);
+    }
+  }
 
   if (hasNoActualChange) {
     return res.status(200).json({

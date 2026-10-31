@@ -51,6 +51,8 @@ newman run "MargenX - Productos API.postman_collection.json" \
   --env-var "token_cuenta_B=<token quimica-admin>"
 ```
 
+El environment ya trae `ingredientId_cuentaA_harina` con el id de "Harina de trigo 000 Olavarriense" del seed de Panadería Central (`30b00001-0000-4000-8000-000000000001`): lo usa el caso `salePrice: 0` con receta (`400`). El caso de nombre duplicado reusa el nombre del primer producto creado, en mayúsculas, y espera `409 Conflict` (issue #242).
+
 Salida esperada: **0 failures**, con el detalle de cada assertion (`pm.test`) en verde.
 
 ## 3. Reproducibilidad

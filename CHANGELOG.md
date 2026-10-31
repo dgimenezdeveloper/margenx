@@ -9,6 +9,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** `POST /api/suppliers/:id/ingredients` valida la escala de cada columna: `packageSize` hasta 3 decimales y `9999999.999` (`Decimal(10,3)`; antes un valor mayor desbordaba la base) y `packagePrice` hasta 2 decimales (`[RV323-I1]`, `#242`).
+- **QA:** `precision-aritmetica.test.ts` ya no depende del orden de ejecución: la matriz de comparación calcula los cuatro casos por su cuenta y pasa con `--sequence.shuffle` (`[RV323-I3]`).
+- **Backend:** `POST`/`PUT /api/products` rechazan con `400` un `salePrice` menor o igual a cero cuando el producto tiene receta ("El precio de venta debe ser mayor a cero cuando el producto tiene ingredientes en su receta."); `salePrice: 0` queda permitido solo en borrador sin receta, lo que cierra la inconsistencia QA4-02. También rechazan con `400` un insumo repetido en la receta, montos con más de 2 decimales y cantidades con más de 3 decimales o fuera de la columna `Decimal(10,3)`. El nombre duplicado de producto pasa de `400` a `409 Conflict`, igual que insumos y proveedores (`#242`).
 - **Frontend:** `/dashboard` e `/insumos` ya no muestran "0 productos en riesgo", "0 insumos" ni una lista vacía cuando la API falla (5xx) o no hay red: los indicadores se reemplazan por un estado de error con botón Reintentar, y mientras se reintenta se ve el estado de carga. Ante un fallo de red, estas pantallas y `/proveedores/cuarentena` muestran un texto en español y no el error técnico del navegador ("Failed to fetch") (`#257`).
 - **Frontend:** La notificación de error o éxito (toast) ahora se muestra correctamente por encima de los modales abiertos (z-index elevado a 100) (`#322`).
 - **Frontend:** El modal de compras mayoristas ahora advierte antes de cerrarse si hay cambios sin guardar, previniendo la pérdida accidental de datos (`#322`).
@@ -26,6 +29,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **DevOps:** Auditoría de solo lectura `backend/prisma/sql/auditar-nombres-duplicados.sql` y paso en `docs/runbook-operacion.md` §8 para detectar nombres duplicados ignorando mayúsculas antes de desplegar la migración de índices únicos (`[RV323-I2]`, `#242`).
+- **Backend:** Índices únicos case-insensitive `(accountId, lower(name))` en `Supplier`, `Ingredient` y `Product` (migración `20261030224224_case_insensitive_unique_names`): la base rechaza "Pan" y "pan" en la misma cuenta aunque falle la validación de la API, y `errorHandler` traduce esa violación (`P2002`) a `409` con el mensaje de cada entidad (`#242`).
 - **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con mensaje, botón Reintentar de 44 px de alto y `role="alert"`; lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`, y queda documentado en `frontend/README.md` (`#257`).
 - **QA:** Pruebas de Vitest de `ErrorState`, `DashboardPage` y `SuppliesPageContent` (fallo 500, fallo de red, reintento exitoso y estado de carga durante el reintento) y caso E2E en `smoke.spec.ts` que fuerza un 500 en `/api/dashboard/metrics` (`#257`).
 - **DevOps:** Script `infra/scripts/seed-remoto.sh` para sembrar o resembrar staging y producción: compila los seeds localmente, compara migraciones, hace `pg_dump` previo y corre el seed en un contenedor temporal con la imagen del backend. En producción exige la rama `main` sin cambios sin commitear. Runbook en `docs/runbook-operacion.md` (`#240`).

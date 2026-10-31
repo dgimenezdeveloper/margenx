@@ -213,6 +213,24 @@ describe('errorHandler', () => {
     });
   });
 
+  it.each([
+    ['Supplier', 'Ya existe un proveedor con ese nombre.'],
+    ['Ingredient', 'Ya existe un insumo con ese nombre.'],
+    ['Product', 'Ya existe un producto con ese nombre.'],
+  ])('mapea P2002 del índice %s_accountId_lower_name_key a 409 (target como lista o como texto)', (model, message) => {
+    for (const target of [[`${model}_accountId_lower_name_key`], `${model}_accountId_lower_name_key`]) {
+      const res = buildRes();
+      const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target },
+      });
+      errorHandler(err, req, res, next);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ error: message });
+    }
+  });
+
   it('mapea P2003 de Prisma a 409', () => {
     const res = buildRes();
     const err = new Prisma.PrismaClientKnownRequestError('FK violation', {
