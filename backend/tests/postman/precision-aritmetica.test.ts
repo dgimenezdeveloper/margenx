@@ -50,9 +50,7 @@ interface ComparisonRow {
   dentroDeTolerancia: boolean
 }
 
-const rows: ComparisonRow[] = []
-
-function compareMoney(caso: string, campo: string, backendValue: Prisma.Decimal, frontendValue: number) {
+function compareMoney(rows: ComparisonRow[], caso: string, campo: string, backendValue: Prisma.Decimal, frontendValue: number) {
   const backendNum = Number(backendValue.toFixed(2))
   const diff = Math.abs(backendNum - frontendValue)
   const dentro = diff <= TOLERANCE_MONEY
@@ -67,7 +65,7 @@ function compareMoney(caso: string, campo: string, backendValue: Prisma.Decimal,
   return { backendNum, diff, dentro }
 }
 
-function comparePercent(caso: string, backendValue: Prisma.Decimal, frontendValue: number) {
+function comparePercent(rows: ComparisonRow[], caso: string, backendValue: Prisma.Decimal, frontendValue: number) {
   const backendNum = Number(backendValue.toFixed(2))
   const diff = Math.abs(backendNum - frontendValue)
   // El frontend solo tiene 1 decimal de resolución: la tolerancia real
@@ -85,103 +83,122 @@ function comparePercent(caso: string, backendValue: Prisma.Decimal, frontendValu
   return { backendNum, diff, dentro }
 }
 
+// TC-PREC-01: insumo fraccionario mínimo (azafrán 0.005 kg a $85.000/kg)
+function casoPrec01(rows: ComparisonRow[]) {
+  const items = [{ quantity: 0.005, unitCost: 85000 }]
+  const salePrice = 1500
+
+  const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
+  const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
+  const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
+
+  const frontendCost = frontendMath.recipeTotal(items)
+  const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
+  const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
+
+  const { dentro: costOk } = compareMoney(rows, 'TC-PREC-01', 'totalCost', backendCost, frontendCost)
+  const { dentro: amountOk } = compareMoney(rows, 'TC-PREC-01', 'marginAmount', backendMarginAmount, frontendMarginAmount)
+  const { dentro: percentOk } = comparePercent(rows, 'TC-PREC-01', backendMarginPercent, frontendMarginPercent)
+
+  expect(costOk).toBe(true)
+  expect(amountOk).toBe(true)
+  expect(percentOk).toBe(true)
+}
+
+// TC-PREC-02: receta extensa (16 insumos con cantidades fraccionarias)
+function casoPrec02(rows: ComparisonRow[]) {
+  const items = Array.from({ length: 16 }, (_, i) => ({
+    quantity: Number(((i + 1) * 0.0137).toFixed(6)),
+    unitCost: Number((100 + (i + 1) * 37.13).toFixed(2)),
+  }))
+  const salePrice = 5000
+
+  const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
+  const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
+  const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
+
+  const frontendCost = frontendMath.recipeTotal(items)
+  const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
+  const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
+
+  const { dentro: costOk } = compareMoney(rows, 'TC-PREC-02', 'totalCost', backendCost, frontendCost)
+  const { dentro: amountOk } = compareMoney(rows, 'TC-PREC-02', 'marginAmount', backendMarginAmount, frontendMarginAmount)
+  const { dentro: percentOk } = comparePercent(rows, 'TC-PREC-02', backendMarginPercent, frontendMarginPercent)
+
+  expect(costOk).toBe(true)
+  expect(amountOk).toBe(true)
+  expect(percentOk).toBe(true)
+}
+
+// TC-PREC-03: precio con decimal no exacto ($10.000 dividido entre 3 unidades)
+function casoPrec03(rows: ComparisonRow[]) {
+  const unitCost = 10000 / 3 // 3333.333...
+  const items = [{ quantity: 1, unitCost }]
+  const salePrice = 5000
+
+  const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost.toString()) })))
+  const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
+  const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
+
+  const frontendCost = frontendMath.recipeTotal(items)
+  const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
+  const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
+
+  const { dentro: costOk } = compareMoney(rows, 'TC-PREC-03', 'totalCost', backendCost, frontendCost)
+  const { dentro: amountOk } = compareMoney(rows, 'TC-PREC-03', 'marginAmount', backendMarginAmount, frontendMarginAmount)
+  const { dentro: percentOk } = comparePercent(rows, 'TC-PREC-03', backendMarginPercent, frontendMarginPercent)
+
+  expect(costOk).toBe(true)
+  expect(amountOk).toBe(true)
+  expect(percentOk).toBe(true)
+}
+
+// TC-PREC-04: margen negativo (costo de receta muy superior al precio de venta)
+function casoPrec04(rows: ComparisonRow[]) {
+  const items = [
+    { quantity: 2.5, unitCost: 12000 },
+    { quantity: 1.333, unitCost: 8500 },
+  ]
+  const salePrice = 1000
+
+  const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
+  const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
+  const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
+
+  const frontendCost = frontendMath.recipeTotal(items)
+  const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
+  const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
+
+  const { dentro: costOk } = compareMoney(rows, 'TC-PREC-04', 'totalCost', backendCost, frontendCost)
+  const { dentro: amountOk } = compareMoney(rows, 'TC-PREC-04', 'marginAmount', backendMarginAmount, frontendMarginAmount)
+  const { dentro: percentOk } = comparePercent(rows, 'TC-PREC-04', backendMarginPercent, frontendMarginPercent)
+
+  expect(backendMarginAmount.lessThan(0)).toBe(true)
+  expect(frontendMarginAmount).toBeLessThan(0)
+  expect(costOk).toBe(true)
+  expect(amountOk).toBe(true)
+  expect(percentOk).toBe(true)
+}
+
+const CASOS: Array<[string, (rows: ComparisonRow[]) => void]> = [
+  ['TC-PREC-01: insumo fraccionario mínimo (azafrán 0.005 kg a $85.000/kg)', casoPrec01],
+  ['TC-PREC-02: receta extensa (16 insumos con cantidades fraccionarias)', casoPrec02],
+  ['TC-PREC-03: precio con decimal no exacto ($10.000 dividido entre 3 unidades)', casoPrec03],
+  ['TC-PREC-04: margen negativo (costo de receta muy superior al precio de venta)', casoPrec04],
+]
+
 describe('Precisión aritmética: frontend (float) vs backend (Prisma.Decimal) — issue #77', () => {
-  it('TC-PREC-01: insumo fraccionario mínimo (azafrán 0.005 kg a $85.000/kg)', () => {
-    const items = [{ quantity: 0.005, unitCost: 85000 }]
-    const salePrice = 1500
-
-    const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
-    const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
-    const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
-
-    const frontendCost = frontendMath.recipeTotal(items)
-    const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
-    const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
-
-    const { dentro: costOk } = compareMoney('TC-PREC-01', 'totalCost', backendCost, frontendCost)
-    const { dentro: amountOk } = compareMoney('TC-PREC-01', 'marginAmount', backendMarginAmount, frontendMarginAmount)
-    const { dentro: percentOk } = comparePercent('TC-PREC-01', backendMarginPercent, frontendMarginPercent)
-
-    expect(costOk).toBe(true)
-    expect(amountOk).toBe(true)
-    expect(percentOk).toBe(true)
+  it.each(CASOS)('%s', (_nombre, caso) => {
+    caso([])
   })
 
-  it('TC-PREC-02: receta extensa (16 insumos con cantidades fraccionarias)', () => {
-    const items = Array.from({ length: 16 }, (_, i) => ({
-      quantity: Number(((i + 1) * 0.0137).toFixed(6)),
-      unitCost: Number((100 + (i + 1) * 37.13).toFixed(2)),
-    }))
-    const salePrice = 5000
-
-    const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
-    const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
-    const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
-
-    const frontendCost = frontendMath.recipeTotal(items)
-    const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
-    const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
-
-    const { dentro: costOk } = compareMoney('TC-PREC-02', 'totalCost', backendCost, frontendCost)
-    const { dentro: amountOk } = compareMoney('TC-PREC-02', 'marginAmount', backendMarginAmount, frontendMarginAmount)
-    const { dentro: percentOk } = comparePercent('TC-PREC-02', backendMarginPercent, frontendMarginPercent)
-
-    expect(costOk).toBe(true)
-    expect(amountOk).toBe(true)
-    expect(percentOk).toBe(true)
-  })
-
-  it('TC-PREC-03: precio con decimal no exacto ($10.000 dividido entre 3 unidades)', () => {
-    const unitCost = 10000 / 3 // 3333.333...
-    const items = [{ quantity: 1, unitCost }]
-    const salePrice = 5000
-
-    const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost.toString()) })))
-    const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
-    const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
-
-    const frontendCost = frontendMath.recipeTotal(items)
-    const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
-    const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
-
-    const { dentro: costOk } = compareMoney('TC-PREC-03', 'totalCost', backendCost, frontendCost)
-    const { dentro: amountOk } = compareMoney('TC-PREC-03', 'marginAmount', backendMarginAmount, frontendMarginAmount)
-    const { dentro: percentOk } = comparePercent('TC-PREC-03', backendMarginPercent, frontendMarginPercent)
-
-    expect(costOk).toBe(true)
-    expect(amountOk).toBe(true)
-    expect(percentOk).toBe(true)
-  })
-
-  it('TC-PREC-04: margen negativo (costo de receta muy superior al precio de venta)', () => {
-    const items = [
-      { quantity: 2.5, unitCost: 12000 },
-      { quantity: 1.333, unitCost: 8500 },
-    ]
-    const salePrice = 1000
-
-    const backendCost = calculateRecipeTotal(items.map((it) => ({ quantity: D(it.quantity), unitCost: D(it.unitCost) })))
-    const backendMarginAmount = calculateMarginAmount(D(salePrice), backendCost)
-    const backendMarginPercent = calculateMarginPercent(D(salePrice), backendCost)
-
-    const frontendCost = frontendMath.recipeTotal(items)
-    const frontendMarginAmount = frontendMath.marginAmount(salePrice, frontendCost, true)
-    const frontendMarginPercent = frontendMath.marginPercent(salePrice, frontendCost, true)
-
-    const { dentro: costOk } = compareMoney('TC-PREC-04', 'totalCost', backendCost, frontendCost)
-    const { dentro: amountOk } = compareMoney('TC-PREC-04', 'marginAmount', backendMarginAmount, frontendMarginAmount)
-    const { dentro: percentOk } = comparePercent('TC-PREC-04', backendMarginPercent, frontendMarginPercent)
-
-    expect(backendMarginAmount.lessThan(0)).toBe(true)
-    expect(frontendMarginAmount).toBeLessThan(0)
-    expect(costOk).toBe(true)
-    expect(amountOk).toBe(true)
-    expect(percentOk).toBe(true)
-  })
-
+  // Calcula la matriz por su cuenta: no depende de que los casos anteriores
+  // hayan corrido antes (vitest --sequence.shuffle).
   it('imprime la matriz de comparación completa (para docs/qa/reporte-precision-sprint2.md)', () => {
+    const rows: ComparisonRow[] = []
+    for (const [, caso] of CASOS) caso(rows)
     // eslint-disable-next-line no-console
     console.table(rows)
-    expect(rows.length).toBeGreaterThan(0)
+    expect(rows).toHaveLength(CASOS.length * 3)
   })
 })

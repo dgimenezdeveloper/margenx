@@ -986,6 +986,35 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(res.body.error).toMatch(/costo unitario|mayor a cero|superar/i);
   });
 
+  it.each([
+    ['packageSize con 4 decimales', { packageSize: '25.1234', packagePrice: '35000' }, 'El campo "packageSize" debe ser un valor decimal válido con hasta 3 decimales (ej: "25.500").'],
+    ['packagePrice con 3 decimales', { packageSize: '25', packagePrice: '35000.555' }, 'El campo "packagePrice" debe ser un valor decimal válido con hasta 2 decimales (ej: "35000.50").'],
+    ['packageSize fuera de Decimal(10,3)', { packageSize: '10000000', packagePrice: '35000' }, 'El campo "packageSize" no puede superar 9.999.999,999.'],
+    ['packagePrice fuera de Decimal(10,2)', { packageSize: '25', packagePrice: '100000000' }, 'El campo "packagePrice" no puede superar $99.999.999,99.'],
+  ])('devuelve 400 si %s', async (_caso, values, message) => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageUnit: 'kg', ...values });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(message);
+  });
+
+  it('acepta packageSize con 3 decimales en el máximo de la columna', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '9999999.999', packageUnit: 'kg', packagePrice: '99999999.99' });
+
+    // Pasa la validación de escala; si falla, es por otra regla, nunca por el formato.
+    expect(res.body.error ?? '').not.toMatch(/decimal válido|no puede superar/);
+  });
+
   it('devuelve 404 si el proveedor es ajeno a la cuenta', async () => {
     findFirstMock.mockResolvedValue(null);
 

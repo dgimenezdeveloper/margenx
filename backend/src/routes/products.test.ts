@@ -133,6 +133,20 @@ describe('schema Prisma y migración', () => {
     }
   );
 
+  it('la auditoría previa de duplicados cubre las tres tablas y es de solo lectura', () => {
+    const auditSql = readFileSync(join(__dirname, '../../prisma/sql/auditar-nombres-duplicados.sql'), 'utf8');
+    const statements = auditSql
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('--'))
+      .join('\n');
+
+    for (const model of ['Supplier', 'Ingredient', 'Product']) {
+      expect(statements).toContain(`FROM "${model}" t`);
+    }
+    expect(statements.match(/GROUP BY a\.slug, lower\(t\."name"\) HAVING count\(\*\) > 1/g)).toHaveLength(3);
+    expect(statements).not.toMatch(/\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE)\b/i);
+  });
+
   it('documenta en schema.prisma que la unicidad case-insensitive vive en la migración SQL', () => {
     const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
 
