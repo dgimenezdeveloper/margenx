@@ -50,9 +50,9 @@ describe('resolveSeedUser', () => {
   });
 
   it('conserva email y authProviderId del usuario existente con el mismo ID (cuenta resembrada en producción)', () => {
-    const existing = [{ id: seedUser.id, accountId, email: 'admin.panaderia@hotmail.com', authProviderId: 'user_prodAdmin' }];
+    const existing = [{ id: seedUser.id, accountId, email: 'admin.panaderia.prod@seed.example.test', authProviderId: 'user_prodAdmin' }];
     expect(resolveSeedUser(existing, seedUser, accountId)).toEqual({
-      email: 'admin.panaderia@hotmail.com',
+      email: 'admin.panaderia.prod@seed.example.test',
       authProviderId: 'user_prodAdmin',
     });
   });

@@ -15,6 +15,7 @@
 #   SEED_DEMO_COLAB_AUTH_ID   user_id de Clerk del colaborador Demo    } para "demo" y "todo"; en dev se ignoran
 #
 # Qué hace (detalle en docs/runbook-operacion.md):
+#   0. En prod exige estar en main y sin cambios sin commitear.
 #   1. Compila los seeds de la rama actual en un directorio temporal local.
 #   2. Compara las migraciones del repo con las aplicadas en la base destino.
 #   3. pg_dump de la base destino en /opt/margenx-infra/backups/manual/.
@@ -79,10 +80,23 @@ for id in "$ADMIN_ID" "$COLAB_ID"; do
 done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RAMA="$(git -C "$REPO_ROOT" branch --show-current)"
+# En prod solo se siembra el código revisado: rama main y sin cambios locales.
+if [[ "$ENTORNO" == "prod" ]]; then
+  if [[ "$RAMA" != "main" ]]; then
+    echo "En prod hay que sembrar desde main (rama actual: ${RAMA:-HEAD desacoplado}). No se hizo nada." >&2
+    exit 1
+  fi
+  if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+    echo "Hay cambios sin commitear en el repositorio. En prod se siembra solo código commiteado. No se hizo nada." >&2
+    exit 1
+  fi
+fi
+
 BUILD_DIR="$(mktemp -d)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
-echo "==> 1/4 Compilando los seeds de la rama $(git -C "$REPO_ROOT" branch --show-current)"
+echo "==> 1/4 Compilando los seeds de la rama $RAMA"
 (cd "$REPO_ROOT/backend" && npx tsc -p tsconfig.seed.json --noEmit false --rootDir . --outDir "$BUILD_DIR")
 
 echo "==> 2/4 Comparando migraciones del repo con $DB"

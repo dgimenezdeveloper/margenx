@@ -29,7 +29,7 @@ Reglas al resembrar:
 
 - Acceso SSH por clave a la VPS con un alias en `~/.ssh/config` (por defecto `vps-donweb`; otro alias se indica con `SSH_HOST`).
 - El repositorio con `npm ci` hecho en `backend/` (el script compila con el `tsc` local).
-- Estar en la rama desplegada en ese entorno: `develop` para staging, `main` para producción. El script compara las migraciones de la rama con las aplicadas en la base y se detiene si no coinciden.
+- Estar en la rama desplegada en ese entorno: `develop` para staging, `main` para producción. En producción el script se detiene si la rama no es `main` o si hay cambios sin commitear. También compara las migraciones de la rama con las aplicadas en la base y se detiene si no coinciden.
 
 ## 3. IDs de Clerk de la Demo
 
@@ -102,9 +102,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://api.margenx.tech/api/we
   -d '{"accountSlug":"demo-margenx","items":[{"code":"DEMO-HAR-25","price":21000}]}'
 
 # En la VPS: con el secreto, sin que salga del servidor. Mismo precio que el seed => "unchanged": 1
+# La cabecera entra por la entrada estándar (-H @-) para que el secreto no quede visible en `ps`.
 S=$(docker exec margenx_backend_prod printenv INTERNAL_WEBHOOK_SECRET)
-curl -s -X POST http://127.0.0.1:3011/api/webhooks/supplier-prices \
-  -H 'content-type: application/json' -H "x-margenx-webhook-secret: $S" \
+printf 'x-margenx-webhook-secret: %s\n' "$S" | curl -s -X POST http://127.0.0.1:3011/api/webhooks/supplier-prices \
+  -H 'content-type: application/json' -H @- \
   -d '{"accountSlug":"demo-margenx","items":[{"code":"DEMO-HAR-25","price":21000}]}'
 ```
 

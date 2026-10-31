@@ -10,7 +10,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Fixed
 
 - **Backend / DevOps:** `seed.ts` ya no aborta en producción cuando los usuarios piloto tienen otro email que el seed: conserva el email y el `authProviderId` existentes. Ambos seeds restauran el nombre de un insumo, proveedor o producto renombrado (mismo ID) en vez de cortar la carga, y buscan nombres repetidos sin distinguir mayúsculas (`#240`).
-- **DevOps:** `infra/vps/docker-compose.prod.yml` versiona las claves de Clerk separadas por entorno que ya corrían en la VPS (`CLERK_*_PROD` / `CLERK_*_DEV`) y agrega `APP_BASE_URL=https://margenx.tech` a `backend-prod`; `infra/vps/.env.example` documenta las cuatro variables (`#240`).
+- **DevOps:** `infra/vps/docker-compose.prod.yml` versiona las claves de Clerk separadas por entorno que ya corrían en la VPS (`CLERK_*_PROD` / `CLERK_*_DEV`) y fija `APP_BASE_URL` por servicio (`https://margenx.tech` en `backend-prod`, `https://dev.margenx.tech` en `backend-dev`); `infra/vps/.env.example` documenta las cuatro variables (`#240`).
 - **Frontend / Backend:** El nombre del producto se guarda y se muestra tal como lo escribió el usuario ("Pan de Campo"): se quitó el `toLowerCase()` al guardar en `POST`/`PUT /api/products` y el `toUpperCase()` del listado. La unicidad de nombre por cuenta sigue siendo case-insensitive y queda cubierta por pruebas automatizadas (`#236`).
 - **Security:** `/productos/nuevo` protegido con `AdminOnlyRoute`: un `COLLABORATOR` es redirigido a `/productos` (caso `TC-RBAC-04` en el E2E de RBAC) (`#236`).
 - **QA:** Las 6 colecciones de Postman actualizadas al contrato vigente de la API — Insumos (paginación de la issue #36), Productos (`salePrice: 0` permitido a propósito y mensaje real de `salePrice` negativo), Webhooks (contrato de respuesta post-cuarentena) y Alertas de margen (orden de ejecución entre sus propios requests, mensaje de RBAC y campo `affectedProducts`), corrigiendo los fallos QA4-01 a QA4-04 de `docs/qa/reporte-calidad-sprint4.md` (`#264`).
@@ -23,7 +23,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
-- **DevOps:** Script `infra/scripts/seed-remoto.sh` para sembrar o resembrar staging y producción: compila los seeds localmente, compara migraciones, hace `pg_dump` previo y corre el seed en un contenedor temporal con la imagen del backend. Runbook en `docs/runbook-operacion.md` (`#240`).
+- **DevOps:** Script `infra/scripts/seed-remoto.sh` para sembrar o resembrar staging y producción: compila los seeds localmente, compara migraciones, hace `pg_dump` previo y corre el seed en un contenedor temporal con la imagen del backend. En producción exige la rama `main` sin cambios sin commitear. Runbook en `docs/runbook-operacion.md` (`#240`).
 - **Backend:** `seed-demo.ts` toma los `user_id` del Clerk de producción de `SEED_DEMO_ADMIN_AUTH_ID` y `SEED_DEMO_COLAB_AUTH_ID` (`#240`).
 - **Frontend:** Página 404 dentro del panel (con el menú y un botón al dashboard) para cualquier ruta inexistente, y redirección de `/` al dashboard cuando hay sesión activa. Se eliminó el código muerto `productos/detalle` (`#236`).
 - **Docs:** Tabla de rutas y accesos por rol en `docs/manual-usuario/02-rutas-y-roles.md` (`#236`).
