@@ -21,7 +21,6 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
@@ -133,8 +132,6 @@ export default function NewProductPage() {
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado o el modal de confirmación está abierto
-  useBodyScrollLock(isDropdownOpen || Boolean(ingredientToDelete))
 
   // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
