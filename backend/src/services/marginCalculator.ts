@@ -33,10 +33,12 @@ function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): D
 function roundMoney(value: DecimalType): DecimalType {
   return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 }
+
 /**
  * Calculadora pura de costos y márgenes usando Prisma.Decimal
  * Todas las salidas quedan redondeadas a 2 decimales con ROUND_HALF_UP
  */
+
 /**
  * Costo de un ítem de receta = cantidad usada × costo unitario.
  * Cantidad o costo inválidos (<= 0) no aportan costo.
@@ -116,65 +118,147 @@ export interface IngredientCostChangeResult {
   criticalProducts: CriticalMarginProduct[];
 }
 
-export async function applyIngredientCostChange(
-  tx: any,
-  ingredientId: string,
-  previousCost: DecimalType | null,
-  newCost: DecimalType
-): Promise<IngredientCostChangeResult> {
-  const ingredientFinder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
-  const oldCost =
-    previousCost ??
-    (ingredientFinder && typeof ingredientFinder === 'function'
-      ? (await ingredientFinder.call(tx.ingredient, {
-        where: { id: ingredientId },
-        select: { currentCost: true },
-      }))?.currentCost ?? null
-      : null);
+export interface IngredientCostUpdateInput {
+  ingredientId: string;
+  previousCost: DecimalType | null;
+  newCost: DecimalType;
+}
 
-  if (oldCost && !oldCost.equals(newCost)) {
-    await tx.priceHistory.create({
-      data: {
-        ingredientId,
-        oldCost,
-        newCost,
-      },
-    });
+/**
+ * Recálculo masivo transaccional en lote:
+ * 1. Registra PriceHistory para cada insumo modificado.
+ * 2. Busca todos los productos afectados en una única consulta findMany.
+ * 3. Recalcula cada receta una sola vez consolidando todos los nuevos costos del lote.
+ * 4. Evalúa alertas de quiebre de margen mínimo una única vez por producto.
+ */
+export async function applyBatchIngredientCostChanges(
+  tx: any,
+  changes: IngredientCostUpdateInput[]
+): Promise<IngredientCostChangeResult> {
+  if (!Array.isArray(changes) || changes.length === 0) {
+    return {
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    };
   }
 
-  const affected = await tx.productIngredient.findMany({
-    where: { ingredientId },
+  // 1. Deduplicar por ingredientId y registrar PriceHistory para variaciones reales
+  const changesByIngredient = new Map<string, IngredientCostUpdateInput>();
+  for (const change of changes) {
+    changesByIngredient.set(change.ingredientId, change);
+  }
+
+  const effectiveChangesMap = new Map<string, DecimalType>();
+
+  for (const change of changesByIngredient.values()) {
+    const { ingredientId, previousCost, newCost } = change;
+    let oldCost = previousCost;
+
+    if (oldCost === null || oldCost === undefined) {
+      const ingredientFinder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
+      if (ingredientFinder && typeof ingredientFinder === 'function') {
+        const found = await ingredientFinder.call(tx.ingredient, {
+          where: { id: ingredientId },
+          select: { currentCost: true },
+        });
+        oldCost = found?.currentCost ?? null;
+      }
+    }
+
+    if (oldCost && !oldCost.equals(newCost)) {
+      await tx.priceHistory.create({
+        data: {
+          ingredientId,
+          oldCost,
+          newCost,
+        },
+      });
+    }
+
+    effectiveChangesMap.set(ingredientId, newCost);
+  }
+
+  const ingredientIds = [...effectiveChangesMap.keys()];
+  if (ingredientIds.length === 0) {
+    return {
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    };
+  }
+
+  // 2. Consulta única de relaciones para obtener todos los productos afectados sin duplicados
+  const affectedRelations = await tx.productIngredient.findMany({
+    where: { ingredientId: { in: ingredientIds } },
     select: { productId: true },
   });
-  const productIds = [...new Set(affected.map((a: { productId: string }) => a.productId))];
-  const affectedProducts: ProductCostImpact[] = [];
-  const criticalProducts: CriticalMarginProduct[] = [];
 
-  for (const productId of productIds) {
-    const product = await tx.product.findUnique({
-      where: { id: productId },
+  const uniqueProductIds = [...new Set(affectedRelations.map((a: { productId: string }) => a.productId))];
+  if (uniqueProductIds.length === 0) {
+    return {
+      affectedProductsCount: 0,
+      affectedProducts: [],
+      criticalProducts: [],
+    };
+  }
+
+  // 3. Consulta masiva de recetas (con fallback defensivo para mocks de pruebas unitarias existentes)
+  let products: any[];
+  if (typeof tx.product.findMany === 'function') {
+    products = await tx.product.findMany({
+      where: { id: { in: uniqueProductIds } },
       include: {
         ingredients: {
-          include: { ingredient: { select: { currentCost: true } } },
+          include: {
+            ingredient: { select: { id: true, currentCost: true } },
+          },
         },
       },
     });
-    if (!product) continue;
+  } else {
+    const rawProducts = await Promise.all(
+      uniqueProductIds.map((id) =>
+        tx.product.findUnique({
+          where: { id },
+          include: {
+            ingredients: {
+              include: {
+                ingredient: { select: { id: true, currentCost: true } },
+              },
+            },
+          },
+        })
+      )
+    );
+    products = rawProducts.filter(Boolean);
+  }
 
+  const affectedProducts: ProductCostImpact[] = [];
+  const criticalProducts: CriticalMarginProduct[] = [];
+
+  // 4. Recálculo único por producto consolidando todos los insumos modificados
+  for (const product of products) {
     const safeMinMarginPercent = product.minMarginPercent ?? ZERO;
     const previousProductCost = product.cost ?? ZERO;
     const previousMarginPercent = product.marginPercent ?? ZERO;
+
     const nextCost = calculateRecipeTotal(
-      product.ingredients.map((pi: { quantity: DecimalType; ingredient: { currentCost: DecimalType } }) => ({
-        quantity: pi.quantity,
-        unitCost: pi.ingredient.currentCost,
-      }))
+      product.ingredients.map((pi: { quantity: DecimalType; ingredientId: string; ingredient: { currentCost: DecimalType } }) => {
+        const updatedCost = effectiveChangesMap.get(pi.ingredientId);
+        const unitCost = updatedCost !== undefined ? updatedCost : (pi.ingredient?.currentCost ?? ZERO);
+        return {
+          quantity: pi.quantity,
+          unitCost,
+        };
+      })
     );
+
     const nextMarginAmount = calculateMarginAmount(product.salePrice, nextCost);
     const nextMarginPercent = calculateMarginPercent(product.salePrice, nextCost);
 
     await tx.product.update({
-      where: { id: productId },
+      where: { id: product.id },
       data: {
         cost: nextCost,
         marginAmount: nextMarginAmount,
@@ -209,6 +293,20 @@ export async function applyIngredientCostChange(
   };
 }
 
+/**
+ * Mantiene compatibilidad total con llamadas unitarias delegando en el método por lote.
+ */
+export async function applyIngredientCostChange(
+  tx: any,
+  ingredientId: string,
+  previousCost: DecimalType | null,
+  newCost: DecimalType
+): Promise<IngredientCostChangeResult> {
+  return applyBatchIngredientCostChanges(tx, [
+    { ingredientId, previousCost, newCost },
+  ]);
+}
+
 export default {
   calculateItemCost,
   calculateRecipeTotal,
@@ -216,4 +314,5 @@ export default {
   calculateMarginPercent,
   calculateUnitCost,
   applyIngredientCostChange,
+  applyBatchIngredientCostChanges,
 };

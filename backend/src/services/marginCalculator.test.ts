@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import {
   calculateItemCost,
@@ -7,9 +7,8 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
   applyIngredientCostChange,
+  applyBatchIngredientCostChanges,
 } from './marginCalculator';
-import { vi } from 'vitest';
-
 
 const D = (v: string | number) => new Prisma.Decimal(v);
 
@@ -167,12 +166,12 @@ describe('calculateUnitCost', () => {
       expect(() =>
         calculateUnitCost(new Prisma.Decimal(0), new Prisma.Decimal(10))
       ).toThrow('El campo "packagePrice" debe ser mayor a cero.');
-  
+
       expect(() =>
         calculateUnitCost(new Prisma.Decimal(-50), new Prisma.Decimal(10))
       ).toThrow('El campo "packagePrice" debe ser mayor a cero.');
     });
-  
+
     it('lanza error cuando unitCost excede MAX_MONEY_VALUE en calculateUnitCost (Líneas 67-68)', () => {
       const hugePrice = new Prisma.Decimal('999999999999');
       const tinySize = new Prisma.Decimal('0.001');
@@ -180,7 +179,7 @@ describe('calculateUnitCost', () => {
         'El costo unitario calculado no puede superar $99.999.999,99.'
       );
     });
-  
+
     it('registra priceHistory cuando oldCost difiere de newCost en applyIngredientCostChange (Líneas 129-132)', async () => {
       const mockTx = {
         ingredient: {
@@ -197,14 +196,14 @@ describe('calculateUnitCost', () => {
           update: vi.fn(),
         },
       };
-  
+
       await applyIngredientCostChange(
         mockTx,
         'ing-1',
         new Prisma.Decimal('100'),
         new Prisma.Decimal('120')
       );
-  
+
       expect(mockTx.priceHistory.create).toHaveBeenCalledWith({
         data: {
           ingredientId: 'ing-1',
@@ -213,5 +212,172 @@ describe('calculateUnitCost', () => {
         },
       });
     });
+  });
+});
+
+describe('applyBatchIngredientCostChanges', () => {
+  it('retorna 0 afectados si la lista de cambios está vacía o no es un array', async () => {
+    const mockTx = {
+      ingredient: { findUnique: vi.fn() },
+      priceHistory: { create: vi.fn() },
+      productIngredient: { findMany: vi.fn() },
+      product: { findMany: vi.fn(), update: vi.fn() },
+    };
+
+    const res1 = await applyBatchIngredientCostChanges(mockTx, []);
+    expect(res1.affectedProductsCount).toBe(0);
+    expect(res1.criticalProducts).toEqual([]);
+    expect(mockTx.productIngredient.findMany).not.toHaveBeenCalled();
+
+    // @ts-expect-error probando robustez ante input inválido
+    const res2 = await applyBatchIngredientCostChanges(mockTx, null);
+    expect(res2.affectedProductsCount).toBe(0);
+  });
+
+  it('no registra PriceHistory si oldCost es igual a newCost', async () => {
+    const mockTx = {
+      priceHistory: { create: vi.fn() },
+      productIngredient: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    await applyBatchIngredientCostChanges(mockTx, [
+      { ingredientId: 'ing-1', previousCost: D('100'), newCost: D('100') },
+    ]);
+
+    expect(mockTx.priceHistory.create).not.toHaveBeenCalled();
+  });
+
+  it('Gherkin Escenario "Producto compartido": recalcula una sola vez consolidando 3 insumos y genera 1 sola alerta', async () => {
+    const productTorta = {
+      id: 'prod-torta',
+      name: 'Torta Especial',
+      salePrice: D('15000.00'),
+      minMarginPercent: D('30.00'),
+      cost: D('5300.00'),
+      marginPercent: D('64.67'),
+      ingredients: [
+        { ingredientId: 'ing-harina', quantity: D('1.000'), ingredient: { currentCost: D('1000.00') } },
+        { ingredientId: 'ing-manteca', quantity: D('0.500'), ingredient: { currentCost: D('8000.00') } },
+        { ingredientId: 'ing-azucar', quantity: D('0.300'), ingredient: { currentCost: D('1000.00') } },
+      ],
+    };
+
+    const mockTx = {
+      priceHistory: { create: vi.fn().mockResolvedValue({}) },
+      productIngredient: {
+        findMany: vi.fn().mockResolvedValue([
+          { productId: 'prod-torta' },
+          { productId: 'prod-torta' },
+          { productId: 'prod-torta' },
+        ]),
+      },
+      product: {
+        findMany: vi.fn().mockResolvedValue([productTorta]),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const changes = [
+      { ingredientId: 'ing-harina', previousCost: D('1000.00'), newCost: D('2500.00') },
+      { ingredientId: 'ing-manteca', previousCost: D('8000.00'), newCost: D('16000.00') },
+      { ingredientId: 'ing-azucar', previousCost: D('1000.00'), newCost: D('3000.00') },
+    ];
+
+    const result = await applyBatchIngredientCostChanges(mockTx, changes);
+
+    expect(mockTx.priceHistory.create).toHaveBeenCalledTimes(3);
+
+    expect(mockTx.productIngredient.findMany).toHaveBeenCalledWith({
+      where: { ingredientId: { in: ['ing-harina', 'ing-manteca', 'ing-azucar'] } },
+      select: { productId: true },
+    });
+
+    expect(mockTx.product.findMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['prod-torta'] } },
+      include: expect.any(Object),
+    });
+
+    expect(mockTx.product.update).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.update).toHaveBeenCalledWith({
+      where: { id: 'prod-torta' },
+      data: {
+        cost: D('11400.00'),
+        marginAmount: D('3600.00'),
+        marginPercent: D('24.00'),
+      },
+    });
+
+    expect(result.affectedProductsCount).toBe(1);
+    expect(result.affectedProducts).toHaveLength(1);
+    expect(result.criticalProducts).toHaveLength(1);
+    expect(result.criticalProducts[0]).toMatchObject({
+      productId: 'prod-torta',
+      productName: 'Torta Especial',
+      newCost: D('11400.00'),
+      currentMarginPercent: D('24.00'),
+    });
+  });
+
+  it('soporta fallback defensivo con findUnique cuando tx.product.findMany no está mockeado', async () => {
+    const productSimple = {
+      id: 'prod-1',
+      name: 'Pan',
+      salePrice: D('2000.00'),
+      minMarginPercent: D('30.00'),
+      cost: D('1000.00'),
+      marginPercent: D('50.00'),
+      ingredients: [
+        { ingredientId: 'ing-1', quantity: D('1.000'), ingredient: { currentCost: D('1000.00') } },
+      ],
+    };
+
+    const mockTx = {
+      priceHistory: { create: vi.fn().mockResolvedValue({}) },
+      productIngredient: { findMany: vi.fn().mockResolvedValue([{ productId: 'prod-1' }]) },
+      product: {
+        // findMany NO está definido intencionalmente para ejercitar el fallback
+        findUnique: vi.fn().mockResolvedValue(productSimple),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const result = await applyBatchIngredientCostChanges(mockTx, [
+      { ingredientId: 'ing-1', previousCost: D('1000.00'), newCost: D('1200.00') },
+    ]);
+
+    expect(mockTx.product.findUnique).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.update).toHaveBeenCalledTimes(1);
+    expect(result.affectedProductsCount).toBe(1);
+  });
+
+  it('no marca producto como crítico si ya venía por debajo del margen mínimo (sin cruce)', async () => {
+    const productBajo = {
+      id: 'prod-bajo',
+      name: 'Pan Económico',
+      salePrice: D('1000.00'),
+      minMarginPercent: D('30.00'),
+      cost: D('800.00'),
+      marginPercent: D('20.00'),
+      ingredients: [
+        { ingredientId: 'ing-1', quantity: D('1.000'), ingredient: { currentCost: D('800.00') } },
+      ],
+    };
+
+    const mockTx = {
+      priceHistory: { create: vi.fn().mockResolvedValue({}) },
+      productIngredient: { findMany: vi.fn().mockResolvedValue([{ productId: 'prod-bajo' }]) },
+      product: {
+        findMany: vi.fn().mockResolvedValue([productBajo]),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const result = await applyBatchIngredientCostChanges(mockTx, [
+      { ingredientId: 'ing-1', previousCost: D('800.00'), newCost: D('900.00') },
+    ]);
+
+    expect(result.affectedProductsCount).toBe(1);
+    expect(result.criticalProducts).toHaveLength(0);
   });
 });
