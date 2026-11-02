@@ -43,6 +43,7 @@ src/
 │   └── proveedores/
 │       └── cuarentena/       # Solo ADMIN — bandeja de precios en cuarentena
 ├── components/       # Compartidos entre rutas (navbar, toasts, diálogos, guards de ruta)
+│   └── ui/           # Primitivas accesibles estilizadas (button, dialog, etc.)
 ├── hooks/            # useUserRole, useTheme, useSessionSecurity, etc.
 ├── lib/              # Clientes y utilidades de bajo nivel (Clerk, formato numérico)
 ├── schemas/          # Validación con Zod (productSchema, ingredientSchema, supplierPackagingSchema)
@@ -55,17 +56,9 @@ src/
 
 Guards de ruta (`src/components/protected-route.tsx`, `admin-only-route.tsx`) aplican el control de acceso en el cliente; el backend repite la misma regla en cada endpoint — ninguno de los dos alcanza solo.
 
-### Estados de carga, vacío y error
+### Componentes UI Compartidos
 
-Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5):
-
-- **Cargando:** skeleton o indicador de carga. También se muestra mientras se reintenta, en lugar del error anterior.
-- **Vacío:** `src/components/empty-state.tsx`, solo cuando la API respondió bien y no hay datos.
-- **Error:** `src/components/error-state.tsx` (`ErrorState`), cuando la API falla (5xx) o no hay red. Reemplaza a los indicadores: un fallo nunca se pinta como "0 productos en riesgo" ni como una lista vacía.
-
-`ErrorState` recibe `title`, `description` y `onRetry` (botón **Reintentar**, alto mínimo de 44 px) y se anuncia con `role="alert"`. Opcionales: `retryLabel`, `icon`, `className` e `isRetrying` (deshabilita el botón y muestra "Reintentando..." en pantallas que mantienen el error visible durante el reintento). `onAction` y `actionLabel` son alias para mantener la misma interfaz que `EmptyState`.
-
-Lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`. En las tres el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
+- `Dialog` (`src/components/ui/dialog.tsx`): Wrapper accesible sobre `@base-ui/react/dialog`. Gestiona automáticamente el focus trap, el cierre con tecla `Escape`, la devolución del foco al elemento disparador y el bloqueo de scroll del fondo. Exporta `Dialog`, `DialogTrigger`, `DialogPortal`, `DialogBackdrop`, `DialogPopup` (centrado para modales), `DialogSheet` (adaptativo: bottom-sheet en mobile y centrado en desktop), `DialogTitle`, `DialogDescription` y `DialogClose`.
 
 ## Pruebas
 
