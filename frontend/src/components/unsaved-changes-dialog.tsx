@@ -13,8 +13,8 @@ export function UnsavedChangesDialog({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onCancel() }}>
       <DialogPortal>
-        <DialogBackdrop className="z-60" />
-        <DialogPopup className="z-60">
+        <DialogBackdrop className="z-80" />
+        <DialogPopup className="z-80">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
             <AlertTriangle className="size-7" />
           </div>
