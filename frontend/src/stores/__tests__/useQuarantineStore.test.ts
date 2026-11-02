@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useQuarantineStore } from '../useQuarantineStore';
 import { supplierService, type QuarantinedItem } from '@/services/supplierService';
+import { ApiError } from '@/services/api';
 
 vi.mock('@/services/supplierService', () => ({
   supplierService: {
@@ -44,16 +45,29 @@ describe('useQuarantineStore', () => {
     expect(supplierService.getQuarantine).toHaveBeenCalledWith(getToken);
   });
 
-  it('fetchItems: captura y maneja errores de tipo Error', async () => {
-    vi.mocked(supplierService.getQuarantine).mockRejectedValueOnce(new Error('Fallo de red'));
+  it('fetchItems: muestra el mensaje de la API cuando falla con ApiError', async () => {
+    vi.mocked(supplierService.getQuarantine).mockRejectedValueOnce(
+      new ApiError('Error interno del servidor', 500),
+    );
 
     const getToken = vi.fn().mockResolvedValue('token-123');
     await useQuarantineStore.getState().fetchItems(getToken);
 
     const state = useQuarantineStore.getState();
     expect(state.isLoading).toBe(false);
-    expect(state.error).toBe('Fallo de red');
+    expect(state.error).toBe('Error interno del servidor');
     expect(state.items).toEqual([]);
+  });
+
+  it('fetchItems: sin red (TypeError de fetch) usa un mensaje en español, no el del navegador', async () => {
+    vi.mocked(supplierService.getQuarantine).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const getToken = vi.fn().mockResolvedValue('token-123');
+    await useQuarantineStore.getState().fetchItems(getToken);
+
+    const state = useQuarantineStore.getState();
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBe('No se pudieron cargar los precios en cuarentena.');
   });
 
   it('fetchItems: maneja excepciones que no heredan de Error', async () => {
@@ -64,7 +78,7 @@ describe('useQuarantineStore', () => {
 
     const state = useQuarantineStore.getState();
     expect(state.isLoading).toBe(false);
-    expect(state.error).toBe('Error al cargar la cuarentena');
+    expect(state.error).toBe('No se pudieron cargar los precios en cuarentena.');
   });
 
   it('removeItemLocally: remueve el ítem de la bandeja en memoria sin refetch', () => {

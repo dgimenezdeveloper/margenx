@@ -7,6 +7,7 @@ import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
 import { ToastAlert } from '@/components/ToastAlert'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
 import { QuarantineList } from './components/QuarantineList'
@@ -57,16 +58,11 @@ export default function QuarantinePage() {
                 <RefreshCw className="mr-2 size-5 animate-spin" /> Cargando bandeja...
               </div>
             ) : error ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-900 dark:bg-rose-950/30">
-                <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 mb-4">{error}</p>
-                <button
-                  type="button"
-                  onClick={() => fetchItems(getToken)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-700 cursor-pointer"
-                >
-                  <RefreshCw className="size-4" /> Reintentar
-                </button>
-              </div>
+              <ErrorState
+                title="Error al cargar la cuarentena"
+                description={error}
+                onRetry={() => fetchItems(getToken)}
+              />
             ) : items.length === 0 ? (
               <EmptyState
                 icon={<ShieldAlert className="size-6" />}

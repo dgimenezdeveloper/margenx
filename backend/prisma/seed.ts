@@ -7,6 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { hasIdentityConflict, resolveSeedUser } from "./seed-identity";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
 // Issue #178 — proveedores mayoristas reales y mapeo de SKU por SupplierIngredient.
@@ -643,38 +644,18 @@ async function main() {
       });
 
       for (const user of account.users) {
-        // Buscamos si el usuario ya existe en base de datos por ID o por email
-        const existingUser = await tx.user.findFirst({
-          where: {
-            OR: [
-              { id: user.id },
-              { email: user.email },
-            ],
-          },
+        const existingUsers = await tx.user.findMany({
+          where: { OR: [{ id: user.id }, { email: user.email }] },
         });
 
-        // Verificamos que no haya colisión cruzada (ej. que el email pertenezca a otra cuenta u otro ID)
-        if (existingUser && (existingUser.id !== user.id || existingUser.accountId !== account.id || existingUser.email !== user.email)) {
-          throw new Error("Conflicto de identidad del usuario de prueba " + user.email + ".");
-        }
-
-        // Si el usuario ya existe en la base de datos, PRESERVAMOS su authProviderId activo
-        // para no romper sesiones de Clerk en producción o staging. Solo usamos el del seed si el usuario es nuevo.
-        const authProviderIdToPersist = existingUser?.authProviderId ?? user.authProviderId;
+        // Un usuario existente conserva su email y su authProviderId: en
+        // producción difieren del seed y pisarlos rompería el login de Clerk.
+        const identity = resolveSeedUser(existingUsers, user, account.id);
 
         await tx.user.upsert({
           where: { id: user.id },
-          create: {
-            id: user.id,
-            accountId: account.id,
-            email: user.email,
-            role: user.role,
-            authProviderId: user.authProviderId,
-          },
-          update: {
-            role: user.role,
-            authProviderId: authProviderIdToPersist,
-          },
+          create: { id: user.id, accountId: account.id, role: user.role, ...identity },
+          update: { role: user.role, ...identity },
         });
       }
 
@@ -700,16 +681,12 @@ async function main() {
           where: {
             OR: [
               { id: ingredient.id },
-              { accountId: account.id, name: ingredient.name },
+              { accountId: account.id, name: { equals: ingredient.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingIngredients.some((row) =>
-          row.id !== ingredient.id ||
-          row.accountId !== account.id ||
-          row.name !== ingredient.name
-        )) {
+        if (hasIdentityConflict(matchingIngredients, ingredient.id, account.id)) {
           throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
         }
 
@@ -746,16 +723,12 @@ async function main() {
           where: {
             OR: [
               { id: supplier.id },
-              { accountId: account.id, name: supplier.name },
+              { accountId: account.id, name: { equals: supplier.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingSuppliers.some((row) =>
-          row.id !== supplier.id ||
-          row.accountId !== account.id ||
-          row.name !== supplier.name
-        )) {
+        if (hasIdentityConflict(matchingSuppliers, supplier.id, account.id)) {
           throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
         }
 
@@ -824,16 +797,12 @@ async function main() {
           where: {
             OR: [
               { id: product.id },
-              { accountId: account.id, name: product.name },
+              { accountId: account.id, name: { equals: product.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingProducts.some((row) =>
-          row.id !== product.id ||
-          row.accountId !== account.id ||
-          row.name !== product.name
-        )) {
+        if (hasIdentityConflict(matchingProducts, product.id, account.id)) {
           throw new Error("Conflicto de identidad en el producto " + product.name + ".");
         }
 

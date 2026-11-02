@@ -82,7 +82,9 @@ Decisión de diseño del camino C: los costos "de referencia de mercado" envejec
 Un producto puede crearse **sin insumos**, para que el comercio cargue su lista de precios de venta antes de pesar ingredientes (ej. *Hamburguesa Simple — precio de venta $3.800 — margen mínimo 35 %*).
 
 - Mientras no tenga receta, la interfaz lo muestra como **"Borrador (Sin Receta)"**.
-- Su costo es 0 y su margen se informa como `0.00 %`: significa "sin costo cargado", no "rentabilidad nula" (ADR-004). No dispara alertas.
+- En ese estado se permite `salePrice = 0` como valor de transición, pero solo si el producto todavía no tiene receta.
+- Cuando el producto ya tiene insumos, `salePrice` debe ser estrictamente mayor a `0`; de lo contrario la API responde `400 Bad Request`.
+- Si no tiene receta, su costo y margen se informan como `0.00` y `0.00 %` para representar "sin costo cargado", no "rentabilidad nula" (ADR-004). No dispara alertas.
 - El cálculo se activa en cuanto se asocia el primer insumo.
 
 ### Receta (ficha técnica) · *Disponible*
@@ -308,11 +310,11 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Esta sección resume solo
 |---|---|---|
 | `Account` | Comercio (tenant) | `slug` único (dirección de ingesta); `defaultMinMarginPercent` (30 % por defecto); `isActive`. |
 | `User` | Persona de la cuenta | `role` `ADMIN` o `COLLABORATOR`; `authProviderId` vincula con Clerk. |
-| `Ingredient` | Insumo del catálogo interno | `unit` `kg`, `l` o `u`; `currentCost` = costo vigente. |
-| `Supplier` | Proveedor de la cuenta | Nombre único por cuenta; `isActive`; contacto opcional (`contactPhone`, `email`, `address`). |
+| `Ingredient` | Insumo del catálogo interno | Nombre único por cuenta con índice funcional case-insensitive (`lower(name)`) en la base; `unit` `kg`, `l` o `u`; `currentCost` = costo vigente. |
+| `Supplier` | Proveedor de la cuenta | Nombre único por cuenta con índice funcional case-insensitive (`lower(name)`) en la base; `isActive`; contacto opcional (`contactPhone`, `email`, `address`). |
 | `SupplierIngredient` | Presentación de un proveedor para un insumo | Única por par proveedor-insumo; `supplierCode` opcional y único por proveedor; ver §4. |
 | `PriceHistory` | Historial de cambios de costo de un insumo | Costo anterior, costo nuevo y fecha. |
-| `Product` | Producto terminado | Nombre único por cuenta; `salePrice`, `minMarginPercent`; `cost`, `marginAmount` y `marginPercent` calculados (`marginPercent` admite valores negativos). |
+| `Product` | Producto terminado | Nombre único por cuenta con índice funcional case-insensitive (`lower(name)`) en la base; `salePrice`, `minMarginPercent`; `cost`, `marginAmount` y `marginPercent` calculados (`marginPercent` admite valores negativos). La regla de negocio exige `salePrice > 0` cuando el producto tiene receta; un producto sin receta puede quedar en borrador con `salePrice = 0` para cálculo transitorio de margen. |
 | `ProductIngredient` | Línea de receta | Única por par producto-insumo; `quantity` en la unidad del insumo. |
 
 **Aislamiento entre cuentas:** toda consulta se filtra por el `accountId` del usuario autenticado, que sale del JWT de Clerk y nunca del cliente (`docs/definition-of-done.md` §6). Los proveedores y las presentaciones heredan la cuenta de su insumo.

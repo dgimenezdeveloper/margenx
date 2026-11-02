@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
 import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
@@ -51,6 +52,7 @@ export default function SuppliesPageContent() {
   const [quarantineCount, setQuarantineCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -65,6 +67,12 @@ export default function SuppliesPageContent() {
 
   useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
+  const handleRetry = () => {
+    setIsLoading(true)
+    setLoadError(null)
+    setReloadKey((prev) => prev + 1)
+  }
+
   useEffect(() => {
     let active = true
 
@@ -76,21 +84,28 @@ export default function SuppliesPageContent() {
     ])
       .then(([ingredients, quarantined]) => {
         if (active) {
-          setSupplies(sortIngredients(ingredients))
+          setSupplies(sortIngredients(ingredients ?? []))
           setQuarantineCount(quarantined.length)
         }
       })
       .catch((error: unknown) => {
-        if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.')
+        if (active) {
+          const msg = error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'
+          setLoadError(msg)
+          setSupplies([])
+          setQuarantineCount(0)
+        }
       })
       .finally(() => {
-        if (active) setIsLoading(false)
+        if (active) {
+          setIsLoading(false)
+        }
       })
 
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator])
+  }, [getToken, isCollaborator, reloadKey])
 
   useEffect(() => {
     if (!currentToast && toastQueue.length > 0) {
@@ -380,87 +395,92 @@ export default function SuppliesPageContent() {
             </div>
           </section>
 
-          {!isCollaborator && quarantineCount > 0 && (
-            <div className="md:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
-                  <ShieldAlert className="size-5" />
-                  <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+          {loadError ? (
+            <ErrorState
+              title="Error al cargar insumos"
+              description={loadError}
+              onRetry={handleRetry}
+            />
+          ) : (
+            <>
+              {!isCollaborator && quarantineCount > 0 && (
+                <div className="md:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+                      <ShieldAlert className="size-5" />
+                      <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/proveedores/cuarentena')}
+                      className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer"
+                    >
+                      Revisar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/proveedores/cuarentena')}
-                  className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer"
-                >
-                  Revisar
-                </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
+                  <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
+                  <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
+                </div>
+                <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
+                  <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
+                  <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
+                </div>
+                <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
+                </div>
+                <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
+                  <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
+                </div>
               </div>
-            </div>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-bold">Todos los insumos</h2>
+                  <button
+                    type="button"
+                    onClick={handleOpenNew}
+                    className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                  >
+                    + Nuevo Insumo
+                  </button>
+                </div>
+                {isLoading && (
+                  <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
+                  </div>
+                )}
+                {!isLoading && isTotalEmpty && (
+                  <EmptyState
+                    icon={<Boxes className="size-6" />}
+                    title="Sin insumos en la despensa"
+                    description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
+                    actionLabel="Crear nuevo insumo"
+                    onAction={handleOpenNew}
+                  />
+                )}
+                {!isLoading && isSearchEmpty && (
+                  <EmptyState
+                    icon={<Search className="size-6" />}
+                    title="Insumo no encontrado"
+                    description={`No existe ningún insumo con el nombre "${query}".`}
+                  />
+                )}
+                {!isLoading && !isTotalEmpty && !isSearchEmpty && (
+                  <>
+                    <SuppliesCardsMobile supplies={filtered} onSelect={handleOpenEdit} money={money} />
+                    <SuppliesTableDesktop supplies={filtered} onSelect={handleOpenEdit} money={money} />
+                  </>
+                )}
+              </section>
+            </>
           )}
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
-              <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
-              <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
-            </div>
-            <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
-              <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
-              <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
-            </div>
-            <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
-              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
-              <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
-            </div>
-            <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
-              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
-            </div>
-          </div>
-
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Todos los insumos</h2>
-              <button
-                type="button"
-                onClick={handleOpenNew}
-                className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                + Nuevo Insumo
-              </button>
-            </div>
-            {isLoading && (
-              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
-              </div>
-            )}
-            {!isLoading && loadError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
-                {loadError}
-              </div>
-            )}
-            {!isLoading && !loadError && isTotalEmpty && (
-              <EmptyState
-                icon={<Boxes className="size-6" />}
-                title="Sin insumos en la despensa"
-                description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
-                actionLabel="Crear nuevo insumo"
-                onAction={handleOpenNew}
-              />
-            )}
-            {!isLoading && !loadError && isSearchEmpty && (
-              <EmptyState
-                icon={<Search className="size-6" />}
-                title="Insumo no encontrado"
-                description={`No existe ningún insumo con el nombre "${query}".`}
-              />
-            )}
-            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
-              <>
-                <SuppliesCardsMobile supplies={filtered} onSelect={handleOpenEdit} money={money} />
-                <SuppliesTableDesktop supplies={filtered} onSelect={handleOpenEdit} money={money} />
-              </>
-            )}
-          </section>
         </div>
         <DesktopFooter />
       </div>
