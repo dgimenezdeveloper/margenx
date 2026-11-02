@@ -4,7 +4,7 @@ import { Check, X, AlertTriangle, LoaderCircle, TrendingUp, TrendingDown } from 
 import type { QuarantinedItem } from '@/services/supplierService'
 import { supplierService } from '@/services/supplierService'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
 const money = (val: number) =>
   `$${Number(val).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -22,7 +22,6 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
   const [actionType, setActionType] = useState<'release' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  useBodyScrollLock(selectedItem !== null)
 
   const handleAction = async () => {
     if (!selectedItem || !actionType) return
@@ -223,10 +222,10 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
       </div>
 
       {/* MODAL DE CONFIRMACIÓN */}
-      {selectedItem && actionType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="fixed inset-0" onClick={() => !isProcessing && setSelectedItem(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-gray-900 animate-in zoom-in-95 duration-200">
+      <Dialog open={!!(selectedItem && actionType)} onOpenChange={(open) => { if (!open && !isProcessing) setSelectedItem(null) }}>
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup>
             <div
               className={`mx-auto mb-4 flex size-14 items-center justify-center rounded-full ${
                 actionType === 'release'
@@ -236,25 +235,23 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
             >
               {actionType === 'release' ? <Check className="size-7" /> : <AlertTriangle className="size-7" />}
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <DialogTitle>
               {actionType === 'release' ? '¿Liberar precio?' : '¿Rechazar precio?'}
-            </h3>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            </DialogTitle>
+            <DialogDescription>
               {actionType === 'release'
-                ? selectedItem.isDefault
-                  ? `El costo de ${selectedItem.ingredient.name} se actualizará y recalculará las recetas afectadas.`
-                  : `Se actualizará la presentación de ${selectedItem.ingredient.name}. No afectará las recetas porque no es el proveedor predeterminado.`
-                : `El precio anómalo será descartado y ${selectedItem.ingredient.name} mantendrá su costo actual.`}
-            </p>
+                ? selectedItem?.isDefault
+                  ? `El costo de ${selectedItem?.ingredient.name} se actualizará y recalculará las recetas afectadas.`
+                  : `Se actualizará la presentación de ${selectedItem?.ingredient.name}. No afectará las recetas porque no es el proveedor predeterminado.`
+                : `El precio anómalo será descartado y ${selectedItem?.ingredient.name} mantendrá su costo actual.`}
+            </DialogDescription>
             <div className="mt-6 flex gap-3">
-              <button
-                type="button"
+              <DialogClose
                 disabled={isProcessing}
-                onClick={() => setSelectedItem(null)}
                 className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer disabled:opacity-50 transition"
               >
                 Cancelar
-              </button>
+              </DialogClose>
               <button
                 type="button"
                 disabled={isProcessing}
@@ -267,9 +264,9 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                 {actionType === 'release' ? 'Sí, liberar' : 'Sí, rechazar'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogPopup>
+        </DialogPortal>
+      </Dialog>
     </div>
   )
 }

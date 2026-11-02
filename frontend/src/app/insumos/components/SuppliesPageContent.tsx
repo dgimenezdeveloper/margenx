@@ -17,7 +17,6 @@ import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
@@ -65,7 +64,6 @@ export default function SuppliesPageContent() {
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
 
   const handleRetry = () => {
     setIsLoading(true)
