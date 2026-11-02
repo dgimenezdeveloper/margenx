@@ -380,4 +380,75 @@ describe('applyBatchIngredientCostChanges', () => {
     expect(result.affectedProductsCount).toBe(1);
     expect(result.criticalProducts).toHaveLength(0);
   });
+  it('Gherkin Escenario "Lista grande": procesa 300 insumos que afectan a 40 productos compartidos recalculando cada producto una sola vez', async () => {
+    // 1. Generamos 300 insumos con variación de costo
+    const INGREDIENT_COUNT = 300;
+    const PRODUCT_COUNT = 40;
+
+    const changes = Array.from({ length: INGREDIENT_COUNT }, (_, i) => ({
+      ingredientId: `ing-${i + 1}`,
+      previousCost: D('100.00'),
+      newCost: D('150.00'),
+    }));
+
+    // 2. Generamos 40 productos donde cada uno utiliza entre 10 y 15 insumos del lote (alta compartición)
+    const mockRelations: Array<{ productId: string }> = [];
+    const mockProducts = Array.from({ length: PRODUCT_COUNT }, (_, pIdx) => {
+      const pId = `prod-${pIdx + 1}`;
+      // Asignamos 10 insumos por producto de forma entrelazada para simular recetas complejas
+      const productIngredients = Array.from({ length: 10 }, (_, iIdx) => {
+        const ingIndex = ((pIdx * 7 + iIdx * 11) % INGREDIENT_COUNT) + 1;
+        const ingId = `ing-${ingIndex}`;
+        mockRelations.push({ productId: pId });
+        return {
+          ingredientId: ingId,
+          quantity: D('0.250'),
+          ingredient: { currentCost: D('100.00') },
+        };
+      });
+
+      return {
+        id: pId,
+        name: `Producto Terminado ${pIdx + 1}`,
+        salePrice: D('5000.00'),
+        minMarginPercent: D('30.00'),
+        cost: D('250.00'),
+        marginPercent: D('95.00'),
+        ingredients: productIngredients,
+      };
+    });
+
+    const mockTx = {
+      priceHistory: { create: vi.fn().mockResolvedValue({}) },
+      productIngredient: { findMany: vi.fn().mockResolvedValue(mockRelations) },
+      product: {
+        findMany: vi.fn().mockResolvedValue(mockProducts),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const startTime = performance.now();
+    const result = await applyBatchIngredientCostChanges(mockTx, changes);
+    const durationMs = performance.now() - startTime;
+
+    // Aserción 1: Debe consultar las relaciones una sola vez
+    expect(mockTx.productIngredient.findMany).toHaveBeenCalledTimes(1);
+
+    // Aserción 2: Debe consultar las recetas de los 40 productos en UN SOLO findMany
+    expect(mockTx.product.findMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.findMany).toHaveBeenCalledWith({
+      where: { id: { in: expect.arrayContaining(mockProducts.map((p) => p.id)) } },
+      include: expect.any(Object),
+    });
+
+    // Aserción 3: Cada producto se actualiza exactamente 1 vez (40 llamadas a update, NO 300 * N)
+    expect(mockTx.product.update).toHaveBeenCalledTimes(PRODUCT_COUNT);
+
+    // Aserción 4: El resultado total refleja exactamente los 40 productos afectados
+    expect(result.affectedProductsCount).toBe(PRODUCT_COUNT);
+    expect(result.affectedProducts).toHaveLength(PRODUCT_COUNT);
+
+    // Aserción 5: El tiempo total de procesamiento en memoria debe ser sumamente veloz (< 100 ms)
+    expect(durationMs).toBeLessThan(100);
+  });
 });
