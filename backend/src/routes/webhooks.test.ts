@@ -37,6 +37,11 @@ vi.mock('../services/marginCalculator', () => ({
     affectedProducts: [],
     criticalProducts: [],
   }),
+  applyBatchIngredientCostChanges: vi.fn().mockResolvedValue({
+    affectedProductsCount: 0,
+    affectedProducts: [],
+    criticalProducts: [],
+  }),
 }));
 
 import * as marginCalculator from '../services/marginCalculator';
@@ -60,8 +65,8 @@ describe('POST /api/webhooks/supplier-prices', () => {
     supplierIngredientUpdateMock.mockReset();
     ingredientFindUniqueMock.mockReset();
     ingredientUpdateMock.mockReset();
-    vi.mocked(marginCalculator.applyIngredientCostChange).mockReset();
-    vi.mocked(marginCalculator.applyIngredientCostChange).mockResolvedValue({
+    vi.mocked(marginCalculator.applyBatchIngredientCostChanges).mockReset();
+    vi.mocked(marginCalculator.applyBatchIngredientCostChanges).mockResolvedValue({
       affectedProductsCount: 0,
       affectedProducts: [],
       criticalProducts: [],
@@ -262,7 +267,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     expect(res.status).toBe(200);
     expect(res.body.unchanged).toBe(1);
     expect(res.body.updated).toBe(0);
-    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+    expect(marginCalculator.applyBatchIngredientCostChanges).not.toHaveBeenCalled();
   });
 
   it('eventos en cuarentena se contabilizan por la presentación previa y retienen el precio propuesto sin pisar el vigente', async () => {
@@ -441,7 +446,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     });
     expect(ingredientFindUniqueMock).not.toHaveBeenCalled();
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
-    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+    expect(marginCalculator.applyBatchIngredientCostChanges).not.toHaveBeenCalled();
   });
 
   it('retiene en cuarentena un cambio anómalo que supera el 50% de variación', async () => {
@@ -485,7 +490,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
       }),
     });
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
-    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+    expect(marginCalculator.applyBatchIngredientCostChanges).not.toHaveBeenCalled();
   });
 
   it('retiene en cuarentena una caída anómala cuando la variación supera el 50% en valor absoluto', async () => {
@@ -526,7 +531,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
       }),
     });
     expect(ingredientUpdateMock).not.toHaveBeenCalled();
-    expect(marginCalculator.applyIngredientCostChange).not.toHaveBeenCalled();
+    expect(marginCalculator.applyBatchIngredientCostChanges).not.toHaveBeenCalled();
   });
 
   it('cuarentena el precio si el costo unitario calculado es inválido y no rompe el lote', async () => {
@@ -614,6 +619,86 @@ describe('POST /api/webhooks/supplier-prices', () => {
         quarantinedAt: null,
         quarantineReason: null,
       }),
+    });
+  });
+  it('agrupa múltiples insumos por defecto y llama a applyBatchIngredientCostChanges una sola vez', async () => {
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'acc-123',
+      slug: 'panaderia-central',
+      businessName: 'Panadería Central',
+      isActive: true,
+      users: [{ email: 'admin@panaderia.example' }],
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-1',
+        supplierId: 'sup-1',
+        ingredientId: 'ing-1',
+        supplierCode: 'CODE-1',
+        packageSize: new Prisma.Decimal('10'),
+        packagePrice: new Prisma.Decimal('1000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-1', accountId: 'acc-123', currentCost: new Prisma.Decimal('100') },
+        supplier: { id: 'sup-1', isActive: true },
+      },
+      {
+        id: 'si-2',
+        supplierId: 'sup-1',
+        ingredientId: 'ing-2',
+        supplierCode: 'CODE-2',
+        packageSize: new Prisma.Decimal('5'),
+        packagePrice: new Prisma.Decimal('500'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-2', accountId: 'acc-123', currentCost: new Prisma.Decimal('100') },
+        supplier: { id: 'sup-1', isActive: true },
+      },
+    ]);
+
+    vi.mocked(marginCalculator.applyBatchIngredientCostChanges).mockResolvedValueOnce({
+      affectedProductsCount: 2,
+      affectedProducts: [],
+      criticalProducts: [
+        {
+          productId: 'prod-1',
+          productName: 'Pan Flauta',
+          previousCost: new Prisma.Decimal('500'),
+          newCost: new Prisma.Decimal('600'),
+          currentMarginPercent: new Prisma.Decimal('15.00'),
+          minMarginPercent: new Prisma.Decimal('30.00'),
+        },
+      ],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [
+          { code: 'CODE-1', price: 1100 },
+          { code: 'CODE-2', price: 550 },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.updated).toBe(2);
+    // Se debe llamar exactamente 1 vez con los dos insumos agrupados
+    expect(marginCalculator.applyBatchIngredientCostChanges).toHaveBeenCalledTimes(1);
+    expect(marginCalculator.applyBatchIngredientCostChanges).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({ ingredientId: 'ing-1' }),
+        expect.objectContaining({ ingredientId: 'ing-2' }),
+      ])
+    );
+    expect(res.body.criticalProductsAlerts).toHaveLength(1);
+    expect(res.body.criticalProductsAlerts[0]).toMatchObject({
+      productId: 'prod-1',
+      productName: 'Pan Flauta',
+      currentMarginPercent: '15.00',
     });
   });
 });
