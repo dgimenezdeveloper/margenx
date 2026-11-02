@@ -49,6 +49,11 @@ model Ingredient {
   products     ProductIngredient[]
   suppliers    SupplierIngredient[]
   priceHistory PriceHistory[]
+
+  // Índice de acceso por cuenta y nombre.
+  // La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE
+  // registrado en la migración SQL: CREATE UNIQUE INDEX "Ingredient_accountId_lower_name_key" ON "Ingredient"("accountId", lower("name"));
+  @@index([accountId, name])
 }
 
 model Supplier {
@@ -62,7 +67,10 @@ model Supplier {
   account      Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
   ingredients  SupplierIngredient[]
 
-  @@unique([accountId, name])
+  // Índice de acceso por cuenta y nombre.
+  // La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE
+  // registrado en la migración SQL: CREATE UNIQUE INDEX "Supplier_accountId_lower_name_key" ON "Supplier"("accountId", lower("name"));
+  @@index([accountId, name])
 }
 
 model SupplierIngredient {
@@ -110,7 +118,10 @@ model Product {
   marginAmount     Decimal             @default(0) @db.Decimal(10, 2)
   marginPercent    Decimal             @default(0) @db.Decimal(8, 2)
 
-  @@unique([accountId, name])
+  // Índice de acceso por cuenta y nombre.
+  // La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE
+  // registrado en la migración SQL: CREATE UNIQUE INDEX "Product_accountId_lower_name_key" ON "Product"("accountId", lower("name"));
+  @@index([accountId, name])
 }
 
 model ProductIngredient {

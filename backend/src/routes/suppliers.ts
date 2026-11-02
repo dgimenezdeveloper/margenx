@@ -72,7 +72,18 @@ function parseSupplierInput(body: SupplierInputDTO) {
   };
 }
 
-function parseSupplierIngredientDecimal(value: unknown, field: string): Prisma.Decimal {
+// Escala y tope de cada columna de SupplierIngredient (schema.prisma).
+const SUPPLIER_INGREDIENT_DECIMAL_SPECS = {
+  // packageSize es Decimal(10,3): 7 enteros y 3 decimales.
+  packageSize: { decimals: 3, regex: /^-?\d+(\.\d{1,3})?$/, max: new Prisma.Decimal('9999999.999'), maxLabel: '9.999.999,999', example: '25.500' },
+  // packagePrice es Decimal(10,2): 8 enteros y 2 decimales.
+  packagePrice: { decimals: 2, regex: /^-?\d+(\.\d{1,2})?$/, max: new Prisma.Decimal('99999999.99'), maxLabel: '$99.999.999,99', example: '35000.50' },
+} as const;
+
+function parseSupplierIngredientDecimal(
+  value: unknown,
+  field: keyof typeof SUPPLIER_INGREDIENT_DECIMAL_SPECS
+): Prisma.Decimal {
   if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
     throw new AppError(`El campo "${field}" es obligatorio.`, 400);
   }
@@ -82,16 +93,17 @@ function parseSupplierIngredientDecimal(value: unknown, field: string): Prisma.D
   }
 
   const asText = String(value).trim();
-  if (!/^-?\d+(\.\d+)?$/.test(asText)) {
-    throw new AppError(`El campo "${field}" debe ser un valor decimal válido.`, 400);
+  const spec = SUPPLIER_INGREDIENT_DECIMAL_SPECS[field];
+  if (!spec.regex.test(asText)) {
+    throw new AppError(
+      `El campo "${field}" debe ser un valor decimal válido con hasta ${spec.decimals} decimales (ej: "${spec.example}").`,
+      400
+    );
   }
 
   const decimalValue = new Prisma.Decimal(asText);
-  const maxValue = new Prisma.Decimal('99999999.99');
-  const numericValue = Number(asText);
-
-  if (!Number.isFinite(numericValue) || Math.abs(numericValue) > Number(maxValue.toString())) {
-    throw new AppError(`El campo "${field}" no puede superar $99.999.999,99.`, 400);
+  if (decimalValue.abs().greaterThan(spec.max)) {
+    throw new AppError(`El campo "${field}" no puede superar ${spec.maxLabel}.`, 400);
   }
 
   return decimalValue;

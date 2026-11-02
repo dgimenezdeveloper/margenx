@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,6 +24,7 @@ import { supplierService, type Supplier, type SupplierIngredient } from '@/servi
 import type { Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
 import { NumericInput } from '@/components/NumericInput'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 
 interface SupplierPackagingModalProps {
   isOpen: boolean
@@ -53,6 +54,8 @@ export function SupplierPackagingModal({
   const [quickSupplierName, setQuickSupplierName] = useState('')
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false)
 
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+
   const normalizedBaseUnit = useMemo<'kg' | 'l' | 'u'>(() => {
     const raw = ingredient.unit.toLowerCase()
     if (raw === 'litro' || raw === 'l') return 'l'
@@ -72,7 +75,7 @@ export function SupplierPackagingModal({
     setValue,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<z.input<typeof supplierPackagingSchema>, undefined, SupplierPackagingFormValues>({
     resolver: zodResolver(supplierPackagingSchema),
     defaultValues: {
@@ -87,7 +90,10 @@ export function SupplierPackagingModal({
   const watchedPrice = useWatch({ control, name: 'packagePrice' }) as string | number
   const watchedIsDefault = useWatch({ control, name: 'isDefault' })
 
-  const handleClose = () => {
+  // Considera cambios pendientes tanto en los inputs del formulario como si se está escribiendo un nuevo proveedor
+  const hasUnsavedChanges = isDirty || (isAddingQuickSupplier && quickSupplierName.trim() !== '')
+
+  const handleClose = useCallback(() => {
     setErrorBanner(null)
     setIsLoadingSuppliers(true)
     setIsAddingQuickSupplier(false)
@@ -99,7 +105,34 @@ export function SupplierPackagingModal({
       isDefault: existingConnection?.isDefault || false,
     })
     onClose()
-  }
+  }, [existingConnection, reset, onClose])
+
+  const requestClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setShowDiscardConfirm(true)
+      return
+    }
+    handleClose()
+  }, [hasUnsavedChanges, handleClose])
+
+  // Interceptar tecla Escape para proteger cambios pendientes
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (showDiscardConfirm) {
+          setShowDiscardConfirm(false)
+        } else {
+          requestClose()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, requestClose, showDiscardConfirm])
 
   useEffect(() => {
     if (isOpen) {
@@ -230,7 +263,7 @@ export function SupplierPackagingModal({
 
   return (
     <div className="fixed inset-0 z-70 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
-      <div className="fixed inset-0" onClick={handleClose} />
+      <div className="fixed inset-0" onClick={requestClose} />
 
       <section
         role="dialog"
@@ -254,7 +287,7 @@ export function SupplierPackagingModal({
           </div>
           <button
             type="button"
-            onClick={handleClose}
+            onClick={requestClose}
             className="flex size-10 min-h-11 min-w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer"
             aria-label="Cerrar modal"
           >
@@ -312,7 +345,10 @@ export function SupplierPackagingModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsAddingQuickSupplier(false)}
+                  onClick={() => {
+                    setIsAddingQuickSupplier(false)
+                    setQuickSupplierName('')
+                  }}
                   className="min-h-11 h-11 rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                 >
                   <X className="size-4" />
@@ -374,7 +410,7 @@ export function SupplierPackagingModal({
               <NumericInput
                 id="package-size-input"
                 value={watchedSize}
-                onChange={(val) => setValue('packageSize', val, { shouldValidate: true })}
+                onChange={(val) => setValue('packageSize', val, { shouldValidate: true, shouldDirty: true })}
                 placeholder="Ej. 25"
                 containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
                 className="text-sm font-bold text-gray-900 dark:text-white"
@@ -411,7 +447,7 @@ export function SupplierPackagingModal({
             <NumericInput
               id="package-price-input"
               value={watchedPrice}
-              onChange={(val) => setValue('packagePrice', val, { shouldValidate: true })}
+              onChange={(val) => setValue('packagePrice', val, { shouldValidate: true, shouldDirty: true })}
               prefixSymbol="$"
               prefixClassName="text-base font-bold text-gray-400"
               placeholder="0,00"
@@ -483,6 +519,7 @@ export function SupplierPackagingModal({
             <input
               type="checkbox"
               {...register('isDefault')}
+              onChange={(e) => setValue('isDefault', e.target.checked, { shouldValidate: true, shouldDirty: true })}
               className="mt-0.5 size-4 rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
             />
             <div className="text-xs">
@@ -506,7 +543,7 @@ export function SupplierPackagingModal({
           <div className="mt-6 flex gap-3 pt-2">
             <button
               type="button"
-              onClick={handleClose}
+              onClick={requestClose}
               className="min-h-11 flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
             >
               Cancelar
@@ -526,6 +563,15 @@ export function SupplierPackagingModal({
           </div>
         </form>
       </section>
+
+      <UnsavedChangesDialog
+        open={showDiscardConfirm}
+        onConfirm={() => {
+          setShowDiscardConfirm(false)
+          handleClose()
+        }}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
     </div>
   )
 }

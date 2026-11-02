@@ -64,6 +64,12 @@ function validateIngredientInput(
     (typeof rawCost === 'string' && rawCost.trim() === '')
   ) {
     errors.push('El campo "currentCost" es obligatorio.');
+  } else {if (
+    rawCost === undefined ||
+    rawCost === null ||
+    (typeof rawCost === 'string' && rawCost.trim() === '')
+  ) {
+    errors.push('El campo "currentCost" es obligatorio.');
   } else {
     try {
       const decimalValue = parseArgentineDecimal(rawCost, 'currentCost');
@@ -77,7 +83,7 @@ function validateIngredientInput(
     } catch (error) {
       errors.push((error as Error).message || 'El campo "currentCost" debe ser un valor decimal válido.');
     }
-  }
+  }}
 
   if (errors.length > 0) {
     return { errors };
@@ -206,6 +212,15 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   const accountId = req.user!.accountId;
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
 
+  const existing = await prisma.ingredient.findFirst({
+    where: { accountId, name: { equals: name, mode: 'insensitive' } },
+  });
+  if (existing) {
+    throw new AppError('Ya existe un insumo con ese nombre.', 409);
+  }
+
+  // Un alta concurrente que choque con "Ingredient_accountId_lower_name_key" la
+  // traduce errorHandler a 409 con el mismo mensaje.
   const ingredient = await prisma.ingredient.create({
     data: {
       name,
@@ -363,10 +378,19 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   }
 
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
-  const nextCost = new Prisma.Decimal(currentCost.toString()).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const nextCost = new Prisma.Decimal(currentCost.toString());
   const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
   const hasNoActualChange =
     previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
+
+  if (name.toLowerCase() !== existing.name.toLowerCase()) {
+    const duplicate = await prisma.ingredient.findFirst({
+      where: { accountId, name: { equals: name, mode: 'insensitive' } },
+    });
+    if (duplicate) {
+      throw new AppError('Ya existe un insumo con ese nombre.', 409);
+    }
+  }
 
   if (hasNoActualChange) {
     return res.status(200).json({
