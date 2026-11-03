@@ -34,9 +34,11 @@ Necesita el backend corriendo (ver `backend/README.md` si existe, o la sección 
 src/
 ├── app/              # Una carpeta por ruta (page.tsx + sus propios componentes)
 │   ├── dashboard/
+│   ├── instalar/             # Guía paso a paso de instalación PWA (Pública)
 │   ├── insumos/              # Solo ADMIN (redirige a /productos si no)
 │   ├── login/
 │   ├── perfil/
+│   ├── privacidad/           # Política de tratamiento de datos (Pública)
 │   ├── productos/
 │   │   ├── [id]/             # Ficha técnica + receta de un producto
 │   │   └── nuevo/
@@ -87,11 +89,19 @@ Necesita el backend y el frontend corriendo contra una base con el seed cargado 
 
 ## Instalabilidad PWA
 
-Pendiente — la añade la issue de Sprint 5 S5-FE-05 (manifest + service worker), que todavía no está mergeada a `develop` al escribir esto. Una vez que esté:
+La aplicación está configurada como una Progressive Web App (PWA) instalable mediante `manifest.webmanifest`, íconos adaptativos (maskable) y meta-etiquetas optimizadas para Android e iOS Safari.
 
-1. `npm run build && npm run preview` (una PWA no es instalable en el servidor de desarrollo, solo sobre el build de producción).
-2. Chrome/Edge DevTools → pestaña **Application** → **Manifest**: confirmar que carga sin errores y que el ícono es el correcto.
-3. Lighthouse (DevTools → **Lighthouse** → categoría **PWA**, o `npx lighthouse http://localhost:4173 --view`): el audit de instalabilidad debe pasar.
-4. Confirmar en un dispositivo real (Android/Chrome o iOS/Safari) que aparece el prompt o la opción "Agregar a pantalla de inicio".
+Para verificar su correcto funcionamiento e instalabilidad:
 
-Esta sección se actualiza con los pasos reales en cuanto S5-FE-05 esté mergeada.
+1. **Build de producción:** Ejecutá `npm run build && npm run preview` (las capacidades PWA completas se auditan sobre el build de producción, no en el servidor de desarrollo).
+2. **Auditoría de Manifest (DevTools):**
+   - Abrí Chrome o Edge en `http://localhost:4173`.
+   - Abrí las DevTools (`F12`) → pestaña **Application** → **Manifest**.
+   - Confirmá que el archivo `manifest.webmanifest` carga con código 200 (sin requerir sesión previa de Clerk), que el nombre es "MargenX", el modo es `standalone` y los íconos de 192px, 512px y 512px maskable son reconocidos sin advertencias.
+3. **Auditoría con Lighthouse:**
+   - En las DevTools, seleccioná la pestaña **Lighthouse**.
+   - Marcá la categoría **Progressive Web App** y ejecutá el análisis.
+   - El chequeo de instalabilidad debe finalizar en verde y sin errores bloqueantes.
+4. **Verificación en dispositivo real:**
+   - **Android (Chrome):** Al navegar a la URL del entorno, el menú de opciones (tres puntos) debe ofrecer **"Instalar aplicación"** o **"Agregar a pantalla de inicio"**. Al abrirla desde el acceso directo, debe lanzarse en ventana dedicada sin barra de direcciones URL del navegador.
+   - **iOS (Safari):** Al tocar el botón **Compartir** y presionar **"Agregar a Inicio"**, el sistema debe precargar el título "MargenX" y el isotipo nítido proveniente de `apple-touch-icon.png` sobre fondo plano sin esquinas negras ni transparencias no deseadas.
