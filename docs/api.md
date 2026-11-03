@@ -34,6 +34,59 @@ La propiedad `code` es estable para que `n8n` pueda detectar el caso y mostrar u
 - `413`: cuerpo demasiado grande.
 - `500`: error interno no controlado.
 
+## POST /api/suppliers/:id/ingredients
+
+Contrato de alta/update de presentaciones de proveedor para un insumo.
+
+### Campos soportados
+
+```json
+{
+  "ingredientId": "ing-123",
+  "packageSize": "50",
+  "packageUnit": "kg",
+  "packagePrice": "35000",
+  "isDefault": true,
+  "supplierCode": "HAR-000",
+  "rawDescription": "Harina 000 bolsa 50kg"
+}
+```
+
+- `supplierCode`: opcional, se recorta el contenido a los extremos y se valida con un máximo conservador de 64 caracteres.
+- `rawDescription`: opcional, se recorta y se guarda como descripción tal cual la lista del proveedor la enviará.
+- La comparación de `supplierCode` es insensible a mayúsculas/minúsculas tanto en PostgreSQL como durante la ingesta de precios; esto evita desalineaciones de casing entre la lista del proveedor y la base de datos.
+- Si el código ya existe para ese proveedor, la API responde `409 Conflict` indicando qué insumo lo está usando.
+- Si no se envía `supplierCode`, la asociación se guarda igual, pero la respuesta incluye un `message` avisando que ese insumo no recibirá precios por ingesta hasta que el administrador cargue el código.
+
+### Respuesta exitosa
+
+```json
+{
+  "supplierIngredient": {
+    "id": "si-123",
+    "supplierId": "s-1",
+    "ingredientId": "ing-123",
+    "supplierCode": "HAR-000",
+    "rawDescription": "Harina 000 bolsa 50kg",
+    "isDefault": true
+  },
+  "unitCost": "700",
+  "ingredient": { "id": "ing-123", "name": "Harina 000" },
+  "ingestEnabled": true
+}
+```
+
+### Respuesta con advertencia de ingesta deshabilitada
+
+```json
+{
+  "supplierIngredient": { "id": "si-456", "isDefault": false },
+  "unitCost": "700",
+  "ingredient": { "id": "ing-456", "name": "Manteca" },
+  "ingestEnabled": false,
+  "message": "La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor."
+}
+```
 ## Validaciones de productos e insumos
 
 Aplican a `POST /api/products`, `PUT /api/products/:id`, `POST /api/ingredients`, `PUT /api/ingredients/:id` y `POST /api/suppliers/:id/ingredients`. La base las refuerza con índices únicos `(accountId, lower(name))` en `Product`, `Ingredient` y `Supplier`.

@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** `POST /api/suppliers/:id/ingredients` acepta `supplierCode` y `rawDescription`, normaliza y valida el código (sin espacios externos y máximo 64 caracteres), evita duplicados por proveedor con respuesta `409` e indica el insumo que ya lo usa, y permite guardar la asociación sin código con aviso explícito de que no recibirá precios por ingesta.
 - **Backend:** `POST /api/suppliers/:id/ingredients` valida la escala de cada columna: `packageSize` hasta 3 decimales y `9999999.999` (`Decimal(10,3)`; antes un valor mayor desbordaba la base) y `packagePrice` hasta 2 decimales (`[RV323-I1]`, `#242`).
 - **QA:** `precision-aritmetica.test.ts` ya no depende del orden de ejecución: la matriz de comparación calcula los cuatro casos por su cuenta y pasa con `--sequence.shuffle` (`[RV323-I3]`).
 - **Backend:** `POST`/`PUT /api/products` rechazan con `400` un `salePrice` menor o igual a cero cuando el producto tiene receta ("El precio de venta debe ser mayor a cero cuando el producto tiene ingredientes en su receta."); `salePrice: 0` queda permitido solo en borrador sin receta, lo que cierra la inconsistencia QA4-02. También rechazan con `400` un insumo repetido en la receta, montos con más de 2 decimales y cantidades con más de 3 decimales o fuera de la columna `Decimal(10,3)`. El nombre duplicado de producto pasa de `400` a `409 Conflict`, igual que insumos y proveedores (`#242`).

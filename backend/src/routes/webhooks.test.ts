@@ -420,7 +420,7 @@ describe('POST /api/webhooks/supplier-prices', () => {
     );
     expect(supplierIngredientFindManyMock).toHaveBeenCalledWith({
       where: {
-        supplierCode: { in: ['MC-990', 'ART-001', 'ART-002'] },
+        supplierCode: { in: ['MC-990', 'ART-001', 'ART-002'], mode: 'insensitive' },
         ingredient: { accountId: 'acc-123' },
       },
       include: {
@@ -615,5 +615,49 @@ describe('POST /api/webhooks/supplier-prices', () => {
         quarantineReason: null,
       }),
     });
+  });
+    it('reconoce el código del proveedor de forma insensible a mayúsculas/minúsculas (HAR-000 en BD vs har-000 en lote)', async () => {
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'acc-123',
+      slug: 'panaderia-central',
+      businessName: 'Panadería Central',
+      isActive: true,
+      users: [{ email: 'admin@panaderia.example' }],
+    });
+    
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-harina',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-harina',
+        supplierCode: 'HAR-000', // Almacenado en mayúsculas
+        packageSize: new Prisma.Decimal('25'),
+        packagePrice: new Prisma.Decimal('18000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-harina', accountId: 'acc-123', currentCost: new Prisma.Decimal('720') },
+        supplier: { id: 'supplier-1', isActive: true },
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [{ code: 'har-000', price: 18500 }], // Enviado en minúsculas
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.received).toBe(1);
+    expect(res.body.updated).toBe(1);
+    expect(res.body.discarded).toBe(0);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          supplierCode: { in: ['har-000'], mode: 'insensitive' },
+        }),
+      })
+    );
   });
 });
