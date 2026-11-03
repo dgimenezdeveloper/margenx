@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { isStandaloneMode, type DisplayModeWindow } from '../displayMode'
 
@@ -12,6 +12,10 @@ function fakeWindow(options: { standaloneMedia?: boolean; iosStandalone?: boolea
 }
 
 describe('isStandaloneMode', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('detecta la PWA instalada en Android y escritorio por display-mode', () => {
     expect(isStandaloneMode(fakeWindow({ standaloneMedia: true }))).toBe(true)
   })
@@ -25,8 +29,13 @@ describe('isStandaloneMode', () => {
     expect(isStandaloneMode(fakeWindow({ standaloneMedia: false }))).toBe(false)
   })
 
-  it('devuelve false si el navegador no expone matchMedia ni hay ventana', () => {
+  it('devuelve false si el navegador no expone matchMedia', () => {
     expect(isStandaloneMode(fakeWindow({ noMatchMedia: true }))).toBe(false)
-    expect(isStandaloneMode(undefined)).toBe(false)
+  })
+
+  it('devuelve false si no hay ventana (por ejemplo, fuera del navegador)', () => {
+    // Pasar undefined no alcanza: activa el valor por defecto y usa el window de jsdom.
+    vi.stubGlobal('window', undefined)
+    expect(isStandaloneMode()).toBe(false)
   })
 })
