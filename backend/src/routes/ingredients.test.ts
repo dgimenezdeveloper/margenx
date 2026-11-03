@@ -26,6 +26,13 @@ const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+
+// El recálculo en lote pide todos los productos con un solo findMany;
+// se resuelve con el mismo mock por id que ya configuran los tests.
+const productFindManyMock = vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
+  const found = await Promise.all(where.id.in.map((id) => productFindUniqueMock({ where: { id } })));
+  return found.filter(Boolean);
+});
 const priceHistoryCreateMock = vi.fn();
 const accountFindUniqueMock = vi.fn();
 
@@ -33,7 +40,7 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
     ingredient: { update: updateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
-    product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+    product: { findUnique: productFindUniqueMock, findMany: productFindManyMock, update: productUpdateMock },
     priceHistory: { create: priceHistoryCreateMock },
   });
 });
