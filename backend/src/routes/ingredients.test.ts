@@ -263,7 +263,7 @@ describe('POST /api/ingredients', () => {
 
     const res2 = await request(buildApp())
       .post('/api/ingredients')
-      .send({ name: 'Harina', unit: 'kg', currentCost: '742.985' });
+      .send({ name: 'Harina', unit: 'kg', currentCost: '742,985' });
 
     expect(res2.status).toBe(400);
     expect(res2.body.error).toMatch(/decimal válido/);
@@ -349,6 +349,44 @@ describe('POST /api/ingredients', () => {
     expect(createMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ accountId: 'account-1' }),
     });
+  });
+
+  it('acepta correctamente importes válidos en formato argentino de miles en POST verificando el valor procesado', async () => {
+    const expectedValues: Record<string, string> = {
+      '15.000': '15000',
+      '100.000': '100000',
+      '1.500': '1500',
+      '50.500': '50500',
+    };
+
+    for (const [costVal, expectedStr] of Object.entries(expectedValues)) {
+      findFirstMock.mockResolvedValueOnce(null);
+      createMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        accountId: 'account-1',
+        name: `Insumo ${costVal}`,
+        unit: 'kg',
+        currentCost: new Prisma.Decimal(expectedStr),
+      });
+
+      const res = await request(buildApp())
+        .post('/api/ingredients')
+        .send({ name: `Insumo ${costVal}`, unit: 'kg', currentCost: costVal });
+
+      expect(res.status).toBe(201);
+      expect(res.body.ingredient).toBeDefined();
+      expect(createMock).toHaveBeenLastCalledWith({
+        data: expect.objectContaining({
+          currentCost: expect.objectContaining({
+            toString: expect.any(Function),
+          }),
+        }),
+      });
+
+      const lastCall = createMock.mock.calls[createMock.mock.calls.length - 1];
+      const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
+      expect(dataArg.currentCost.toString()).toBe(expectedStr);
+    }
   });
 });
 
@@ -534,6 +572,50 @@ describe('PUT /api/ingredients/:id', () => {
         newCost: new Prisma.Decimal('9500.00'),
       }),
     });
+  });
+
+  it('acepta correctamente importes válidos en formato argentino de miles en PUT verificando el valor procesado', async () => {
+    const expectedValues: Record<string, string> = {
+      '15.000': '15000',
+      '100.000': '100000',
+      '1.500': '1500',
+      '50.500': '50500',
+    };
+
+    for (const [costVal, expectedStr] of Object.entries(expectedValues)) {
+      findFirstMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        name: 'Insumo Miles',
+        unit: 'kg',
+        currentCost: new Prisma.Decimal('100.00'),
+      });
+      updateMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        name: 'Insumo Miles',
+        unit: 'kg',
+        currentCost: new Prisma.Decimal(expectedStr),
+      });
+      productIngredientFindManyMock.mockResolvedValueOnce([]);
+
+      const res = await request(buildApp())
+        .put('/api/ingredients/ing-miles')
+        .send({ name: 'Insumo Miles', unit: 'kg', currentCost: costVal });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ingredient).toBeDefined();
+      expect(updateMock).toHaveBeenLastCalledWith({
+        where: { id: 'ing-miles' },
+        data: expect.objectContaining({
+          currentCost: expect.objectContaining({
+            toString: expect.any(Function),
+          }),
+        }),
+      });
+
+      const lastCall = updateMock.mock.calls[updateMock.mock.calls.length - 1];
+      const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
+      expect(dataArg.currentCost.toString()).toBe(expectedStr);
+    }
   });
   
   it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {

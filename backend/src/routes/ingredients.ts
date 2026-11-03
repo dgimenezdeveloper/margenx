@@ -65,33 +65,19 @@ function validateIngredientInput(
   ) {
     errors.push('El campo "currentCost" es obligatorio.');
   } else {
-    const rawString = String(rawCost).trim();
-
-    // Si tiene un único punto y más de 2 decimales sin coma (ej: "742.985"),
-    // o notación científica (ej: "1e-3"), es un formato decimal con escala inválida para Decimal(10,2).
-    const hasInvalidDotScale =
-      !rawString.includes(',') &&
-      (rawString.match(/\./g) || []).length === 1 &&
-      /\.\d{3,}$/.test(rawString);
-    const hasScientificNotation = /[eE]/.test(rawString);
-
-    if (hasInvalidDotScale || hasScientificNotation) {
-      errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
-    } else {
-      try {
-        const decimalValue = parseArgentineDecimal(rawCost, 'currentCost');
-        if (decimalValue.lessThanOrEqualTo(0)) {
-          errors.push('El campo "currentCost" debe ser mayor a cero.');
-        } else if (decimalValue.decimalPlaces() > 2) {
-          errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
-        } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE)) {
-          errors.push('El insumo no puede superar $99.999.999,99.');
-        } else {
-          currentCost = decimalValue;
-        }
-      } catch (error) {
-        errors.push((error as Error).message || 'El campo "currentCost" debe ser un valor decimal válido.');
+    try {
+      const decimalValue = parseArgentineDecimal(rawCost, 'currentCost');
+      if (decimalValue.lessThanOrEqualTo(0)) {
+        errors.push('El campo "currentCost" debe ser mayor a cero.');
+      } else if (decimalValue.decimalPlaces() > 2) {
+        errors.push('El campo "currentCost" debe ser un valor decimal válido (ej: "742.98").');
+      } else if (decimalValue.abs().greaterThan(MAX_MONEY_VALUE)) {
+        errors.push('El insumo no puede superar $99.999.999,99.');
+      } else {
+        currentCost = decimalValue;
       }
+    } catch (error) {
+      errors.push((error as Error).message || 'El campo "currentCost" debe ser un valor decimal válido.');
     }
   }
 
