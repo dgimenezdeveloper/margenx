@@ -319,36 +319,82 @@ describe('applyBatchIngredientCostChanges', () => {
     });
   });
 
-  it('soporta fallback defensivo con findUnique cuando tx.product.findMany no está mockeado', async () => {
-    const productSimple = {
-      id: 'prod-1',
-      name: 'Pan',
+  it('consulta las recetas de todos los productos afectados con un único findMany', async () => {
+    const pan = {
+      id: 'prod-pan',
+      name: 'Pan Francés',
       salePrice: D('2000.00'),
       minMarginPercent: D('30.00'),
       cost: D('1000.00'),
       marginPercent: D('50.00'),
       ingredients: [
-        { ingredientId: 'ing-1', quantity: D('1.000'), ingredient: { currentCost: D('1000.00') } },
+        { ingredientId: 'ing-harina', quantity: D('1.000'), ingredient: { id: 'ing-harina', currentCost: D('1000.00') } },
       ],
     };
 
     const mockTx = {
       priceHistory: { create: vi.fn().mockResolvedValue({}) },
-      productIngredient: { findMany: vi.fn().mockResolvedValue([{ productId: 'prod-1' }]) },
+      productIngredient: { findMany: vi.fn().mockResolvedValue([{ productId: 'prod-pan' }]) },
       product: {
-        // findMany NO está definido intencionalmente para ejercitar el fallback
-        findUnique: vi.fn().mockResolvedValue(productSimple),
+        findMany: vi.fn().mockResolvedValue([pan]),
         update: vi.fn().mockResolvedValue({}),
       },
     };
 
     const result = await applyBatchIngredientCostChanges(mockTx, [
-      { ingredientId: 'ing-1', previousCost: D('1000.00'), newCost: D('1200.00') },
+      { ingredientId: 'ing-harina', previousCost: D('1000.00'), newCost: D('1200.00') },
     ]);
 
-    expect(mockTx.product.findUnique).toHaveBeenCalledTimes(1);
-    expect(mockTx.product.update).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.findMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['prod-pan'] } } })
+    );
+    expect(mockTx.product.update).toHaveBeenCalledWith({
+      where: { id: 'prod-pan' },
+      data: { cost: D('1200.00'), marginAmount: D('800.00'), marginPercent: D('40.00') },
+    });
     expect(result.affectedProductsCount).toBe(1);
+  });
+
+  it('Gherkin Escenario "Falla a mitad": propaga el error al guardar un producto del lote para que la transacción se revierta', async () => {
+    const product = (id: string, name: string) => ({
+      id,
+      name,
+      salePrice: D('15000.00'),
+      minMarginPercent: D('30.00'),
+      cost: D('5000.00'),
+      marginPercent: D('66.67'),
+      ingredients: [
+        { ingredientId: 'ing-manteca', quantity: D('0.500'), ingredient: { id: 'ing-manteca', currentCost: D('10000.00') } },
+      ],
+    });
+
+    const mockTx = {
+      priceHistory: { create: vi.fn().mockResolvedValue({}) },
+      productIngredient: {
+        findMany: vi.fn().mockResolvedValue([{ productId: 'prod-medialunas' }, { productId: 'prod-croissant' }]),
+      },
+      product: {
+        findMany: vi.fn().mockResolvedValue([
+          product('prod-medialunas', 'Medialunas x12'),
+          product('prod-croissant', 'Croissant x6'),
+        ]),
+        update: vi
+          .fn()
+          .mockResolvedValueOnce({})
+          .mockRejectedValueOnce(new Error('Fallo simulado al guardar Croissant x6')),
+      },
+    };
+
+    await expect(
+      applyBatchIngredientCostChanges(mockTx, [
+        { ingredientId: 'ing-manteca', previousCost: D('10000.00'), newCost: D('16000.00') },
+      ])
+    ).rejects.toThrow('Fallo simulado al guardar Croissant x6');
+
+    // El primer producto se escribió dentro de la transacción; al propagarse el error,
+    // Prisma revierte también esa escritura.
+    expect(mockTx.product.update).toHaveBeenCalledTimes(2);
   });
 
   it('no marca producto como crítico si ya venía por debajo del margen mínimo (sin cruce)', async () => {

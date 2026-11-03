@@ -746,4 +746,65 @@ describe('POST /api/webhooks/supplier-prices', () => {
       })
     );
   });
+
+  it('Gherkin Escenario "Falla a mitad": si falla el recálculo del lote no responde 200 y la transacción se revierte', async () => {
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'acc-123',
+      slug: 'panaderia-central',
+      businessName: 'Panadería Central',
+      isActive: true,
+      users: [{ email: 'admin@panaderia.example' }],
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([
+      {
+        id: 'si-manteca',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-manteca',
+        supplierCode: 'MAN-500',
+        packageSize: new Prisma.Decimal('1'),
+        packagePrice: new Prisma.Decimal('10000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-manteca', accountId: 'acc-123', currentCost: new Prisma.Decimal('10000') },
+        supplier: { id: 'supplier-1', isActive: true },
+      },
+      {
+        id: 'si-azucar',
+        supplierId: 'supplier-1',
+        ingredientId: 'ing-azucar',
+        supplierCode: 'AZU-001',
+        packageSize: new Prisma.Decimal('1'),
+        packagePrice: new Prisma.Decimal('3000'),
+        isDefault: true,
+        isQuarantined: false,
+        ingredient: { id: 'ing-azucar', accountId: 'acc-123', currentCost: new Prisma.Decimal('3000') },
+        supplier: { id: 'supplier-1', isActive: true },
+      },
+    ]);
+
+    vi.mocked(marginCalculator.applyBatchIngredientCostChanges).mockRejectedValueOnce(
+      new Error('Fallo simulado al guardar Medialunas x12')
+    );
+
+    const res = await request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({
+        accountSlug: 'panaderia-central',
+        items: [
+          { code: 'MAN-500', price: 16000 },
+          { code: 'AZU-001', price: 3300 },
+        ],
+      });
+
+    expect(res.status).toBe(500);
+    expect(res.body.updated).toBeUndefined();
+    expect(res.body.criticalProductsAlerts).toBeUndefined();
+    expect(marginCalculator.applyBatchIngredientCostChanges).toHaveBeenCalledTimes(1);
+    // El error sale del callback de $transaction: Prisma revierte todas las escrituras del lote.
+    await expect(transactionMock.mock.results[0]?.value).rejects.toThrow(
+      'Fallo simulado al guardar Medialunas x12'
+    );
+  });
 });
