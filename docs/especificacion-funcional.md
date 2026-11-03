@@ -261,7 +261,6 @@ Cuando cambia el costo de un insumo (edición manual, cambio de presentación pr
 3. recalculan costo y margen de todos los productos que lo usan;
 4. detectan los productos que **cruzaron** su margen mínimo.
 
-
 - **Edición individual:** si el costo no cambió (`previousCost.equals(nextCost)`), no se abre la transacción ni se recalcula nada (guarda Zero-Variation).
 - **Ingesta en lote (`applyBatchIngredientCostChanges`):** cuando una lista modifica múltiples materias primas a la vez, se buscan todos los productos afectados en una sola consulta (`findMany`) y cada producto se recalcula **una sola vez**, consolidando los nuevos costos de todos sus insumos antes de persistir. Si un producto comparte dos o más insumos actualizados, su margen se evalúa con el conjunto completo y genera a lo sumo una alerta si cruza el umbral mínimo.
 
