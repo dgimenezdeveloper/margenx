@@ -75,6 +75,20 @@ describe('errorHandler', () => {
     });
   });
 
+  it('mapea P2002 de Prisma a 409 cuando se repite supplierCode para un mismo proveedor', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['supplierId', 'supplierCode'] },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe una presentación con ese código para este proveedor.',
+    });
+  });
+
   it('mapea P2003 de Prisma a 409 (Línea 81)', () => {
     const res = buildRes();
     const err = new Prisma.PrismaClientKnownRequestError('FK violation', {
