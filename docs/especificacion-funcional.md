@@ -155,7 +155,7 @@ La receta solo conoce el insumo, la cantidad y el costo actual. Quién vendió l
 ### Código de artículo del proveedor
 
 - La ingesta por correo (§5) identifica cada fila de la lista por su `supplierCode`. Sin código cargado, la presentación no se actualiza sola.
-- Hoy el código solo se carga con el seed: el alta de presentaciones desde la app no lo acepta. Cargarlo desde la app está **Planificado**.
+- El alta de presentaciones desde la app acepta `supplierCode` y `rawDescription`; si el código no se completa, la asociación se conserva y el backend avisa explícitamente que ese insumo no recibirá precios por ingesta hasta que se complete el mapping.
 - **Bandeja de códigos no mapeados** · *Propuesta*: guardar los códigos recibidos sin vínculo para que el administrador los asocie a un insumo ("aprender una sola vez"). Hoy esos códigos se descartan y solo se informan en el resumen por correo.
 
 ---
@@ -262,7 +262,8 @@ Cuando cambia el costo de un insumo (edición manual, cambio de presentación pr
 3. recalculan costo y margen de todos los productos que lo usan;
 4. detectan los productos que **cruzaron** su margen mínimo.
 
-En la edición manual de un insumo, si el costo no cambió, no se abre la transacción ni se recalcula nada.
+- **Edición individual:** si el costo no cambió (`previousCost.equals(nextCost)`), no se abre la transacción ni se recalcula nada (guarda Zero-Variation).
+- **Ingesta en lote (`applyBatchIngredientCostChanges`):** cuando una lista modifica múltiples materias primas a la vez, se buscan todos los productos afectados en una sola consulta (`findMany`) y cada producto se recalcula **una sola vez**, consolidando los nuevos costos de todos sus insumos antes de persistir. Si un producto comparte dos o más insumos actualizados, su margen se evalúa con el conjunto completo y genera a lo sumo una alerta si cruza el umbral mínimo.
 
 ### Alertas
 
