@@ -59,6 +59,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** `frontend/README.md` propio (antes la plantilla genérica de Vite): cómo correr, variables de entorno, estructura de `src/`, cómo correr las pruebas unitarias y E2E, y una guía de verificación de instalabilidad PWA a completar cuando se mergee S5-FE-05 (`#268`).
 - **Docs:** `README.md` principal: `Supplier`/`SupplierIngredient` y la cuarentena de precios en el modelo de datos, el módulo `/proveedores/cuarentena` en la lista de pantallas, y una nota exacta de qué ve y a qué pantallas llega el rol `COLLABORATOR` (`#268`).
 - **Docs:** `infra/vps/README.md` §11-12: Cloudflare Email Routing, la casilla IMAP y Brevo (dónde vive cada credencial, no el flujo — eso sigue en `infra/n8n/README.md`), e inventario de titularidad de los servicios (VPS, dominio, Cloudflare, Clerk, Gmail, Brevo, Docker Hub) para preparar el traspaso a una cuenta empresarial en la fase 2; columna de titular actual a completar por Darío (`#268`).
+- **Backend / QA:** Benchmark automatizado `scripts/benchmark-batch-recalculation.ts` y pruebas unitarias de recálculo masivo con 300 insumos y 40 productos compartidos (`#259`).
 
 ### Changed
 
@@ -74,6 +75,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps:** `auto-move-issues.yml` omite los PRs y ramas de Dependabot (no reciben `PROJECT_TOKEN` ni tienen tarjeta), y `dependabot.yml` ignora las versiones mayores de npm, que se planifican como issue propia (`#305`).
 - **QA:** `frontend/.env.test.example` y `frontend/tests/e2e/README.md` recomiendan para uso local las credenciales de la cuenta Demo (`backend/prisma/seed-demo.ts`) en vez de las del comercio piloto Panadería Central. **Pendiente, documentado explícitamente:** los 5 specs E2E todavía aseveran contra los datos de Panadería Central — no se reescribieron contra el catálogo de Demo en esta issue porque requiere acceso real a Clerk/CI para verificarlo sin arriesgar el pipeline; el secret de GitHub Actions tampoco se cambia hasta que esa reescritura esté hecha y verificada (`#268`).
 - **Docs:** `infra/vps/README.md` §6 aclara que `/opt/margenx-infra` no es un repositorio git a propósito (es solo el destino de despliegue) y que `infra/vps/docker-compose.prod.yml`, ya versionado en este repositorio, es la fuente de verdad real que se copia ahí (`#268`).
+- **Backend:** Recálculo en cascada optimizado en lote (`applyBatchIngredientCostChanges`): en la ingesta masiva de listas de precios se consultan las recetas afectadas en una única operación `findMany` y cada producto se recalcula una sola vez consolidando todos los insumos modificados, reduciendo las consultas a base de datos y multiplicando la velocidad de procesamiento (`#259`).
 
 ### Removed
 
