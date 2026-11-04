@@ -1,8 +1,40 @@
 import * as React from 'react'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cn } from '@/lib/utils'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
-export const Dialog = BaseDialog.Root
+type DialogRootProps = React.ComponentProps<typeof BaseDialog.Root>
+type DialogProps = Omit<DialogRootProps, 'modal'>
+
+/**
+ * Raíz de todo diálogo de MargenX (guía en frontend/README.md, sección "Diálogos").
+ *
+ * Base UI atrapa el foco, cierra con Escape y devuelve el foco al elemento que lo abrió.
+ * El scroll del fondo lo bloquea useBodyScrollLock y no Base UI: en iOS Safari el bloqueo
+ * por `overflow: hidden` deja moverse el fondo, y ese hook es el que se validó en iPhone.
+ */
+export function Dialog({ open, defaultOpen = false, onOpenChange, ...props }: DialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
+  const isOpen = open ?? uncontrolledOpen
+
+  useBodyScrollLock(isOpen)
+
+  const handleOpenChange: NonNullable<DialogRootProps['onOpenChange']> = (nextOpen, eventDetails) => {
+    setUncontrolledOpen(nextOpen)
+    onOpenChange?.(nextOpen, eventDetails)
+  }
+
+  return (
+    <BaseDialog.Root
+      {...props}
+      modal="trap-focus"
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={handleOpenChange}
+    />
+  )
+}
+
 export const DialogTrigger = BaseDialog.Trigger
 export const DialogPortal = BaseDialog.Portal
 export const DialogClose = BaseDialog.Close
