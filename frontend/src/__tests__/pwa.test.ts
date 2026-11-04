@@ -92,6 +92,18 @@ describe('PWA Configuration', () => {
     expect(readPng(appleIconPath)).toEqual({ width: 180, height: 180, opaque: true });
   });
 
+  it('nginx sirve el manifest con su tipo y sin caché inmutable', () => {
+    const nginxConf = fs.readFileSync(path.resolve(process.cwd(), 'nginx.conf'), 'utf-8');
+    const manifestBlock = nginxConf.match(/location = \/manifest\.webmanifest \{([^}]*\{[^}]*\}[^}]*|[^}]*)\}/);
+
+    expect(manifestBlock, 'Falta location = /manifest.webmanifest en nginx.conf').not.toBeNull();
+    expect(manifestBlock![1]).toContain('default_type application/manifest+json;');
+    expect(manifestBlock![1]).not.toContain('immutable');
+    // La regla de caché de un año es para assets con hash; el manifest no lo tiene.
+    const cacheRule = nginxConf.match(/location ~\* \\\.\(\?:([^)]*)\)\$/);
+    expect(cacheRule?.[1].split('|')).not.toContain('webmanifest');
+  });
+
   it('robots.txt y favicon.ico existen y favicon.ico es un ICO real', () => {
     expect(fs.existsSync(path.join(publicDir, 'robots.txt')), 'Falta robots.txt').toBe(true);
     const faviconPath = path.join(publicDir, 'favicon.ico');
