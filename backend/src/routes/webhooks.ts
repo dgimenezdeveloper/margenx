@@ -5,7 +5,11 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
-import { applyIngredientCostChange, calculateUnitCost } from '../services/marginCalculator';
+import {
+  applyBatchIngredientCostChanges,
+  calculateUnitCost,
+  type CriticalMarginProduct,
+} from '../services/marginCalculator';
 
 const router = Router();
 
@@ -139,7 +143,7 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
   const incomingCodes = uniqueItems.map((item) => item.code);
   const mappedRows = await prisma.supplierIngredient.findMany({
     where: {
-      supplierCode: { in: incomingCodes },
+      supplierCode: { in: incomingCodes, mode: 'insensitive' },
       ingredient: { accountId: account.id },
     },
     include: {
@@ -150,7 +154,7 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
 
   const mappedByCode = new Map<string, typeof mappedRows>();
   for (const row of mappedRows) {
-    const key = row.supplierCode ?? '';
+    const key = row.supplierCode?.trim().toLowerCase() ?? '';
     if (!key) continue;
     const bucket = mappedByCode.get(key) ?? [];
     bucket.push(row);
@@ -173,8 +177,15 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
   let discarded = 0;
 
   await prisma.$transaction(async (tx: any) => {
+    const defaultIngredientChanges: Array<{
+      ingredientId: string;
+      previousCost: Prisma.Decimal;
+      newCost: Prisma.Decimal;
+    }> = [];
+
     for (const item of uniqueItems) {
-      const rows = mappedByCode.get(item.code) ?? [];
+      const lookupKey = item.code.trim().toLowerCase();
+      const rows = mappedByCode.get(lookupKey) ?? [];
       const activeRows = rows.filter((row) => row.supplier?.isActive !== false);
 
       if (rows.length === 0) {
@@ -293,26 +304,33 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
           data: { currentCost: newUnitCost },
         });
 
-        const { criticalProducts } = await applyIngredientCostChange(
-          tx,
-          mapped.ingredientId,
+        defaultIngredientChanges.push({
+          ingredientId: mapped.ingredientId,
           previousCost,
-          newUnitCost
-        );
-
-        criticalProductsAlerts.push(
-          ...criticalProducts.map((product) => ({
-            productId: product.productId,
-            productName: product.productName,
-            previousCost: product.previousCost.toFixed(2),
-            newCost: product.newCost.toFixed(2),
-            currentMarginPercent: product.currentMarginPercent.toFixed(2),
-            minMarginPercent: product.minMarginPercent.toFixed(2),
-          }))
-        );
+          newCost: newUnitCost,
+        });
       }
 
       updated += 1;
+    }
+
+    // Recálculo masivo en lote para todos los insumos por defecto actualizados
+    if (defaultIngredientChanges.length > 0) {
+      const { criticalProducts } = await applyBatchIngredientCostChanges(
+        tx,
+        defaultIngredientChanges
+      );
+
+      criticalProductsAlerts.push(
+        ...criticalProducts.map((product: CriticalMarginProduct) => ({
+          productId: product.productId,
+          productName: product.productName,
+          previousCost: product.previousCost.toFixed(2),
+          newCost: product.newCost.toFixed(2),
+          currentMarginPercent: product.currentMarginPercent.toFixed(2),
+          minMarginPercent: product.minMarginPercent.toFixed(2),
+        }))
+      );
     }
   }, { timeout: 30000 });
 
