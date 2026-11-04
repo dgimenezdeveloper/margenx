@@ -1,6 +1,6 @@
 # Manual de Usuario - Rutas y Roles
 
-A continuación se detalla el acceso a las distintas rutas de MargenX según el rol del usuario. Las rutas del panel exigen sesión iniciada: sin sesión, redirigen a `/login`.
+A continuación se detalla el acceso a las distintas rutas de MargenX según el rol del usuario. Las rutas del panel exigen sesión iniciada: sin sesión, redirigen a `/login` y, después de iniciar sesión, vuelven a la pantalla pedida (por ejemplo, el producto del enlace "Ajustar" del mail de alerta).
 
 | Ruta | Descripción | Sin sesión | ADMIN | COLLABORATOR |
 |---|---|:---:|:---:|:---:|
