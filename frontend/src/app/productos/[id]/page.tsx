@@ -59,7 +59,6 @@ export default function ProductDetailPage() {
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)

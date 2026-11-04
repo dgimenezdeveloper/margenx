@@ -22,7 +22,7 @@ export function ProductRemoveIngredientDialog({
           </div>
           <DialogTitle>¿Quitar insumo de la receta?</DialogTitle>
           <DialogDescription>
-            Estás a punto de remover <strong>{ingredientName}</strong> de la preparación.
+            Estás a punto de remover <strong>{ingredientName}</strong> de la preparación. El costo total y el margen se recalcularán automáticamente.
           </DialogDescription>
           <div className="mt-6 flex gap-3">
             <DialogClose className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer transition">
