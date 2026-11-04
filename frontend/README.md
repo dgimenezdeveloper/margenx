@@ -106,6 +106,19 @@ Para verificar su correcto funcionamiento e instalabilidad:
 
 `src/__tests__/pwa.test.ts` (Vitest) valida en cada `npm test` los campos obligatorios del manifest, que cada ícono mida lo que declara en `sizes`, que el maskable y el `apple-touch-icon` sean opacos, que `favicon.ico` sea un ICO real y la regla de `nginx.conf` del manifest.
 
+### Service worker y página Sin conexión
+
+El service worker se genera con `vite-plugin-pwa` desde `pwa.config.ts` y se registra solo en el build de producción (`npm run dev` y los E2E no lo usan). La estrategia completa está en `docs/Arquitectura-Software-(SAD).md` §4, "Estrategia de Caché del Frontend (PWA)". En corto: se precachean JS, CSS, íconos y `public/offline.html`; la API y el HTML de la app siempre van a la red; si una navegación falla por falta de red se muestra **Sin conexión** con el botón **Reintentar**; una versión nueva se avisa con **Actualizar** y no se aplica sola; al cerrar sesión, `clearSessionCaches()` (`src/lib/serviceWorkerCache.ts`) borra toda caché que no sea el precache.
+
+`src/__tests__/service-worker.test.ts` valida las rutas excluidas (API y Clerk), que ninguna regla guarde respuestas, la página Sin conexión y las reglas de `nginx.conf` para `sw.js`, `offline.html` e `index.html`.
+
+Para verificarlo a mano, con `npm run build && npm run preview` en `http://localhost:4173`:
+
+1. **Registro:** DevTools → **Application** → **Service workers**: `sw.js` activo.
+2. **Sin datos en caché:** iniciá sesión, recorré Productos y el Dashboard, y revisá **Application** → **Cache storage**: solo existe `workbox-precache-v2-...` y ninguna entrada empieza con `/api`.
+3. **Sin conexión:** en **Network** elegí **Offline** y recargá `/dashboard`: tiene que verse "Sin conexión" con **Reintentar**. Volvé a **No throttling** y tocá **Reintentar**.
+4. **Versión nueva:** con la app abierta, generá otro build (por ejemplo, cambiando un texto) y volvé a la pestaña: aparece el aviso; **Actualizar** recarga con la versión nueva.
+
 ### Regenerar los íconos
 
 Los íconos salen de `public/logo-icon.png` (230×230, fondo transparente) con ImageMagick, desde `frontend/public/`:
