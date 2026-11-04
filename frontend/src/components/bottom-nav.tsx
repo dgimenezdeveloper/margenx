@@ -25,6 +25,7 @@ export function BottomNav() {
             <Link
               key={label}
               href={href}
+              data-testid={`bottom-nav-${href.replace('/', '')}`}
               className={`flex min-w-14 flex-col items-center gap-1 text-[10px] font-medium transition-colors ${
                 active ? 'font-bold text-indigo-600' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}

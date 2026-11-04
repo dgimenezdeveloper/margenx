@@ -74,10 +74,10 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     ).toBeVisible({ timeout: 8000 })
 
     // --- Navegación a /productos vía la barra inferior (SPA, sin reload) ---
-    // Hay dos links "Productos" en el DOM (navbar desktop oculto + bottom nav
-    // móvil visible a 360px) — .last() toma el de BottomNav, que siempre se
-    // renderiza después del Navbar en el árbol (ver productos/page.tsx).
-    await page.getByRole('link', { name: 'Productos' }).last().click()
+    // data-testid estable (BottomNav): no depende del orden del DOM ni del
+    // texto visible, a diferencia de getByRole('link', { name: 'Productos' }),
+    // que matchea también el link del Navbar de escritorio oculto a 360px.
+    await page.getByTestId('bottom-nav-productos').click()
     await expect(page).toHaveURL(/\/productos$/)
 
     // --- Verificación visual: badge rojo "Crítico" en la tarjeta del producto ---
