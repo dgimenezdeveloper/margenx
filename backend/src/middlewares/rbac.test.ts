@@ -293,6 +293,7 @@ describe('rbac middleware', () => {
         id: 'account-1',
         businessName: 'Panadería Central',
         defaultMinMarginPercent: new Prisma.Decimal('15.5'),
+        slug: 'panaderia-central',
       },
     };
 
@@ -330,6 +331,7 @@ describe('rbac middleware', () => {
           id: 'account-1',
           businessName: 'Panadería Central',
           defaultMinMarginPercent: new Prisma.Decimal('15.5'),
+          slug: 'panaderia-central',
         },
       };
       next();
