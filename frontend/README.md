@@ -56,9 +56,61 @@ src/
 
 Guards de ruta (`src/components/protected-route.tsx`, `admin-only-route.tsx`) aplican el control de acceso en el cliente; el backend repite la misma regla en cada endpoint — ninguno de los dos alcanza solo.
 
-### Componentes UI Compartidos
+### Estados de carga, vacío y error
 
-- `Dialog` (`src/components/ui/dialog.tsx`): Wrapper accesible sobre `@base-ui/react/dialog`. Gestiona automáticamente el focus trap, el cierre con tecla `Escape`, la devolución del foco al elemento disparador y el bloqueo de scroll del fondo. Exporta `Dialog`, `DialogTrigger`, `DialogPortal`, `DialogBackdrop`, `DialogPopup` (centrado para modales), `DialogSheet` (adaptativo: bottom-sheet en mobile y centrado en desktop), `DialogTitle`, `DialogDescription` y `DialogClose`.
+Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5):
+
+- **Cargando:** skeleton o indicador de carga. También se muestra mientras se reintenta, en lugar del error anterior.
+- **Vacío:** `src/components/empty-state.tsx`, solo cuando la API respondió bien y no hay datos.
+- **Error:** `src/components/error-state.tsx` (`ErrorState`), cuando la API falla (5xx) o no hay red. Reemplaza a los indicadores: un fallo nunca se pinta como "0 productos en riesgo" ni como una lista vacía.
+
+`ErrorState` recibe `title`, `description` y `onRetry` (botón **Reintentar**, alto mínimo de 44 px) y se anuncia con `role="alert"`. Opcionales: `retryLabel`, `icon`, `className` e `isRetrying` (deshabilita el botón y muestra "Reintentando..." en pantallas que mantienen el error visible durante el reintento). `onAction` y `actionLabel` son alias para mantener la misma interfaz que `EmptyState`.
+
+Lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`. En las tres el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
+
+### Diálogos (`Dialog`)
+
+Toda ventana emergente (modal centrado o bottom sheet) se arma con `src/components/ui/dialog.tsx`, una capa de estilos sobre `@base-ui/react/dialog`. No se escriben modales a mano con `fixed inset-0`. El componente resuelve solo:
+
+- **Foco atrapado:** al abrirse, el foco entra al diálogo y Tab / Shift+Tab circulan únicamente dentro de él. El resto de la página queda oculto para el lector de pantalla.
+- **Cierre con Escape** y con clic en el fondo. Con dos diálogos apilados (por ejemplo, la ficha de un insumo y encima su historial de costos), Escape cierra solo el de arriba.
+- **Devolución del foco** al elemento que lo abrió, sea un `DialogTrigger` o un botón común que cambia el estado.
+- **Bloqueo del scroll del fondo** mientras está abierto. Lo hace el propio `Dialog` con `useBodyScrollLock` (el hook que corrige el arrastre del fondo en iOS Safari y lleva la cuenta de diálogos apilados); Base UI solo atrapa el foco (`modal="trap-focus"`) para no sumar un segundo bloqueo. En las pantallas no se llama a `useBodyScrollLock` por cada diálogo: queda para elementos que no son diálogos, como el desplegable de insumos de `/productos/nuevo`.
+
+Piezas que exporta:
+
+| Pieza | Uso |
+|---|---|
+| `Dialog` | Raíz. Controlado con `open` y `onOpenChange`, o no controlado con `DialogTrigger`. |
+| `DialogTrigger` | Botón que lo abre (opcional). |
+| `DialogPortal` + `DialogBackdrop` | Montaje fuera del árbol y fondo oscuro. |
+| `DialogPopup` | Ventana centrada: confirmaciones (eliminar, cerrar sesión, cambios sin guardar). |
+| `DialogSheet` | Bottom sheet en mobile y ventana centrada desde `md`: formularios (insumo, empaque, historial, simulador). |
+| `DialogTitle` / `DialogDescription` | Nombre y descripción que anuncia el lector de pantalla. |
+| `DialogClose` | Botón que lo cierra. |
+
+Reglas para un diálogo nuevo:
+
+1. Siempre `DialogTitle` y `DialogDescription`. Si la descripción no se muestra en pantalla, se deja con `className="sr-only"`.
+2. Un botón solo con ícono (la X de cerrar) lleva `aria-label`.
+3. Si cerrar tiene condiciones (está guardando, hay cambios sin guardar), se resuelven en `onOpenChange`, que recibe `false` tanto con Escape como con clic en el fondo o en `DialogClose`.
+4. Para apilar un diálogo sobre otro, se sube el `z-index` de su `DialogBackdrop` y su `DialogPopup`/`DialogSheet` (por ejemplo, `z-70`; los toasts están en `z-100`).
+
+```tsx
+<Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isDeleting) onClose() }}>
+  <DialogPortal>
+    <DialogBackdrop />
+    <DialogPopup>
+      <DialogTitle>¿Eliminar producto?</DialogTitle>
+      <DialogDescription>Estás a punto de eliminar definitivamente Medialunas de manteca.</DialogDescription>
+      <DialogClose>Cancelar</DialogClose>
+      <button type="button" onClick={onConfirm}>Sí, eliminar</button>
+    </DialogPopup>
+  </DialogPortal>
+</Dialog>
+```
+
+Pruebas: `src/components/ui/__tests__/dialog.test.tsx` (foco atrapado, Escape, clic en el fondo, devolución del foco, bloqueo de scroll, diálogos apilados) y `src/components/__tests__/dialogos-accesibles.test.tsx` (título, descripción y botones con nombre en cada diálogo de la app). La navegación con Tab se simula con `@testing-library/user-event`.
 
 ## Pruebas
 
