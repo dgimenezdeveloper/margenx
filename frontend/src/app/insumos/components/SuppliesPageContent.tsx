@@ -2,7 +2,7 @@
 
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Boxes, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
+import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -24,6 +24,7 @@ import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredien
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
+import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
@@ -60,12 +61,13 @@ export default function SuppliesPageContent() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPackagingModal, setShowPackagingModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
 
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
+  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal || showBulkModal)
 
   const handleRetry = () => {
     setIsLoading(true)
@@ -373,6 +375,16 @@ export default function SuppliesPageContent() {
               {!isCollaborator && (
                 <button
                   type="button"
+                  onClick={() => setShowBulkModal(true)}
+                  className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" />
+                  Cargar desde planilla
+                </button>
+              )}
+              {!isCollaborator && (
+                <button
+                  type="button"
                   onClick={() => navigate('/proveedores/cuarentena')}
                   className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400"
                 >
@@ -443,13 +455,24 @@ export default function SuppliesPageContent() {
               <section>
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-lg font-bold">Todos los insumos</h2>
-                  <button
-                    type="button"
-                    onClick={handleOpenNew}
-                    className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
-                  >
-                    + Nuevo Insumo
-                  </button>
+                  <div className="flex items-center gap-2 md:hidden">
+                    {!isCollaborator && (
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkModal(true)}
+                        className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      >
+                        Planilla
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleOpenNew}
+                      className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                    >
+                      + Nuevo Insumo
+                    </button>
+                  </div>
                 </div>
                 {isLoading && (
                   <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -542,6 +565,19 @@ export default function SuppliesPageContent() {
           onSuccess={handlePackagingSuccess}
         />
       )}
+      <BulkIngredientsModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        existingSupplies={supplies}
+        onSuccess={(result) => {
+          handleRetry()
+          notify(
+            'Carga masiva completada',
+            `${result.created} insumos creados, ${result.skipped} omitidos por repetidos.`,
+            'success'
+          )
+        }}
+      />
     </main>
   )
 }
