@@ -94,14 +94,28 @@ La aplicación está configurada como una Progressive Web App (PWA) instalable m
 Para verificar su correcto funcionamiento e instalabilidad:
 
 1. **Build de producción:** Ejecutá `npm run build && npm run preview` (las capacidades PWA completas se auditan sobre el build de producción, no en el servidor de desarrollo).
-2. **Auditoría de Manifest (DevTools):**
+2. **Manifest e instalabilidad (DevTools):**
    - Abrí Chrome o Edge en `http://localhost:4173`.
    - Abrí las DevTools (`F12`) → pestaña **Application** → **Manifest**.
-   - Confirmá que el archivo `manifest.webmanifest` carga con código 200 (sin requerir sesión previa de Clerk), que el nombre es "MargenX", el modo es `standalone` y los íconos de 192px, 512px y 512px maskable son reconocidos sin advertencias.
-3. **Auditoría con Lighthouse:**
-   - En las DevTools, seleccioná la pestaña **Lighthouse**.
-   - Marcá la categoría **Progressive Web App** y ejecutá el análisis.
-   - El chequeo de instalabilidad debe finalizar en verde y sin errores bloqueantes.
+   - Confirmá que `manifest.webmanifest` carga con código 200 (sin requerir sesión previa de Clerk), que el nombre es "MargenX", el modo es `standalone` y los íconos de 192 px, 512 px y 512 px maskable se muestran sin advertencias. La casilla **Show only the minimum safe area for maskable icons** permite ver que el isotipo no queda recortado.
+   - En la misma pantalla, la sección **Installability** no debe listar errores. Lighthouse ya no sirve para esto: desde la versión 12 (Chrome 126) no tiene categoría PWA.
+3. **Tipo y caché en el entorno desplegado:** `curl -I https://dev.margenx.tech/manifest.webmanifest` debe responder `200`, `Content-Type: application/manifest+json` y `Cache-Control: no-cache` (lo define `nginx.conf`; el manifest no lleva hash y no puede usar la caché de un año de los assets de Vite).
 4. **Verificación en dispositivo real:**
    - **Android (Chrome):** Al navegar a la URL del entorno, el menú de opciones (tres puntos) debe ofrecer **"Instalar aplicación"** o **"Agregar a pantalla de inicio"**. Al abrirla desde el acceso directo, debe lanzarse en ventana dedicada sin barra de direcciones URL del navegador.
    - **iOS (Safari):** Al tocar el botón **Compartir** y presionar **"Agregar a Inicio"**, el sistema debe precargar el título "MargenX" y el isotipo nítido proveniente de `apple-touch-icon.png` sobre fondo plano sin esquinas negras ni transparencias no deseadas.
+
+`src/__tests__/pwa.test.ts` (Vitest) valida en cada `npm test` los campos obligatorios del manifest, que cada ícono mida lo que declara en `sizes`, que el maskable y el `apple-touch-icon` sean opacos, que `favicon.ico` sea un ICO real y la regla de `nginx.conf` del manifest.
+
+### Regenerar los íconos
+
+Los íconos salen de `public/logo-icon.png` (230×230, fondo transparente) con ImageMagick, desde `frontend/public/`:
+
+```bash
+convert logo-icon.png -trim +repage -filter Lanczos -resize x154 -background none -gravity center -extent 192x192 -strip PNG32:icon-192x192.png
+convert logo-icon.png -trim +repage -filter Lanczos -resize x410 -background none -gravity center -extent 512x512 -strip PNG32:icon-512x512.png
+convert logo-icon.png -trim +repage -filter Lanczos -resize x300 -background white -gravity center -extent 512x512 -alpha remove -alpha off -strip PNG24:icon-512x512-maskable.png
+convert logo-icon.png -trim +repage -filter Lanczos -resize x140 -background white -gravity center -extent 180x180 -alpha remove -alpha off -strip PNG24:apple-touch-icon.png
+convert logo-icon.png -trim +repage -background none -gravity center -extent 194x194 -define icon:auto-resize=48,32,16 favicon.ico
+```
+
+En el maskable, el isotipo ocupa 300 px de alto para quedar dentro del círculo de zona segura (radio del 40 %). El de 512 px se amplía desde 230 px: si el equipo consigue el isotipo en vector o en mayor resolución, conviene regenerarlos desde ese archivo.

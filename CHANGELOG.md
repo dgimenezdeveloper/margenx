@@ -31,6 +31,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** PWA instalable: `manifest.webmanifest` (nombre MargenX, `lang` es-AR, `start_url` `/dashboard?source=pwa`, modo `standalone`, color de marca `#4f46e5`), íconos de 192 y 512 px, 512 px maskable y `apple-touch-icon` de 180 px, `favicon.ico`, `robots.txt` y etiquetas de instalación para Android e iOS en `index.html`. `nginx.conf` sirve el manifest como `application/manifest+json` sin la caché inmutable de los assets con hash. Prueba de Vitest que valida el manifest, el tamaño real de cada ícono y la regla de nginx; guía de verificación en `frontend/README.md` (`#243`).
 - **DevOps:** Auditoría de solo lectura `backend/prisma/sql/auditar-nombres-duplicados.sql` y paso en `docs/runbook-operacion.md` §8 para detectar nombres duplicados ignorando mayúsculas antes de desplegar la migración de índices únicos (`[RV323-I2]`, `#242`).
 - **Backend:** Índices únicos case-insensitive `(accountId, lower(name))` en `Supplier`, `Ingredient` y `Product` (migración `20261030224224_case_insensitive_unique_names`): la base rechaza "Pan" y "pan" en la misma cuenta aunque falle la validación de la API, y `errorHandler` traduce esa violación (`P2002`) a `409` con el mensaje de cada entidad (`#242`).
 - **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con mensaje, botón Reintentar de 44 px de alto y `role="alert"`; lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`, y queda documentado en `frontend/README.md` (`#257`).
