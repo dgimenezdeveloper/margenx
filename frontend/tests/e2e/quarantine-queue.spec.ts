@@ -66,6 +66,13 @@ async function quarantineViaWebhook(request: APIRequestContext, code: string, an
 // (ver frontend/src/services/api.ts). Se pide uno nuevo en cada llamada:
 // los tokens de Clerk duran ~60 s y el test puede tardar más que eso.
 async function getAdminToken(page: Page): Promise<string> {
+  // Justo después de page.goto Clerk todavía no cargó la sesión: se espera a
+  // que exista antes de pedir el token.
+  await page.waitForFunction(
+    () => Boolean((globalThis as unknown as { Clerk?: { loaded?: boolean; session?: unknown } }).Clerk?.session),
+    undefined,
+    { timeout: 15000 },
+  )
   const token = await page.evaluate(async () => {
     const clerk = (globalThis as unknown as { Clerk?: { session?: { getToken: () => Promise<string | null> } } }).Clerk
     return (await clerk?.session?.getToken()) ?? null
