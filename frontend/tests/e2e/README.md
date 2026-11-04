@@ -29,6 +29,8 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
 
 `quarantine-queue.spec.ts` no mockea el escenario de cuarentena: lo dispara de verdad a través del mismo webhook de ingesta que usa producción (`POST /api/webhooks/supplier-prices`), con un precio cuya variación supera el 50% sobre un `supplierCode` real del seed. Para eso necesita `INTERNAL_WEBHOOK_SECRET` (ver más abajo) — es el único spec de la suite que llama directamente a la API en vez de solo interactuar con la UI.
 
+Antes de cada caso lee el estado del insumo con `GET /api/ingredients/:id` y al terminar verifica que quedó exactamente igual: rechazar no modifica nada, y liberar se revierte con el alta de la presentación (`POST /api/suppliers/:id/ingredients`) más el `PUT /api/ingredients/:id` del costo vigente. Las capturas a 360px quedan en `frontend/test-results/evidencia-360px/` y el job de E2E del CI las publica siempre como artefacto `evidencia-360px`.
+
 ---
 
 ## 2. Requisitos Previos

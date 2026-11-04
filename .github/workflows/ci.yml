@@ -269,6 +269,18 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 7
 
+      # Issue #310: las capturas a 360px que toma quarantine-queue.spec.ts son
+      # la evidencia mobile-first de la bandeja de cuarentena (DoD §5). Se suben
+      # siempre, no solo en fallo, para poder revisarlas desde el PR.
+      - name: Subir evidencia a 360px
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidencia-360px
+          path: frontend/test-results/evidencia-360px/
+          retention-days: 7
+          if-no-files-found: warn
+
   notify-ci-failure:
     name: Notificar Fallo en Discord
     runs-on: ubuntu-latest

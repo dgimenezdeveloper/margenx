@@ -23,7 +23,21 @@ const SUPPLIER_ID = '30e00001-0000-4000-8000-000000000002' // Distribuidora MarJ
 // backend corre en el puerto 3021, no 3000 (ver .github/workflows/ci.yml).
 const API_URL = process.env.VITE_API_URL ?? 'http://localhost:3000/api'
 const WEBHOOK_URL = `${API_URL}/webhooks/supplier-prices`
-const INGREDIENTS_URL = `${API_URL}/suppliers/${SUPPLIER_ID}/ingredients`
+
+/** Estado del insumo y de su presentación con este proveedor, tal como lo devuelve GET /api/ingredients/:id. */
+interface IngredientSnapshot {
+  name: string
+  unit: string
+  currentCost: string
+  supplierLink: {
+    supplierCode: string | null
+    rawDescription: string | null
+    packageSize: string
+    packageUnit: string
+    packagePrice: string
+    isDefault: boolean
+  }
+}
 
 async function quarantineViaWebhook(request: APIRequestContext, code: string, anomalousPrice: number) {
   const secret = process.env.INTERNAL_WEBHOOK_SECRET
@@ -49,8 +63,8 @@ async function quarantineViaWebhook(request: APIRequestContext, code: string, an
 
 // Token real de la sesión Clerk ya autenticada en `page` (storageState de
 // auth.setup.ts) — el backend valida Authorization: Bearer, no cookies
-// (ver frontend/src/services/api.ts), así que page.request por sí solo no
-// alcanza para llamar al endpoint de alta fuera del flujo normal de la UI.
+// (ver frontend/src/services/api.ts). Se pide uno nuevo en cada llamada:
+// los tokens de Clerk duran ~60 s y el test puede tardar más que eso.
 async function getAdminToken(page: Page): Promise<string> {
   const token = await page.evaluate(async () => {
     const clerk = (globalThis as unknown as { Clerk?: { session?: { getToken: () => Promise<string | null> } } }).Clerk
@@ -60,6 +74,59 @@ async function getAdminToken(page: Page): Promise<string> {
   return token
 }
 
+async function adminApi(page: Page, method: 'GET' | 'POST' | 'PUT', path: string, data?: unknown) {
+  const token = await getAdminToken(page)
+  const res = await page.request.fetch(`${API_URL}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    data,
+  })
+  if (!res.ok()) {
+    throw new Error(`${method} ${path} falló (${res.status()}): ${await res.text()}`)
+  }
+  return res.json()
+}
+
+async function getIngredientSnapshot(page: Page, ingredientId: string): Promise<IngredientSnapshot> {
+  const { ingredient } = await adminApi(page, 'GET', `/ingredients/${ingredientId}`)
+  const link = (ingredient.suppliers as Array<IngredientSnapshot['supplierLink'] & { supplierId: string }>)
+    .find((s) => s.supplierId === SUPPLIER_ID)
+  if (!link) throw new Error(`El insumo ${ingredientId} no está asociado al proveedor ${SUPPLIER_ID} en el seed.`)
+  return {
+    name: ingredient.name,
+    unit: ingredient.unit,
+    currentCost: String(ingredient.currentCost),
+    supplierLink: {
+      supplierCode: link.supplierCode,
+      rawDescription: link.rawDescription,
+      packageSize: String(link.packageSize),
+      packageUnit: link.packageUnit,
+      packagePrice: String(link.packagePrice),
+      isDefault: link.isDefault,
+    },
+  }
+}
+
+// Vuelve el insumo exactamente al estado leído antes del test. No se reusa el
+// webhook: la variación desde el precio liberado de vuelta al original también
+// supera el 50% y mandaría la fila otra vez a cuarentena. Son dos pasos porque
+// en el seed el costo vigente del insumo no es packagePrice / packageSize: el
+// alta de la presentación (POST /suppliers/:id/ingredients) restaura precio y
+// descripción, y el PUT del insumo restaura su costo vigente.
+async function restoreIngredient(page: Page, ingredientId: string, original: IngredientSnapshot) {
+  await adminApi(page, 'POST', `/suppliers/${SUPPLIER_ID}/ingredients`, {
+    ingredientId,
+    ...original.supplierLink,
+    supplierCode: original.supplierLink.supplierCode ?? undefined,
+    rawDescription: original.supplierLink.rawDescription ?? undefined,
+  })
+  await adminApi(page, 'PUT', `/ingredients/${ingredientId}`, {
+    name: original.name,
+    unit: original.unit,
+    currentCost: original.currentCost,
+  })
+}
+
 test.describe('TC-QUA: Liberar y rechazar precios en la bandeja de cuarentena (issue #310)', () => {
   test.use({ viewport: { width: 360, height: 800 } })
 
@@ -67,11 +134,15 @@ test.describe('TC-QUA: Liberar y rechazar precios en la bandeja de cuarentena (i
     test.setTimeout(60000)
     const INGREDIENT_NAME = 'Manteca en bloque mayorista'
     const INGREDIENT_ID = '30b00001-0000-4000-8000-000000000004'
+    const ANOMALOUS_PACKAGE_PRICE = 150000 // paquete de 5 kg → 30.000 $/kg
 
-    await quarantineViaWebhook(request, 'CRE101', 150000)
+    await page.goto('/proveedores/cuarentena')
+    const original = await getIngredientSnapshot(page, INGREDIENT_ID)
+
+    await quarantineViaWebhook(request, 'CRE101', ANOMALOUS_PACKAGE_PRICE)
 
     try {
-      await page.goto('/proveedores/cuarentena')
+      await page.reload()
 
       const releaseButton = page.getByRole('button', { name: `Liberar precio propuesto para ${INGREDIENT_NAME}` })
       await expect(releaseButton).toBeVisible()
@@ -86,34 +157,28 @@ test.describe('TC-QUA: Liberar y rechazar precios en la bandeja de cuarentena (i
       await expect(page.getByText(INGREDIENT_NAME)).toHaveCount(0)
 
       await page.screenshot({ path: 'test-results/evidencia-360px/quarantine-liberar.png', fullPage: true })
+
+      // Liberar aplica el precio propuesto: el costo vigente pasa a 150.000 / 5 kg.
+      const released = await getIngredientSnapshot(page, INGREDIENT_ID)
+      expect(released.supplierLink.packagePrice).toMatch(/^150000(\.0+)?$/)
+      expect(released.currentCost).toMatch(/^30000(\.0+)?$/)
     } finally {
-      // Restaura packagePrice/currentCost al valor original del seed vía el
-      // mismo endpoint de alta que usaría un admin (sin lógica de cuarentena,
-      // ver suppliers.ts) — no reusar el webhook acá: la variación desde el
-      // precio anómalo de vuelta al original también supera el 50% y volvería
-      // a mandar la fila a cuarentena en lugar de restaurarla.
-      const token = await getAdminToken(page)
-      await page.request.post(INGREDIENTS_URL, {
-        headers: { Authorization: `Bearer ${token}` },
-        data: {
-          ingredientId: INGREDIENT_ID,
-          packageSize: '5',
-          packageUnit: 'kg',
-          packagePrice: '50254.70',
-          isDefault: true,
-          supplierCode: 'CRE101',
-        },
-      })
+      await restoreIngredient(page, INGREDIENT_ID, original)
     }
+
+    expect(await getIngredientSnapshot(page, INGREDIENT_ID)).toEqual(original)
   })
 
   test('TC-QUA-02: rechazar un precio anómalo lo descarta y mantiene el costo anterior', async ({ page, request }) => {
     test.setTimeout(60000)
     const INGREDIENT_NAME = 'Grasa bovina refinada La Cordobesa'
-
-    await quarantineViaWebhook(request, 'GRA013', 200000)
+    const INGREDIENT_ID = '30b00001-0000-4000-8000-000000000005'
 
     await page.goto('/proveedores/cuarentena')
+    const original = await getIngredientSnapshot(page, INGREDIENT_ID)
+
+    await quarantineViaWebhook(request, 'GRA013', 200000)
+    await page.reload()
 
     const rejectButton = page.getByRole('button', { name: `Rechazar precio propuesto para ${INGREDIENT_NAME}` })
     await expect(rejectButton).toBeVisible()
@@ -125,8 +190,9 @@ test.describe('TC-QUA: Liberar y rechazar precios en la bandeja de cuarentena (i
     await expect(page.getByText(INGREDIENT_NAME)).toHaveCount(0)
 
     await page.screenshot({ path: 'test-results/evidencia-360px/quarantine-rechazar.png', fullPage: true })
-    // Sin cleanup: rechazar no toca packagePrice ni currentCost (ver
-    // POST /api/suppliers/quarantine/:id/reject en suppliers.ts), no deja
-    // estado mutado que restaurar.
+
+    // Rechazar no toca packagePrice ni currentCost (POST /api/suppliers/quarantine/:id/reject
+    // en suppliers.ts): el insumo queda igual que antes del webhook, sin nada que restaurar.
+    expect(await getIngredientSnapshot(page, INGREDIENT_ID)).toEqual(original)
   })
 })
