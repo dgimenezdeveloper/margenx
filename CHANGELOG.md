@@ -9,6 +9,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend:** Corregido el parser de números argentinos para costos en `backend/src/utils/argentineNumber.ts`: el punto solo se interpreta como separador de miles cuando cumple el patrón canónico `^-?\d{1,3}(\.\d{3})+$`; así, valores como `1234.567` se mantienen como decimal válido y no se multiplican por 1000. La corrección queda alineada con n8n y el frontend, y cierra la revisión de la issue `#247` / PR `#319` (`RV319-B1`).
 - **Backend:** `POST /api/suppliers/:id/ingredients` acepta `supplierCode` y `rawDescription`, normaliza y valida el código (sin espacios externos y máximo 64 caracteres), evita duplicados por proveedor con respuesta `409` e indica el insumo que ya lo usa, y permite guardar la asociación sin código con aviso explícito de que no recibirá precios por ingesta.
 - **Backend:** `POST /api/suppliers/:id/ingredients` valida la escala de cada columna: `packageSize` hasta 3 decimales y `9999999.999` (`Decimal(10,3)`; antes un valor mayor desbordaba la base) y `packagePrice` hasta 2 decimales (`[RV323-I1]`, `#242`).
 - **QA:** `precision-aritmetica.test.ts` ya no depende del orden de ejecución: la matriz de comparación calcula los cuatro casos por su cuenta y pasa con `--sequence.shuffle` (`[RV323-I3]`).
@@ -30,6 +31,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** PWA instalable: `manifest.webmanifest` (nombre MargenX, `lang` es-AR, `start_url` `/dashboard?source=pwa`, modo `standalone`, color de marca `#4f46e5`), íconos de 192 y 512 px, 512 px maskable y `apple-touch-icon` de 180 px, `favicon.ico`, `robots.txt` y etiquetas de instalación para Android e iOS en `index.html`. `nginx.conf` sirve el manifest como `application/manifest+json` sin la caché inmutable de los assets con hash. Prueba de Vitest que valida el manifest, el tamaño real de cada ícono y la regla de nginx; guía de verificación en `frontend/README.md` (`#243`).
+- **Frontend:** Sesión persistente en la app instalada (PWA en modo standalone, detectada con `display-mode: standalone` y `navigator.standalone`): cerrar la app ya no cierra la sesión y no corre el cierre propio de 30 minutos; manda la duración del Clerk de producción (7 días, tope del plan Hobby). En el navegador común no cambia nada. Al pedir login, el destino viaja en `?redirect_url=` y, tras iniciar sesión (y la verificación de Clerk, si la pide), se vuelve a esa pantalla, por ejemplo el producto del enlace "Ajustar" del mail de alerta. Solo se aceptan rutas internas. Decisión en `docs/adr/0006-sesion-persistente-pwa.md`; nota de duración en `docs/manual-usuario/instalacion.md` (`#241`).
 - **DevOps:** Auditoría de solo lectura `backend/prisma/sql/auditar-nombres-duplicados.sql` y paso en `docs/runbook-operacion.md` §8 para detectar nombres duplicados ignorando mayúsculas antes de desplegar la migración de índices únicos (`[RV323-I2]`, `#242`).
 - **Backend:** Índices únicos case-insensitive `(accountId, lower(name))` en `Supplier`, `Ingredient` y `Product` (migración `20261030224224_case_insensitive_unique_names`): la base rechaza "Pan" y "pan" en la misma cuenta aunque falle la validación de la API, y `errorHandler` traduce esa violación (`P2002`) a `409` con el mensaje de cada entidad (`#242`).
 - **Frontend:** Componente reutilizable `ErrorState` (`src/components/error-state.tsx`) con mensaje, botón Reintentar de 44 px de alto y `role="alert"`; lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`, y queda documentado en `frontend/README.md` (`#257`).
@@ -45,6 +48,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend / QA:** Configuración de cobertura de código con `@vitest/coverage-v8`, script `test:coverage`, umbral del 90 % en Vitest y suites de pruebas unitarias sobre stores (`useRecipeStore`, `useQuarantineStore`), esquemas Zod (`productSchema`, `ingredientSchema`, `supplierPackagingSchema`), helpers de saneamiento numérico (`numericInput`), hooks de RBAC (`useUserRole`, `useTheme`) y componentes financieros (`MarginBadge`) (`#276`).
 - **QA:** Scripts `run-tests-webhooks.sh` y `run-tests-alertas-margen.sh`, para que las 6 colecciones tengan un wrapper uniforme (`#264`).
 - **QA:** Cosecha de los comentarios no bloqueantes dejados en las revisiones de los PR #215 a #218: etiqueta `review-followup` y 5 issues nuevas agrupadas por tema (`#310`-`#314`); tabla de trazabilidad completa (28 ítems: resueltos, descartados o agrupados) en `docs/qa/reporte-calidad-sprint5.md` (`#265`).
+- **Backend:** Carga masiva de insumos por planilla (`POST /api/ingredients/bulk`) con validación por fila, omisión de duplicados, tope de 500 filas por lote, transacción y respuesta resumida `{ created, skipped, errors }`.
+- **Backend:** Parser compartido de números argentinos para costos (`1.234,56` y `1234.56`) aplicado a la carga manual y masiva para evitar inconsistencias entre rutas.
 - **Backend:** Límite conservador global de `256 KB` en el parser general de Express y parser específico de `5 MB` para `POST /api/webhooks/supplier-prices`.
 - **Backend:** Manejo explícito de `entity.too.large` con respuesta `413`, código estable `PAYLOAD_TOO_LARGE` y mensaje en español orientado a dividir la lista.
 - **Backend:** Bloqueo con error 422 al intentar quitar el proveedor predeterminado de un insumo sin asignar otro en su lugar.
@@ -79,7 +84,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Removed
 
-- **Docs:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md`, reemplazados por `docs/especificacion-funcional.md` (`#274`).
+- **Docs:** Documentación funcional y de dominio consolidada en `docs/especificacion-funcional.md`, tras fusionar los contenidos previos de los archivos dedicados a abastecimiento y diseño operativo en un único documento (`#274`).
 
 ### Fixed
 

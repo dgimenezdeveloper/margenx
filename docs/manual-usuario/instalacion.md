@@ -28,8 +28,6 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 5. Quedará disponible en tu home screen como una aplicación independiente.
 
 > Si no aparece la opción, revisá que estés usando Safari y no otra app de navegador.
->
-> El ícono que ves en las capturas es genérico (la "M" por defecto) porque todavía no se mergeó la issue que agrega el ícono real de MargenX (#243). Una vez mergeada, el ícono de la pantalla de confirmación va a ser el de la app.
 
 ## Escritorio con Chrome o Edge
 
@@ -37,6 +35,12 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 2. Busca el ícono de instalación en la barra de direcciones o en el menú de la pestaña.
 3. Seleccioná “Instalar”.
 4. La aplicación se creará como acceso directo en tu escritorio o en tu menú de apps.
+
+## Cuánto dura la sesión
+
+- **En la app instalada:** la sesión se mantiene aunque cierres la app, durante hasta **7 días** desde que iniciaste sesión. Así, cuando tocás "Ajustar" en un mail de alerta, llegás directo al producto sin volver a iniciar sesión. Pasados los 7 días, MargenX te pide iniciar sesión de nuevo y después te lleva a la pantalla que querías abrir.
+- **En el navegador:** la sesión se cierra al cerrar el navegador o después de 30 minutos sin usar la app, para proteger las computadoras compartidas del comercio.
+- Como la app instalada mantiene la sesión abierta, usá un bloqueo de pantalla en el celular. Para salir, usá **Cerrar sesión** en el menú.
 
 ## Recomendación
 
