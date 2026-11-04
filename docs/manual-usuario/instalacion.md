@@ -28,8 +28,6 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 5. Quedará disponible en tu home screen como una aplicación independiente.
 
 > Si no aparece la opción, revisá que estés usando Safari y no otra app de navegador.
->
-> El ícono que ves en las capturas es genérico (la "M" por defecto) porque todavía no se mergeó la issue que agrega el ícono real de MargenX (#243). Una vez mergeada, el ícono de la pantalla de confirmación va a ser el de la app.
 
 ## Escritorio con Chrome o Edge
 
