@@ -13,6 +13,7 @@ const clerk = vi.hoisted(() => ({
   }),
 }))
 const displayMode = vi.hoisted(() => ({ standalone: false }))
+const clearSessionCaches = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: clerk.isSignedIn }),
@@ -23,6 +24,7 @@ vi.mock('@clerk/clerk-react', () => ({
 
 vi.mock('@/lib/clerkConfig', () => ({ isClerkConfigured: true, publishableKey: 'pk_test_123' }))
 vi.mock('@/lib/displayMode', () => ({ isStandaloneMode: () => displayMode.standalone }))
+vi.mock('@/lib/serviceWorkerCache', () => ({ clearSessionCaches }))
 
 function LoginProbe() {
   return <div data-testid="login">{window.location.pathname}</div>
@@ -53,6 +55,7 @@ describe('ProtectedRoute', () => {
     clearBrowserSession()
     clerk.isSignedIn = true
     clerk.signOut.mockClear()
+    clearSessionCaches.mockClear()
     displayMode.standalone = false
   })
   afterEach(() => {
@@ -75,6 +78,20 @@ describe('ProtectedRoute', () => {
     await waitFor(() => expect(clerk.signOut).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
     expect(router.state.location.search).toBe('?redirect_url=%2Fproductos%2Fmedialunas-de-manteca')
+  })
+
+  it('al cerrar la sesión huérfana limpia las cachés del service worker', async () => {
+    renderAt('/productos/medialunas-de-manteca')
+
+    await waitFor(() => expect(clerk.signOut).toHaveBeenCalledTimes(1))
+    expect(clearSessionCaches).toHaveBeenCalledTimes(1)
+  })
+
+  it('con la sesión viva no toca las cachés', () => {
+    sessionStorage.setItem('margenx_active_session', 'true')
+    renderAt('/productos/medialunas-de-manteca')
+
+    expect(clearSessionCaches).not.toHaveBeenCalled()
   })
 
   it('navegador común con la sesión de la pestaña viva: no cambia el comportamiento', () => {
