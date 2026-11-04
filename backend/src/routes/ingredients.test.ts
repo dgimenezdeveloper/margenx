@@ -26,14 +26,21 @@ const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+
+// El recálculo en lote pide todos los productos con un solo findMany;
+// se resuelve con el mismo mock por id que ya configuran los tests.
+const productFindManyMock = vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
+  const found = await Promise.all(where.id.in.map((id) => productFindUniqueMock({ where: { id } })));
+  return found.filter(Boolean);
+});
 const priceHistoryCreateMock = vi.fn();
 const accountFindUniqueMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
-    ingredient: { update: updateMock },
+    ingredient: { findMany: findManyMock, create: createMock, update: updateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
-    product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+    product: { findUnique: productFindUniqueMock, findMany: productFindManyMock, update: productUpdateMock },
     priceHistory: { create: priceHistoryCreateMock },
   });
 });
@@ -263,7 +270,7 @@ describe('POST /api/ingredients', () => {
 
     const res2 = await request(buildApp())
       .post('/api/ingredients')
-      .send({ name: 'Harina', unit: 'kg', currentCost: '742.985' });
+      .send({ name: 'Harina', unit: 'kg', currentCost: '742,985' });
 
     expect(res2.status).toBe(400);
     expect(res2.body.error).toMatch(/decimal válido/);
@@ -349,6 +356,135 @@ describe('POST /api/ingredients', () => {
     expect(createMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ accountId: 'account-1' }),
     });
+  });
+
+  it('acepta correctamente importes válidos en formato argentino de miles en POST verificando el valor procesado', async () => {
+    const expectedValues: Record<string, string> = {
+      '15.000': '15000',
+      '100.000': '100000',
+      '1.500': '1500',
+      '50.500': '50500',
+    };
+
+    for (const [costVal, expectedStr] of Object.entries(expectedValues)) {
+      findFirstMock.mockResolvedValueOnce(null);
+      createMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        accountId: 'account-1',
+        name: `Insumo ${costVal}`,
+        unit: 'kg',
+        currentCost: new Prisma.Decimal(expectedStr),
+      });
+
+      const res = await request(buildApp())
+        .post('/api/ingredients')
+        .send({ name: `Insumo ${costVal}`, unit: 'kg', currentCost: costVal });
+
+      expect(res.status).toBe(201);
+      expect(res.body.ingredient).toBeDefined();
+      expect(createMock).toHaveBeenLastCalledWith({
+        data: expect.objectContaining({
+          currentCost: expect.objectContaining({
+            toString: expect.any(Function),
+          }),
+        }),
+      });
+
+      const lastCall = createMock.mock.calls[createMock.mock.calls.length - 1];
+      const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
+      expect(dataArg.currentCost.toString()).toBe(expectedStr);
+    }
+  });
+});
+
+describe('POST /api/ingredients/bulk', () => {
+  it('crea una lista válida y devuelve created/skipped/errors correctos', async () => {
+    findManyMock.mockResolvedValue([]);
+    createMock.mockResolvedValue({ id: 'ing-1' });
+
+    const rows = [
+      { name: 'Harina 000', unit: 'kg', cost: '1.234,56' },
+      ...Array.from({ length: 19 }, (_, index) => ({
+        name: `Insumo ${index + 2}`,
+        unit: 'kg',
+        cost: (index + 1) * 10,
+      })),
+    ];
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send(rows);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ created: 20, skipped: 0, errors: [] });
+    expect(createMock).toHaveBeenCalledTimes(20);
+  });
+
+  it('devuelve errores por fila y crea las válidas aunque haya filas inválidas', async () => {
+    findManyMock.mockResolvedValue([]);
+    createMock.mockResolvedValue({ id: 'ing-1' });
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Harina 000', unit: 'kg', cost: '123,50' },
+        { name: '', unit: 'kg', cost: '100' },
+        { name: 'Azúcar', unit: 'kg', cost: 'abc' },
+        { name: 'Sal', unit: 'kg', cost: '25.50' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(2);
+    expect(res.body.skipped).toBe(0);
+    expect(res.body.errors).toHaveLength(2);
+    expect(res.body.errors[0]).toMatchObject({ row: 2, reason: expect.stringMatching(/obligatorio|vacío/i) });
+    expect(res.body.errors[1]).toMatchObject({ row: 3, reason: expect.stringMatching(/cost|decimal|numérico|valor/i) });
+    expect(createMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('omite insumos repetidos sin cambiar el costo existente', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'kg', cost: '250,75' },
+        { name: 'Levadura', unit: 'kg', cost: '50' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ created: 1, skipped: 1, errors: [] });
+    expect(createMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('responde 403 para colaborador y no crea nada', async () => {
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .set('x-role', 'COLLABORATOR')
+      .send([{ name: 'Harina', unit: 'kg', cost: '100' }]);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza más de 500 filas con 413 y mensaje claro', async () => {
+    const rows = Array.from({ length: 501 }, (_, index) => ({
+      name: `Insumo ${index + 1}`,
+      unit: 'kg',
+      cost: '10',
+    }));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send(rows);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: expect.stringMatching(/500|demasiadas|lote/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
   });
 });
 
@@ -443,6 +579,88 @@ describe('PUT /api/ingredients/:id', () => {
         newCost: new Prisma.Decimal('9500.00'),
       }),
     });
+  });
+
+  it('acepta correctamente importes válidos en formato argentino de miles en PUT verificando el valor procesado', async () => {
+    const expectedValues: Record<string, string> = {
+      '15.000': '15000',
+      '100.000': '100000',
+      '1.500': '1500',
+      '50.500': '50500',
+    };
+
+    for (const [costVal, expectedStr] of Object.entries(expectedValues)) {
+      findFirstMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        name: 'Insumo Miles',
+        unit: 'kg',
+        currentCost: new Prisma.Decimal('100.00'),
+      });
+      updateMock.mockResolvedValueOnce({
+        id: 'ing-miles',
+        name: 'Insumo Miles',
+        unit: 'kg',
+        currentCost: new Prisma.Decimal(expectedStr),
+      });
+      productIngredientFindManyMock.mockResolvedValueOnce([]);
+
+      const res = await request(buildApp())
+        .put('/api/ingredients/ing-miles')
+        .send({ name: 'Insumo Miles', unit: 'kg', currentCost: costVal });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ingredient).toBeDefined();
+      expect(updateMock).toHaveBeenLastCalledWith({
+        where: { id: 'ing-miles' },
+        data: expect.objectContaining({
+          currentCost: expect.objectContaining({
+            toString: expect.any(Function),
+          }),
+        }),
+      });
+
+      const lastCall = updateMock.mock.calls[updateMock.mock.calls.length - 1];
+      const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
+      expect(dataArg.currentCost.toString()).toBe(expectedStr);
+    }
+  });
+  
+  it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'unidad-invalida', cost: '100' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(0);
+    expect(res.body.skipped).toBe(0); // No debe ser skipped, es un error de validación
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0]).toMatchObject({
+      row: 1,
+      reason: expect.stringMatching(/unit/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('falla con 500 y no confirma inserciones si ocurre un error inesperado durante la transacción', async () => {
+    findManyMock.mockResolvedValue([]);
+    // Simulamos fallo en la segunda inserción
+    createMock
+      .mockResolvedValueOnce({ id: 'ing-1' })
+      .mockRejectedValueOnce(new Error('Fallo simulado de conexión en base de datos'));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Insumo 1', unit: 'kg', cost: '100' },
+        { name: 'Insumo 2', unit: 'kg', cost: '200' },
+      ]);
+
+    expect(res.status).toBe(500);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
   });
 
   it('no abre transacción ni crea PriceHistory cuando no hubo cambio real en costo, nombre ni unidad', async () => {
