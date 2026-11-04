@@ -24,7 +24,7 @@ import { supplierService, type Supplier, type SupplierIngredient } from '@/servi
 import type { Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
 import { NumericInput } from '@/components/NumericInput'
-import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 
 interface SupplierPackagingModalProps {
@@ -90,7 +90,8 @@ export function SupplierPackagingModal({
   const watchedPrice = useWatch({ control, name: 'packagePrice' }) as string | number
   const watchedIsDefault = useWatch({ control, name: 'isDefault' })
 
-  const hasUnsavedChanges = isDirty || Boolean(quickSupplierName.trim())
+  // Considera cambios pendientes tanto en los inputs del formulario como si se está escribiendo un nuevo proveedor
+  const hasUnsavedChanges = isDirty || (isAddingQuickSupplier && quickSupplierName.trim() !== '')
 
   const handleClose = useCallback(() => {
     setErrorBanner(null)
@@ -125,21 +126,6 @@ export function SupplierPackagingModal({
       })
     }
   }, [isOpen, existingConnection, reset])
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showDiscardConfirm) return
-        e.preventDefault()
-        requestClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, showDiscardConfirm, requestClose])
 
   useEffect(() => {
     if (!isOpen) return
@@ -275,6 +261,9 @@ export function SupplierPackagingModal({
                 >
                   {ingredient.name}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Asociá la presentación mayorista de un proveedor a {ingredient.name}: tamaño del paquete y precio.
+                </DialogDescription>
               </div>
               <button
                 type="button"
@@ -336,7 +325,11 @@ export function SupplierPackagingModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsAddingQuickSupplier(false)}
+                      onClick={() => {
+                        setIsAddingQuickSupplier(false)
+                        setQuickSupplierName('')
+                      }}
+                      aria-label="Cancelar alta de proveedor"
                       className="min-h-11 h-11 rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                     >
                       <X className="size-4" />
