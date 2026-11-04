@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
+import { isStandaloneMode } from '@/lib/displayMode'
+import { clearStoredReturnUrl, resolveReturnUrl } from '@/lib/returnUrl'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function LoginPage() {
@@ -12,7 +14,10 @@ export default function LoginPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
+  const location = useLocation()
   const wasLoggedOutRef = useRef(false)
+  // Destino tras el login (por ejemplo, el producto del enlace "Ajustar"); se resuelve una vez al montar
+  const [returnUrl] = useState(() => resolveReturnUrl(location.search))
 
   const isE2E = (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
     typeof window !== 'undefined' && Boolean(window.navigator.webdriver)
@@ -22,7 +27,8 @@ export default function LoginPage() {
   const hasTabSession =
     typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true'
 
-  const isSessionAlive = isE2E || hasTabSession || hasBrowserSessionCookie
+  // En la app instalada cerrar la app no cierra la sesión: manda la duración configurada en Clerk (ADR-006)
+  const isSessionAlive = isE2E || isStandaloneMode() || hasTabSession || hasBrowserSessionCookie
 
   // Sesión residual: Clerk tiene cookies pero el navegador se cerró previamente
   const isStaleSession = Boolean(!isE2E && isLoaded && isSignedIn && !isSessionAlive)
@@ -36,10 +42,15 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isLoaded) return
 
-    // 1. Si ya tiene sesión activa en esta misma sesión de navegador, va directo al dashboard
-    if (isSessionAlive && isSignedIn) {
+    const goToReturnUrl = () => {
       authorizeSession()
-      navigate('/dashboard', { replace: true })
+      clearStoredReturnUrl()
+      navigate(returnUrl, { replace: true })
+    }
+
+    // 1. Si ya tiene sesión activa (en esta sesión de navegador o en la app instalada), va directo al destino
+    if (isSessionAlive && isSignedIn) {
+      goToReturnUrl()
       return
     }
 
@@ -61,10 +72,9 @@ export default function LoginPage() {
       wasLoggedOutRef.current = true
     } else if (isSignedIn && wasLoggedOutRef.current) {
       // 4. Si estaba deslogueado y acaba de completar el login con éxito (humano o Playwright)
-      authorizeSession()
-      navigate('/dashboard', { replace: true })
+      goToReturnUrl()
     }
-  }, [isLoaded, isSignedIn, isSessionAlive, isStaleSession, isE2E, signOut, navigate])
+  }, [isLoaded, isSignedIn, isSessionAlive, isStaleSession, isE2E, signOut, navigate, returnUrl])
 
   // Toast de inactividad
   const [toast, setToast] = useState<string | null>(() => {
@@ -135,8 +145,8 @@ export default function LoginPage() {
             onFocusCapture={authorizeSession}
           >
             <SignIn
-              fallbackRedirectUrl="/dashboard"
-              forceRedirectUrl="/dashboard"
+              fallbackRedirectUrl={returnUrl}
+              forceRedirectUrl={returnUrl}
               routing="path"
               path="/login"
               appearance={{

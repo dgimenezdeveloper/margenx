@@ -24,7 +24,7 @@ Necesita el backend corriendo (ver `backend/README.md` si existe, o la sección 
 
 ## Variables de entorno
 
-`.env.example` cubre lo que necesita `npm run dev`/`build` (`VITE_API_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, y opcionalmente `VITE_INACTIVITY_TIMEOUT_MS`, en milisegundos — por defecto 30 minutos de inactividad antes de cerrar la sesión, ver `src/hooks/useSessionSecurity.ts`). Copiarlo a `.env` o `.env.local`.
+`.env.example` cubre lo que necesita `npm run dev`/`build` (`VITE_API_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, y opcionalmente `VITE_INACTIVITY_TIMEOUT_MS`, en milisegundos — por defecto 30 minutos de inactividad antes de cerrar la sesión, ver `src/hooks/useSessionSecurity.ts`; no aplica en la app instalada, donde manda la duración de Clerk, ver `docs/adr/0006-sesion-persistente-pwa.md`). Copiarlo a `.env` o `.env.local`.
 
 `.env.test.example` es aparte y solo lo necesita la suite E2E — ver [Pruebas E2E](#pruebas-e2e).
 

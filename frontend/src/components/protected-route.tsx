@@ -1,12 +1,16 @@
 import { SignedIn, SignedOut, useClerk, useAuth } from '@clerk/clerk-react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
+import { isStandaloneMode } from '@/lib/displayMode'
+import { buildLoginUrl, clearStoredReturnUrl } from '@/lib/returnUrl'
 import { useSessionSecurity } from '@/hooks/useSessionSecurity'
 import { LoaderCircle } from 'lucide-react'
 
 function ProtectedContent({ children }: { children: React.ReactNode }) {
   useSessionSecurity()
+  // Si Clerk redirigió por su cuenta tras el login, el destino ya se usó: no debe reaparecer en otro login
+  useEffect(() => clearStoredReturnUrl(), [])
   return <>{children}</>
 }
 
@@ -14,6 +18,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
+  const location = useLocation()
+  const loginUrl = buildLoginUrl(location)
 
   // Modo E2E: solo activo durante tests automatizados en entornos de desarrollo/test (nunca en producción compilada)
   const isE2E = (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
@@ -25,8 +31,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const hasTabSession =
     typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true'
 
+  // En la app instalada cerrar la app no cierra la sesión: manda la duración configurada en Clerk (ADR-006)
+  const isStandalone = isStandaloneMode()
+
   // Evita el kill global: si el navegador sigue abierto y hay otra pestaña activa, sincronizamos sessionStorage
-  const isSessionAlive = isE2E || hasTabSession || hasBrowserSessionCookie
+  const isSessionAlive = isE2E || isStandalone || hasTabSession || hasBrowserSessionCookie
   if (hasBrowserSessionCookie && !hasTabSession && typeof window !== 'undefined') {
     sessionStorage.setItem('margenx_active_session', 'true')
   }
@@ -43,10 +52,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('margenx_last_active')
 
       void signOut(() => {
-        navigate('/login', { replace: true })
+        navigate(loginUrl, { replace: true })
       })
     }
-  }, [isLoaded, isSignedIn, isOrphanSession, isE2E, signOut, navigate])
+  }, [isLoaded, isSignedIn, isOrphanSession, isE2E, signOut, navigate, loginUrl])
 
   if (!isClerkConfigured) {
     return <Navigate to="/login" replace />
@@ -66,7 +75,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <ProtectedContent>{children}</ProtectedContent>
       </SignedIn>
       <SignedOut>
-        <Navigate to="/login" replace />
+        <Navigate to={loginUrl} replace />
       </SignedOut>
     </>
   )
