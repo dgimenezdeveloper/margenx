@@ -2,6 +2,31 @@
 
 Bienvenido a MargenX. Esta guía te ayudará a dar tus primeros pasos en la plataforma.
 
+## Tres formas de cargar tus insumos
+
+MargenX se adapta al tamaño de tu negocio y al momento de tu comercio ofreciendo tres caminos para incorporar materias primas:
+
+1. **Carga manual uno a uno (Arranque Rápido):**
+   - Entrá a **Insumos** y presioná **"Nuevo Insumo"**.
+   - Ingresá el nombre, la unidad de costeo (`kg`, `litro` o `unidad`) y el costo por unidad vigente.
+   - Ideal si manejás pocas materias primas o querés dar de alta un insumo puntual de forma inmediata.
+
+2. **Carga masiva por planilla (Plantilla Oficial):**
+   - Si tenés tu despensa en una hoja de cálculo, ingresá a **Insumos** y hacé clic en **"Cargar desde planilla"**.
+   - Descargá la **plantilla oficial** en formato Excel (.xlsx).
+   - Completá las tres columnas requeridas: **Nombre**, **Unidad** (`kg`, `l` o `u`) y **Costo** (con formato argentino habitual, ej. `1.234,56`).
+   - Subí el archivo: el sistema lo analizará en tu navegador de forma privada y te mostrará una **vista previa defensiva** dividida en tres pestañas:
+     - **Válidas:** filas listas para ser incorporadas.
+     - **Repetidas:** nombres que ya tenías cargados o duplicados en el archivo (se omitirán para no alterar tus costos sin tu autorización).
+     - **Con error:** filas que tengan importes inválidos (como letras o negativos) o unidades incorrectas, indicando el número exacto de fila y el motivo.
+   - Al presionar **Confirmar**, se crean todos los insumos válidos en una sola operación sin que los errores bloqueen el resto.
+
+3. **Ingesta desatendida por correo ("Zero-Click"):**
+   - Cuando tu distribuidor o mayorista te envíe su lista por correo o WhatsApp, simplemente reenviá el archivo a la casilla virtual de tu negocio: `precios-<slug>@margenx.tech`.
+   - Nuestro satélite leerá la lista en segundo plano, actualizará únicamente los artículos que tengas vinculados a tus proveedores y descartará el resto sin ensuciar tu catálogo.
+
+---
+
 ## Cómo escribir importes y cantidades
 
 Para facilitar la carga de datos y evitar errores, MargenX está adaptado al formato numérico de uso común en Argentina:
