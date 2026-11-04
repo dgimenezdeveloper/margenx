@@ -64,7 +64,6 @@ export default function SuppliesPageContent() {
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-
   const handleRetry = () => {
     setIsLoading(true)
     setLoadError(null)
@@ -489,7 +488,6 @@ export default function SuppliesPageContent() {
         showDeleteConfirm={showDeleteConfirm}
         isCollaborator={isCollaborator}
         onSubmit={handleSubmit(handleSave)}
-        onClose={requestCloseSheet}
         onRequestClose={requestCloseSheet}
         onRequestDelete={() => setShowDeleteConfirm(true)}
         onDeleteConfirm={confirmDelete}

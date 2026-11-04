@@ -1,5 +1,5 @@
 import { X, MessageCircle, FileText, Mail } from 'lucide-react'
-import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
 interface SupportDocsModalProps {
   isOpen: boolean
@@ -14,10 +14,13 @@ export function SupportDocsModal({ isOpen, onClose }: SupportDocsModalProps) {
         <DialogPopup className="max-w-md text-left">
           <div className="flex items-center justify-between mb-6">
             <DialogTitle className="text-xl">Soporte y Documentación</DialogTitle>
-            <DialogClose className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+            <DialogClose aria-label="Cerrar soporte y documentación" className="flex min-h-11 min-w-11 items-center justify-center cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
               <X className="size-5" />
             </DialogClose>
           </div>
+          <DialogDescription className="sr-only">
+            Canales de contacto con el equipo de MargenX y acceso a la guía de usuario.
+          </DialogDescription>
 
           <div className="space-y-4">
             <a

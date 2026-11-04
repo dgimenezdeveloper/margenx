@@ -3,7 +3,7 @@ import { X, History, TrendingUp, TrendingDown, Minus, LoaderCircle } from 'lucid
 import { useAuth } from '@clerk/clerk-react'
 import { ingredientService, type PriceHistory } from '@/services/ingredientService'
 import { EmptyState } from '@/components/empty-state'
-import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
 interface PriceHistoryModalProps {
   isOpen: boolean
@@ -59,7 +59,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
 
   if (!isOpen) return null
 
-return (
+  return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogPortal>
         <DialogBackdrop className="z-70" />
@@ -72,8 +72,11 @@ return (
               <DialogTitle className="mt-1 truncate max-w-62.5 sm:max-w-75">
                 {ingredientName}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Variaciones registradas en el costo unitario de {ingredientName}.
+              </DialogDescription>
             </div>
-            <DialogClose className="flex size-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer">
+            <DialogClose aria-label="Cerrar historial de costos" className="flex size-10 min-h-11 min-w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer">
               <X className="size-5" />
             </DialogClose>
           </div>

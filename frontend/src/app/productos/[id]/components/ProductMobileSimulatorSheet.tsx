@@ -1,5 +1,5 @@
 import { ProductSimulatorPanel, type ProductSimulatorPanelProps } from './ProductSimulatorPanel'
-import { Dialog, DialogPortal, DialogBackdrop, DialogSheet } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -23,9 +23,12 @@ export function ProductMobileSimulatorSheet({
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
           <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <DialogTitle className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Simulador de Precio (Costo: {money(simulatorProps.cost)})
-              </p>
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Ajustá el precio de venta y mirá cómo cambian el margen y la ganancia del producto.
+              </DialogDescription>
             </div>
             <span
               className={`text-sm font-black ${

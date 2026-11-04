@@ -6,7 +6,7 @@ import { ingredientSchema } from '@/schemas/ingredientSchema'
 import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
-import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
 /**
  * Modal / bottom sheet para crear o actualizar un insumo.
@@ -21,7 +21,6 @@ interface IngredientUpsertSheetProps {
   showDeleteConfirm: boolean
   isCollaborator: boolean
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
-  onClose: () => void
   onRequestClose: () => void
   onRequestDelete: () => void
   onDeleteConfirm: () => void
@@ -86,9 +85,9 @@ export function IngredientUpsertSheet({
                 <AlertTriangle className="size-7 text-rose-600 dark:text-rose-400" />
               </div>
               <DialogTitle>¿Eliminar insumo?</DialogTitle>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <DialogDescription>
                 Estás a punto de eliminar <strong>{selected?.name}</strong>. Esta acción no se puede deshacer.
-              </p>
+              </DialogDescription>
               <div className="mt-8 flex w-full gap-3">
                 <button
                   type="button"
@@ -116,6 +115,11 @@ export function IngredientUpsertSheet({
                   <DialogTitle className="mt-1 text-2xl">
                     {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
                   </DialogTitle>
+                  <DialogDescription className="sr-only">
+                    {selected
+                      ? `Actualizá el costo unitario de ${selected.name} y sus proveedores asociados.`
+                      : 'Cargá el nombre, la unidad de medida y el costo unitario del nuevo insumo.'}
+                  </DialogDescription>
                 </div>
                 <div className="flex items-center gap-1">
                   {selected && (
@@ -141,7 +145,7 @@ export function IngredientUpsertSheet({
                     </>
                   )}
                   <DialogClose
-                    className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:bg-gray-800 transition"
+                    className="cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                     aria-label="Cerrar modal"
                   >
                     <X className="size-5" />

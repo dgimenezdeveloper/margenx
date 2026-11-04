@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { ChevronDown, LoaderCircle, Plus, Search, X } from 'lucide-react'
 import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
-import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -99,8 +99,12 @@ export function ProductAddIngredientModal({
             <div>
               <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Despensa</p>
               <DialogTitle className="mt-1 text-xl">Sumar Insumo a la Receta</DialogTitle>
+              <DialogDescription className="sr-only">
+                Elegí un insumo de la despensa y la cantidad que usa la receta.
+              </DialogDescription>
             </div>
             <DialogClose
+              aria-label="Cerrar sumar insumo"
               className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
             >
               <X className="size-5" />
@@ -108,7 +112,6 @@ export function ProductAddIngredientModal({
           </div>
 
           <div className="mt-5 space-y-4">
-            {/* ... resto del formulario intacto ... */}
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
               Seleccionar Insumo
               <button
