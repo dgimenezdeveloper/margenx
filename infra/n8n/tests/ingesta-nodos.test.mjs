@@ -142,6 +142,7 @@ const run = (file, ctx) => {
  const urlEnv={MARGENX_API_URL:'https://api.margenx.tech',MARGENX_DEV_API_URL:'https://api-dev.margenx.tech/'};
  let sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:urlEnv});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']);
  sp=spy();await run('despacho.js',{items:[batch({isDev:true})],self:sp.self,env:urlEnv});assert.deepEqual(sp.urls,['https://api-dev.margenx.tech/api/webhooks/supplier-prices']);
+ sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:{MARGENX_API_URL:'https://api.margenx.tech/api/'}});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']); // también con /api
  sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:{}});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']);
  sp=spy();r=await run('despacho.js',{items:[batch({isDev:true})],self:sp.self,env:{MARGENX_API_URL:'https://api.margenx.tech'}});
  assert.deepEqual([sp.urls.length,r[0].json.dispatchOk,r[0].json.status],[0,false,0]); // nunca cae en producción
@@ -153,6 +154,7 @@ const run = (file, ctx) => {
  // 15 Exporte portable: inactivo, sin ids de credenciales de una instancia concreta y con versión de texto plano
  assert.equal(wf.active,false);assert.equal(wf.meta,undefined);
  for(const n of wf.nodes.filter((x)=>x.credentials)) for(const c of Object.values(n.credentials)) assert.ok(c.id.startsWith('margenx-'),n.name);
- for(const nm of ['Enviar Resumen (Brevo)','Enviar Error al Remitente (Brevo)']){const p=wf.nodes.find((n)=>n.name===nm).parameters;assert.equal(p.text,'={{ $json.text }}',nm);assert.equal(p.options.senderName,'MargenX Ingesta',nm);}
+ // emailSend 2.1 solo conserva `text` con emailFormat 'both'; el nombre del remitente va dentro de fromEmail
+ for(const nm of ['Enviar Resumen (Brevo)','Enviar Error al Remitente (Brevo)']){const p=wf.nodes.find((n)=>n.name===nm).parameters;assert.deepEqual([p.emailFormat,p.text,p.fromEmail],['both','={{ $json.text }}','MargenX Ingesta <alertas@margenx.tech>'],nm);}
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});

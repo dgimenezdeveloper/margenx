@@ -19,7 +19,7 @@
       ],
       "credentials": {
         "imap": {
-          "id": "oP8LNMGPlgfh0gPN",
+          "id": "margenx-gmail-imap",
           "name": "Gmail IMAP MargenX"
         }
       }
@@ -182,7 +182,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// POST /api/webhooks/supplier-prices con política de reintentos\nconst WAITS = [2000, 5000, 10000];\nconst sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  const meta = {\n    mailId: j.mailId, accountSlug: j.accountSlug, from: j.from, fileName: j.fileName,\n    rowsRead: j.rowsRead, rowsInvalid: j.rowsInvalid, batchIndex: j.batchIndex, batches: j.batches,\n  };\n  \n  // 1. Tomamos la URL del .env según el entorno (decisión de Claude)\n  let baseUrl = j.isDev \n    ? ($env.MARGENX_DEV_API_URL || 'http://backend-dev:3000/api')\n    : ($env.MARGENX_API_URL || 'http://backend-prod:3000/api');\n  \n  // 2. Aseguramos que termine en /api (Claude pidió sacarlo del .env, así que lo agregamos acá si falta)\n  if (!baseUrl.endsWith('/api')) {\n    baseUrl = baseUrl.replace(/\\/$/, '') + '/api';\n  }\n  \n  const url = baseUrl + '/webhooks/supplier-prices';\n\n  let attempt = 0;\n  let last;\n  while (true) {\n    attempt++;\n    try {\n      const res = await this.helpers.httpRequest({\n        method: 'POST',\n        url,\n        headers: { 'x-margenx-webhook-secret': $env.INTERNAL_WEBHOOK_SECRET, 'Content-Type': 'application/json' },\n        body: { accountSlug: j.accountSlug, items: j.items },\n        json: true,\n        timeout: 60000,\n        returnFullResponse: true,\n        ignoreHttpStatusErrors: true,\n      });\n      const status = Number(res.statusCode);\n      if (status >= 200 && status < 300) { \n        last = { ok: true, status, body: res.body }; \n        break; \n      }\n      // Guardamos el body incluso en error para poder leer el 413\n      last = { \n        ok: false, \n        status, \n        body: res.body,\n        message: typeof res.body === 'string' ? res.body.slice(0, 300) : JSON.stringify(res.body || {}).slice(0, 300) \n      };\n      if (status < 500) break; // 4xx: no se reintenta\n    } catch (e) {\n      last = { ok: false, status: 0, message: String((e && e.message) || e).slice(0, 300) }; // red / timeout\n    }\n    if (attempt > WAITS.length) break;\n    await sleep(WAITS[attempt - 1]);\n  }\n  \n  // Extraemos el error específico si viene en el body (ej. 413 PAYLOAD_TOO_LARGE)\n  let apiError = last.ok ? undefined : last.message;\n  if (!last.ok && last.body && last.body.error) {\n    apiError = last.body.error;\n  }\n\n  out.push({ \n    json: { \n      ...meta, \n      dispatchOk: last.ok, \n      status: last.status, \n      attempts: attempt, \n      body: last.body, \n      apiError \n    } \n  });\n}\nreturn out;"
+        "jsCode": "// POST /api/webhooks/supplier-prices con política de reintentos:\n//  - 2xx            -> éxito\n//  - 4xx            -> falla de inmediato (reintentar no lo arregla: slug inexistente, planilla inválida, secreto incorrecto, lista demasiado grande)\n//  - 5xx / timeout / error de red -> hasta 3 reintentos con espera creciente (2 s, 5 s, 10 s)\nconst WAITS = [2000, 5000, 10000];\nconst sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  const meta = {\n    mailId: j.mailId, accountSlug: j.accountSlug, from: j.from, fileName: j.fileName,\n    rowsRead: j.rowsRead, rowsInvalid: j.rowsInvalid, batchIndex: j.batchIndex, batches: j.batches,\n  };\n  \n  // URL base por entorno, con o sin /api. Un correo de staging sin MARGENX_DEV_API_URL no se despacha: nunca cae en producción.\n  const rawUrl = j.isDev ? $env.MARGENX_DEV_API_URL : ($env.MARGENX_API_URL || 'https://api.margenx.tech');\n  if (!rawUrl) {\n    out.push({ json: { ...meta, dispatchOk: false, status: 0, attempts: 0, apiError: 'MARGENX_DEV_API_URL no está configurada.' } });\n    continue;\n  }\n  const baseUrl = String(rawUrl).replace(/\\/+$/, '').replace(/\\/api$/, '');\n  const url = baseUrl + '/api/webhooks/supplier-prices';\n\n  let attempt = 0;\n  let last;\n  while (true) {\n    attempt++;\n    try {\n      const res = await this.helpers.httpRequest({\n        method: 'POST',\n        url,\n        headers: { 'x-margenx-webhook-secret': $env.INTERNAL_WEBHOOK_SECRET, 'Content-Type': 'application/json' },\n        body: { accountSlug: j.accountSlug, items: j.items },\n        json: true,\n        timeout: 60000,\n        returnFullResponse: true,\n        ignoreHttpStatusErrors: true,\n      });\n      const status = Number(res.statusCode);\n      if (status >= 200 && status < 300) { \n        last = { ok: true, status, body: res.body }; \n        break; \n      }\n      // Guardamos el body incluso en error para poder leer el 413\n      last = { \n        ok: false, \n        status, \n        body: res.body,\n        message: typeof res.body === 'string' ? res.body.slice(0, 300) : JSON.stringify(res.body || {}).slice(0, 300) \n      };\n      if (status < 500) break; // 4xx: no se reintenta\n    } catch (e) {\n      last = { ok: false, status: 0, message: String((e && e.message) || e).slice(0, 300) }; // red / timeout\n    }\n    if (attempt > WAITS.length) break;\n    await sleep(WAITS[attempt - 1]);\n  }\n  \n  // Extraemos el error específico si viene en el body (ej. 413 PAYLOAD_TOO_LARGE)\n  let apiError = last.ok ? undefined : last.message;\n  if (!last.ok && last.body && last.body.error) {\n    apiError = last.body.error;\n  }\n\n  out.push({ \n    json: { \n      ...meta, \n      dispatchOk: last.ok, \n      status: last.status, \n      attempts: attempt, \n      body: last.body, \n      apiError \n    } \n  });\n}\nreturn out;"
       },
       "id": "f39f19a3-ae84-4bbd-977b-14e5882ebd67",
       "name": "Despachar a API MargenX",
@@ -208,9 +208,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "alertas@margenx.tech",
+        "fromEmail": "MargenX Ingesta <alertas@margenx.tech>",
         "toEmail": "={{ $json.ownerEmail }}",
         "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.text }}",
         "html": "={{ $json.html }}",
         "options": {}
       },
@@ -225,7 +227,7 @@
       "webhookId": "81eb7e82-c0af-46ed-951c-c660edafd6f5",
       "credentials": {
         "smtp": {
-          "id": "bGPoOxZL3J1lLgRn",
+          "id": "margenx-brevo-smtp",
           "name": "Brevo MargenX SMTP Relay"
         }
       }
@@ -245,9 +247,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "alertas@margenx.tech",
+        "fromEmail": "MargenX Ingesta <alertas@margenx.tech>",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.text }}",
         "html": "={{ $json.html }}",
         "options": {}
       },
@@ -262,7 +266,7 @@
       "webhookId": "e2255892-f191-447b-86b1-d240015622d7",
       "credentials": {
         "smtp": {
-          "id": "bGPoOxZL3J1lLgRn",
+          "id": "margenx-brevo-smtp",
           "name": "Brevo MargenX SMTP Relay"
         }
       }
@@ -356,7 +360,6 @@
       "onError": "continueRegularOutput"
     }
   ],
-  "pinData": {},
   "connections": {
     "Correo Entrante (IMAP)": {
       "main": [
@@ -535,17 +538,10 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "timezone": "America/Argentina/Buenos_Aires"
   },
-  "versionId": "35070d4a-6f3e-4077-a4f8-c40e22dd2966",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "564aa1c6b88429e3744d4f62450693d0b238cf12102aab837688f00317754fc9"
-  },
-  "nodeGroups": [],
-  "id": "6hMTEjzHrFzqEkBV",
-  "tags": []
+  "active": false
 }
