@@ -18,6 +18,13 @@ vi.mock('@/services/supplierService', () => ({
   },
 }))
 
+type SupplierRow = Awaited<ReturnType<typeof supplierService.getAll>>[number]
+
+function buildSupplier(id: string, name: string): SupplierRow {
+  const supplier = { id, name, accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 }
+  return supplier
+}
+
 describe('SupplierPackagingModal', () => {
   const mockSupplierConnection: SupplierIngredient = {
     id: 'conn-1',
@@ -43,7 +50,7 @@ describe('SupplierPackagingModal', () => {
 
   it('expone título, descripción y botones con nombre accesible para el lector de pantalla', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-2', 'Molino Campodónico'),
     ])
 
     render(
@@ -63,8 +70,8 @@ describe('SupplierPackagingModal', () => {
 
   it('excluye proveedores que ya tienen presentación para el insumo', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
-      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-1', 'Proveedor 1'),
+      buildSupplier('sup-2', 'Proveedor 2'),
     ])
 
     render(
@@ -90,7 +97,7 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra error si se intenta quitar el predeterminado sin reemplazo', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-1', 'Proveedor 1'),
     ])
 
     render(
@@ -128,7 +135,7 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra advertencia al intentar cerrar con cambios sin guardar en formulario', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-1', 'Proveedor 1'),
     ])
 
     const onCloseMock = vi.fn()
@@ -167,8 +174,8 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra advertencia al intentar cerrar mientras se escribe el nombre de un nuevo proveedor', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
-      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-1', 'Proveedor 1'),
+      buildSupplier('sup-2', 'Proveedor 2'),
     ])
 
     const onCloseMock = vi.fn()
@@ -212,7 +219,7 @@ describe('SupplierPackagingModal', () => {
 
   it('Escape sin cambios pendientes cierra el modal una sola vez', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-2', 'Molino Campodónico'),
     ])
     const user = userEvent.setup()
     const onCloseMock = vi.fn()
@@ -231,7 +238,7 @@ describe('SupplierPackagingModal', () => {
 
   it('Escape con cambios pendientes pide confirmación y Escape otra vez vuelve al formulario', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-2', 'Molino Campodónico'),
     ])
     const user = userEvent.setup()
     const onCloseMock = vi.fn()
@@ -256,7 +263,7 @@ describe('SupplierPackagingModal', () => {
 
   it('cancelar el alta rápida de proveedor descarta el nombre y no deja cambios pendientes', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-2', 'Molino Campodónico'),
     ])
     const user = userEvent.setup()
     const onCloseMock = vi.fn()
@@ -278,8 +285,8 @@ describe('SupplierPackagingModal', () => {
 
   it('Escenario Gherkin: muestra errores junto al campo y enfoca el primero al fallar la validación', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
-      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+      buildSupplier('sup-1', 'Proveedor 1'),
+      buildSupplier('sup-2', 'Proveedor 2'),
     ])
 
     render(
