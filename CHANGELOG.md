@@ -68,6 +68,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** `README.md` principal: `Supplier`/`SupplierIngredient` y la cuarentena de precios en el modelo de datos, el módulo `/proveedores/cuarentena` en la lista de pantallas, y una nota exacta de qué ve y a qué pantallas llega el rol `COLLABORATOR` (`#268`).
 - **Docs:** `infra/vps/README.md` §11-12: Cloudflare Email Routing, la casilla IMAP y Brevo (dónde vive cada credencial, no el flujo — eso sigue en `infra/n8n/README.md`), e inventario de titularidad de los servicios (VPS, dominio, Cloudflare, Clerk, Gmail, Brevo, Docker Hub) para preparar el traspaso a una cuenta empresarial en la fase 2; columna de titular actual a completar por Darío (`#268`).
 - **Backend / QA:** Benchmark automatizado `scripts/benchmark-batch-recalculation.ts` y pruebas unitarias de recálculo masivo con 300 insumos y 40 productos compartidos (`#259`).
+- **Backend:** Endpoints `GET /api/suppliers` (ahora incluye `quarantineCount`), `GET /api/suppliers/:id` (detalle completo de presentaciones) y `DELETE /api/suppliers/:id/ingredients/:ingredientId` (elimina una presentación validando que no quede el insumo sin un predeterminado si hay alternativas) (`#246`).
+- **Backend:** `GET /api/auth/me` devuelve el `slug` del comercio exclusivamente para el rol ADMIN, omitiéndolo por seguridad RBAC para los colaboradores (`#246`).
 
 ### Changed
 

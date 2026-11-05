@@ -11,7 +11,7 @@
 ## Contexto y Planteamiento del Problema
 
 MargenX protege la rentabilidad de las PyMEs manufactureras y gastronómicas recalculando automáticamente el costo y margen de sus recetas ante variaciones en las materias primas. Sin embargo, en el escenario operativo real:
-1. **Múltiples presentaciones y proveedores:** Un insumo (ej. *Harina 000*) puede ser provisto por diferentes mayoristas en bultos de distinto tamaño (bolsas de 25 kg, 50 kg o packs fraccionados), con precios dispares. Se requiere definir sin ambigüedad **cuál es el costo que alimenta el cálculo de las recetas** en cada momento.
+1. **Múltples presentaciones y proveedores:** Un insumo (ej. *Harina 000*) puede ser provisto por diferentes mayoristas en bultos de distinto tamaño (bolsas de 25 kg, 50 kg o packs fraccionados), con precios dispares. Se requiere definir sin ambigüedad **cuál es el costo que alimenta el cálculo de las recetas** en cada momento.
 2. **Volatilidad y errores en listas de proveedores:** Las listas mayoristas reenviadas pueden contener errores tipográficos graves (ej. saltos de coma decimal, precios en cero o aumentos especulativos del 200%). Aplicar estos cambios de forma ciega corrompe el cálculo de márgenes y genera falsas alarmas financieras masivas.
 3. **Fricción de carga y polución de catálogo:** Los mayoristas envían catálogos con miles de artículos que el comercio no consume. La ingesta no debe requerir que el usuario pase datos a mano ni debe llenar la base de datos de insumos irrelevantes.
 
@@ -24,7 +24,7 @@ MargenX protege la rentabilidad de las PyMEs manufactureras y gastronómicas rec
 * **Fórmula de costo unitario:**
   $$\text{unitCost} = \frac{\text{packagePrice}}{\text{packageSize}} \quad (\text{redondeo } \text{ROUND\_HALF\_UP} \text{ a 2 decimales con } Prisma.Decimal)$$
 * **Sobrescritura deliberada de ediciones manuales:** Si el Administrador edita a mano `Ingredient.currentCost` desde `/insumos`, ese costo opera como *override* temporal. La próxima actualización legítima proveniente de la presentación predeterminada (sea por ingesta de lista o actualización del empaque) **sobrescribe el costo manual**, garantizando coherencia con la compra física.
-* **Unicidad de presentación y estado predeterminado:** Existe como máximo una presentación por par proveedor-insumo (`@@unique([supplierId, ingredientId])`). La regla de negocio exige que todo insumo con proveedores asociados conserve siempre una presentación predeterminada activa; el bloqueo defensivo con HTTP 409 ante desmarques manuales que dejen estados huérfanos queda registrado como requerimiento a instrumentar en la evolución de endpoints de proveedores.
+* **Unicidad de presentación y estado predeterminado:** Existe como máximo una presentación por par proveedor-insumo (`@@unique([supplierId, ingredientId])`). La regla de negocio exige que todo insumo con proveedores asociados conserve siempre una presentación predeterminada activa. El borrado de una presentación predeterminada está bloqueado (HTTP 409) si existen otras alternativas para el mismo insumo; el usuario debe elegir otra presentación como predeterminada antes de eliminarla. Si es la única presentación, se permite borrarla.
 
 ### 2. Bandeja de Cuarentena Preventiva de Precios Anómalos
 Para evitar distorsiones en las recetas ante listas con errores o saltos bruscos de precios, el backend aplica un buffer de retención transaccional previo a impactar `Ingredient.currentCost`:
@@ -51,6 +51,7 @@ El flujo de importación opera desacoplado del monolito mediante el satélite n8
 ### 4. Integridad Referencial y Borrado Seguro
 * En PostgreSQL, las relaciones secundarias cuelgan con `onDelete: Cascade` para permitir el purgado completo y seguro de organizaciones (`Account`) sin violaciones de clave foránea.
 * A nivel de aplicación, `DELETE /api/ingredients/:id` intercepta dependencias: si el insumo está vinculado a una o más recetas en `ProductIngredient`, **aborta la operación respondiendo HTTP 409 Conflict** con el arreglo `productsAffected`, impidiendo la pérdida accidental de fichas técnicas.
+* A nivel de presentación, `DELETE /api/suppliers/:id/ingredients/:ingredientId` evita dejar el insumo sin un costo base confiable: si la presentación a borrar es la predeterminada y el insumo tiene al menos otra presentación, aborta la operación con `HTTP 409 Conflict` solicitando que el usuario designe otra como predeterminada primero.
 
 ---
 
@@ -78,7 +79,7 @@ Esta decisión arquitectónica se materializa en los siguientes puntos críticos
 ### Positivas
 * **Cero Polución:** La base de datos queda completamente blindada contra catálogos masivos basura de distribuidores.
 * **Estabilidad de Recetas:** Ningún error tipográfico del proveedor distorsiona márgenes ni dispara falsas alarmas de rentabilidad sin revisión humana previa.
-* **Determinismo:** El costo de costeo es único y auditable; las decisiones del comerciante sobre su proveedor habitual quedan registradas de forma trazable.
+* **Determinismo:** El costo de costeo es único y auditable; las decisiones del comerciante sobre su proveedor habitual quedan registradas de forma trazable y el sistema previene activamente el borrado accidental del proveedor predeterminado.
 
 ### Negativas / Deuda Asumida
 * **Rechazo silencioso en cuarentena:** Al rechazar un precio anómalo no se genera una notificación externa al proveedor. Queda como propuesta para la Fase 2.
