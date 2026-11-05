@@ -42,6 +42,11 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 - **En el navegador:** la sesión se cierra al cerrar el navegador o después de 30 minutos sin usar la app, para proteger las computadoras compartidas del comercio.
 - Como la app instalada mantiene la sesión abierta, usá un bloqueo de pantalla en el celular. Para salir, usá **Cerrar sesión** en el menú.
 
+## Sin conexión y versiones nuevas
+
+- **Sin internet:** MargenX muestra la pantalla **Sin conexión** con el botón **Reintentar**. No muestra costos ni márgenes guardados: siempre se consultan en el momento. Cuando vuelva la señal, tocá **Reintentar**.
+- **Versión nueva:** cuando publicamos una mejora aparece el aviso **Hay una versión nueva de MargenX**. Guardá lo que estés editando y tocá **Actualizar**. Si tocás **Más tarde**, seguís con la versión que tenías abierta.
+
 ## Recomendación
 
 - iPhone: usa Safari.

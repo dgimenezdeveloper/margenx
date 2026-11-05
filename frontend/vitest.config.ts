@@ -28,6 +28,7 @@ export default defineConfig({
         'src/hooks/**',
         'src/components/MarginBadge.tsx',
         'src/components/error-state.tsx',
+        'src/components/update-prompt.tsx',
       ],
       exclude: [
         'src/components/ui/**',

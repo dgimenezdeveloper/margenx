@@ -484,6 +484,22 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
 - **Postgres protegido:** el puerto se vincula a `127.0.0.1:5435:5432` (solo loopback del host), eliminando exposición pública directa a internet.
 - **`DATABASE_URL` por entorno:** cada servicio de backend la toma de su propio archivo de entorno (`.env.prod` / `.env.dev`).
 
+### Estrategia de Caché del Frontend (PWA)
+
+El frontend registra un service worker generado con `vite-plugin-pwa` (Workbox, modo `generateSW`) solo en el build de producción. La configuración vive en `frontend/pwa.config.ts` y la prueba `frontend/src/__tests__/service-worker.test.ts` la valida en cada `npm test`. Los datos de costos y márgenes dependen del rol (`COLLABORATOR` no los ve, `docs/especificacion-funcional.md` §8), así que la regla es que **ningún dato del comercio queda en caché del navegador**:
+
+| Recurso | Estrategia | Motivo |
+|---|---|---|
+| JS, CSS e íconos del build | Precache, se sirven desde caché | Abren rápido. Llevan hash (o revisión de Workbox) y no contienen datos. |
+| `offline.html` | Precache | Página de respaldo "Sin conexión" con botón Reintentar. Es autónoma: no carga React, Clerk ni la API. |
+| Navegaciones de la app (`/dashboard`, `/productos`, ...) | `NetworkOnly`, con `offline.html` si falla la red | `index.html` siempre se pide a la red: con conexión se carga la versión publicada; sin conexión se ve "Sin conexión" y nunca una pantalla con datos viejos. |
+| API (`/api/...`, en `api.margenx.tech` o en el mismo origen) | `NetworkOnly` | Las respuestas nunca se guardan. Las mutaciones (POST, PUT, DELETE) no pasan por ninguna regla y van directo a la red. |
+| Denylist: `/api`, `/login` y sus pasos, `/__clerk` y URLs con parámetros `__clerk_*` | Sin intercepción para la navegación | Nunca reciben la página Sin conexión ni contenido en caché. La API de Clerk está en otro dominio y el service worker no la toca. |
+
+* **Actualización:** modo `prompt`. La versión nueva queda en espera y la app muestra el aviso "Hay una versión nueva de MargenX" con **Actualizar** y **Más tarde** (`frontend/src/components/pwa-update-prompt.tsx`); no recarga sola en medio de un formulario. La app busca la versión nueva al abrirse y al volver a primer plano. Al actualizar, Workbox borra el precache de la versión anterior.
+* **Cierre de sesión:** todos los caminos de cierre (manual, inactividad, sesión huérfana) llaman a `clearSessionCaches()` (`frontend/src/lib/serviceWorkerCache.ts`), que borra toda caché que no sea el precache. El precache se conserva porque solo tiene el shell del build y es lo que permite mostrar "Sin conexión" después de cerrar sesión.
+* **Nginx** (`frontend/nginx.conf`): `sw.js`, `offline.html` e `index.html` no llevan hash y se sirven con `expires -1`, igual que el manifest, para que la versión nueva se detecte en la próxima apertura y el navegador no reutilice un HTML viejo. Los assets con hash conservan la caché de un año.
+
 ---
 
 ## 5. Estrategia de Pruebas y Calidad (QA)
