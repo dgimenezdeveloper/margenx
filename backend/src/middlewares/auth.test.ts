@@ -69,6 +69,7 @@ describe('authMiddleware', () => {
             id: true,
             businessName: true,
             defaultMinMarginPercent: true,
+            slug: true,
           },
         },
       },

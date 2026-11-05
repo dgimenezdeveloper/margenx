@@ -13,6 +13,7 @@ export interface AuthenticatedRequest extends Request {
       id: string;
       businessName: string;
       defaultMinMarginPercent: Prisma.Decimal; // <-- NUEVO CAMPO EN LA INTERFAZ
+      slug: string;
     };
   };
 }
@@ -47,7 +48,8 @@ export async function authMiddleware(
           select: {
             id: true,
             businessName: true,
-            defaultMinMarginPercent: true, // <-- NUEVO CAMPO EN LA CONSULTA
+            defaultMinMarginPercent: true,
+            slug: true,
           },
         },
       },
