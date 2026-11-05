@@ -114,6 +114,12 @@ Reglas para un diálogo nuevo:
 
 Pruebas: `src/components/ui/__tests__/dialog.test.tsx` (foco atrapado, Escape, clic en el fondo, devolución del foco, bloqueo de scroll, diálogos apilados) y `src/components/__tests__/dialogos-accesibles.test.tsx` (título, descripción y botones con nombre en cada diálogo de la app). La navegación con Tab se simula con `@testing-library/user-event`.
 
+### Accesibilidad de Tablas y Formularios (WCAG 2.1 AA)
+
+- **Navegación con Teclado en Tablas (`UX-06`):** Las filas interactivas de las tablas de datos (`SuppliesTableDesktop` y `ProductsPage`) implementan `tabIndex={0}`, `role="button"` y handlers accesibles para responder a `Enter` y `Espacio` (con `event.preventDefault()` en barra espaciadora para neutralizar el scroll nativo de ventana). Cuentan con anillos de foco visibles perimetrales en color índigo con la sintaxis canónica de Tailwind (`focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-indigo-600`).
+- **Campos con Nombre Accesible (`UX-13`):** Todos los inputs de búsqueda de la aplicación incluyen `aria-label` explícito (`"Buscar insumos por nombre"` y `"Buscar productos por nombre"`). Los campos de formularios conectan sus etiquetas con `htmlFor` e `id` explícitos (ej. `id="ingredient-current-cost"` en `IngredientUpsertSheet`).
+- **Mensajes de Validación y Foco (`UX-14` / Bug 1):** En formularios y modales (ej. `SupplierPackagingModal`), cada error detectado por Zod/React Hook Form se renderiza adyacente a su control con `id={`${field}-error`}`, `role="alert"` y atributos `aria-invalid` y `aria-describedby`. Al intentar guardar datos inválidos, el foco del cursor se desplaza automáticamente al primer campo observado sin romper el ciclo de renderizado.
+
 ## Pruebas
 
 ### Unitarias (Vitest)
