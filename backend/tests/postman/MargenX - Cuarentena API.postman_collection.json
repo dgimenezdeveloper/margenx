@@ -345,7 +345,7 @@
           }
         },
         {
-          "name": "2. GET Listado de Proveedores (quarantineCount)",
+          "name": "2. GET Listado de Proveedores (ingredientCount y quarantineCount)",
           "event": [
             {
               "listen": "test",
@@ -356,6 +356,15 @@
                   "const supplier = suppliers.find(s => s.id === pm.environment.get('qSupplierId'));",
                   "pm.test('El proveedor reporta quarantineCount en 1', function () {",
                   "    pm.expect(supplier.quarantineCount).to.eql(1);",
+                  "});",
+                  "pm.test('Cada proveedor reporta ingredientCount entero y mayor o igual a quarantineCount', function () {",
+                  "    suppliers.forEach(s => {",
+                  "        pm.expect(Number.isInteger(s.ingredientCount)).to.be.true;",
+                  "        pm.expect(s.ingredientCount).to.be.at.least(s.quarantineCount);",
+                  "    });",
+                  "});",
+                  "pm.test('El proveedor con un precio retenido tiene al menos una presentación', function () {",
+                  "    pm.expect(supplier.ingredientCount).to.be.at.least(1);",
                   "});"
                 ],
                 "type": "text/javascript"
