@@ -47,6 +47,8 @@ export default function SuppliesPageContent() {
   const { user } = useCurrentUser()
   const navigate = useNavigate()
   const isCollaborator = user?.role === 'COLLABORATOR'
+  // La carga masiva es solo del administrador: mientras el rol no se conoce, no se muestra.
+  const canBulkUpload = user?.role === 'ADMIN'
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [quarantineCount, setQuarantineCount] = useState(0)
@@ -66,13 +68,15 @@ export default function SuppliesPageContent() {
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal || showBulkModal)
-
   const handleRetry = () => {
     setIsLoading(true)
     setLoadError(null)
     setReloadKey((prev) => prev + 1)
   }
+
+  // Tras la carga masiva se recarga la lista sin reemplazarla por el indicador de carga.
+  const refreshSupplies = () => setReloadKey((prev) => prev + 1)
+  const openBulkModal = () => setShowBulkModal(true)
 
   useEffect(() => {
     let active = true
@@ -358,7 +362,7 @@ export default function SuppliesPageContent() {
                 Administra los costos de tus materias primas y empaques mayoristas.
               </p>
             </div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-end">
               <div className="relative w-full md:w-72 lg:w-80 shrink-0">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                   <Search className="size-4 text-gray-400" />
@@ -371,14 +375,16 @@ export default function SuppliesPageContent() {
                   className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>
-              {!isCollaborator && (
+              {canBulkUpload && (
                 <button
                   type="button"
-                  onClick={() => setShowBulkModal(true)}
-                  className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  onClick={openBulkModal}
+                  aria-label="Cargar desde planilla"
+                  className="hidden md:inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 >
-                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" />
-                  Cargar desde planilla
+                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+                  <span className="lg:hidden">Planilla</span>
+                  <span className="hidden lg:inline">Cargar desde planilla</span>
                 </button>
               )}
               {!isCollaborator && (
@@ -452,22 +458,24 @@ export default function SuppliesPageContent() {
               </div>
 
               <section>
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-lg font-bold">Todos los insumos</h2>
-                  <div className="flex items-center gap-2 md:hidden">
-                    {!isCollaborator && (
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 truncate text-lg font-bold">Todos los insumos</h2>
+                  <div className="flex shrink-0 items-center gap-2 md:hidden">
+                    {canBulkUpload && (
                       <button
                         type="button"
-                        onClick={() => setShowBulkModal(true)}
-                        className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                        onClick={openBulkModal}
+                        aria-label="Cargar desde planilla"
+                        title="Cargar desde planilla"
+                        className="flex size-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-indigo-600 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-indigo-400"
                       >
-                        Planilla
+                        <FileSpreadsheet className="size-5" aria-hidden="true" />
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={handleOpenNew}
-                      className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                      className="min-h-11 rounded-xl bg-indigo-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
                     >
                       + Nuevo Insumo
                     </button>
@@ -486,6 +494,18 @@ export default function SuppliesPageContent() {
                     actionLabel="Crear nuevo insumo"
                     onAction={handleOpenNew}
                   />
+                )}
+                {!isLoading && isTotalEmpty && canBulkUpload && (
+                  <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                    ¿Tenés tu lista en Excel?{' '}
+                    <button
+                      type="button"
+                      onClick={openBulkModal}
+                      className="min-h-11 cursor-pointer font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-300"
+                    >
+                      Cargala desde una planilla
+                    </button>
+                  </p>
                 )}
                 {!isLoading && isSearchEmpty && (
                   <EmptyState
@@ -563,19 +583,14 @@ export default function SuppliesPageContent() {
           onSuccess={handlePackagingSuccess}
         />
       )}
-      <BulkIngredientsModal
-        isOpen={showBulkModal}
-        onClose={() => setShowBulkModal(false)}
-        existingSupplies={supplies}
-        onSuccess={(result) => {
-          handleRetry()
-          notify(
-            'Carga masiva completada',
-            `${result.created} insumos creados, ${result.skipped} omitidos por repetidos.`,
-            'success'
-          )
-        }}
-      />
+      {canBulkUpload && (
+        <BulkIngredientsModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          existingSupplies={supplies}
+          onSuccess={refreshSupplies}
+        />
+      )}
     </main>
   )
 }

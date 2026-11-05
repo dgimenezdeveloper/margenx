@@ -36,7 +36,8 @@ export interface IngredientUpdateResponse {
 export interface BulkUploadRowInput {
   name: string
   unit: 'kg' | 'l' | 'u'
-  cost: number
+  /** Decimal normalizado ("1234.56"): el backend lo convierte a Prisma.Decimal (ADR-004). */
+  cost: string
 }
 
 export interface BulkUploadResponse {

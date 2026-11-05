@@ -1,482 +1,668 @@
 'use client'
 
-import { useState, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import {
-  X,
-  FileSpreadsheet,
-  Download,
-  UploadCloud,
+  AlertTriangle,
   CheckCircle2,
+  CopyX,
+  Download,
+  FileSpreadsheet,
   LoaderCircle,
   RefreshCw,
+  UploadCloud,
+  X,
 } from 'lucide-react'
+import { useId, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
+
 import {
-  parseSpreadsheet,
-  classifyIngredientRows,
+  Dialog,
+  DialogBackdrop,
+  DialogClose,
+  DialogDescription,
+  DialogPortal,
+  DialogSheet,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  BULK_ACCEPTED_EXTENSIONS,
+  BULK_MAX_ROWS,
+  BULK_UNIT_LABELS,
+  analyzeIngredientSheet,
+  buildBulkPayload,
+  describeBatchProblem,
   downloadTemplateFile,
+  mapServerErrorsToSheetRows,
+  validateSpreadsheetFile,
   type ClassifiedIngredientBatch,
 } from '@/lib/bulkIngredients'
-import { ingredientService, type BulkUploadResponse } from '@/services/ingredientService'
+import { readSpreadsheet } from '@/lib/spreadsheet'
+import { cn } from '@/lib/utils'
 import { ApiError } from '@/services/api'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { ingredientService, type BulkUploadResponse } from '@/services/ingredientService'
 
 interface BulkIngredientsModalProps {
   isOpen: boolean
   onClose: () => void
-  existingSupplies: Array<{ name: string }>
+  existingSupplies: ReadonlyArray<{ name: string }>
   onSuccess: (result: BulkUploadResponse) => void
 }
 
-type TabType = 'valid' | 'errors' | 'duplicates'
+type Stage =
+  | { name: 'pick' }
+  | { name: 'reading'; fileName: string }
+  | { name: 'review'; fileName: string; batch: ClassifiedIngredientBatch }
+  | { name: 'importing'; fileName: string; batch: ClassifiedIngredientBatch }
+  | { name: 'done'; fileName: string; batch: ClassifiedIngredientBatch; result: BulkUploadResponse }
 
-export function BulkIngredientsModal({
-  isOpen,
-  onClose,
-  existingSupplies,
-  onSuccess,
-}: BulkIngredientsModalProps) {
+type TabId = 'valid' | 'duplicates' | 'errors'
+
+const STEP_LABELS = ['Archivo', 'Revisión', 'Resultado'] as const
+
+const FILE_ACCEPT = [
+  ...BULK_ACCEPTED_EXTENSIONS,
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+].join(',')
+
+const plural = (count: number, singular: string, pluralForm: string) =>
+  `${count} ${count === 1 ? singular : pluralForm}`
+
+function stepIndex(stage: Stage): number {
+  if (stage.name === 'done') return 2
+  if (stage.name === 'review' || stage.name === 'importing') return 1
+  return 0
+}
+
+function firstTabWithRows(batch: ClassifiedIngredientBatch): TabId {
+  if (batch.valid.length > 0) return 'valid'
+  if (batch.errors.length > 0) return 'errors'
+  return 'duplicates'
+}
+
+export function BulkIngredientsModal({ isOpen, onClose, existingSupplies, onSuccess }: BulkIngredientsModalProps) {
   const { getToken } = useAuth()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [stage, setStage] = useState<Stage>({ name: 'pick' })
+  const [activeTab, setActiveTab] = useState<TabId>('valid')
+  const [notice, setNotice] = useState<string | null>(null)
 
-  const [fileName, setFileName] = useState<string | null>(null)
-  const [batch, setBatch] = useState<ClassifiedIngredientBatch | null>(null)
-  const [activeTab, setActiveTab] = useState<TabType>('valid')
-  const [isParsing, setIsParsing] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorBanner, setErrorBanner] = useState<string | null>(null)
-  const [uploadResult, setUploadResult] = useState<BulkUploadResponse | null>(null)
-
-  useBodyScrollLock(isOpen)
-
-  const handleReset = () => {
-    setFileName(null)
-    setBatch(null)
+  const reset = () => {
+    setStage({ name: 'pick' })
     setActiveTab('valid')
-    setIsParsing(false)
-    setIsSubmitting(false)
-    setErrorBanner(null)
-    setUploadResult(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+    setNotice(null)
   }
 
-  const handleModalClose = () => {
-    handleReset()
+  const handleOpenChange = (open: boolean) => {
+    if (open || stage.name === 'importing') return
+    reset()
     onClose()
   }
 
-  const handleFileSelected = async (file: File) => {
-    setErrorBanner(null)
-    setIsParsing(true)
-    setFileName(file.name)
+  const handleFile = async (file: File) => {
+    setNotice(null)
+    const fileError = validateSpreadsheetFile(file)
+    if (fileError) {
+      setNotice(fileError)
+      return
+    }
 
+    setStage({ name: 'reading', fileName: file.name })
     try {
-      const buffer = await file.arrayBuffer()
-      const rawRows = parseSpreadsheet(buffer)
-
-      if (rawRows.length === 0) {
-        setErrorBanner('La planilla seleccionada está vacía o no contiene filas con datos.')
-        setBatch(null)
-        setIsParsing(false)
+      const analysis = analyzeIngredientSheet(await readSpreadsheet(await file.arrayBuffer()), existingSupplies)
+      if (!analysis.ok) {
+        setNotice(describeBatchProblem(analysis.problem))
+        setStage({ name: 'pick' })
         return
       }
-
-      if (rawRows.length > 500) {
-        setErrorBanner('La lista supera el tope de 500 filas por lote. Por favor dividila en archivos más pequeños.')
-        setBatch(null)
-        setIsParsing(false)
-        return
-      }
-
-      const classified = classifyIngredientRows(rawRows, existingSupplies)
-      setBatch(classified)
-
-      // Selecciona automáticamente la pestaña con mayor prioridad informativa
-      if (classified.valid.length > 0) {
-        setActiveTab('valid')
-      } else if (classified.errors.length > 0) {
-        setActiveTab('errors')
-      } else {
-        setActiveTab('duplicates')
-      }
+      setActiveTab(firstTabWithRows(analysis.batch))
+      setStage({ name: 'review', fileName: file.name, batch: analysis.batch })
     } catch {
-      setErrorBanner('No se pudo leer el archivo. Asegurate de que sea un archivo Excel (.xlsx, .xls) o CSV válido.')
-      setBatch(null)
-    } finally {
-      setIsParsing(false)
+      setNotice('No pudimos leer el archivo. Abrilo en Excel, guardalo como .xlsx o .csv y volvé a subirlo.')
+      setStage({ name: 'pick' })
     }
   }
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      void handleFileSelected(file)
-    }
-  }
-
-  const handleConfirmImport = async () => {
-    if (!batch || batch.valid.length === 0) return
-
-    setIsSubmitting(true)
-    setErrorBanner(null)
-
+  const handleDownloadTemplate = async () => {
     try {
-      const payload = batch.valid.map((r) => ({
-        name: r.name,
-        unit: r.unit,
-        cost: r.cost,
-      }))
-
-      const response = await ingredientService.bulkUpload(getToken, payload)
-      setUploadResult(response)
-      onSuccess(response)
-    } catch (err: unknown) {
-      setErrorBanner(
-        err instanceof ApiError ? err.message : 'Error inesperado al importar los insumos.'
-      )
-    } finally {
-      setIsSubmitting(false)
+      await downloadTemplateFile()
+    } catch {
+      setNotice('No se pudo generar la plantilla. Revisá tu conexión y volvé a intentarlo.')
     }
   }
 
-  if (!isOpen) return null
+  const handleImport = async () => {
+    if (stage.name !== 'review' || stage.batch.valid.length === 0) return
+    const { fileName, batch } = stage
+
+    setNotice(null)
+    setStage({ name: 'importing', fileName, batch })
+    try {
+      const result = await ingredientService.bulkUpload(getToken, buildBulkPayload(batch.valid))
+      setStage({ name: 'done', fileName, batch, result })
+      onSuccess(result)
+    } catch (error: unknown) {
+      setNotice(
+        error instanceof ApiError
+          ? error.message
+          : 'No pudimos guardar los insumos. Revisá tu conexión y volvé a intentarlo: no se cargó nada.'
+      )
+      setStage({ name: 'review', fileName, batch })
+    }
+  }
+
+  const currentStep = stepIndex(stage)
 
   return (
-    <div className="fixed inset-0 z-70 flex items-end justify-center bg-black/50 backdrop-blur-xs md:items-center animate-in fade-in">
-      <div className="fixed inset-0" onClick={handleModalClose} />
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogPortal>
+        <DialogBackdrop />
+        <DialogSheet className="flex max-h-[92dvh] flex-col p-0 md:max-h-[85vh] md:max-w-2xl">
+          <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" aria-hidden="true" />
 
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bulk-modal-title"
-        className="relative z-10 w-full max-w-2xl rounded-t-3xl border border-transparent bg-white p-5 shadow-2xl md:rounded-3xl dark:border-gray-800 dark:bg-gray-900 animate-in slide-in-from-bottom md:zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
-      >
-        <div className="mx-auto mb-3 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
-
-        {/* Cabecera */}
-        <div className="flex shrink-0 items-start justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              <FileSpreadsheet className="size-4" />
-              <span>Importación por Planilla</span>
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-5 pb-4 pt-3 md:px-6 md:pt-6 dark:border-gray-800">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                <FileSpreadsheet className="size-4" aria-hidden="true" />
+                Carga desde planilla
+              </p>
+              <DialogTitle className="mt-1 text-xl md:text-2xl">Cargar insumos desde una planilla</DialogTitle>
+              <DialogDescription className="mt-1 text-sm">
+                Revisá cómo queda tu lista antes de guardarla. El archivo se lee en tu dispositivo.
+              </DialogDescription>
             </div>
-            <h2 id="bulk-modal-title" className="mt-1 text-lg font-bold text-gray-900 dark:text-white md:text-xl">
-              Carga Masiva de Insumos
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={handleModalClose}
-            className="flex size-9 min-h-11 min-w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer"
-            aria-label="Cerrar modal"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {/* Mensaje de error general */}
-        {errorBanner && (
-          <div className="mt-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-            {errorBanner}
-          </div>
-        )}
-
-        {/* Cuerpo dinámico */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
-          {/* Pantalla final de resultado exitoso */}
-          {uploadResult ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
-              <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                <CheckCircle2 className="size-8" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-gray-900 dark:text-white">
-                  ¡Importación finalizada!
-                </h3>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  La base de datos se actualizó correctamente con las filas válidas procesadas.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 text-center dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                    {uploadResult.created}
-                  </p>
-                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-400">
-                    Insumos Creados
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
-                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300">
-                    {uploadResult.skipped}
-                  </p>
-                  <p className="text-xs font-bold text-amber-800 dark:text-amber-400">
-                    Omitidos (Repetidos)
-                  </p>
-                </div>
-              </div>
-
-              {uploadResult.errors.length > 0 && (
-                <div className="w-full text-left rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
-                  <p className="font-bold">Observaciones del servidor ({uploadResult.errors.length}):</p>
-                  <ul className="mt-1 list-disc list-inside space-y-0.5">
-                    {uploadResult.errors.map((e, idx) => (
-                      <li key={idx}>Fila {e.row}: {e.reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : !batch ? (
-            /* Pantalla inicial: Descarga de plantilla y subida de archivo */
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/30">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-                    <Download className="size-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-100">
-                      Plantilla oficial de importación
-                    </h3>
-                    <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80">
-                      Columnas: <strong>Nombre</strong>, <strong>Unidad</strong> (kg, l, u) y <strong>Costo</strong> (ej. 1.234,56).
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={downloadTemplateFile}
-                  className="min-h-11 inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100/60 dark:bg-gray-800 dark:text-indigo-300 dark:hover:bg-gray-700"
-                >
-                  Descargar Excel
-                </button>
-              </div>
-
-              {/* Zona de Drop / Selección de Archivo */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-gray-50/60 p-8 text-center transition hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-indigo-500"
-              >
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 mb-3">
-                  {isParsing ? (
-                    <LoaderCircle className="size-6 animate-spin" />
-                  ) : (
-                    <UploadCloud className="size-6" />
-                  )}
-                </div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  {isParsing ? 'Leyendo planilla...' : 'Elegir archivo Excel (.xlsx) o CSV'}
-                </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-sm">
-                  Arrastrá o seleccioná tu lista. El archivo se analiza de forma privada en tu navegador sin subirse entero a la red.
-                </p>
-                <button
-                  type="button"
-                  disabled={isParsing}
-                  className="mt-4 min-h-11 inline-flex cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  Examinar archivos
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Pantalla intermedia: Vista previa y resumen categorizado */
-            <div className="space-y-4">
-              {/* Barra de archivo seleccionado */}
-              <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800">
-                <div className="flex items-center gap-2 truncate">
-                  <FileSpreadsheet className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  <span className="text-xs font-bold truncate text-gray-900 dark:text-white">
-                    {fileName}
-                  </span>
-                  <span className="text-[10px] font-semibold text-gray-400">
-                    ({batch.totalRows} filas leídas)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="min-h-11 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw className="size-3" /> Cambiar
-                </button>
-              </div>
-
-              {/* Métricas del Lote */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('valid')}
-                  className={`min-h-11 rounded-2xl border p-2.5 text-center transition cursor-pointer ${
-                    activeTab === 'valid'
-                      ? 'border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:bg-emerald-950/40'
-                      : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
-                  }`}
-                >
-                  <span className="block text-lg font-black text-emerald-700 dark:text-emerald-400">
-                    {batch.valid.length}
-                  </span>
-                  <span className="block text-[11px] font-bold text-gray-600 dark:text-gray-300">
-                    Válidas
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('duplicates')}
-                  className={`min-h-11 rounded-2xl border p-2.5 text-center transition cursor-pointer ${
-                    activeTab === 'duplicates'
-                      ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20 dark:border-amber-500 dark:bg-amber-950/40'
-                      : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
-                  }`}
-                >
-                  <span className="block text-lg font-black text-amber-600 dark:text-amber-400">
-                    {batch.duplicates.length}
-                  </span>
-                  <span className="block text-[11px] font-bold text-gray-600 dark:text-gray-300">
-                    Repetidas
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('errors')}
-                  className={`min-h-11 rounded-2xl border p-2.5 text-center transition cursor-pointer ${
-                    activeTab === 'errors'
-                      ? 'border-rose-600 bg-rose-50 ring-2 ring-rose-500/20 dark:border-rose-500 dark:bg-rose-950/40'
-                      : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
-                  }`}
-                >
-                  <span className="block text-lg font-black text-rose-600 dark:text-rose-400">
-                    {batch.errors.length}
-                  </span>
-                  <span className="block text-[11px] font-bold text-gray-600 dark:text-gray-300">
-                    Con error
-                  </span>
-                </button>
-              </div>
-
-              {/* Contenido de la pestaña activa */}
-              <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-gray-900">
-                <div className="max-h-56 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-                  {activeTab === 'valid' && (
-                    batch.valid.length === 0 ? (
-                      <p className="p-6 text-center text-xs text-gray-400">
-                        No hay filas válidas listas para importar en este archivo.
-                      </p>
-                    ) : (
-                      batch.valid.map((r, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 text-xs">
-                          <div className="truncate mr-2">
-                            <strong className="block font-bold text-gray-900 dark:text-white truncate">
-                              {r.name}
-                            </strong>
-                            <span className="text-[10px] text-gray-400">
-                              Fila {r.rowNumber} · Unidad: {r.unit}
-                            </span>
-                          </div>
-                          <span className="font-black text-emerald-700 dark:text-emerald-400 shrink-0">
-                            {r.costFormatted} / {r.unit}
-                          </span>
-                        </div>
-                      ))
-                    )
-                  )}
-
-                  {activeTab === 'duplicates' && (
-                    batch.duplicates.length === 0 ? (
-                      <p className="p-6 text-center text-xs text-gray-400">
-                        No se detectaron nombres repetidos en la planilla.
-                      </p>
-                    ) : (
-                      batch.duplicates.map((r, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 text-xs bg-amber-50/30 dark:bg-amber-950/20">
-                          <div className="truncate mr-2">
-                            <strong className="block font-bold text-gray-900 dark:text-white truncate">
-                              {r.name}
-                            </strong>
-                            <span className="text-[10px] text-amber-700 dark:text-amber-400">
-                              Fila {r.rowNumber} · {r.reason}
-                            </span>
-                          </div>
-                          <span className="font-semibold text-gray-500 shrink-0">
-                            {r.costFormatted} / {r.unit}
-                          </span>
-                        </div>
-                      ))
-                    )
-                  )}
-
-                  {activeTab === 'errors' && (
-                    batch.errors.length === 0 ? (
-                      <p className="p-6 text-center text-xs text-gray-400">
-                        ¡Excelente! No hay errores de formato en ninguna fila.
-                      </p>
-                    ) : (
-                      batch.errors.map((r, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 text-xs bg-rose-50/30 dark:bg-rose-950/20">
-                          <div className="truncate mr-2">
-                            <strong className="block font-bold text-rose-900 dark:text-rose-200 truncate">
-                              {r.name}
-                            </strong>
-                            <span className="text-[10px] text-rose-600 dark:text-rose-400">
-                              Fila {r.rowNumber} · Motivo: {r.reason}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-mono text-gray-400 shrink-0">
-                            {r.rawCost || 'sin costo'}
-                          </span>
-                        </div>
-                      ))
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Pie de Acciones */}
-        <div className="shrink-0 border-t border-gray-100 pt-3 flex gap-3 dark:border-gray-800">
-          <button
-            type="button"
-            onClick={handleModalClose}
-            className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
-          >
-            {uploadResult ? 'Cerrar' : 'Cancelar'}
-          </button>
-
-          {!uploadResult && batch && (
-            <button
-              type="button"
-              disabled={isSubmitting || batch.valid.length === 0}
-              onClick={handleConfirmImport}
-              className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+            <DialogClose
+              disabled={stage.name === 'importing'}
+              aria-label="Cerrar carga desde planilla"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              {isSubmitting ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" />
-                  <span>Importando...</span>
-                </>
-              ) : (
-                <span>Confirmar ({batch.valid.length} válidas)</span>
+              <X className="size-5" aria-hidden="true" />
+            </DialogClose>
+          </header>
+
+          <Stepper current={currentStep} />
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 md:px-6">
+            {notice && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <p>{notice}</p>
+              </div>
+            )}
+
+            {(stage.name === 'pick' || stage.name === 'reading') && (
+              <FilePickStep
+                isReading={stage.name === 'reading'}
+                readingFileName={stage.name === 'reading' ? stage.fileName : null}
+                onFile={handleFile}
+                onDownloadTemplate={handleDownloadTemplate}
+              />
+            )}
+
+            {(stage.name === 'review' || stage.name === 'importing') && (
+              <ReviewStep
+                fileName={stage.fileName}
+                batch={stage.batch}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onChangeFile={reset}
+                disabled={stage.name === 'importing'}
+              />
+            )}
+
+            {stage.name === 'done' && <ResultStep batch={stage.batch} result={stage.result} />}
+          </div>
+
+          <footer className="flex shrink-0 flex-col gap-2 border-t border-gray-100 px-5 py-4 md:flex-row-reverse md:px-6 dark:border-gray-800">
+            {(stage.name === 'review' || stage.name === 'importing') && (
+              <PrimaryButton onClick={handleImport} disabled={stage.name === 'importing' || stage.batch.valid.length === 0}>
+                {stage.name === 'importing' ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    Guardando insumos…
+                  </>
+                ) : stage.batch.valid.length === 0 ? (
+                  'No hay insumos para importar'
+                ) : (
+                  `Importar ${plural(stage.batch.valid.length, 'insumo', 'insumos')}`
+                )}
+              </PrimaryButton>
+            )}
+            {stage.name === 'done' ? (
+              <>
+                <PrimaryButton onClick={() => handleOpenChange(false)}>Listo</PrimaryButton>
+                <SecondaryButton onClick={reset}>Cargar otra planilla</SecondaryButton>
+              </>
+            ) : (
+              <SecondaryButton onClick={() => handleOpenChange(false)} disabled={stage.name === 'importing'}>
+                Cancelar
+              </SecondaryButton>
+            )}
+          </footer>
+        </DialogSheet>
+      </DialogPortal>
+    </Dialog>
+  )
+}
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <div className="shrink-0 px-5 pt-4 md:px-6">
+      <p className="sr-only">
+        Paso {current + 1} de {STEP_LABELS.length}: {STEP_LABELS[current]}
+      </p>
+      <ol className="grid grid-cols-3 gap-2" aria-hidden="true">
+        {STEP_LABELS.map((label, index) => (
+          <li key={label} className="flex flex-col gap-1.5">
+            <span
+              className={cn(
+                'h-1.5 rounded-full transition-colors',
+                index <= current ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-200 dark:bg-gray-700'
               )}
-            </button>
-          )}
-        </div>
-      </section>
+            />
+            <span
+              className={cn(
+                'text-xs font-semibold',
+                index === current ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'
+              )}
+            >
+              {label}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
+  )
+}
+
+interface FilePickStepProps {
+  isReading: boolean
+  readingFileName: string | null
+  onFile: (file: File) => void
+  onDownloadTemplate: () => void
+}
+
+function FilePickStep({ isReading, readingFileName, onFile, onDownloadTemplate }: FilePickStepProps) {
+  const inputId = useId()
+  const hintId = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const takeFile = (file: File | undefined) => {
+    if (inputRef.current) inputRef.current.value = ''
+    if (file && !isReading) onFile(file)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault()
+    setIsDragging(false)
+    takeFile(event.dataTransfer.files[0])
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-indigo-900/60 dark:bg-indigo-950/30">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white" aria-hidden="true">
+            <Download className="size-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-100">1. Descargá la plantilla</h3>
+            <p className="mt-0.5 text-sm text-indigo-900/80 dark:text-indigo-200/80">
+              Tres columnas: <strong>Nombre</strong>, <strong>Unidad</strong> (kg, l o u) y <strong>Costo</strong> (ej.
+              1.234,56).
+            </p>
+          </div>
+        </div>
+        <SecondaryButton onClick={onDownloadTemplate} className="sm:w-auto md:flex-none">
+          <Download className="size-4" aria-hidden="true" />
+          Descargar plantilla
+        </SecondaryButton>
+      </section>
+
+      <label
+        htmlFor={inputId}
+        onDragOver={(event) => {
+          event.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        aria-busy={isReading}
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed px-4 py-8 text-center transition',
+          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-indigo-600',
+          isDragging
+            ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
+            : 'border-gray-300 bg-gray-50/60 hover:border-indigo-400 hover:bg-indigo-50/40 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-indigo-500',
+          isReading && 'pointer-events-none'
+        )}
+      >
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          accept={FILE_ACCEPT}
+          aria-describedby={hintId}
+          disabled={isReading}
+          onChange={(event) => takeFile(event.target.files?.[0])}
+          className="sr-only"
+        />
+        <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300" aria-hidden="true">
+          {isReading ? <LoaderCircle className="size-6 animate-spin" /> : <UploadCloud className="size-6" />}
+        </span>
+        <span className="text-base font-bold text-gray-900 dark:text-white" aria-live="polite">
+          {isReading ? `Leyendo ${readingFileName ?? 'la planilla'}…` : '2. Elegí tu planilla'}
+        </span>
+        <span id={hintId} className="mt-1 max-w-sm text-sm text-gray-600 dark:text-gray-400">
+          <span className="hidden md:inline">Arrastrala acá o hacé clic para buscarla. </span>
+          <span className="md:hidden">Tocá para elegirla desde tu teléfono o tu Drive. </span>
+          Excel (.xlsx, .xls) o CSV, hasta {BULK_MAX_ROWS} insumos.
+        </span>
+        <span className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-md" aria-hidden="true">
+          Buscar archivo
+        </span>
+      </label>
+    </div>
+  )
+}
+
+interface ReviewStepProps {
+  fileName: string
+  batch: ClassifiedIngredientBatch
+  activeTab: TabId
+  onTabChange: (tab: TabId) => void
+  onChangeFile: () => void
+  disabled: boolean
+}
+
+function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, disabled }: ReviewStepProps) {
+  const baseId = useId()
+  const tabs: Array<{ id: TabId; label: string; count: number; icon: ReactNode; tone: string }> = [
+    {
+      id: 'valid',
+      label: 'Válidas',
+      count: batch.valid.length,
+      icon: <CheckCircle2 className="size-4" aria-hidden="true" />,
+      tone: 'text-emerald-700 dark:text-emerald-400',
+    },
+    {
+      id: 'duplicates',
+      label: 'Repetidas',
+      count: batch.duplicates.length,
+      icon: <CopyX className="size-4" aria-hidden="true" />,
+      tone: 'text-amber-700 dark:text-amber-400',
+    },
+    {
+      id: 'errors',
+      label: 'Con error',
+      count: batch.errors.length,
+      icon: <AlertTriangle className="size-4" aria-hidden="true" />,
+      tone: 'text-rose-700 dark:text-rose-400',
+    },
+  ]
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = tabs.findIndex((tab) => tab.id === activeTab)
+    const nextIndex: Record<string, number> = {
+      ArrowRight: (index + 1) % tabs.length,
+      ArrowLeft: (index - 1 + tabs.length) % tabs.length,
+      Home: 0,
+      End: tabs.length - 1,
+    }
+    const target = nextIndex[event.key]
+    if (target === undefined) return
+    event.preventDefault()
+    const next = tabs[target]
+    if (!next) return
+    onTabChange(next.id)
+    document.getElementById(`${baseId}-tab-${next.id}`)?.focus()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 py-1 pl-4 pr-1 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <FileSpreadsheet className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+          <span className="truncate text-sm font-bold text-gray-900 dark:text-white">{fileName}</span>
+          <span className="shrink-0 text-xs text-gray-600 dark:text-gray-400">
+            {plural(batch.totalRows, 'fila', 'filas')}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onChangeFile}
+          disabled={disabled}
+          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-indigo-700 transition hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-indigo-300 dark:hover:bg-gray-700"
+        >
+          <RefreshCw className="size-4" aria-hidden="true" />
+          Cambiar
+        </button>
+      </div>
+
+      <div role="tablist" aria-label="Resultado de la revisión" className="grid grid-cols-3 gap-2">
+        {tabs.map((tab) => {
+          const selected = tab.id === activeTab
+          return (
+            <button
+              key={tab.id}
+              id={`${baseId}-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${baseId}-panel`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onTabChange(tab.id)}
+              onKeyDown={handleTabKeyDown}
+              className={cn(
+                'flex min-h-16 cursor-pointer flex-col items-center justify-center rounded-2xl border px-1 py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
+                selected
+                  ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600 dark:border-indigo-400 dark:bg-indigo-950/40 dark:ring-indigo-400'
+                  : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700'
+              )}
+            >
+              <span className={cn('flex items-center gap-1 text-xl font-black tabular-nums', tab.tone)}>
+                {tab.icon}
+                {tab.count}
+              </span>
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div
+        id={`${baseId}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${baseId}-tab-${activeTab}`}
+        tabIndex={0}
+        className="overflow-hidden rounded-2xl border border-gray-200 bg-white focus-visible:outline-2 focus-visible:outline-indigo-600 dark:border-gray-800 dark:bg-gray-900"
+      >
+        {activeTab === 'valid' && (
+          <RowList empty="Ninguna fila está lista para importar. Revisá las pestañas Repetidas y Con error.">
+            {batch.valid.map((row) => (
+              <RowItem
+                key={row.rowNumber}
+                title={row.name}
+                meta={`Fila ${row.rowNumber} · ${BULK_UNIT_LABELS[row.unit]}`}
+                value={`${row.costFormatted} / ${row.unit}`}
+              />
+            ))}
+          </RowList>
+        )}
+        {activeTab === 'duplicates' && (
+          <RowList empty="No hay nombres repetidos.">
+            {batch.duplicates.map((row) => (
+              <RowItem
+                key={row.rowNumber}
+                title={row.name}
+                meta={`Fila ${row.rowNumber} · ${BULK_UNIT_LABELS[row.unit]}`}
+                detail={row.reason}
+                detailTone="text-amber-800 dark:text-amber-300"
+                value={`${row.costFormatted} / ${row.unit}`}
+              />
+            ))}
+          </RowList>
+        )}
+        {activeTab === 'errors' && (
+          <RowList empty="Ninguna fila tiene errores.">
+            {batch.errors.map((row) => (
+              <RowItem
+                key={row.rowNumber}
+                title={row.name}
+                meta={`Fila ${row.rowNumber} · Unidad: ${row.rawUnit || '(vacía)'} · Costo: ${row.rawCost || '(vacío)'}`}
+                detail={row.reason}
+                detailTone="text-rose-800 dark:text-rose-300"
+              />
+            ))}
+          </RowList>
+        )}
+      </div>
+
+      {batch.errors.length > 0 && batch.valid.length > 0 && (
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Las filas con error no se cargan. Podés importar las válidas ahora y subir las demás cuando las corrijas.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function RowList({ empty, children }: { empty: string; children: ReactNode[] }) {
+  if (children.length === 0) {
+    return <p className="p-6 text-center text-sm text-gray-600 dark:text-gray-400">{empty}</p>
+  }
+  return <ul className="max-h-72 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">{children}</ul>
+}
+
+interface RowItemProps {
+  title: string
+  meta: string
+  value?: string
+  detail?: string
+  detailTone?: string
+}
+
+function RowItem({ title, meta, value, detail, detailTone }: RowItemProps) {
+  return (
+    <li className="flex items-start justify-between gap-3 px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{title}</p>
+        <p className="mt-0.5 break-words text-xs text-gray-600 dark:text-gray-400">{meta}</p>
+        {detail && <p className={cn('mt-1 text-xs font-medium', detailTone)}>{detail}</p>}
+      </div>
+      {value && (
+        <span className="shrink-0 text-sm font-bold tabular-nums text-gray-900 dark:text-white">{value}</span>
+      )}
+    </li>
+  )
+}
+
+function ResultStep({ batch, result }: { batch: ClassifiedIngredientBatch; result: BulkUploadResponse }) {
+  const serverErrors = mapServerErrorsToSheetRows(result.errors, batch.valid)
+  const repeated = batch.duplicates.length + result.skipped
+  const withErrors = batch.errors.length + serverErrors.length
+  const omitted = repeated + withErrors
+  const hasCreated = result.created > 0
+
+  return (
+    <div role="status" className="space-y-4">
+      <div className="flex flex-col items-center gap-3 py-2 text-center">
+        <span
+          className={cn(
+            'flex size-14 items-center justify-center rounded-2xl',
+            hasCreated
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
+          )}
+          aria-hidden="true"
+        >
+          {hasCreated ? <CheckCircle2 className="size-8" /> : <AlertTriangle className="size-8" />}
+        </span>
+        <h3 className="text-lg font-black text-gray-900 dark:text-white">
+          {hasCreated
+            ? `Se ${result.created === 1 ? 'cargó' : 'cargaron'} ${plural(result.created, 'insumo', 'insumos')}`
+            : 'No se cargó ningún insumo'}
+        </h3>
+        <p className="max-w-sm text-sm text-gray-600 dark:text-gray-400">
+          {hasCreated
+            ? 'Ya están en tu despensa y podés usarlos en tus recetas.'
+            : 'Todas las filas ya existían o tenían errores.'}
+        </p>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-900/50 dark:bg-emerald-950/30">
+          <dt className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Creados</dt>
+          <dd className="text-2xl font-black tabular-nums text-emerald-800 dark:text-emerald-200">{result.created}</dd>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
+          <dt className="text-xs font-bold text-amber-800 dark:text-amber-300">Omitidos</dt>
+          <dd className="text-2xl font-black tabular-nums text-amber-800 dark:text-amber-200">{omitted}</dd>
+        </div>
+      </dl>
+
+      {omitted > 0 && (
+        <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+          {repeated > 0 && <li>· {plural(repeated, 'repetido', 'repetidos')}: ya estaban en tu despensa o en la planilla.</li>}
+          {withErrors > 0 && <li>· {withErrors} con error: corregilos y volvé a subirlos.</li>}
+        </ul>
+      )}
+
+      {serverErrors.length > 0 && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+          <p className="font-bold">El servidor rechazó estas filas:</p>
+          <ul className="mt-1 space-y-1">
+            {serverErrors.map((error, index) => (
+              <li key={`${error.rowNumber ?? 'x'}-${index}`}>
+                {error.rowNumber ? `Fila ${error.rowNumber}` : 'Fila sin identificar'}
+                {error.name ? ` (${error.name})` : ''}: {error.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface ButtonProps {
+  onClick: () => void
+  disabled?: boolean
+  className?: string
+  children: ReactNode
+}
+
+function PrimaryButton({ onClick, disabled, className, children }: ButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600 disabled:shadow-none md:flex-1 dark:disabled:bg-gray-700 dark:disabled:text-gray-300',
+        className
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryButton({ onClick, disabled, className, children }: ButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 text-sm font-bold text-gray-800 transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 md:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        className
+      )}
+    >
+      {children}
+    </button>
   )
 }
