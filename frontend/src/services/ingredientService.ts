@@ -33,6 +33,19 @@ export interface IngredientUpdateResponse {
   criticalProducts: CriticalProduct[]
 }
 
+export interface BulkUploadRowInput {
+  name: string
+  unit: 'kg' | 'l' | 'u'
+  /** Decimal normalizado ("1234.56"): el backend lo convierte a Prisma.Decimal (ADR-004). */
+  cost: string
+}
+
+export interface BulkUploadResponse {
+  created: number
+  skipped: number
+  errors: Array<{ row: number; reason: string }>
+}
+
 type RawIngredient = Omit<Ingredient, 'currentCost' | 'supplierConnections'> & {
   currentCost: number | string
   supplierConnections?: Array<Omit<SupplierIngredient, 'packageSize' | 'packagePrice'> & {
@@ -135,5 +148,12 @@ export const ingredientService = {
   async getHistory(getToken: TokenGetter, id: string): Promise<PriceHistory[]> {
     const response = await fetchApi<HistoryResponse>(`/ingredients/${id}/history`, getToken)
     return (response.history || []).map(normalizeHistory)
-  }
+  },
+
+  async bulkUpload(getToken: TokenGetter, rows: BulkUploadRowInput[]): Promise<BulkUploadResponse> {
+    return fetchApi<BulkUploadResponse>('/ingredients/bulk', getToken, {
+      method: 'POST',
+      body: JSON.stringify(rows),
+    })
+  },
 }
