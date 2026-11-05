@@ -42,13 +42,13 @@ src/
 │   ├── productos/
 │   │   ├── [id]/             # Ficha técnica + receta de un producto
 │   │   └── nuevo/
-│   └── proveedores/
+│   └── proveedores/          # Solo ADMIN — lista, alta, edición y baja de proveedores
 │       └── cuarentena/       # Solo ADMIN — bandeja de precios en cuarentena
 ├── components/       # Compartidos entre rutas (navbar, toasts, diálogos, guards de ruta)
 │   └── ui/           # Primitivas accesibles estilizadas (button, dialog, etc.)
-├── hooks/            # useUserRole, useTheme, useSessionSecurity, etc.
+├── hooks/            # useUserRole, useTheme, useSessionSecurity, useTokenGetter, etc.
 ├── lib/              # Clientes y utilidades de bajo nivel (Clerk, formato numérico)
-├── schemas/          # Validación con Zod (productSchema, ingredientSchema, supplierPackagingSchema)
+├── schemas/          # Validación con Zod (productSchema, ingredientSchema, supplierPackagingSchema, supplierSchema)
 ├── services/         # Llamadas HTTP a la API, una por recurso
 ├── stores/           # Estado global con Zustand (useQuarantineStore, useRecipeStore, useUserStore)
 └── routes.tsx        # Mapa de rutas (react-router-dom) — fuente de verdad de qué existe
@@ -68,7 +68,7 @@ Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5)
 
 `ErrorState` recibe `title`, `description` y `onRetry` (botón **Reintentar**, alto mínimo de 44 px) y se anuncia con `role="alert"`. Opcionales: `retryLabel`, `icon`, `className` e `isRetrying` (deshabilita el botón y muestra "Reintentando..." en pantallas que mantienen el error visible durante el reintento). `onAction` y `actionLabel` son alias para mantener la misma interfaz que `EmptyState`.
 
-Lo usan `/dashboard`, `/insumos` y `/proveedores/cuarentena`. En las tres el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
+Lo usan `/dashboard`, `/insumos`, `/proveedores` y `/proveedores/cuarentena`. En todas el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
 
 ### Diálogos (`Dialog`)
 
