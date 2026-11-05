@@ -85,7 +85,7 @@ export function SuppliersList({ suppliers, onEdit, onDelete }: SuppliersListProp
         <span className="sr-only">Acciones</span>
       </div>
 
-      <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+      <ul aria-label="Proveedores" className="divide-y divide-gray-100 dark:divide-gray-800">
         {suppliers.map((supplier, index) => {
           const contact = supplierContact(supplier)
           const nameId = `supplier-name-${supplier.id}`
