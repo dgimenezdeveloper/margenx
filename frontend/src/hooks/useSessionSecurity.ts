@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useClerk, useAuth } from '@clerk/clerk-react'
 import { isStandaloneMode } from '@/lib/displayMode'
 import { buildLoginUrl } from '@/lib/returnUrl'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 
 // 30 minutos exactos (1.800.000 ms) según la historia de usuario
 const DEFAULT_INACTIVITY_LIMIT = 30 * 60 * 1000
@@ -40,7 +41,7 @@ export function useSessionSecurity() {
     sessionStorage.setItem(LOGOUT_REASON_KEY, 'inactivity')
 
     try {
-      await signOut(() => {})
+      await Promise.all([clearSessionCaches(), signOut(() => {})])
     } finally {
       window.location.href = buildLoginUrl(window.location, 'inactivity')
     }

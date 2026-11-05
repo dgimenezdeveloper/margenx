@@ -350,7 +350,8 @@ Account (CASCADE)
 | Productos en borrador y recetas | Disponible |
 | Alta de insumo desde la receta | Propuesta |
 | Proveedores y presentaciones desde la ficha del insumo, proveedor predeterminado | Disponible |
-| Vista y detalle de proveedores | Planificado |
+| Vista de proveedores (`/proveedores`): lista con cantidad de insumos y de precios en cuarentena, alta, edición, desactivación y baja con confirmación | Disponible |
+| Detalle de proveedor (`/proveedores/:id`) con sus presentaciones | Planificado |
 | Código de artículo cargado desde la app | Planificado |
 | Bandeja de códigos no mapeados | Propuesta |
 | Ingesta por correo, filtro de descarte y resumen | Disponible (activación en producción: Planificado) |

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { SupplierPackagingModal } from '../supplier-packaging-modal'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
@@ -40,10 +41,30 @@ describe('SupplierPackagingModal', () => {
     vi.clearAllMocks()
   })
 
+  it('expone título, descripción y botones con nombre accesible para el lector de pantalla', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
+    ])
+
+    render(
+      <SupplierPackagingModal isOpen={true} onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveAccessibleName('Harina')
+    expect(dialog).toHaveAccessibleDescription(/presentación mayorista/)
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+    for (const button of within(dialog).getAllByRole('button')) {
+      expect(button).toHaveAccessibleName(/\S/)
+    }
+  })
+
   it('excluye proveedores que ya tienen presentación para el insumo', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
-      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
+      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
     ])
 
     render(
@@ -69,7 +90,7 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra error si se intenta quitar el predeterminado sin reemplazo', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
     ])
 
     render(
@@ -107,7 +128,7 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra advertencia al intentar cerrar con cambios sin guardar en formulario', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
     ])
 
     const onCloseMock = vi.fn()
@@ -146,8 +167,8 @@ describe('SupplierPackagingModal', () => {
 
   it('muestra advertencia al intentar cerrar mientras se escribe el nombre de un nuevo proveedor', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
-      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
+      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
     ])
 
     const onCloseMock = vi.fn()
@@ -189,35 +210,69 @@ describe('SupplierPackagingModal', () => {
     expect(onCloseMock).toHaveBeenCalledTimes(1)
   })
 
-  it('permite cerrar con tecla Escape con confirmación si hay cambios pendientes', async () => {
+  it('Escape sin cambios pendientes cierra el modal una sola vez', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
-      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
     ])
-
+    const user = userEvent.setup()
     const onCloseMock = vi.fn()
     render(
-      <SupplierPackagingModal
-        isOpen={true}
-        onClose={onCloseMock}
-        ingredient={mockIngredient}
-        onSuccess={vi.fn()}
-      />
+      <SupplierPackagingModal isOpen={true} onClose={onCloseMock} ingredient={mockIngredient} onSuccess={vi.fn()} />
     )
-
     await waitFor(() => {
       expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
 
-    // Simular cambio
-    const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
-    fireEvent.change(sizeInput, { target: { value: '50' } })
+    await user.keyboard('{Escape}')
 
-    // Presionar Escape
-    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCloseMock).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
+  })
 
+  it('Escape con cambios pendientes pide confirmación y Escape otra vez vuelve al formulario', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
+    ])
+    const user = userEvent.setup()
+    const onCloseMock = vi.fn()
+    render(
+      <SupplierPackagingModal isOpen={true} onClose={onCloseMock} ingredient={mockIngredient} onSuccess={vi.fn()} />
+    )
     await waitFor(() => {
-      expect(screen.getByText('¿Descartar cambios?')).toBeInTheDocument()
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
+    await user.type(screen.getByLabelText(/Tamaño del bulto/i), '25')
+
+    await user.keyboard('{Escape}')
+    await screen.findByRole('dialog', { name: '¿Descartar cambios?' })
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '¿Descartar cambios?' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('dialog', { name: 'Harina' })).toBeInTheDocument()
     expect(onCloseMock).not.toHaveBeenCalled()
+  })
+
+  it('cancelar el alta rápida de proveedor descarta el nombre y no deja cambios pendientes', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-2', name: 'Molino Campodónico', accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 },
+    ])
+    const user = userEvent.setup()
+    const onCloseMock = vi.fn()
+    render(
+      <SupplierPackagingModal isOpen={true} onClose={onCloseMock} ingredient={mockIngredient} onSuccess={vi.fn()} />
+    )
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /Nuevo/ }))
+    await user.type(screen.getByPlaceholderText('Nombre del proveedor...'), 'Distribuidora La Espiga')
+    await user.click(screen.getByRole('button', { name: 'Cancelar alta de proveedor' }))
+    await user.click(screen.getByRole('button', { name: /^Cancelar$/ }))
+
+    expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
+    expect(onCloseMock).toHaveBeenCalledTimes(1)
   })
 })

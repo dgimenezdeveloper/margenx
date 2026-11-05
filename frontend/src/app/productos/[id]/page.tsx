@@ -14,7 +14,6 @@ import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
 import { EmptyState } from '@/components/empty-state'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { useUserRole } from '@/hooks/useUserRole'
 import { productSchema } from '@/schemas/productSchema'
@@ -59,9 +58,6 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-
-  // Unificación de todos los modales de la página en un solo lock coordinado
-  useBodyScrollLock(showAddModal || showDeleteModal || isSimulatorOpen || Boolean(ingredientToDelete))
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)

@@ -25,6 +25,7 @@ let mockUser: any = {
     id: 'acc-1',
     businessName: 'Panadería Central',
     defaultMinMarginPercent: 30,
+    slug: 'panaderia-central',
   },
 };
 
@@ -49,6 +50,7 @@ describe('Routes: Auth (/api/auth)', () => {
         id: 'acc-1',
         businessName: 'Panadería Central',
         defaultMinMarginPercent: 30,
+        slug: 'panaderia-central',
       },
     };
 
@@ -64,6 +66,7 @@ describe('Routes: Auth (/api/auth)', () => {
       expect(res.status).toBe(200);
       expect(res.body.user.role).toBe('ADMIN');
       expect(res.body.user.account.defaultMinMarginPercent).toBe(30);
+      expect(res.body.user.account.slug).toBe('panaderia-central');
     });
 
     it('sanitiza defaultMinMarginPercent para rol COLLABORATOR', async () => {
@@ -76,6 +79,7 @@ describe('Routes: Auth (/api/auth)', () => {
           id: 'acc-1',
           businessName: 'Panadería Central',
           defaultMinMarginPercent: 30,
+          slug: 'panaderia-central',
         },
       };
 
@@ -85,6 +89,7 @@ describe('Routes: Auth (/api/auth)', () => {
       expect(res.body.user.account.id).toBe('acc-1');
       expect(res.body.user.account.businessName).toBe('Panadería Central');
       expect(res.body.user.account.defaultMinMarginPercent).toBeUndefined();
+      expect(res.body.user.account.slug).toBeUndefined();
     });
   });
 

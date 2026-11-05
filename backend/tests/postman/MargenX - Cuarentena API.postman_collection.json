@@ -1,0 +1,707 @@
+{
+  "info": {
+    "name": "MargenX - Cuarentena API",
+    "description": "Colección automatizada de pruebas API para la Cuarentena de Precios y gestión de presentaciones. Cubre: rechazo de precio, liberación de precio, visualización en el listado de proveedores y la validación que impide eliminar la última presentación predeterminada si hay otras (409).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Setup de Datos (Crear Insumo, Proveedor y Presentaciones)",
+      "item": [
+        {
+          "name": "1. GET Extraer Slug de la Cuenta (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Obtuvo el slug', function () {",
+                  "    pm.expect(json.user.account.slug).to.exist;",
+                  "    pm.environment.set('accountSlug', json.user.account.slug);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "2. POST Crear Insumo para Cuarentena",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('qIngredientId', pm.response.json().ingredient.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Insumo Cuarentena QA {{$timestamp}}\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"100\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          }
+        },
+        {
+          "name": "3. POST Crear Proveedor A (Predeterminado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('qSupplierId', pm.response.json().supplier.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Proveedor Cuarentena A QA {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          }
+        },
+        {
+          "name": "4. POST Asociar Presentación a Proveedor A (isDefault: true)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{qIngredientId}}\",\n  \"packageSize\": \"1\",\n  \"packageUnit\": \"kg\",\n  \"packagePrice\": \"100\",\n  \"isDefault\": true,\n  \"supplierCode\": \"CUA-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}", "ingredients"]
+            }
+          }
+        },
+        {
+          "name": "5. POST Crear Proveedor B (No predeterminado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('qSupplierId2', pm.response.json().supplier.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Proveedor Secundario B QA {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          }
+        },
+        {
+          "name": "6. POST Asociar Presentación a Proveedor B (isDefault: false)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{qIngredientId}}\",\n  \"packageSize\": \"2\",\n  \"packageUnit\": \"kg\",\n  \"packagePrice\": \"250\",\n  \"isDefault\": false,\n  \"supplierCode\": \"CUA-02\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId2}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId2}}", "ingredients"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Reglas de Borrado (DELETE)",
+      "item": [
+        {
+          "name": "DELETE Presentación Predeterminada con Alternativas (409 Conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('Mensaje de error indica elegir otra predeterminada', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('predeterminada');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}", "ingredients", "{{qIngredientId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Presentación No Predeterminada (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Mensaje de exito', function () { pm.expect(pm.response.json().message).to.exist; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId2}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId2}}", "ingredients", "{{qIngredientId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Presentación Predeterminada Única (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Ya no quedan otras alternativas, el borrado de la predeterminada es válido.",
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}", "ingredients", "{{qIngredientId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Flujo de Cuarentena (Reject & Release)",
+      "item": [
+        {
+          "name": "Setup - Volver a Asociar Proveedor A para Cuarentena",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": \"{{qIngredientId}}\",\n  \"packageSize\": \"1\",\n  \"packageUnit\": \"kg\",\n  \"packagePrice\": \"100\",\n  \"isDefault\": true,\n  \"supplierCode\": \"CUA-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}", "ingredients"]
+            }
+          }
+        },
+        {
+          "name": "1. POST Webhook de Ingesta (Forzar Aumento >50%)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('El item fue enviado a cuarentena', function () {",
+                  "    pm.expect(pm.response.json().quarantined).to.eql(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountSlug\": \"{{accountSlug}}\",\n  \"items\": [\n    { \"code\": \"CUA-01\", \"price\": 500 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/supplier-prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "supplier-prices"]
+            }
+          }
+        },
+        {
+          "name": "2. GET Listado de Proveedores (ingredientCount y quarantineCount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const suppliers = pm.response.json().suppliers;",
+                  "const supplier = suppliers.find(s => s.id === pm.environment.get('qSupplierId'));",
+                  "pm.test('El proveedor reporta quarantineCount en 1', function () {",
+                  "    pm.expect(supplier.quarantineCount).to.eql(1);",
+                  "});",
+                  "pm.test('Cada proveedor reporta ingredientCount entero y mayor o igual a quarantineCount', function () {",
+                  "    suppliers.forEach(s => {",
+                  "        pm.expect(Number.isInteger(s.ingredientCount)).to.be.true;",
+                  "        pm.expect(s.ingredientCount).to.be.at.least(s.quarantineCount);",
+                  "    });",
+                  "});",
+                  "pm.test('El proveedor con un precio retenido tiene al menos una presentación', function () {",
+                  "    pm.expect(supplier.ingredientCount).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers"]
+            }
+          }
+        },
+        {
+          "name": "3. GET Detalle de Proveedor (Presentaciones)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const supplier = pm.response.json().supplier;",
+                  "pm.test('Retorna el array ingredients', function () {",
+                  "    pm.expect(supplier.ingredients).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}"]
+            }
+          }
+        },
+        {
+          "name": "4. GET Bandeja de Cuarentena (Capturar ID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const qList = pm.response.json().quarantined;",
+                  "const qItem = qList.find(q => q.ingredientId === pm.environment.get('qIngredientId'));",
+                  "pm.test('El item propuesto ($500) esta en la bandeja', function () {",
+                  "    pm.expect(qItem).to.exist;",
+                  "    pm.expect(qItem.proposedPrice).to.eql('500');",
+                  "});",
+                  "pm.environment.set('quarantineId', qItem.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/quarantine",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "quarantine"]
+            }
+          }
+        },
+        {
+          "name": "5. POST Reject (Rechazar Precio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Mensaje informa que se mantiene el precio viejo', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('mantenido');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/quarantine/{{quarantineId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "quarantine", "{{quarantineId}}", "reject"]
+            }
+          }
+        },
+        {
+          "name": "6. GET Insumo conserva costo original 100",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Costo sigue siendo 100', function () {",
+                  "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('100');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{qIngredientId}}"]
+            }
+          }
+        },
+        {
+          "name": "7. POST Webhook de Ingesta (Forzar Aumento de Nuevo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('El item fue enviado a cuarentena nuevamente', function () {",
+                  "    pm.expect(pm.response.json().quarantined).to.eql(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountSlug\": \"{{accountSlug}}\",\n  \"items\": [\n    { \"code\": \"CUA-01\", \"price\": 600 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/supplier-prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "supplier-prices"]
+            }
+          }
+        },
+        {
+          "name": "8. GET Bandeja de Cuarentena (Capturar ID nuevo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const qList = pm.response.json().quarantined;",
+                  "const qItem = qList.find(q => q.ingredientId === pm.environment.get('qIngredientId'));",
+                  "pm.test('El item nuevo propuesto ($600) esta en la bandeja', function () {",
+                  "    pm.expect(qItem).to.exist;",
+                  "    pm.expect(qItem.proposedPrice).to.eql('600');",
+                  "});",
+                  "pm.environment.set('quarantineId2', qItem.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/quarantine",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "quarantine"]
+            }
+          }
+        },
+        {
+          "name": "9. POST Release (Liberar Precio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('El payload responde con unitCost = 600', function () {",
+                  "    pm.expect(pm.response.json().unitCost).to.eql('600');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/quarantine/{{quarantineId2}}/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "quarantine", "{{quarantineId2}}", "release"]
+            }
+          }
+        },
+        {
+          "name": "10. GET Insumo actualizado al nuevo costo 600",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Costo es 600 tras liberar', function () {",
+                  "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('600');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{qIngredientId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Cleanup Final",
+      "item": [
+        {
+          "name": "DELETE Eliminar Insumo Cuarentena",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{qIngredientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{qIngredientId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Eliminar Proveedor A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Eliminar Proveedor B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{qSupplierId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{qSupplierId2}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

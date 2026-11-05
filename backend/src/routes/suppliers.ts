@@ -133,7 +133,8 @@ const supplierMetadataSchema = z.object({
 
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers                                                   */
-/* Lista los proveedores de la cuenta autenticada.                     */
+/* Lista los proveedores de la cuenta autenticada, con la cantidad de  */
+/* presentaciones (ingredientCount) y las retenidas (quarantineCount). */
 /* 200 OK | 401 No autenticado | 500                                     */
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
@@ -141,10 +142,27 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
   const suppliers = await prisma.supplier.findMany({
     where: { accountId },
+    include: {
+      ingredients: {
+        select: {
+          isQuarantined: true,
+        },
+      },
+    },
     orderBy: { name: 'asc' },
   });
 
-  return res.status(200).json({ suppliers });
+  const suppliersWithCount = suppliers.map((supplier) => {
+    const quarantineCount = supplier.ingredients.filter((item) => item.isQuarantined).length;
+    const { ingredients: _, ...rest } = supplier;
+    return {
+      ...rest,
+      ingredientCount: supplier.ingredients.length,
+      quarantineCount,
+    };
+  });
+
+  return res.status(200).json({ suppliers: suppliersWithCount });
 });
 
 /* ------------------------------------------------------------------ */
@@ -364,6 +382,10 @@ router.post('/quarantine/:id/reject', async (req: AuthenticatedRequest, res: Res
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* GET /api/suppliers/:id                                               */
+/* Detalle del proveedor con sus presentaciones e insumos vinculados.   */
+/* ------------------------------------------------------------------ */
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
   const id = getIdParam(req.params.id);
@@ -373,6 +395,20 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const supplier = await prisma.supplier.findFirst({
     where: { id, accountId },
+    include: {
+      ingredients: {
+        include: {
+          ingredient: {
+            select: {
+              id: true,
+              name: true,
+              unit: true,
+              currentCost: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!supplier) {
@@ -703,6 +739,61 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   await prisma.supplier.delete({ where: { id } });
 
   return res.status(200).json({ message: 'Proveedor eliminado correctamente.' });
+});
+
+/* ------------------------------------------------------------------ */
+/* DELETE /api/suppliers/:id/ingredients/:ingredientId                  */
+/* Quita una presentación evaluando la regla de la predeterminada.    */
+/* ------------------------------------------------------------------ */
+router.delete('/:id/ingredients/:ingredientId', async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const supplierId = getIdParam(req.params.id);
+  const ingredientId = getIdParam(req.params.ingredientId);
+
+  if (!supplierId || !ingredientId) {
+    throw new AppError('Presentación no encontrada.', 404);
+  }
+
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: supplierId, accountId },
+    select: { id: true },
+  });
+
+  if (!supplier) {
+    throw new AppError('Proveedor no encontrado.', 404);
+  }
+
+  const association = await prisma.supplierIngredient.findFirst({
+    where: { supplierId, ingredientId },
+    select: { id: true, isDefault: true },
+  });
+
+  if (!association) {
+    throw new AppError('Presentación no encontrada.', 404);
+  }
+
+  if (association.isDefault) {
+    const otherCount = await prisma.supplierIngredient.count({
+      where: {
+        ingredientId,
+        supplier: { accountId },
+        id: { not: association.id },
+      },
+    });
+
+    if (otherCount > 0) {
+      throw new AppError(
+        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.',
+        409
+      );
+    }
+  }
+
+  await prisma.supplierIngredient.delete({
+    where: { id: association.id },
+  });
+
+  return res.status(200).json({ message: 'Presentación eliminada correctamente.' });
 });
 
 export default router;

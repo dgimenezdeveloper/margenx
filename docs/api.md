@@ -61,6 +61,7 @@ El backend acepta tanto `1234.56` como `1.234,56` y `1.234.567,89` para los cost
 - `200`: operación exitosa.
 - `400`: JSON inválido o payload de negocio inválido (por ejemplo, nombre vacío, valores negativos o una receta con un insumo de otra cuenta).
 - `401`: secreto del webhook inválido o ausente.
+- `403`: el usuario autenticado no tiene el rol requerido (por ejemplo, un colaborador en los endpoints de proveedores).
 - `404`: recurso inexistente o cuenta inactiva.
 - `409`: conflicto de unicidad: nombre duplicado en la cuenta, sin distinguir mayúsculas (producto, insumo o proveedor), o asociación proveedor-insumo duplicada.
 - `413`: cuerpo demasiado grande o exceso de filas en carga masiva.
@@ -119,6 +120,136 @@ Contrato de alta/update de presentaciones de proveedor para un insumo.
   "message": "La asociación se guardó, pero este insumo no recibirá precios por ingesta porque no tiene código de proveedor."
 }
 ```
+
+## GET /api/suppliers
+
+Lista los proveedores de la cuenta, ordenados por nombre. Solo `ADMIN`.
+
+Cada proveedor suma dos contadores, que valen `0` si no hay ninguna presentación:
+
+- `ingredientCount`: la cantidad de presentaciones del proveedor, es decir, cuántos insumos le compra la cuenta (hay una sola presentación por par proveedor-insumo).
+- `quarantineCount`: cuántas de esas presentaciones tienen un precio retenido en cuarentena, pendiente de decisión del administrador.
+
+```json
+{
+  "suppliers": [
+    {
+      "id": "s-1",
+      "accountId": "account-1",
+      "name": "Molino Sur",
+      "contactPhone": "+54 9 2284 41-5566",
+      "email": "ventas@molinosur.example.test",
+      "address": null,
+      "isActive": true,
+      "ingredientCount": 5,
+      "quarantineCount": 2
+    },
+    {
+      "id": "s-2",
+      "accountId": "account-1",
+      "name": "Distribuidora Norte",
+      "contactPhone": null,
+      "email": null,
+      "address": null,
+      "isActive": false,
+      "ingredientCount": 0,
+      "quarantineCount": 0
+    }
+  ]
+}
+```
+
+Códigos: `200`, `401`, `403`.
+
+## GET /api/suppliers/:id
+
+Detalle de un proveedor de la cuenta, con sus presentaciones. Cada presentación trae el insumo asociado, el código de artículo y el precio. Solo `ADMIN`.
+
+```json
+{
+  "supplier": {
+    "id": "s-1",
+    "accountId": "account-1",
+    "name": "Molino Sur",
+    "ingredients": [
+      {
+        "id": "si-1",
+        "supplierCode": "HAR-000",
+        "packagePrice": "35000",
+        "packageSize": "50",
+        "ingredient": { "id": "ing-1", "name": "Harina 000", "unit": "kg", "currentCost": "700" }
+      }
+    ]
+  }
+}
+```
+
+Los montos y tamaños (`packagePrice`, `packageSize`, `currentCost`) viajan como `string` para no perder precisión decimal.
+
+Códigos: `200`, `401`, `403`, `404` (`Proveedor no encontrado.`, también si pertenece a otra cuenta).
+
+## DELETE /api/suppliers/:id/ingredients/:ingredientId
+
+Quita la presentación de un insumo en un proveedor. Solo `ADMIN`.
+
+- Si la presentación **no** es la predeterminada, se elimina y el costo vigente del insumo no cambia.
+- Si es la **predeterminada** (la que fija el costo vigente) y existen otras presentaciones del mismo insumo en la cuenta, responde `409` y pide elegir antes otra como predeterminada.
+
+```json
+{ "message": "Presentación eliminada correctamente." }
+```
+
+| Caso | Respuesta | Mensaje (`error`) |
+|---|---|---|
+| Presentación común | `200` | — (`message`: `Presentación eliminada correctamente.`) |
+| Predeterminada con otras presentaciones del insumo | `409` | `No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.` |
+| Proveedor inexistente o de otra cuenta | `404` | `Proveedor no encontrado.` |
+| El insumo no tiene presentación en ese proveedor | `404` | `Presentación no encontrada.` |
+| Usuario con rol `COLLABORATOR` | `403` | — (no se elimina nada) |
+
+La regla para la última presentación de un insumo está en el ADR-005.
+
+## POST /api/suppliers/quarantine/:id/reject
+
+Rechaza un precio retenido en cuarentena. El costo vigente del insumo no cambia: se limpian `pendingPackagePrice`, `isQuarantined`, `quarantinedAt` y `quarantineReason`. Solo `ADMIN`.
+
+```json
+{
+  "supplierIngredient": { "id": "sq-1", "pendingPackagePrice": null, "isQuarantined": false },
+  "message": "Precio anómalo rechazado y mantenido en el costo anterior."
+}
+```
+
+Códigos: `200`, `401`, `403`, `404` (`Precio en cuarentena no encontrado.`, también si es de otra cuenta).
+
+## GET /api/auth/me
+
+Devuelve el usuario autenticado y los datos básicos de su cuenta.
+
+- **`ADMIN`:** `account` incluye `slug`, que es la base de la dirección de ingesta `precios-<slug>@margenx.tech`.
+- **`COLLABORATOR`:** `account` trae solo `id` y `businessName`. No recibe `slug` ni `defaultMinMarginPercent`.
+
+```json
+{
+  "user": {
+    "id": "user-1",
+    "accountId": "account-1",
+    "email": "admin@comercio.example",
+    "role": "ADMIN",
+    "account": {
+      "id": "account-1",
+      "businessName": "Panadería Central",
+      "defaultMinMarginPercent": "30",
+      "slug": "panaderia-central"
+    }
+  }
+}
+```
+
+Para un colaborador, `account` es `{ "id": "account-1", "businessName": "Panadería Central" }`.
+
+Códigos: `200`, `401`.
+
 ## Validaciones de productos e insumos
 
 Aplican a `POST /api/products`, `PUT /api/products/:id`, `POST /api/ingredients`, `PUT /api/ingredients/:id` y `POST /api/suppliers/:id/ingredients`. La base las refuerza con índices únicos `(accountId, lower(name))` en `Product`, `Ingredient` y `Supplier`.
