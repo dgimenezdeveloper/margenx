@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { Check, X, AlertTriangle, LoaderCircle, TrendingUp, TrendingDown } from 'lucide-react'
 import type { QuarantinedItem } from '@/services/supplierService'
 import { supplierService } from '@/services/supplierService'
+import { ApiError } from '@/services/api'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
 import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 
@@ -21,11 +22,19 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
   const [selectedItem, setSelectedItem] = useState<QuarantinedItem | null>(null)
   const [actionType, setActionType] = useState<'release' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  // El error se muestra dentro del diálogo: un aviso flotante quedaría tapado por el fondo del modal.
+  const [actionError, setActionError] = useState<string | null>(null)
 
+  const openDialog = (item: QuarantinedItem, type: 'release' | 'reject') => {
+    setActionError(null)
+    setSelectedItem(item)
+    setActionType(type)
+  }
 
   const handleAction = async () => {
     if (!selectedItem || !actionType) return
     setIsProcessing(true)
+    setActionError(null)
     try {
       if (actionType === 'release') {
         const res = await supplierService.releaseQuarantine(getToken, selectedItem.id)
@@ -40,8 +49,12 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
       removeItemLocally(selectedItem.id)
       setSelectedItem(null)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al procesar la acción'
-      onShowToast(msg, 'error')
+      // Solo ApiError trae un mensaje pensado para el usuario; un fallo de red trae el texto técnico del navegador.
+      const fallback =
+        actionType === 'release'
+          ? 'No se pudo liberar el precio. Revisá tu conexión e intentá de nuevo.'
+          : 'No se pudo rechazar el precio. Revisá tu conexión e intentá de nuevo.'
+      setActionError(err instanceof ApiError ? err.message : fallback)
     } finally {
       setIsProcessing(false)
     }
@@ -121,10 +134,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedItem(item)
-                      setActionType('reject')
-                    }}
+                    onClick={() => openDialog(item, 'reject')}
                     aria-label={`Rechazar precio propuesto para ${item.ingredient.name}`}
                     className="min-h-11 min-w-11 flex items-center justify-center rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer transition"
                   >
@@ -132,10 +142,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedItem(item)
-                      setActionType('release')
-                    }}
+                    onClick={() => openDialog(item, 'release')}
                     aria-label={`Liberar precio propuesto para ${item.ingredient.name}`}
                     className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-indigo-600 p-2 text-white hover:bg-indigo-700 shadow-sm cursor-pointer transition"
                   >
@@ -194,20 +201,14 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedItem(item)
-                          setActionType('reject')
-                        }}
+                        onClick={() => openDialog(item, 'reject')}
                         className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer transition"
                       >
                         <X className="size-3.5" /> Rechazar
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedItem(item)
-                          setActionType('release')
-                        }}
+                        onClick={() => openDialog(item, 'release')}
                         className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm cursor-pointer transition"
                       >
                         <Check className="size-3.5" /> Liberar
@@ -245,6 +246,15 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                   : `Se actualizará la presentación de ${selectedItem?.ingredient.name}. No afectará las recetas porque no es el proveedor predeterminado.`
                 : `El precio anómalo será descartado y ${selectedItem?.ingredient.name} mantendrá su costo actual.`}
             </DialogDescription>
+            {actionError && (
+              <p
+                role="alert"
+                className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-left text-sm font-semibold text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                {actionError}
+              </p>
+            )}
             <div className="mt-6 flex gap-3">
               <DialogClose
                 disabled={isProcessing}
