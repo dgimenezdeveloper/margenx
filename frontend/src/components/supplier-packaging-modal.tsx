@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm, useWatch, type SubmitErrorHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
 import {
@@ -26,6 +26,8 @@ import { ApiError } from '@/services/api'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+
+type PackagingFormInput = z.input<typeof supplierPackagingSchema>
 
 interface SupplierPackagingModalProps {
   isOpen: boolean
@@ -76,7 +78,7 @@ export function SupplierPackagingModal({
     control,
     reset,
     formState: { errors, isDirty },
-  } = useForm<z.input<typeof supplierPackagingSchema>, undefined, SupplierPackagingFormValues>({
+  } = useForm<PackagingFormInput, undefined, SupplierPackagingFormValues>({
     resolver: zodResolver(supplierPackagingSchema),
     defaultValues: {
       supplierId: existingConnection?.supplierId || '',
@@ -241,6 +243,22 @@ export function SupplierPackagingModal({
     }
   }
 
+  const onInvalid: SubmitErrorHandler<PackagingFormInput> = (fieldErrors) => {
+    // Foco automático en el primer campo con error de validación
+    if (fieldErrors.supplierId) {
+      document.getElementById('supplier-select')?.focus()
+    } else if (fieldErrors.packageSize) {
+      document.getElementById('package-size-input')?.focus()
+    } else if (fieldErrors.packagePrice) {
+      document.getElementById('package-price-input')?.focus()
+    }
+  }
+
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void handleSubmit(onSubmit, onInvalid)(event)
+  }
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) requestClose() }}>
@@ -276,12 +294,12 @@ export function SupplierPackagingModal({
             </div>
 
             {errorBanner && (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+              <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
                 {errorBanner}
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-4 space-y-4">
+            <form onSubmit={handleFormSubmit} noValidate className="mt-4 space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label
@@ -308,6 +326,7 @@ export function SupplierPackagingModal({
                       value={quickSupplierName}
                       onChange={(e) => setQuickSupplierName(e.target.value)}
                       placeholder="Nombre del proveedor..."
+                      aria-label="Nombre del nuevo proveedor"
                       autoFocus
                       className="min-h-11 h-11 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500"
                     />
@@ -358,7 +377,11 @@ export function SupplierPackagingModal({
                       id="supplier-select"
                       {...register('supplierId')}
                       disabled={!!existingConnection}
-                      className="min-h-11 h-12 w-full appearance-none rounded-2xl border border-gray-200 bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                      aria-invalid={!!errors.supplierId}
+                      aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
+                      className={`min-h-11 h-12 w-full appearance-none rounded-2xl border bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus-within:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                      }`}
                     >
                       {suppliers.map((s) => (
                         <option
@@ -374,7 +397,7 @@ export function SupplierPackagingModal({
                   </div>
                 )}
                 {errors.supplierId && (
-                  <p className="mt-1 text-xs font-bold text-rose-500">
+                  <p id="supplier-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
                     {errors.supplierId.message}
                   </p>
                 )}
@@ -393,10 +416,18 @@ export function SupplierPackagingModal({
                     value={watchedSize}
                     onChange={(val) => setValue('packageSize', val, { shouldValidate: true, shouldDirty: true })}
                     placeholder="Ej. 25"
-                    containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                    aria-invalid={!!errors.packageSize}
+                    aria-describedby={errors.packageSize ? 'package-size-error' : undefined}
+                    containerClassName={`min-h-11 h-12 w-full rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
+                      errors.packageSize ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                    }`}
                     className="text-sm font-bold text-gray-900 dark:text-white"
-                    error={errors.packageSize?.message}
                   />
+                  {errors.packageSize && (
+                    <p id="package-size-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.packageSize.message}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -432,10 +463,18 @@ export function SupplierPackagingModal({
                   prefixSymbol="$"
                   prefixClassName="text-base font-bold text-gray-400"
                   placeholder="0,00"
-                  containerClassName="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                  aria-invalid={!!errors.packagePrice}
+                  aria-describedby={errors.packagePrice ? 'package-price-error' : undefined}
+                  containerClassName={`flex min-h-11 h-12 items-center rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
+                    errors.packagePrice ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                  }`}
                   className="text-sm font-bold text-gray-900 dark:text-white"
-                  error={errors.packagePrice?.message}
                 />
+                {errors.packagePrice && (
+                  <p id="package-price-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                    {errors.packagePrice.message}
+                  </p>
+                )}
               </div>
 
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/40">
