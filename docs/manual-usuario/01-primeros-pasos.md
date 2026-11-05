@@ -4,26 +4,43 @@ Bienvenido a MargenX. Esta guía te ayudará a dar tus primeros pasos en la plat
 
 ## Tres formas de cargar tus insumos
 
-MargenX se adapta al tamaño de tu negocio y al momento de tu comercio ofreciendo tres caminos para incorporar materias primas:
+Según cuántos insumos tengas y de dónde salen sus costos, hay tres caminos. Los dos primeros los usa el administrador; el colaborador no ve costos ni puede cargar insumos.
 
-1. **Carga manual uno a uno (Arranque Rápido):**
-   - Entrá a **Insumos** y presioná **"Nuevo Insumo"**.
-   - Ingresá el nombre, la unidad de costeo (`kg`, `litro` o `unidad`) y el costo por unidad vigente.
-   - Ideal si manejás pocas materias primas o querés dar de alta un insumo puntual de forma inmediata.
+### 1. Uno por uno
 
-2. **Carga masiva por planilla (Plantilla Oficial):**
-   - Si tenés tu despensa en una hoja de cálculo, ingresá a **Insumos** y hacé clic en **"Cargar desde planilla"**.
-   - Descargá la **plantilla oficial** en formato Excel (.xlsx).
-   - Completá las tres columnas requeridas: **Nombre**, **Unidad** (`kg`, `l` o `u`) y **Costo** (con formato argentino habitual, ej. `1.234,56`).
-   - Subí el archivo: el sistema lo analizará en tu navegador de forma privada y te mostrará una **vista previa defensiva** dividida en tres pestañas:
-     - **Válidas:** filas listas para ser incorporadas.
-     - **Repetidas:** nombres que ya tenías cargados o duplicados en el archivo (se omitirán para no alterar tus costos sin tu autorización).
-     - **Con error:** filas que tengan importes inválidos (como letras o negativos) o unidades incorrectas, indicando el número exacto de fila y el motivo.
-   - Al presionar **Confirmar**, se crean todos los insumos válidos en una sola operación sin que los errores bloqueen el resto.
+Para pocos insumos o para sumar uno puntual.
 
-3. **Ingesta desatendida por correo ("Zero-Click"):**
-   - Cuando tu distribuidor o mayorista te envíe su lista por correo o WhatsApp, simplemente reenviá el archivo a la casilla virtual de tu negocio: `precios-<slug>@margenx.tech`.
-   - Nuestro satélite leerá la lista en segundo plano, actualizará únicamente los artículos que tengas vinculados a tus proveedores y descartará el resto sin ensuciar tu catálogo.
+1. Entrá a **Insumos** y tocá **Nuevo Insumo**.
+2. Escribí el nombre, elegí la unidad (`kg`, `litro` o `unidad`) y el costo de esa unidad.
+3. Tocá **Guardar**.
+
+### 2. Desde una planilla
+
+Para arrancar con toda tu despensa de una vez (hasta 500 insumos por archivo).
+
+1. Entrá a **Insumos** y tocá **Cargar desde planilla** (en el celular es el ícono de planilla, al lado de **Nuevo Insumo**). Si todavía no tenés insumos, también aparece el enlace **Cargala desde una planilla**.
+2. Tocá **Descargar plantilla**. Es un Excel (.xlsx) con una hoja **Insumos**, que trae filas de ejemplo, y una hoja **Instrucciones**.
+3. Completá una fila por insumo y borrá los ejemplos:
+   - **Nombre:** cómo lo reconocés vos, con al menos 2 letras.
+   - **Unidad:** `kg` (kilo), `l` (litro) o `u` (unidad). También se aceptan palabras como `kilos`, `litros` o `unidades`.
+   - **Costo:** lo que te cuesta 1 kg, 1 litro o 1 unidad, mayor a 0 y con hasta 2 decimales, por ejemplo `1.234,56`.
+4. Guardá el archivo como Excel (.xlsx o .xls) o como CSV y subilo desde **Elegí tu planilla**. En la computadora también podés arrastrarlo. El archivo se lee en tu dispositivo: a MargenX solo llegan las filas que confirmes.
+5. Revisá la vista previa, que separa las filas en tres pestañas:
+   - **Válidas:** se van a cargar.
+   - **Repetidas:** el nombre ya está en tu despensa o aparece más de una vez en la planilla (sin importar mayúsculas). No se cargan, así no cambia el costo de un insumo que ya tenías.
+   - **Con error:** muestran el número de fila de tu planilla y el motivo, por ejemplo un costo con letras o una unidad que no existe.
+6. Tocá **Importar** y vas a ver cuántos insumos se crearon y cuántos se omitieron. Las filas con error no frenan al resto: corregilas en tu planilla y subilas en otra carga.
+
+Si guardás la planilla como CSV, conviene que esté separada por punto y coma (`;`), que es lo que hace Excel en español. Si está separada por comas y el costo lleva coma decimal sin comillas, la fila se marca con error para no cargar un costo equivocado.
+
+### 3. Con la lista de precios del proveedor
+
+Sirve para **actualizar los costos** de insumos que ya cargaste; no crea insumos nuevos.
+
+1. Antes, vinculá cada insumo con su proveedor y cargá el código con que ese proveedor lo identifica en su lista.
+2. Cuando te llegue la lista (por correo o por WhatsApp), reenviá el archivo por correo a la dirección de tu comercio: `precios-<slug>@margenx.tech`.
+3. MargenX lee la lista y actualiza solo los códigos vinculados. Los códigos que no reconoce se informan y no modifican nada.
+4. Si un precio cambia más de un 50 % respecto del vigente, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces.
 
 ---
 
