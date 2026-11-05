@@ -6,7 +6,7 @@
         "format": "resolved",
         "options": {
           "customEmailConfig": "[\"UNSEEN\"]",
-          "forceReconnect": 60
+          "forceReconnect": 5
         }
       },
       "id": "9c801b39-832b-471c-b1e0-b2d649bbbd6d",
