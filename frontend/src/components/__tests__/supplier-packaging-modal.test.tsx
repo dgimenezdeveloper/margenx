@@ -214,7 +214,7 @@ describe('SupplierPackagingModal', () => {
     const discardButton = screen.getByRole('button', { name: /Descartar/i })
     fireEvent.click(discardButton)
 
-    expect(onCloseMock).toHaveBeenCalledTimes(1)
+    expect(onCloseMock).toHaveBeenCalledTimes(1);
   })
 
   it('Escape sin cambios pendientes cierra el modal una sola vez', async () => {
