@@ -148,8 +148,8 @@ describe('GET /api/suppliers', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.suppliers).toEqual([
-      { id: 's-1', accountId: 'account-1', name: 'Acuario', quarantineCount: 0 },
-      { id: 's-2', accountId: 'account-1', name: 'Bodega', quarantineCount: 0 },
+      { id: 's-1', accountId: 'account-1', name: 'Acuario', ingredientCount: 0, quarantineCount: 0 },
+      { id: 's-2', accountId: 'account-1', name: 'Bodega', ingredientCount: 0, quarantineCount: 0 },
     ]);
     expect(findManyMock).toHaveBeenCalledWith({
       where: { accountId: 'account-1' },
@@ -162,6 +162,26 @@ describe('GET /api/suppliers', () => {
       },
       orderBy: { name: 'asc' },
     });
+  });
+
+  it('suma ingredientCount (todas las presentaciones) y quarantineCount (solo las retenidas) por proveedor', async () => {
+    findManyMock.mockResolvedValue([
+      {
+        id: 's-1',
+        accountId: 'account-1',
+        name: 'Molino Olavarriense',
+        ingredients: [{ isQuarantined: true }, { isQuarantined: false }, { isQuarantined: false }],
+      },
+      { id: 's-2', accountId: 'account-1', name: 'Distribuidora Química del Sur', ingredients: [{ isQuarantined: false }] },
+    ]);
+
+    const res = await request(buildApp()).get('/api/suppliers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.suppliers).toEqual([
+      { id: 's-1', accountId: 'account-1', name: 'Molino Olavarriense', ingredientCount: 3, quarantineCount: 1 },
+      { id: 's-2', accountId: 'account-1', name: 'Distribuidora Química del Sur', ingredientCount: 1, quarantineCount: 0 },
+    ]);
   });
 
   it('lista los precios en cuarentena filtrados por la cuenta del administrador', async () => {

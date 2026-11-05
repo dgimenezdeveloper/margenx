@@ -206,3 +206,15 @@ test.describe('TC-RBAC-04: Intercepción de ruta administrativa /productos/nuevo
     await expect(page.getByRole('heading', { name: /nuevo producto/i })).toHaveCount(0)
   })
 })
+test.describe('TC-RBAC-05: Intercepción de ruta administrativa /proveedores (issue #249)', () => {
+  test('forzar la navegación a /proveedores redirige a /productos y el menú no ofrece el enlace', async ({ page }) => {
+    await page.goto('/proveedores')
+
+    await expect(page).toHaveURL(/\/productos$/)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de proveedores.
+    await expect(page.getByRole('heading', { name: /^proveedores$/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Proveedores" al colaborador.
+    await expect(page.getByRole('link', { name: 'Proveedores' })).toHaveCount(0)
+    await expect(page.getByTestId('bottom-nav-proveedores')).toHaveCount(0)
+  })
+})
