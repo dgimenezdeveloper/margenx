@@ -275,6 +275,7 @@ describe('SupplierPackagingModal', () => {
     expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
     expect(onCloseMock).toHaveBeenCalledTimes(1)
   })
+
   it('Escenario Gherkin: muestra errores junto al campo y enfoca el primero al fallar la validación', async () => {
     vi.mocked(supplierService.getAll).mockResolvedValue([
       { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
