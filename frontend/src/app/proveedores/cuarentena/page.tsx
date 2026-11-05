@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { ToastAlert } from '@/components/ToastAlert'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
+import { SuppliersTabs } from '../components/SuppliersTabs'
 import { QuarantineList } from './components/QuarantineList'
 
 export default function QuarantinePage() {
@@ -40,7 +41,9 @@ export default function QuarantinePage() {
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
-          <Navbar title="Cuarentena de Precios" backHref="/insumos" />
+          <Navbar title="Cuarentena de Precios" backHref="/proveedores" />
+
+          <SuppliersTabs active="quarantine" quarantineCount={isLoading || error ? undefined : items.length} />
 
           <section>
             <div className="mb-6">
