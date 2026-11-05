@@ -25,6 +25,17 @@ const OTHER_TENANT_INGREDIENTS = ['Etoxilado', 'Sulfonico', 'Opacante']
 // algunos entornos/proxies).
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
+/**
+ * Selector robusto para el producto en el catálogo (/productos).
+ * Resuelve tanto en Desktop (donde la fila es tr[role="button"]) como
+ * en Mobile (donde la tarjeta es un a[role="link"]).
+ */
+function getProductItem(page: Page, productName: string) {
+  return page
+    .getByRole('button', { name: new RegExp(productName, 'i') })
+    .or(page.getByRole('link', { name: new RegExp(productName, 'i') }))
+}
+
 async function setIngredientCost(page: Page, cost: string) {
   await page.goto('/insumos')
   await page.getByPlaceholder('Buscar insumos...').fill(INGREDIENT_NAME)
@@ -60,9 +71,10 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       // sin ese dato (p. ej. un seed parcial) y arma la receta vía UI,
       // igual que lo haría un usuario real.
       await page.goto('/productos')
-      // Selección robusta mediante botón/link de producto visible en cards o tabla
-      await page.getByRole('link', { name: new RegExp(PRODUCT_NAME, 'i') }).click()
+      // Selección robusta mediante botón o link según viewport desktop/mobile
+      await getProductItem(page, PRODUCT_NAME).click()
       await expect(page).toHaveURL(/\/productos\/.+/)
+
       // Espera a que termine de cargar el detalle (fetch de producto + insumos)
       // antes de contar la receta — si no, "count()" no espera nada y puede
       // leer el DOM a mitad de carga, dando 0 siempre.
@@ -89,7 +101,7 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
 
       // --- Verificación: el catálogo de productos debe reflejar el nuevo margen ---
       await page.goto('/productos')
-      const productCard = page.getByRole('link', { name: new RegExp(PRODUCT_NAME, 'i') })
+      const productCard = getProductItem(page, PRODUCT_NAME)
       await expect(productCard).toBeVisible()
       // Badge de margen negativo (por debajo del mínimo) visible junto al producto.
       await expect(productCard.getByText(/^-\d+(\.\d+)?%$/)).toBeVisible()
