@@ -275,4 +275,49 @@ describe('SupplierPackagingModal', () => {
     expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
     expect(onCloseMock).toHaveBeenCalledTimes(1)
   })
+  it('Escenario Gherkin: muestra errores junto al campo y enfoca el primero al fallar la validación', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      { id: 'sup-1', name: 'Proveedor 1', accountId: 'acc-1', isActive: true },
+      { id: 'sup-2', name: 'Proveedor 2', accountId: 'acc-1', isActive: true },
+    ])
+
+    render(
+      <SupplierPackagingModal
+        isOpen={true}
+        onClose={vi.fn()}
+        ingredient={mockIngredient}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    // Dejamos los campos numéricos vacíos
+    const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
+    fireEvent.change(sizeInput, { target: { value: '' } })
+
+    const priceInput = screen.getByLabelText(/Precio total del bulto/i)
+    fireEvent.change(priceInput, { target: { value: '' } })
+
+    const submitBtn = screen.getByRole('button', { name: /Asociar Empaque/i })
+    expect(submitBtn).toBeEnabled()
+    fireEvent.click(submitBtn)
+
+    // Los mensajes deben aparecer en el DOM con semántica alert
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Ingresa una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Ingresa un precio válido|El precio del empaque debe ser mayor a 0/i)
+      ).toBeInTheDocument()
+    })
+
+    // El foco debe desplazarse al primer campo inválido (packageSize)
+    await waitFor(() => {
+      expect(sizeInput).toHaveFocus()
+    })
+  })
 })
