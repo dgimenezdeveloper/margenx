@@ -1,4 +1,5 @@
-import { Pencil, Plus, Truck } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Plus, ShieldAlert, Truck } from 'lucide-react'
 
 import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
@@ -34,6 +35,8 @@ export function IngredientSupplierList({
     return null
   }
 
+  const quarantinedCount = selected.supplierConnections?.filter((conn) => conn.isQuarantined).length ?? 0
+
   return (
     <div className="mt-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -52,14 +55,36 @@ export function IngredientSupplierList({
         </button>
       </div>
 
+      {quarantinedCount > 0 && (
+        <div
+          role="note"
+          className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/30"
+        >
+          <p className="flex items-start gap-2 text-xs font-semibold text-amber-900 dark:text-amber-300">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            {quarantinedCount === 1
+              ? '1 precio de este insumo está retenido en cuarentena. El costo no cambia hasta que decidas.'
+              : `${quarantinedCount} precios de este insumo están retenidos en cuarentena. El costo no cambia hasta que decidas.`}
+          </p>
+          <Link
+            href="/proveedores/cuarentena"
+            className="inline-flex min-h-11 shrink-0 items-center text-xs font-bold text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-300"
+          >
+            Revisar en Cuarentena
+          </Link>
+        </div>
+      )}
+
       {selected.supplierConnections && selected.supplierConnections.length > 0 ? (
-        <div className="grid grid-cols-1 gap-2">
+        <ul className="grid grid-cols-1 gap-2">
           {selected.supplierConnections.map((conn) => {
             const unitCost = conn.packagePrice / conn.packageSize
             return (
-              <div
+              <li
                 key={conn.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border bg-white p-3.5 shadow-sm dark:bg-gray-900 ${
+                  conn.isQuarantined ? 'border-amber-300 dark:border-amber-800' : 'border-gray-200 dark:border-gray-800'
+                }`}
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-gray-900 dark:text-white">
@@ -71,6 +96,12 @@ export function IngredientSupplierList({
                   <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
                     Equivalente: {money(unitCost)} / {selected.unit}
                   </span>
+                  {conn.isQuarantined && (
+                    <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">
+                      <ShieldAlert className="size-3" aria-hidden="true" />
+                      En cuarentena
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
                   {conn.isDefault ? (
@@ -95,10 +126,10 @@ export function IngredientSupplierList({
                     <Pencil className="size-4" />
                   </button>
                 </div>
-              </div>
+              </li>
             )
           })}
-        </div>
+        </ul>
       ) : (
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
           <p className="text-[11px] text-gray-500 dark:text-gray-400">

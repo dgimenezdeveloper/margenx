@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { Plus, ShieldAlert, Truck } from 'lucide-react'
 
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useUserRole } from '@/hooks/useUserRole'
+import { useCurrentUser } from '@/lib/useCurrentUser'
+import { buildIngestAddress } from '@/lib/ingestAddress'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
@@ -13,9 +16,11 @@ import { Navbar } from '@/components/navbar'
 import { ToastAlert, type ToastType } from '@/components/ToastAlert'
 import { ApiError } from '@/services/api'
 import { supplierService, type Supplier, type SupplierSummary } from '@/services/supplierService'
+import { IngestAddressCard } from './IngestAddressCard'
 import { SupplierDeleteDialog } from './SupplierDeleteDialog'
 import { SupplierFormDialog, type SupplierSaveMode } from './SupplierFormDialog'
 import { SuppliersList, SuppliersListSkeleton } from './SuppliersList'
+import { SuppliersTabs } from './SuppliersTabs'
 
 const TOAST_MS = 3500
 
@@ -33,6 +38,10 @@ type FormState = { open: false } | { open: true; supplier: SupplierSummary | nul
 
 export default function SuppliersPageContent() {
   const getToken = useTokenGetter()
+  const { isAdmin } = useUserRole()
+  const { user } = useCurrentUser()
+  // Segunda capa: además de AdminOnlyRoute, la dirección solo se arma para el ADMIN.
+  const ingestAddress = isAdmin ? buildIngestAddress(user?.account?.slug) : null
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -164,6 +173,10 @@ export default function SuppliersPageContent() {
               </button>
             </div>
           </section>
+
+          <SuppliersTabs active="suppliers" quarantineCount={hasSuppliers ? summary.quarantine : undefined} />
+
+          {ingestAddress && <IngestAddressCard address={ingestAddress} />}
 
           {hasSuppliers && (
             <div className="grid grid-cols-3 gap-3 motion-safe:animate-in motion-safe:fade-in">

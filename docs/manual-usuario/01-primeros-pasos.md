@@ -38,7 +38,7 @@ Si guardás la planilla como CSV, conviene que esté separada por punto y coma (
 Sirve para **actualizar los costos** de insumos que ya cargaste; no crea insumos nuevos.
 
 1. Antes, vinculá cada insumo con su proveedor y cargá el código con que ese proveedor lo identifica en su lista.
-2. Cuando te llegue la lista (por correo o por WhatsApp), reenviá el archivo por correo a la dirección de tu comercio: `precios-<slug>@margenx.tech`.
+2. Cuando te llegue la lista (por correo o por WhatsApp), reenviá el archivo por correo a la dirección de tu comercio: `precios-<slug>@margenx.tech`. La encontrás en **Proveedores**, con el botón **Copiar** (ver [Tu dirección para listas de precios](02-proveedores-y-listas.md#tu-dirección-para-listas-de-precios)).
 3. MargenX lee la lista y actualiza solo los códigos vinculados. Los códigos que no reconoce se informan y no modifican nada.
 4. Si un precio cambia más de un 50 % respecto del vigente, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces.
 

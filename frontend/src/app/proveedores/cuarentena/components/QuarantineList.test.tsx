@@ -1,8 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 import { QuarantineList } from './QuarantineList'
 import { supplierService, type QuarantinedItem } from '../../../../services/supplierService'
+import { ApiError } from '../../../../services/api'
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: vi.fn().mockResolvedValue('fake-token') }),
@@ -15,9 +16,11 @@ vi.mock('../../../../services/supplierService', () => ({
   },
 }))
 
+const removeItemLocally = vi.fn()
+
 vi.mock('../../../../stores/useQuarantineStore', () => ({
   useQuarantineStore: () => ({
-    removeItemLocally: vi.fn(),
+    removeItemLocally,
   }),
 }))
 
@@ -144,5 +147,87 @@ describe('QuarantineList', () => {
     fireEvent.click(releaseButtons[1]) // q2 no es default
 
     expect(screen.getByText(/no afectará las recetas porque no es el proveedor predeterminado/i)).toBeInTheDocument()
+  })
+
+  describe('Escenario Gherkin: error al liberar o rechazar', () => {
+    it('ante un fallo de red al liberar muestra el error dentro del diálogo, sin cerrarlo ni usar el aviso flotante', async () => {
+      const onShowToast = vi.fn()
+      vi.mocked(supplierService.releaseQuarantine).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+      render(<QuarantineList items={mockItems} onShowToast={onShowToast} />)
+      fireEvent.click(screen.getAllByText('Liberar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, liberar/i }))
+
+      const dialog = screen.getByRole('dialog')
+      const alert = await within(dialog).findByRole('alert')
+      expect(alert).toHaveTextContent('No se pudo liberar el precio. Revisá tu conexión e intentá de nuevo.')
+      expect(alert).not.toHaveTextContent('Failed to fetch')
+      expect(within(dialog).getByRole('button', { name: /sí, liberar/i })).toBeEnabled()
+      expect(onShowToast).not.toHaveBeenCalled()
+      expect(removeItemLocally).not.toHaveBeenCalled()
+    })
+
+    it('al rechazar con error del servidor muestra su mensaje dentro del diálogo', async () => {
+      const onShowToast = vi.fn()
+      vi.mocked(supplierService.rejectQuarantine).mockRejectedValueOnce(
+        new ApiError('La presentación ya no está en cuarentena.', 409)
+      )
+
+      render(<QuarantineList items={mockItems} onShowToast={onShowToast} />)
+      fireEvent.click(screen.getAllByText('Rechazar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, rechazar/i }))
+
+      const alert = await within(screen.getByRole('dialog')).findByRole('alert')
+      expect(alert).toHaveTextContent('La presentación ya no está en cuarentena.')
+      expect(onShowToast).not.toHaveBeenCalled()
+    })
+
+    it('un error sin mensaje de la API al rechazar usa un texto en español', async () => {
+      vi.mocked(supplierService.rejectQuarantine).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+      render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)
+      fireEvent.click(screen.getAllByText('Rechazar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, rechazar/i }))
+
+      expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(
+        'No se pudo rechazar el precio. Revisá tu conexión e intentá de nuevo.'
+      )
+    })
+
+    it('al reintentar con éxito el error desaparece y el diálogo se cierra con la confirmación', async () => {
+      const onShowToast = vi.fn()
+      vi.mocked(supplierService.rejectQuarantine)
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(undefined)
+
+      render(<QuarantineList items={mockItems} onShowToast={onShowToast} />)
+      fireEvent.click(screen.getAllByText('Rechazar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, rechazar/i }))
+      await within(screen.getByRole('dialog')).findByRole('alert')
+
+      fireEvent.click(screen.getByRole('button', { name: /sí, rechazar/i }))
+
+      await waitFor(() => {
+        expect(onShowToast).toHaveBeenCalledWith('Precio rechazado. Se mantiene el costo anterior.', 'success')
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      })
+      expect(removeItemLocally).toHaveBeenCalledWith('q1')
+    })
+
+    it('el error de una acción no queda visible al abrir el diálogo de otro precio', async () => {
+      vi.mocked(supplierService.releaseQuarantine).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+      render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)
+      fireEvent.click(screen.getAllByText('Liberar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, liberar/i }))
+      await within(screen.getByRole('dialog')).findByRole('alert')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+      fireEvent.click(screen.getAllByText('Rechazar')[1])
+      expect(screen.getByText('¿Rechazar precio?')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 })

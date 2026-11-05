@@ -372,6 +372,7 @@ export default function SuppliesPageContent() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar insumos..."
+                  aria-label="Buscar insumos por nombre"
                   className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>

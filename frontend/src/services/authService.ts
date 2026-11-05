@@ -9,6 +9,8 @@ export interface AuthUser {
     id: string
     businessName: string
     defaultMinMarginPercent: number | string // <-- NUEVO CAMPO
+    /** Solo llega para el ADMIN: base de la dirección de ingesta (`docs/api.md`, GET /api/auth/me). */
+    slug?: string
   }
 }
 

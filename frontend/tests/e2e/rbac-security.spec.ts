@@ -218,3 +218,20 @@ test.describe('TC-RBAC-05: Intercepción de ruta administrativa /proveedores (is
     await expect(page.getByTestId('bottom-nav-proveedores')).toHaveCount(0)
   })
 })
+
+test.describe('TC-RBAC-06: Bandeja de cuarentena y dirección de ingesta (issue #251)', () => {
+  test('forzar la navegación a /proveedores/cuarentena redirige a /productos sin mostrar la bandeja ni la dirección de ingesta', async ({ page }) => {
+    await page.goto('/proveedores/cuarentena')
+
+    await expect(page).toHaveURL(/\/productos$/)
+    // Control positivo: el catálogo del colaborador cargó, así que las ausencias de abajo no son por una página en blanco.
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+
+    // AdminOnlyRoute reemplazó el árbol: ni la bandeja ni sus pestañas quedaron montadas.
+    await expect(page.getByRole('heading', { name: /precios en cuarentena/i })).toHaveCount(0)
+    await expect(page.getByRole('navigation', { name: 'Secciones de proveedores' })).toHaveCount(0)
+    // La dirección precios-<slug>@margenx.tech es solo para el administrador (GET /api/auth/me no le envía el slug).
+    await expect(page.getByText(/precios[-.+][a-z0-9-]+@margenx\.tech/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Copiar dirección' })).toHaveCount(0)
+  })
+})

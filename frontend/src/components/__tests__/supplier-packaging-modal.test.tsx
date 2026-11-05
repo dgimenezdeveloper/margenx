@@ -18,6 +18,13 @@ vi.mock('@/services/supplierService', () => ({
   },
 }))
 
+type SupplierRow = Awaited<ReturnType<typeof supplierService.getAll>>[number]
+
+function buildSupplier(id: string, name: string): SupplierRow {
+  const supplier = { id, name, accountId: 'acc-1', isActive: true, ingredientCount: 0, quarantineCount: 0 }
+  return supplier
+}
+
 describe('SupplierPackagingModal', () => {
   const mockSupplierConnection: SupplierIngredient = {
     id: 'conn-1',
@@ -274,5 +281,51 @@ describe('SupplierPackagingModal', () => {
 
     expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
     expect(onCloseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('Escenario Gherkin: muestra errores junto al campo y enfoca el primero al fallar la validación', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValue([
+      buildSupplier('sup-1', 'Proveedor 1'),
+      buildSupplier('sup-2', 'Proveedor 2'),
+    ])
+
+    render(
+      <SupplierPackagingModal
+        isOpen={true}
+        onClose={vi.fn()}
+        ingredient={mockIngredient}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+    })
+
+    // Dejamos los campos numéricos vacíos
+    const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
+    fireEvent.change(sizeInput, { target: { value: '' } })
+
+    const priceInput = screen.getByLabelText(/Precio total del bulto/i)
+    fireEvent.change(priceInput, { target: { value: '' } })
+
+    const submitBtn = screen.getByRole('button', { name: /Asociar Empaque/i })
+    expect(submitBtn).toBeEnabled()
+    fireEvent.click(submitBtn)
+
+    // Los mensajes deben aparecer en el DOM con semántica alert
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Ingresa una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Ingresa un precio válido|El precio del empaque debe ser mayor a 0/i)
+      ).toBeInTheDocument()
+    })
+
+    // El foco debe desplazarse al primer campo inválido (packageSize)
+    await waitFor(() => {
+      expect(sizeInput).toHaveFocus()
+    })
   })
 })
