@@ -19,6 +19,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useTheme } from '@/hooks/useTheme'
 import { LogoutDialog } from '@/components/logout-dialog'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 
 export function ThemeToggle() {
   const { isDark, toggleTheme } = useTheme()
@@ -68,7 +69,8 @@ export function Navbar({
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
-    void signOut({ redirectUrl: '/' })
+    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
+    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
   return (

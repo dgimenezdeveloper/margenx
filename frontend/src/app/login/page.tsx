@@ -7,6 +7,7 @@ import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
 import { isStandaloneMode } from '@/lib/displayMode'
 import { clearStoredReturnUrl, resolveReturnUrl } from '@/lib/returnUrl'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function LoginPage() {
@@ -60,6 +61,7 @@ export default function LoginPage() {
       sessionStorage.removeItem('margenx_active_session')
       document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
       localStorage.removeItem('margenx_last_active')
+      void clearSessionCaches()
 
       void signOut(() => {
         wasLoggedOutRef.current = true

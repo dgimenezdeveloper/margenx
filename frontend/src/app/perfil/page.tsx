@@ -12,6 +12,7 @@ import { LogoutDialog } from '@/components/logout-dialog'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 import { NumericInput } from '@/components/NumericInput'
 
 const profileTitle = 'Perfil y Configuración'
@@ -106,7 +107,8 @@ export default function ProfilePage() {
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
-    void signOut({ redirectUrl: '/' })
+    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
+    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
   return (
