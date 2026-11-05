@@ -14,9 +14,18 @@ vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken, signOut: vi.fn() }),
 }))
 
+const currentUser = vi.hoisted(() => ({
+  value: {
+    id: 'u1',
+    role: 'ADMIN' as 'ADMIN' | 'COLLABORATOR',
+    email: 'admin.panaderia@seed.example.test',
+    account: { id: 'acc-1', businessName: 'Panadería Central', slug: 'panaderia-central' as string | undefined },
+  },
+}))
+
 vi.mock('@/lib/useCurrentUser', () => ({
   useCurrentUser: () => ({
-    user: { id: 'u1', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' },
+    user: currentUser.value,
     isLoading: false,
     businessName: 'Panadería Central',
   }),
@@ -68,7 +77,42 @@ const supplierList = () => screen.getByRole('list', { name: 'Proveedores' })
 describe('SuppliersPageContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    currentUser.value.role = 'ADMIN'
+    currentUser.value.account.slug = 'panaderia-central'
     vi.mocked(supplierService.getAll).mockResolvedValue([quimica, molino])
+  })
+
+  it('Escenario Gherkin: la bandeja de cuarentena se elige desde las pestañas de Proveedores', async () => {
+    renderPage()
+
+    const tabs = within(screen.getByRole('navigation', { name: 'Secciones de proveedores' }))
+    expect(tabs.getByRole('link', { name: 'Proveedores' })).toHaveAttribute('aria-current', 'page')
+    // Sin lista cargada todavía no se conoce cuántos precios hay retenidos.
+    expect(tabs.getByRole('link', { name: 'Cuarentena' })).toHaveAttribute('href', '/proveedores/cuarentena')
+
+    expect(await tabs.findByRole('link', { name: 'Cuarentena, 1 precio retenido' })).toHaveAttribute(
+      'href',
+      '/proveedores/cuarentena'
+    )
+  })
+
+  it('muestra al administrador la dirección de ingesta de su comercio, aun sin proveedores cargados', async () => {
+    vi.mocked(supplierService.getAll).mockResolvedValueOnce([])
+    renderPage()
+
+    expect(await screen.findByText('Todavía no cargaste proveedores')).toBeInTheDocument()
+    expect(screen.getByText('precios-panaderia-central@margenx.tech')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copiar dirección' })).toBeInTheDocument()
+  })
+
+  it('no muestra la dirección si la cuenta no trae slug (la API no se lo envía al colaborador)', async () => {
+    currentUser.value.role = 'COLLABORATOR'
+    currentUser.value.account.slug = undefined
+    renderPage()
+
+    await screen.findByRole('list', { name: 'Proveedores' })
+    expect(screen.queryByText(/@margenx\.tech/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copiar dirección' })).not.toBeInTheDocument()
   })
 
   it('muestra el esqueleto mientras carga y después la lista ordenada con el resumen', async () => {
