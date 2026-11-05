@@ -1,0 +1,29 @@
+{
+  "name": "MargenX",
+  "short_name": "MargenX",
+  "description": "Control de Márgenes en Tiempo Real para PyMEs",
+  "lang": "es-AR",
+  "scope": "/",
+  "start_url": "/dashboard?source=pwa",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#f8fafc",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

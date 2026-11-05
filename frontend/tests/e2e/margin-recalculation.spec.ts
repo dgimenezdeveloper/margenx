@@ -2,14 +2,14 @@ import { test, expect, type Page } from '@playwright/test'
 
 /**
  * Issue #47. Datos fijos del seed de "Panadería Central" (backend/prisma/seed.ts).
- * El seed no crea recetas (ProductIngredient) ni incluye un producto "Pan común"
- * como menciona el enunciado original de la issue — se usa el producto real más
- * cercano ("Pan flauta — 1 kg") y el ID fijo del insumo (estable entre corridas
- * del seed porque el script hace upsert por id).
+ * El seed no incluye un producto "Pan común" como menciona el enunciado original
+ * de la issue — se usa el producto real más cercano ("Pan flauta — 1 kg"), que
+ * el seed ya vincula con este insumo en su receta (ProductIngredient). El ID del
+ * insumo es estable entre corridas del seed porque el script hace upsert por id.
  */
 const INGREDIENT_ID = '30b00001-0000-4000-8000-000000000001'
 const INGREDIENT_NAME = 'Harina de trigo 000 Olavarriense'
-const INGREDIENT_BASE_COST = '742.98'
+const INGREDIENT_BASE_COST = '736.25'
 const INGREDIENT_CRITICAL_COST = '4500'
 const PRODUCT_NAME = 'Pan flauta — 1 kg'
 const PRODUCT_MIN_MARGIN = '55%'
@@ -30,13 +30,6 @@ async function setIngredientCost(page: Page, cost: string) {
   await page.getByPlaceholder('Buscar insumos...').fill(INGREDIENT_NAME)
   await page.getByRole('row', { name: INGREDIENT_NAME }).click()
   await page.getByLabel(/Costo unitario/i).fill(cost)
-  // BUG real de la app (ajeno a esta issue): el input de costo es
-  // type="number" sin step="any" y el <form> no tiene noValidate, así que
-  // Chrome bloquea en silencio el submit para cualquier valor no entero
-  // (como el costo base real del seed, 742.98) — sin error visible ni
-  // request de red. Se deshabilita la validación nativa del form para
-  // poder fijar el fixture; no toca la validación de Zod/react-hook-form.
-  await page.locator('form').evaluate((form) => { (form as unknown as { noValidate: boolean }).noValidate = true })
   await page.getByRole('button', { name: 'Guardar Costo' }).click()
   // Confirma el guardado esperando que el nuevo costo se refleje en la fila
   // de la tabla de insumos.
@@ -62,9 +55,10 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
 
     try {
       // --- Precondición: el producto tiene el insumo en su receta ---
-      // El seed no crea recetas, así que la primera corrida la arma vía UI
-      // (igual que lo haría un usuario real); las corridas siguientes la
-      // encuentran ya armada y saltean este bloque.
+      // El seed ya vincula este insumo a la receta de "Pan flauta — 1 kg";
+      // este bloque es un fallback defensivo por si corre contra una base
+      // sin ese dato (p. ej. un seed parcial) y arma la receta vía UI,
+      // igual que lo haría un usuario real.
       await page.goto('/productos')
       await page.getByRole('row', { name: PRODUCT_NAME }).click()
       await expect(page).toHaveURL(/\/productos\/.+/)
