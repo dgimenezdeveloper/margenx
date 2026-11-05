@@ -15,10 +15,11 @@ interface SupplierDeleteDialogProps {
   onDeactivated: (supplier: Supplier) => void
 }
 
-type DetailState =
-  | { status: 'loading' }
-  | { status: 'error' }
-  | { status: 'ready'; presentations: SupplierPresentation[] }
+type DetailResult =
+  | { key: string; status: 'error' }
+  | { key: string; status: 'ready'; presentations: SupplierPresentation[] }
+
+type DetailState = { status: 'loading' } | DetailResult
 
 const joinNames = (names: string[]) =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
@@ -83,33 +84,40 @@ function ImpactNotes({ presentations }: { presentations: SupplierPresentation[] 
  */
 export function SupplierDeleteDialog({ open, supplier, onClose, onDeleted, onDeactivated }: SupplierDeleteDialogProps) {
   const getToken = useTokenGetter()
-  const [detail, setDetail] = useState<DetailState>({ status: 'loading' })
+  const [result, setResult] = useState<DetailResult | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [pendingAction, setPendingAction] = useState<'delete' | 'deactivate' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const supplierId = supplier?.id
 
+  // Cada apertura o reintento es un pedido nuevo: hasta que llegue su respuesta, se ve la carga.
+  const requestKey = open && supplierId ? `${supplierId}:${reloadKey}` : null
+  const detail: DetailState = result && result.key === requestKey ? result : { status: 'loading' }
+
   useEffect(() => {
-    if (!open || !supplierId) return
+    if (!requestKey || !supplierId) return
     let active = true
-    setDetail({ status: 'loading' })
-    setActionError(null)
 
     supplierService
       .getById(getToken, supplierId)
-      .then((result) => {
-        if (active) setDetail({ status: 'ready', presentations: result.ingredients ?? [] })
+      .then((response) => {
+        if (active) setResult({ key: requestKey, status: 'ready', presentations: response.ingredients ?? [] })
       })
       .catch(() => {
-        if (active) setDetail({ status: 'error' })
+        if (active) setResult({ key: requestKey, status: 'error' })
       })
 
     return () => {
       active = false
     }
-  }, [open, supplierId, getToken, reloadKey])
+  }, [requestKey, supplierId, getToken])
 
   const retry = useCallback(() => setReloadKey((key) => key + 1), [])
+
+  const close = () => {
+    setActionError(null)
+    onClose()
+  }
 
   if (!supplier) return null
 
@@ -143,7 +151,7 @@ export function SupplierDeleteDialog({ open, supplier, onClose, onDeleted, onDea
   }
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isBusy) onClose() }}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isBusy) close() }}>
       <DialogPortal>
         <DialogBackdrop />
         <DialogPopup className="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-y-auto text-left md:max-w-lg">

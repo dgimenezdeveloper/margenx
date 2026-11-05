@@ -79,12 +79,14 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
   const isActive = useWatch({ control, name: 'isActive' })
 
   useEffect(() => {
-    if (open) {
-      reset(toFormValues(supplier))
-      setSubmitError(null)
-      setShowDiscard(false)
-    }
+    if (open) reset(toFormValues(supplier))
   }, [open, supplier, reset])
+
+  const close = () => {
+    setSubmitError(null)
+    setShowDiscard(false)
+    onClose()
+  }
 
   const requestClose = () => {
     if (isSubmitting) return
@@ -92,7 +94,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
       setShowDiscard(true)
       return
     }
-    onClose()
+    close()
   }
 
   const onSubmit = async (values: SupplierFormInput) => {
@@ -295,10 +297,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
 
       <UnsavedChangesDialog
         open={showDiscard}
-        onConfirm={() => {
-          setShowDiscard(false)
-          onClose()
-        }}
+        onConfirm={close}
         onCancel={() => setShowDiscard(false)}
       />
     </>
