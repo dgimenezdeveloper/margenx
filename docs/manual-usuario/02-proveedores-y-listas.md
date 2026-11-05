@@ -15,7 +15,7 @@ Por cada proveedor ves:
 
 | Dato | Qué significa |
 |---|---|
-| **Nombre** y **estado** | **Activo** (verde) o **Inactivo** (gris). El estado siempre dice la palabra, no solo el color. |
+| **Nombre** y **estado** | **Activo** (verde) o **Inactivo** (gris). El estado siempre dice la palabra, no solo el color. Al tocar el nombre accedés a su ficha técnica completa. |
 | **Contacto** | El teléfono y, debajo, el email. Si no hay teléfono, se muestra el email o la dirección. Si no cargaste ninguno, dice "Sin datos de contacto". |
 | **Insumos** | Cuántos insumos le comprás, es decir, cuántas presentaciones tiene vinculadas (por ejemplo, "4 insumos"). |
 | **Cuarentena** | "2 en cuarentena" si hay precios suyos retenidos porque cambiaron demasiado. Al pasar el mouse o llegar con el teclado se explica qué significa, y al tocarlo vas a la bandeja para aprobarlos o rechazarlos. Si no hay ninguno, dice "Sin precios retenidos". |
@@ -68,6 +68,33 @@ Ninguna de las dos cambia el costo actual de tus insumos.
 Si lo vas a volver a usar, en el mismo diálogo tocá **Desactivar en su lugar**: queda inactivo y conserva sus presentaciones.
 
 Si no se pudieron traer las presentaciones, el botón de baja queda deshabilitado hasta que tocás **Reintentar**: así nunca confirmás sin ver qué se borra.
+
+## Detalle del proveedor y sus presentaciones (`/proveedores/:id`)
+
+Al tocar el nombre de un proveedor en la lista, abrís su ficha técnica detallada. Esta vista es exclusiva para el administrador y reúne todas las presentaciones comerciales que le comprás.
+
+### Qué muestra la ficha
+
+- **Datos de contacto:** estado activo/inactivo, teléfono, email, dirección física y contadores de presentaciones totales, predeterminadas y retenidas en cuarentena.
+- **Tabla y tarjetas de presentaciones:** cada insumo asociado con su código SKU mayorista, descripción en lista, presentación cerrada, precio de compra facturado y el costo unitario equivalente ($V/S$) liquidado automáticamente.
+- **Marcas visuales:** badge **Predeterminada** si este proveedor define el costo activo de tus recetas, y **En cuarentena** si tiene un precio pendiente de resolución.
+
+### Corregir un código o descripción
+
+1. Tocá **Editar** (ícono del lápiz) en la fila de la presentación.
+2. Modificá el **Código de artículo (SKU)** o la **Descripción**. Si dejás el código en blanco, el insumo se conserva pero no se actualizará automáticamente por lista de correo.
+3. Si intentás ingresar un código que ya está asignado a otro insumo de este mismo proveedor, MargenX te avisa directamente debajo del campo para que no se mezclen los precios.
+4. Tocá **Guardar cambios**.
+
+### Cambiar la presentación predeterminada
+
+Si le comprás el mismo insumo a varios proveedores, tocá **Hacer predeterminada** sobre la presentación que querés que defina el costo activo. El costo de tu insumo se actualizará inmediatamente y todas las recetas vinculadas se recalcularán en cascada.
+
+### Quitar una presentación
+
+1. Tocá **Quitar** (ícono de cesto de basura) en la fila de la presentación.
+2. Confirmá en el diálogo.
+3. **Protección de recetas:** si la presentación es la **predeterminada** y tenés otros proveedores cargados para ese insumo, MargenX no te dejará eliminarla hasta que marques otra como predeterminada primero (desde la ficha del insumo en **Insumos**). Así tus recetas nunca quedan sin un costo de referencia.
 
 ## Listas de precios y cuarentena
 
