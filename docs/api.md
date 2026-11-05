@@ -125,13 +125,36 @@ Contrato de alta/update de presentaciones de proveedor para un insumo.
 
 Lista los proveedores de la cuenta, ordenados por nombre. Solo `ADMIN`.
 
-Cada proveedor suma `quarantineCount`: la cantidad de presentaciones con un precio retenido en cuarentena, pendiente de decisión del administrador. Vale `0` si no hay ninguna.
+Cada proveedor suma dos contadores, que valen `0` si no hay ninguna presentación:
+
+- `ingredientCount`: la cantidad de presentaciones del proveedor, es decir, cuántos insumos le compra la cuenta (hay una sola presentación por par proveedor-insumo).
+- `quarantineCount`: cuántas de esas presentaciones tienen un precio retenido en cuarentena, pendiente de decisión del administrador.
 
 ```json
 {
   "suppliers": [
-    { "id": "s-1", "accountId": "account-1", "name": "Molino Sur", "quarantineCount": 2 },
-    { "id": "s-2", "accountId": "account-1", "name": "Distribuidora Norte", "quarantineCount": 0 }
+    {
+      "id": "s-1",
+      "accountId": "account-1",
+      "name": "Molino Sur",
+      "contactPhone": "+54 9 2284 41-5566",
+      "email": "ventas@molinosur.example.test",
+      "address": null,
+      "isActive": true,
+      "ingredientCount": 5,
+      "quarantineCount": 2
+    },
+    {
+      "id": "s-2",
+      "accountId": "account-1",
+      "name": "Distribuidora Norte",
+      "contactPhone": null,
+      "email": null,
+      "address": null,
+      "isActive": false,
+      "ingredientCount": 0,
+      "quarantineCount": 0
+    }
   ]
 }
 ```

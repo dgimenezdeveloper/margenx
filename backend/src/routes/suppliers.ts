@@ -133,7 +133,8 @@ const supplierMetadataSchema = z.object({
 
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers                                                   */
-/* Lista los proveedores de la cuenta autenticada.                     */
+/* Lista los proveedores de la cuenta autenticada, con la cantidad de  */
+/* presentaciones (ingredientCount) y las retenidas (quarantineCount). */
 /* 200 OK | 401 No autenticado | 500                                     */
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
@@ -156,6 +157,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const { ingredients: _, ...rest } = supplier;
     return {
       ...rest,
+      ingredientCount: supplier.ingredients.length,
       quarantineCount,
     };
   });
