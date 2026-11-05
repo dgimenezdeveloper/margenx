@@ -70,7 +70,7 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       const alreadyInRecipe = await page.getByText(INGREDIENT_NAME, { exact: true }).count()
       if (alreadyInRecipe === 0) {
         await page.getByRole('button', { name: 'Agregar Insumo a la Receta' }).click()
-        const modal = page.locator('section').filter({ hasText: 'Sumar Insumo a la Receta' })
+        const modal = page.getByRole('dialog', { name: 'Sumar Insumo a la Receta' })
         await modal.getByLabel('Seleccionar Insumo').selectOption(INGREDIENT_ID)
         await modal.getByRole('spinbutton').fill('1') // Cantidad utilizada
         await modal.getByRole('combobox').last().selectOption('kg') // Unidad
