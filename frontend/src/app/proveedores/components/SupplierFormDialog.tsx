@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertTriangle, LoaderCircle, Truck, X } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
 
+import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { Dialog, DialogBackdrop, DialogClose, DialogDescription, DialogPortal, DialogSheet, DialogTitle } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { supplierSchema, toSupplierPayload, type SupplierFormInput } from '@/schemas/supplierSchema'
@@ -56,7 +56,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
  * se muestra en el campo y cualquier otro error queda dentro del diálogo, nunca tapado.
  */
 export function SupplierFormDialog({ open, supplier, onClose, onSaved }: SupplierFormDialogProps) {
-  const { getToken } = useAuth()
+  const getToken = useTokenGetter()
   const isEdit = supplier !== null
   const nameRef = useRef<HTMLInputElement | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)

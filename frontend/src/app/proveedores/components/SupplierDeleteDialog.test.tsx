@@ -8,9 +8,12 @@ import { supplierService, type SupplierDetail, type SupplierSummary } from '@/se
 import { SupplierDeleteDialog } from './SupplierDeleteDialog'
 
 const getToken = vi.fn().mockResolvedValue('token')
+const auth = vi.hoisted(() => ({ newTokenGetterEachRender: false }))
 
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken }),
+  useAuth: () => ({
+    getToken: auth.newTokenGetterEachRender ? vi.fn().mockResolvedValue('token') : getToken,
+  }),
 }))
 
 vi.mock('@/services/supplierService', () => ({
@@ -78,6 +81,17 @@ const renderDialog = (props: Partial<React.ComponentProps<typeof SupplierDeleteD
 describe('SupplierDeleteDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    auth.newTokenGetterEachRender = false
+  })
+
+  it('pide el detalle una sola vez aunque getToken cambie de referencia entre renders', async () => {
+    auth.newTokenGetterEachRender = true
+    vi.mocked(supplierService.getById).mockResolvedValue(detail)
+    renderDialog()
+
+    await screen.findByRole('list', { name: /Presentaciones afectadas/ })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(supplierService.getById).toHaveBeenCalledTimes(1)
   })
 
   it('Escenario Gherkin: la confirmación muestra las tres presentaciones afectadas antes de aceptar', async () => {
@@ -100,7 +114,7 @@ describe('SupplierDeleteDialog', () => {
     expect(items[1]).toHaveTextContent('25 kg · $18.406,25')
     expect(items[2]).toHaveTextContent('Sal fina')
     expect(confirm).toBeEnabled()
-    expect(supplierService.getById).toHaveBeenCalledWith(getToken, 'sup-1')
+    expect(supplierService.getById).toHaveBeenCalledWith(expect.any(Function), 'sup-1')
   })
 
   it('marca la presentación predeterminada y la retenida, y explica qué pasa con el costo y las listas', async () => {
@@ -132,7 +146,7 @@ describe('SupplierDeleteDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Sí, dar de baja' }))
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(molino))
-    expect(supplierService.remove).toHaveBeenCalledWith(getToken, 'sup-1')
+    expect(supplierService.remove).toHaveBeenCalledWith(expect.any(Function), 'sup-1')
   })
 
   it('un proveedor sin presentaciones aclara que no afecta a ningún insumo', async () => {
@@ -183,7 +197,7 @@ describe('SupplierDeleteDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Desactivar en su lugar' }))
 
     await waitFor(() => expect(onDeactivated).toHaveBeenCalledWith(deactivated))
-    expect(supplierService.update).toHaveBeenCalledWith(getToken, 'sup-1', { isActive: false })
+    expect(supplierService.update).toHaveBeenCalledWith(expect.any(Function), 'sup-1', { isActive: false })
     expect(supplierService.remove).not.toHaveBeenCalled()
   })
 })

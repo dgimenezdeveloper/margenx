@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import Link from 'next/link'
 import { Plus, ShieldAlert, Truck } from 'lucide-react'
 
+import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
@@ -32,7 +32,7 @@ interface Toast {
 type FormState = { open: false } | { open: true; supplier: SupplierSummary | null }
 
 export default function SuppliersPageContent() {
-  const { getToken } = useAuth()
+  const getToken = useTokenGetter()
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)

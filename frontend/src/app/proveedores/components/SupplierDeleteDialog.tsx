@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { AlertTriangle, CirclePause, Info, LoaderCircle, PackageOpen, RefreshCw, Star, ShieldAlert, Trash2 } from 'lucide-react'
 
+import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { Dialog, DialogBackdrop, DialogClose, DialogDescription, DialogPopup, DialogPortal, DialogTitle } from '@/components/ui/dialog'
 import { formatPackage, formatPackagePrice } from '@/lib/supplierDisplay'
 import { ApiError } from '@/services/api'
@@ -82,7 +82,7 @@ function ImpactNotes({ presentations }: { presentations: SupplierPresentation[] 
  * administrador vea qué insumos pierden a este proveedor. Ofrece desactivarlo como alternativa.
  */
 export function SupplierDeleteDialog({ open, supplier, onClose, onDeleted, onDeactivated }: SupplierDeleteDialogProps) {
-  const { getToken } = useAuth()
+  const getToken = useTokenGetter()
   const [detail, setDetail] = useState<DetailState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [pendingAction, setPendingAction] = useState<'delete' | 'deactivate' | null>(null)

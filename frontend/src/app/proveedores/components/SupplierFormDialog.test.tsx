@@ -56,7 +56,7 @@ describe('SupplierFormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Crear proveedor' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created, 'create'))
-    expect(supplierService.create).toHaveBeenCalledWith(getToken, {
+    expect(supplierService.create).toHaveBeenCalledWith(expect.any(Function), {
       name: 'Lácteos La Serenísima Mayorista',
       contactPhone: '(0221) 455-1020',
       email: null,
@@ -149,7 +149,7 @@ describe('SupplierFormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(updated, 'update'))
-    expect(supplierService.update).toHaveBeenCalledWith(getToken, 'sup-1', {
+    expect(supplierService.update).toHaveBeenCalledWith(expect.any(Function), 'sup-1', {
       name: 'Molino Olavarriense',
       contactPhone: '+54 9 2284 41-5566',
       email: 'ventas@molinoolavarriense.com.ar',
