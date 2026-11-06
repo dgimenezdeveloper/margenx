@@ -98,4 +98,4 @@ Si le comprás el mismo insumo a varios proveedores, tocá **Hacer predeterminad
 
 ## Listas de precios y cuarentena
 
-Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
+Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente o el costo unitario calculado es menor o igual a $0,01, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
