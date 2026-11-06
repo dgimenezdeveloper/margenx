@@ -298,12 +298,20 @@ flujo completo con un mail real — ver §2.9.
 | Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Quién lo encontró | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|
 | 2026-11-06 | `/instalar` muestra el placeholder "Captura pendiente" en las secciones Android y Escritorio; solo iPhone tiene las 3 capturas reales cargadas (`frontend/src/app/instalar/page.tsx`, array `guideSections`) | Menor / cosmético | `/instalar` | Entrar a `/instalar` como Visitante (no requiere sesión) y mirar las secciones "Android · Chrome" y "Escritorio · Chrome o Edge" | Recorrido automatizado del rol Visitante | — | Sin issue — es un fallback intencional y prolijo (el propio texto se autodenomina "pendiente"), no un bug; queda anotado para que el equipo decida si lo completa |
-| 2026-11-06 | Flash (~1s) de la landing pública al visitar `/` con sesión activa, antes de redirigir a `/dashboard`. `frontend/src/app/page.tsx:117`: el guard `if (isLoaded && isSignedIn) return null` solo evita el parpadeo cuando Clerk ya confirmó la sesión; mientras `isLoaded` sigue en `false` (justo después de una navegación completa, por ejemplo escribir el dominio a mano) no hay ninguna guarda y se renderiza la landing completa | Importante | `/` | Con sesión iniciada (Admin o Colaborador), borrar la barra de direcciones y escribir de nuevo `dev.margenx.tech` | Leandro Herrera — confirmado en Android/Chrome **e** iPhone/Safari | [iPhone, en transición](evidencias/255/iphone-01-landing-flash.png) / [iPhone, resuelto](evidencias/255/iphone-02-dashboard-tras-flash.png) | Abierto — candidato a issue, a definir con el equipo (no es grave: cosmético, no pierde datos ni rompe funcionalidad) |
-| 2026-11-06 | "50 % %" — símbolo de porcentaje duplicado en el campo "Margen Mínimo Sugerido" de Perfil. `frontend/src/app/perfil/page.tsx:202-211`: el propio `NumericInput` ya renderiza su `suffixSymbol="%"` (línea 205) y el código agrega otro `<span>%</span>` suelto al lado (línea 211). Los otros 2 usos de `NumericInput` con `%` en el proyecto (`productos/nuevo/page.tsx`, `ProductMasterDataForm.tsx`) no tienen el duplicado | Menor | `/perfil` | Entrar a Perfil como Admin y mirar el campo "Margen Mínimo Sugerido" | Leandro Herrera (Android) | [captura](evidencias/255/android-02-perfil-margen-duplicado.png) (recortada, sin el correo de la cuenta) | Abierto |
-| 2026-11-06 | Terminología inconsistente para el mismo estado de margen bajo: las listas y el panel inferior dicen "Crítico" (`MarginBadge.tsx`), el banner grande de la ficha de producto dice "Margen Bajo" (`ProductStatusBanner.tsx`) — mismo cálculo (`margin < objetivo`), dos palabras distintas | Menor | `/productos/:id` | Abrir un producto con margen por debajo del objetivo como Admin y comparar el banner de arriba con el badge del panel inferior | Leandro Herrera (Android) | [captura](evidencias/255/android-05-tarta-ricota-critico-vs-bajo.png) | Abierto |
+| 2026-11-06 | Flash (~1s) de la landing pública al visitar `/` con sesión activa, antes de redirigir a `/dashboard`. `frontend/src/app/page.tsx:117`: el guard `if (isLoaded && isSignedIn) return null` solo evita el parpadeo cuando Clerk ya confirmó la sesión; mientras `isLoaded` sigue en `false` (justo después de una navegación completa, por ejemplo escribir el dominio a mano) no hay ninguna guarda y se renderiza la landing completa | Importante | `/` | Con sesión iniciada (Admin o Colaborador), borrar la barra de direcciones y escribir de nuevo `dev.margenx.tech` | Leandro Herrera — confirmado en Android/Chrome **e** iPhone/Safari | [iPhone, en transición](evidencias/255/iphone-01-landing-flash.png) / [iPhone, resuelto](evidencias/255/iphone-02-dashboard-tras-flash.png) | Abierto — issue de seguimiento del Sprint 6 (no es grave: no pierde datos ni rompe funcionalidad) |
+| 2026-11-06 | "50 % %" — símbolo de porcentaje duplicado en el campo "Margen Mínimo Sugerido" de Perfil. `frontend/src/app/perfil/page.tsx:202-211`: el propio `NumericInput` ya renderiza su `suffixSymbol="%"` (línea 205) y el código agrega otro `<span>%</span>` suelto al lado (línea 211). Los otros 2 usos de `NumericInput` con `%` en el proyecto (`productos/nuevo/page.tsx`, `ProductMasterDataForm.tsx`) no tienen el duplicado | Menor | `/perfil` | Entrar a Perfil como Admin y mirar el campo "Margen Mínimo Sugerido" | Leandro Herrera (Android) | [captura](evidencias/255/android-02-perfil-margen-duplicado.png) (recortada, sin el correo de la cuenta) | Abierto — issue de seguimiento del Sprint 6 |
+| 2026-11-06 | Terminología inconsistente para el mismo estado de margen bajo: las listas y el panel inferior dicen "Crítico" (`MarginBadge.tsx`), el banner grande de la ficha de producto dice "Margen Bajo" (`ProductStatusBanner.tsx`) — mismo cálculo (`margin < objetivo`), dos palabras distintas | Menor | `/productos/:id` | Abrir un producto con margen por debajo del objetivo como Admin y comparar el banner de arriba con el badge del panel inferior | Leandro Herrera (Android) | [captura](evidencias/255/android-05-tarta-ricota-critico-vs-bajo.png) | Abierto — issue de seguimiento del Sprint 6 (el término único se acuerda en la issue) |
 
 No se registraron defectos de severidad alta/grave en ningún rol ni
 dispositivo.
+
+**Escala de severidad de la matriz.** "Grave" equivale a la "severidad
+alta" de la issue: bloquea un flujo, pierde o corrompe datos, o expone
+datos financieros o de otra cuenta; todo defecto grave se convierte en
+issue antes de cerrar el recorrido. "Importante" afecta lo que el usuario
+ve o entiende sin bloquear ni perder datos. "Menor" es cosmético. Los
+defectos Importante y Menor de esta matriz se registran como issues de
+seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.7 Lo no cubierto
 
@@ -361,17 +369,19 @@ dispositivo.
 
 - **Darío** prueba el enlace "Ajustar" con un mail real (necesita una
   cuenta Admin con buzón real, no la Demo) y completa esa fila de §2.5.
-- Decidir con el equipo si el flash de la landing (Importante, §2.6)
-  amerita issue propia o se resuelve directamente — es un cambio acotado
-  a `frontend/src/app/page.tsx` (agregar la guarda para `!isLoaded`).
-- Los otros dos hallazgos (Menor) quedan anotados en la matriz para
-  cuando el equipo decida priorizarlos; no bloquean esta issue.
-- Abrir el PR hacia `develop` con esta documentación.
+- Los tres defectos abiertos de §2.6 pasan a issues de seguimiento del
+  Sprint 6: el flash de la landing (cambio acotado a
+  `frontend/src/app/page.tsx`, falta la guarda para `!isLoaded`), el
+  "% %" de Perfil y la terminología "Crítico" / "Margen Bajo". No
+  bloquean esta issue.
+- El recorrido del Visitante contra `dev.margenx.tech`, incluido el
+  widget `<SignIn/>`, se repite en vivo en el recorrido final del
+  Sprint 6 (S6-QA-03), como prevé el recorte de la issue.
 
 ### 2.10 Definition of Done
 
 - [ ] Los tres roles recorridos y los dos dispositivos probados. *(Visitante, Admin y Colaborador: sí. Dispositivos: instalación, standalone y sesión persistente confirmados; el enlace "Ajustar" queda pendiente de una prueba con mail real — ver §2.9)*
 - [x] Matriz de defectos publicada (§2.6), con evidencia.
 - [x] Defectos graves convertidos en issues. *(no se encontró ningún defecto grave — nada que convertir)*
-- [ ] PR abierto hacia `develop` con CI en verde. *(pendiente — lo abre Leandro)*
+- [x] PR abierto hacia `develop` con CI en verde. *(PR #342)*
 - [x] Documentación actualizada en el mismo PR (esta sección).
