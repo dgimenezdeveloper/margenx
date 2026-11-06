@@ -117,9 +117,6 @@ export default function SupplierDetailPage() {
             rawDescription: updated.rawDescription ?? null,
           }
         }
-        if (updated.isDefault) {
-          return { ...item, isDefault: item.ingredient.id === updated.ingredientId }
-        }
         return item
       })
       return { ...prev, ingredients: newIngredients }
@@ -156,10 +153,9 @@ export default function SupplierDetailPage() {
 
       setSupplier((prev) => {
         if (!prev) return prev
-        const newIngredients = prev.ingredients.map((item) => ({
-          ...item,
-          isDefault: item.id === presentation.id,
-        }))
+        const newIngredients = prev.ingredients.map((item) =>
+          item.id === presentation.id ? { ...item, isDefault: true } : item
+        )
         return { ...prev, ingredients: newIngredients }
       })
 
