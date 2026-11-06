@@ -1,44 +1,47 @@
-# Manual de Usuario - Rol Colaborador
+# Manual de Usuario — Rol Colaborador
 
-Este manual describe qué información y acciones pueden ver y realizar los usuarios con el rol de colaborador dentro de MargenX.
+Este documento describe la experiencia operativa y los límites de visibilidad para los usuarios con rol **Colaborador** (personal de mostrador, cajeros y encargados de salón).
 
-## Visibilidad por rol
+## Propósito y Filosofía de Diseño
 
-| Área | Administrador | Colaborador |
-| --- | --- | --- |
-| Receta de producto | Puede ver cantidades, costos, subtotales y acciones de edición | No ve cantidades ni costos, ni botones de edición o eliminación |
-| Perfil | Puede ver margen objetivo global, alertas automáticas y configuraciones del comercio | No ve margen objetivo global ni alertas automáticas |
-| Acciones de administración | Puede crear, editar y eliminar elementos del catálogo | No puede realizar mutaciones de administración |
+En los comercios gastronómicos y de manufactura, el personal de atención al público necesita consultar rápidamente los precios de venta actualizados para cobrar y atender a los clientes, pero **no debe tener acceso a la información financiera confidencial del negocio**: costos de materia prima, márgenes de rentabilidad, fórmulas técnicas ni acuerdos comerciales con distribuidores.
 
-## Receta de producto
+MargenX implementa un blindaje de doble capa:
+1. **Server-Side (API):** El middleware de backend `sanitizeFinancialData` intercepta las respuestas JSON y purga de raíz los campos sensibles (`cost`, `marginAmount`, `marginPercent`, `minMarginPercent`, `quantity`, `suppliers`), configurando además cabeceras `Cache-Control: private, no-store`.
+2. **Client-Side (UI):** La interfaz elimina por completo los componentes de margen (`MarginBadge`), simuladores financieros y accesos a rutas administrativas.
 
-Para un colaborador, la receta del producto queda visible solo como composición conceptual del producto, sin exponer:
+---
 
-- cantidades por ingrediente
-- costo base unitario
-- subtotal por insumo
-- acciones de eliminación o edición de la receta
+## Visibilidad y Accesibilidad por Rol
 
-Esto evita que información financiera sensible quede expuesta a un rol que solo necesita operar con la operación comercial day by day.
+| Módulo o Vista | Administrador (Dueño) | Colaborador (Mostrador / Salón) |
+|---|:---:|:---:|
+| **Landing pública (`/`)** | Redirige al Dashboard | Redirige al Dashboard |
+| **Dashboard (`/dashboard`)** | Métricas consolidadas, KPIs de riesgo e histograma | Solo catálogo monitoreado con precios de venta al público |
+| **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo Producto* | Solo nombres y precios de venta finales cobrados al público |
+| **Ficha Técnica (`/productos/:id`)** | Ficha completa, desglose de recetas, cantidades y simulador | Ficha de lectura: nombre, precio de venta y lista conceptual de insumos (sin cantidades ni costos) |
+| **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** Redirige forzosamente a `/productos` |
+| **Proveedores (`/proveedores`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** Redirige forzosamente a `/productos` |
+| **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** Redirige forzosamente a `/productos` |
+| **Perfil (`/perfil`)** | Configuración comercial, margen global y alertas n8n | Datos de usuario y comercio; sin umbrales ni automatizaciones |
 
-## Perfil y configuración
+<!-- [CAPTURA 360PX SUGERIDA: 03-colaborador-productos.webp | Pantalla /productos navegada por un COLLABORATOR mostrando únicamente nombres y precios de venta al público, sin costos ni porcentajes] -->
 
-En el perfil del colaborador se ocultan los elementos de administración:
+---
 
-- margen objetivo global
-- alertas automáticas (n8n)
-- ajustes del comercio reservados al dueño o administrador
+## Ficha de Producto para el Colaborador
 
-## Reglas de acceso
+Al abrir la ficha de un producto terminado (ej. *Medialunas de manteca*):
+- Puede verificar la denominación oficial y el precio vigente de venta al público para atención de mostrador.
+- En la sección **Composición**, visualiza únicamente qué materias primas componen el producto a título informativo (útil para responder consultas sobre alérgenos o composición básica a los clientes), **sin conocer los gramos utilizados, los costos unitarios ni los subtotales de la tanda**.
+- No dispone de botones para agregar insumos, modificar cantidades, simular márgenes ni eliminar la ficha.
 
-- Los colaboradores solo pueden consultar información permitida por su rol.
-- Las mutaciones de administración quedan bloqueadas en la API y en la UI.
-- La información sensible sigue protegida incluso si un usuario intenta inspeccionar la respuesta JSON o la navegación del producto.
+<!-- [CAPTURA 360PX SUGERIDA: 03-colaborador-detalle-producto.webp | Ficha técnica vista por un COLLABORATOR con inputs estáticos de precio y receta conceptual sin cantidades numéricas] -->
 
-## Resultado esperado
+---
 
-La experiencia de un colaborador queda enfocada en:
+## Navegación Móvil Adaptada
 
-- consultar el catálogo de productos
-- revisar la composición sin datos financieros
-- operar sin acceso a configuración interna o de margen del negocio
+En smartphones, la barra inferior fija de navegación (`BottomNav`) adapta sus accesos según el rol autenticado:
+- Desaparecen los accesos a **Insumos** y **Proveedores**.
+- Se mantienen accesibles únicamente **Inicio** (`/dashboard`), **Productos** (`/productos`) y **Perfil** (`/perfil`).

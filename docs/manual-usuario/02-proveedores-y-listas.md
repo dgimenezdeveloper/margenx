@@ -1,16 +1,19 @@
-# Manual de Usuario - Proveedores y Listas de Precios
+# Manual de Usuario — Proveedores y Listas de Precios
 
-La pantalla **Proveedores** reúne a quién le comprás, cómo contactarlo y cuántos precios suyos esperan tu decisión. Es solo para el administrador: el colaborador no ve el enlace en el menú y, si entra a `/proveedores`, vuelve a **Productos**.
+La sección **Proveedores** reúne a quién le comprás, cómo contactarlo y cuántos precios suyos esperan tu decisión. Es de uso exclusivo para el administrador: el colaborador no ve el enlace en el menú y, si entra a `/proveedores`, vuelve a **Productos**.
 
 ## Dónde está
 
 - **En la computadora:** en la barra de arriba, botón **Proveedores**.
 - **En el celular:** en el menú de abajo, ícono del camión **Proveedores**.
 
-La sección tiene dos pestañas, arriba de todo:
+<!-- [CAPTURA 360PX SUGERIDA: 02-proveedores-lista-mobile.webp | Listado de proveedores en tarjetas móviles con contadores de insumos y badges de estado activo/inactivo] -->
 
+La sección tiene dos pestañas, arriba de todo:
 - **Proveedores:** la lista de a quién le comprás (lo que explica este manual a continuación).
 - **Cuarentena:** la bandeja de precios retenidos (ver [Revisar la cuarentena](#revisar-la-cuarentena)). Si hay precios esperando tu decisión, la pestaña muestra cuántos.
+
+---
 
 ## Tu dirección para listas de precios
 
@@ -22,6 +25,8 @@ Debajo de las pestañas está la **dirección de tu comercio** para recibir list
 Si el navegador no deja copiar (por ejemplo, en un sitio sin `https`), aparece el aviso "No se pudo copiar": mantené presionada la dirección (o seleccionala) y copiala a mano.
 
 La dirección es la misma para todos tus proveedores: MargenX reconoce de quién es cada precio por el código de artículo de la lista. Solo la ve el administrador.
+
+---
 
 ## Qué muestra la lista
 
@@ -40,6 +45,8 @@ En el celular cada proveedor es una tarjeta; en la computadora se ve como una ta
 
 Si todavía no cargaste ninguno, la pantalla te invita con el botón **Cargar mi primer proveedor**. Si no se pudo cargar la lista (por ejemplo, sin conexión), aparece un aviso con el botón **Reintentar**.
 
+---
+
 ## Cargar un proveedor
 
 1. Tocá **Nuevo proveedor**.
@@ -51,12 +58,18 @@ Los errores se marcan al salir de cada campo y se corrigen solos mientras escrib
 
 Un proveedor nuevo arranca sin insumos. Para vincularle un insumo, abrí la ficha del insumo en **Insumos** y asociá la presentación (ver [Primeros pasos](01-primeros-pasos.md#proveedor-predeterminado)).
 
+<!-- [CAPTURA 360PX SUGERIDA: 02-modal-alta-proveedor.webp | Formulario en bottom sheet para crear proveedor con validación en tiempo real] -->
+
+---
+
 ## Editar un proveedor
 
 1. Tocá **Editar** en la fila del proveedor.
 2. Cambiá lo que necesites. Para borrar un dato de contacto, dejá el campo vacío.
 3. Con el interruptor **Proveedor activo** lo desactivás o lo volvés a activar.
 4. Tocá **Guardar cambios**.
+
+---
 
 ## Desactivar o dar de baja
 
@@ -85,6 +98,10 @@ Si lo vas a volver a usar, en el mismo diálogo tocá **Desactivar en su lugar**
 
 Si no se pudieron traer las presentaciones, el botón de baja queda deshabilitado hasta que tocás **Reintentar**: así nunca confirmás sin ver qué se borra.
 
+<!-- [CAPTURA 360PX SUGERIDA: 02-dialogo-baja-proveedor.webp | Diálogo modal de baja de proveedor listando presentaciones afectadas y opción Desactivar en su lugar] -->
+
+---
+
 ## Detalle del proveedor y sus presentaciones (`/proveedores/:id`)
 
 Al tocar el nombre de un proveedor en la lista, abrís su ficha técnica detallada. Esta vista es exclusiva para el administrador y reúne todas las presentaciones comerciales que le comprás.
@@ -112,12 +129,17 @@ Si le comprás el mismo insumo a varios proveedores, tocá **Hacer predeterminad
 2. Confirmá en el diálogo.
 3. **Protección de recetas:** si la presentación es la **predeterminada** y tenés otros proveedores cargados para ese insumo, MargenX no te dejará eliminarla hasta que marques otra como predeterminada primero (desde la ficha del insumo en **Insumos**). Así tus recetas nunca quedan sin un costo de referencia.
 
+<!-- [CAPTURA 360PX SUGERIDA: 02-detalle-proveedor-presentaciones.webp | Ficha /proveedores/:id con lista de presentaciones comerciales, botón Hacer predeterminada y SKU mayorista] -->
+
+---
+
 ## Listas de precios y cuarentena
 
-Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
 Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Se mandan a [tu dirección para listas de precios](#tu-dirección-para-listas-de-precios). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente (o llega en cero o casi cero), queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
 
 Mientras un precio está retenido, el costo del insumo **no cambia**.
+
+---
 
 ## Revisar la cuarentena
 
@@ -134,6 +156,10 @@ Para decidir:
 3. Tocá **Sí, liberar** o **Sí, rechazar**. Al terminar, el precio sale de la bandeja y aparece un aviso de confirmación.
 
 Si algo falla (por ejemplo, se cortó la conexión), el mensaje de error aparece **dentro del mismo diálogo**, que queda abierto para que vuelvas a intentar o toques **Cancelar**. El precio sigue retenido hasta que la acción salga bien.
+
+<!-- [CAPTURA 360PX SUGERIDA: 02-bandeja-cuarentena.webp | Pantalla /proveedores/cuarentena mostrando tarjetas con precio actual tachado, propuesto, variación y botones Liberar / Rechazar] -->
+
+---
 
 ## El aviso en la ficha del insumo
 
