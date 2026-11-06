@@ -162,13 +162,12 @@ Planning):
 
 ## 2. Recorrido por rol y validación en dispositivos reales (issue #255)
 
-**Estado de esta sección: casi completa.** Los tres roles (Visitante,
-Admin, Colaborador) y los dos dispositivos (Android, iPhone) quedaron
-recorridos. Resultado: 3 hallazgos reales, todos Importante o Menor —
-ninguno grave. Queda una reserva real sobre uno de los tres escenarios
-Gherkin de la issue: el enlace "Ajustar" del mail se verificó por
-simulación, no con un mail real (ver §2.5 y §2.9 — Darío lo cierra con
-una cuenta que sí recibe correo).
+**Estado de esta sección: completa, con una reserva.** Los tres roles
+(Visitante, Admin, Colaborador) y los dos dispositivos (Android, iPhone)
+quedaron recorridos. Resultado: 3 hallazgos reales, todos Importante o
+Menor — ninguno grave. El enlace "Ajustar" del mail quedó confirmado con
+un mail real en Android; en iPhone solo se probó por simulación y la
+prueba con mail real pasa al Sprint 6 (ver §2.5 y §2.9).
 
 ### 2.1 Objetivo
 
@@ -282,16 +281,15 @@ hallazgo nuevo.
 | Instalación — [Android](evidencias/255/android-08-instalacion.png) | "Instalar app" desde el menú de Chrome, ícono correcto | "Agregar a Inicio" desde Compartir, ícono correcto (sin captura de este paso puntual en iPhone) |
 | Modo standalone — [Android](evidencias/255/android-09-standalone-sesion-persistente.png) / [iPhone](evidencias/255/iphone-03-standalone-sesion-persistente.png) | Sin barra de direcciones, nada tapado | Sin barra de Safari, nada tapado por el notch |
 | **Gherkin — sesión tras cerrar la app** | Cerrada del todo y reabierta: entra directo, sin pedir login | Cerrada del todo y reabierta: entra directo, sin pedir login |
-| **Gherkin — enlace "Ajustar" lleva al producto** · **PENDIENTE, no confirmado con un mail real** | Simulación (link directo abierto fuera del navegador, app cerrada): abre la app instalada directo en el producto. No se recibió un mail de alerta real durante la ventana de prueba | Simulación: el link abre en el navegador predeterminado (Chrome o Safari), nunca en el ícono instalado — las apps "Agregadas a Inicio" en iOS no pueden capturar enlaces del sistema. Con el mismo navegador de la sesión original (ventana corta, sesión reciente) aterrizó directo en el producto sin pedir login; según ADR-0006, en el navegador común (no instalado) rigen el cierre por 30 min de inactividad y el cierre al cerrar el navegador, así que este resultado no generaliza a "siempre entra sin pedir login" — depende de cuánto tiempo pasó y si el navegador se cerró. No se probó con un mail real ni con una sesión vencida en el navegador |
+| **Gherkin — enlace "Ajustar" lleva al producto** — [mail](evidencias/255/android-13-mail-alerta-ajustar.jpg) / [resultado](evidencias/255/android-14-ajustar-abre-producto.jpg) | **Confirmado con un mail real.** La alerta "[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central" (Tarta de ricota — 24 cm, 46,82 % contra un mínimo de 60 %, disparada por el aumento de Manteca en bloque mayorista durante este recorrido) llegó por correo. Con la app cerrada, al tocar "Ajustar" en Gmail se abrió la app instalada (sin barra de direcciones) directo en la ficha de Tarta de ricota, sin pedir login | **Pendiente (Sprint 6).** Solo se probó por simulación: el link abre en el navegador predeterminado, nunca en el ícono instalado — las apps "Agregadas a Inicio" en iOS no pueden capturar enlaces del sistema. Con el mismo navegador de la sesión original (ventana corta, sesión reciente) aterrizó directo en el producto sin pedir login; según ADR-0006, en el navegador común rigen el cierre por 30 min de inactividad y el cierre al cerrar el navegador, así que este resultado no generaliza. Falta la prueba con el mail real y su captura |
 | Scroll en modales largos (regresión PR #195) | No se repitió explícitamente (el bug original fue específico de iOS Safari) | Confirmado sin regresión por reporte directo (fondo congelado con el modal de editar insumo abierto); no se generó una captura de este paso puntual |
 | Offline — aviso en pantalla (falla un fetch con la app ya abierta) — [Android](evidencias/255/android-10-offline-aviso-en-panel.png) | "Error al cargar el panel" + botón Reintentar, en español | Mismo patrón, en español (sin captura de este paso puntual en iPhone) |
 | Offline — página dedicada (abrir la app de cero sin conexión) — [Android](evidencias/255/android-11-offline-pagina-dedicada.png) / [iPhone](evidencias/255/iphone-04-offline-pagina-dedicada.png) | Pantalla "Sin conexión" de MargenX | Misma pantalla (con un aviso nativo de iOS superpuesto — "Para acceder a tus datos, desactivá Modo de vuelo..." — es el sistema operativo, no la app) |
 
-Dos de los tres escenarios Gherkin de la issue (recorrido por rol,
-dispositivos reales con sesión persistente) quedan confirmados en ambos
-dispositivos. El tercero (enlace "Ajustar") queda **pendiente**: lo
-probado fue una simulación del mecanismo de sesión y redirección, no el
-flujo completo con un mail real — ver §2.9.
+Los escenarios Gherkin de recorrido por rol y de sesión persistente
+quedan confirmados en ambos dispositivos. El del enlace "Ajustar" queda
+confirmado con un mail real en Android y **pendiente en iPhone**, donde
+solo se probó por simulación — ver §2.9.
 
 ### 2.6 Matriz de defectos (fechada)
 
@@ -315,11 +313,8 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.7 Lo no cubierto
 
-- **El enlace "Ajustar" con un mail real:** no se probó. Los correos de
-  alerta de margen van a la dirección del Admin de la cuenta, y la
-  cuenta Demo no tiene un buzón real que los reciba — por diseño, no es
-  algo que se pueda resolver repitiendo la prueba con la misma cuenta.
-  Darío lo completa con una cuenta que sí recibe correo (ver §2.9).
+- **El enlace "Ajustar" con un mail real en iPhone:** no se probó; en
+  Android sí (§2.5). Queda para el Sprint 6 (ver §2.9).
 - **Widget de login de Clerk (`<SignIn/>`) en el entorno de
   automatización:** no se pudo verificar visualmente con Playwright por
   el bloqueo de red descrito en §2.2. El recorrido real contra
@@ -367,8 +362,8 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.9 Pendiente / próximos pasos
 
-- **Darío** prueba el enlace "Ajustar" con un mail real (necesita una
-  cuenta Admin con buzón real, no la Demo) y completa esa fila de §2.5.
+- Probar el enlace "Ajustar" con un mail real en iPhone y completar esa
+  columna de §2.5 con su captura (issue de seguimiento del Sprint 6).
 - Los tres defectos abiertos de §2.6 pasan a issues de seguimiento del
   Sprint 6: el flash de la landing (cambio acotado a
   `frontend/src/app/page.tsx`, falta la guarda para `!isLoaded`), el
@@ -380,7 +375,7 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.10 Definition of Done
 
-- [ ] Los tres roles recorridos y los dos dispositivos probados. *(Visitante, Admin y Colaborador: sí. Dispositivos: instalación, standalone y sesión persistente confirmados; el enlace "Ajustar" queda pendiente de una prueba con mail real — ver §2.9)*
+- [x] Los tres roles recorridos y los dos dispositivos probados. *(Instalación, standalone y sesión persistente confirmados en ambos. El enlace "Ajustar" con mail real se confirmó en Android; en iPhone queda como issue de seguimiento del Sprint 6 — ver §2.9)*
 - [x] Matriz de defectos publicada (§2.6), con evidencia.
 - [x] Defectos graves convertidos en issues. *(no se encontró ningún defecto grave — nada que convertir)*
 - [x] PR abierto hacia `develop` con CI en verde. *(PR #342)*
