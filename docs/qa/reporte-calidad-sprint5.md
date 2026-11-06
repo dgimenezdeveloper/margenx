@@ -159,3 +159,224 @@ Planning):
 - [x] Documentación actualizada en el mismo PR (esta sección, más
       `docs/qa/ejecutar-colecciones-postman.md` y
       `docs/qa/seed-data-comercios.md`).
+
+## 2. Recorrido por rol y validación en dispositivos reales (issue #255)
+
+**Estado de esta sección: completa, con una reserva.** Los tres roles
+(Visitante, Admin, Colaborador) y los dos dispositivos (Android, iPhone)
+quedaron recorridos. Resultado: 3 hallazgos reales, todos Importante o
+Menor — ninguno grave. El enlace "Ajustar" del mail quedó confirmado con
+un mail real en Android; en iPhone solo se probó por simulación y la
+prueba con mail real pasa al Sprint 6 (ver §2.5 y §2.9).
+
+### 2.1 Objetivo
+
+Recorrer la app como la usaría cada rol (administrador, colaborador,
+visitante) sobre `dev.margenx.tech` con la cuenta Demo, e instalar y usar
+la app en un Android y un iPhone reales, para encontrar antes de la
+Entrega 6 fallas que las pruebas automáticas no ven.
+
+### 2.2 Método
+
+- **Visitante (sin sesión):** se automatizó con Playwright, porque no
+  requiere autenticación. El primer intento fue contra el sitio
+  desplegado (`https://dev.margenx.tech`) y falló en la primera
+  navegación con `net::ERR_CERT_AUTHORITY_INVALID`. Se descartó que
+  fuera un problema del certificado del sitio: `curl -sSv` contra el
+  mismo dominio confirma un certificado Let's Encrypt válido, con el SAN
+  correcto y verificación exitosa — el bloqueo fue del entorno de
+  automatización usado para correr Playwright, no del sitio. Se probó
+  apuntar `NODE_EXTRA_CA_CERTS` al bundle de CA de ese entorno y pasar
+  el proxy explícito a `chromium.launch()`: ninguno de los dos cambió el
+  error. No se usó `ignoreHTTPSErrors` para evitarlo.
+- **Sustitución explícita:** ante el bloqueo, se corrió el mismo
+  recorrido contra un build de producción real (`vite build` + `vite
+  preview`) del propio código de `develop` en `localhost`, sin HTTPS de
+  por medio. Esto no es lo mismo que probar el sitio desplegado, pero
+  ejecuta el mismo código, el mismo bundle de Vite y el mismo plugin de
+  PWA que se despliega — la sustitución queda declarada acá, no
+  disfrazada de prueba contra el sitio real.
+- **Falso positivo detectado y descartado antes de reportarlo:** la
+  primera corrida mostró que ninguna de las 8 rutas protegidas
+  redirigía a `/login`. Antes de registrarlo como hallazgo, se
+  inspeccionó el contenido real de la página (no solo la URL): estaba
+  el spinner de `ProtectedRoute` trabado, no el contenido protegido
+  expuesto. La causa fue el mismo bloqueo de red del entorno de
+  automatización, esta vez contra `fluent-moose-9060.clerk.accounts.dev`
+  (el SDK de Clerk nunca llega a cargar, así que `isLoaded` nunca pasa a
+  `true` y el componente se queda esperando). Para no dejar el punto sin
+  verificar, se corrió de verdad (no solo se leyó) la suite
+  `protected-route.test.tsx` del propio proyecto — que mockea Clerk y no
+  depende de red — y las 7 pruebas pasan, incluida la que cubre
+  exactamente "sin sesión → redirige a `/login` con la URL de retorno".
+- El build de producción sí permitió verificar `manifest.webmanifest`,
+  `sw.js` y `offline.html` en condiciones reales, incluyendo que el
+  service worker se registra y toma control de la página de verdad, no
+  solo que el archivo existe.
+- **Admin, Colaborador y dispositivos reales:** no son automatizables
+  con las herramientas disponibles (requieren la sesión autenticada de
+  Clerk y hardware físico), así que Leandro Herrera hizo el recorrido en
+  vivo contra `dev.margenx.tech`, con la cuenta Demo
+  (`admin.panaderia@seed.example.test` / `colab.panaderia@seed.example.test`),
+  siguiendo el checklist y la guía de `docs/qa/`, con capturas de cada
+  pantalla relevante (ver evidencia en §2.4, §2.5 y §2.6). Cada hallazgo
+  se contrastó contra el código fuente antes de registrarlo: por
+  ejemplo, un ícono que parecía faltar en el menú inferior del
+  Colaborador resultó ser un artefacto de compresión de una captura —
+  se verificó `bottom-nav.tsx` e `isNavLinkVisible()` y se confirmó
+  visualmente antes de descartarlo. Los tres hallazgos reales que sí
+  quedaron (§2.6) se verificaron leyendo el componente responsable, no
+  solo observando el síntoma.
+
+### 2.3 Recorrido por pantalla — Visitante (sin sesión)
+
+| Pantalla | Resultado |
+|---|---|
+| `/` (landing) — [captura](evidencias/255/visitante-01-landing.png) | Sin fallas. 200, título y contenido correctos, 360px sin cortes. |
+| `/login` — [captura](evidencias/255/visitante-02-login.png) | Sin fallas en el marco propio de la página (volver, logo, enlaces a privacidad/instalación). El widget de `<SignIn/>` de Clerk no se pudo verificar visualmente en el entorno de automatización — ver §2.2. |
+| `/privacidad` — [captura](evidencias/255/visitante-03-privacidad.png) | Sin fallas. |
+| `/instalar` — [captura](evidencias/255/visitante-04-instalar.png) | Con hallazgo menor registrado en la matriz (§2.6). |
+| `/dashboard` sin sesión | Redirige a `/login` — verificado por ejecución real de `protected-route.test.tsx` (ver §2.2), no por Playwright en vivo. |
+| `/insumos` sin sesión | Redirige a `/login` — mismo mecanismo y misma verificación que la fila anterior. |
+| `/productos` sin sesión | Redirige a `/login` — ídem. |
+| `/perfil` sin sesión | Redirige a `/login` — ídem. |
+| `/proveedores` sin sesión | Redirige a `/login` — ídem. |
+| `/proveedores/cuarentena` sin sesión | Redirige a `/login` — ídem. |
+| `/productos/nuevo` sin sesión | Redirige a `/login` — ídem. |
+| `/proveedores/abc123` (ruta dinámica, sin sesión) | Redirige a `/login` — ídem. |
+| Ruta inexistente (`/esto-no-existe-12345`) sin sesión | Redirige a `/login` (el 404 del panel usa el mismo `ProtectedRoute`, así que antes de mostrar el 404 exige sesión) — mismo mecanismo. |
+| `manifest.webmanifest` | Sin fallas. 200, `application/manifest+json`, nombre/`start_url`/`display`/íconos correctos. |
+| `sw.js` | Sin fallas. 200 en build de producción; se confirmó además que se registra y toma control de la página en un navegador real. |
+| `offline.html` | Sin fallas. 200, alcanzable directamente. |
+
+Sin errores de consola propios de la aplicación en ninguna pantalla. Los
+únicos errores de consola observados fueron los fallos de red del
+entorno de automatización al pedir recursos externos (Clerk) — ruido del
+entorno de pruebas, no de la aplicación (ver §2.2).
+
+### 2.4 Recorrido por pantalla — Admin y Colaborador (`dev.margenx.tech`, cuenta Demo Panadería Central)
+
+| Pantalla | Admin | Colaborador |
+|---|---|---|
+| `/` con sesión activa (escrita a mano) | Mismo flash de la landing que en Visitante — ver hallazgo en §2.6 | Mismo flash (comportamiento idéntico, no depende del rol) |
+| Dashboard — [captura](evidencias/255/android-01-dashboard-admin.png) | Métricas completas: alerta "Productos en Riesgo", "Distribución de Salud Financiera", catálogo con costo y badge de margen. Se confirmó en vivo que el recálculo de costos se propaga de verdad: al guardar una presentación de proveedor con nuevo costo (ver fila Proveedores), un producto cruzó el umbral y pasó de 0 a 1 "Producto en Riesgo" | Sin métricas financieras: sin la alerta de riesgo, sin "Distribución de Salud Financiera", catálogo solo con precio de venta. Coincide con `docs/manual-usuario/02-rutas-y-roles.md` |
+| `/insumos` | Catálogo completo, sin fallas | Redirige a `/productos` al escribir la URL a mano — confirmado |
+| `/proveedores`, `/proveedores/:id` — [antes](evidencias/255/android-06-proveedor-predeterminada-antes.png) / [después](evidencias/255/android-07-proveedor-predeterminada-despues.png) | Sin fallas. **Fix del PR #341 verificado con datos reales**: en la ficha de "Distribuidora MarJuanC Alimentos" (7 presentaciones, todas predeterminadas), se editó y guardó la presentación de Manteca (marcada predeterminada) — las otras 6 presentaciones conservaron su marca "Predeterminada" después de guardar, tal como corrigió el PR #341 | Redirige a `/productos` al escribir la URL a mano — confirmado |
+| `/productos` (lista) — [captura, Colaborador](evidencias/255/android-12-productos-lista-colaborador.png) | Costo y Precio visibles | Solo "Precio" (etiqueta "Atención al público"), sin "Costo" — correcto |
+| `/productos/:id` (receta) — [Admin](evidencias/255/android-03-receta-admin.png) / [Colaborador](evidencias/255/android-04-receta-colaborador.png) | Banner de margen, cantidades, costo base y subtotal por ingrediente, botón de eliminar — todo visible | Sin banner de margen, sin "Margen Mínimo Objetivo", la receta son solo los nombres de los ingredientes (sin cantidades/costos/subtotal/acciones), y abajo solo "Precio de Venta al Público" — coincide exactamente con `docs/manual-usuario/03-colaborador.md` |
+| `/perfil` | "Margen Objetivo Global" y "Alertas Automáticas (n8n)" visibles (ver hallazgo del "% %" en §2.6) | Ambas secciones correctamente ocultas |
+| Menú inferior | 5 ítems: Inicio, Insumos, Productos, Proveedores, Perfil | 3 ítems: Inicio, Productos, Perfil — confirmado visualmente tras descartar un posible ícono faltante (ver §2.2) |
+
+`/insumos` con "Insumos activos: 0 → 10" durante la carga y "Variaciones
+recientes" fijo en `2` (`SuppliesPageContent.tsx:449`, hardcodeado) se
+observaron de nuevo: el primero es el patrón normal de carga, no es un
+defecto; el segundo ya está trackeado en el issue
+[#311](https://github.com/dgimenezdeveloper/margenx/issues/311), no es un
+hallazgo nuevo.
+
+### 2.5 Recorrido en dispositivos reales — Android e iPhone
+
+| Prueba | Android (Chrome) | iPhone (Safari) |
+|---|---|---|
+| Instalación — [Android](evidencias/255/android-08-instalacion.png) | "Instalar app" desde el menú de Chrome, ícono correcto | "Agregar a Inicio" desde Compartir, ícono correcto (sin captura de este paso puntual en iPhone) |
+| Modo standalone — [Android](evidencias/255/android-09-standalone-sesion-persistente.png) / [iPhone](evidencias/255/iphone-03-standalone-sesion-persistente.png) | Sin barra de direcciones, nada tapado | Sin barra de Safari, nada tapado por el notch |
+| **Gherkin — sesión tras cerrar la app** | Cerrada del todo y reabierta: entra directo, sin pedir login | Cerrada del todo y reabierta: entra directo, sin pedir login |
+| **Gherkin — enlace "Ajustar" lleva al producto** — [mail](evidencias/255/android-13-mail-alerta-ajustar.jpg) / [resultado](evidencias/255/android-14-ajustar-abre-producto.jpg) | **Confirmado con un mail real.** La alerta "[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central" (Tarta de ricota — 24 cm, 46,82 % contra un mínimo de 60 %, disparada por el aumento de Manteca en bloque mayorista durante este recorrido) llegó por correo. Con la app cerrada, al tocar "Ajustar" en Gmail se abrió la app instalada (sin barra de direcciones) directo en la ficha de Tarta de ricota, sin pedir login | **Pendiente (Sprint 6).** Solo se probó por simulación: el link abre en el navegador predeterminado, nunca en el ícono instalado — las apps "Agregadas a Inicio" en iOS no pueden capturar enlaces del sistema. Con el mismo navegador de la sesión original (ventana corta, sesión reciente) aterrizó directo en el producto sin pedir login; según ADR-0006, en el navegador común rigen el cierre por 30 min de inactividad y el cierre al cerrar el navegador, así que este resultado no generaliza. Falta la prueba con el mail real y su captura |
+| Scroll en modales largos (regresión PR #195) | No se repitió explícitamente (el bug original fue específico de iOS Safari) | Confirmado sin regresión por reporte directo (fondo congelado con el modal de editar insumo abierto); no se generó una captura de este paso puntual |
+| Offline — aviso en pantalla (falla un fetch con la app ya abierta) — [Android](evidencias/255/android-10-offline-aviso-en-panel.png) | "Error al cargar el panel" + botón Reintentar, en español | Mismo patrón, en español (sin captura de este paso puntual en iPhone) |
+| Offline — página dedicada (abrir la app de cero sin conexión) — [Android](evidencias/255/android-11-offline-pagina-dedicada.png) / [iPhone](evidencias/255/iphone-04-offline-pagina-dedicada.png) | Pantalla "Sin conexión" de MargenX | Misma pantalla (con un aviso nativo de iOS superpuesto — "Para acceder a tus datos, desactivá Modo de vuelo..." — es el sistema operativo, no la app) |
+
+Los escenarios Gherkin de recorrido por rol y de sesión persistente
+quedan confirmados en ambos dispositivos. El del enlace "Ajustar" queda
+confirmado con un mail real en Android y **pendiente en iPhone**, donde
+solo se probó por simulación — ver §2.9.
+
+### 2.6 Matriz de defectos (fechada)
+
+| Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Quién lo encontró | Evidencia | Estado |
+|---|---|---|---|---|---|---|---|
+| 2026-11-06 | `/instalar` muestra el placeholder "Captura pendiente" en las secciones Android y Escritorio; solo iPhone tiene las 3 capturas reales cargadas (`frontend/src/app/instalar/page.tsx`, array `guideSections`) | Menor / cosmético | `/instalar` | Entrar a `/instalar` como Visitante (no requiere sesión) y mirar las secciones "Android · Chrome" y "Escritorio · Chrome o Edge" | Recorrido automatizado del rol Visitante | — | Sin issue — es un fallback intencional y prolijo (el propio texto se autodenomina "pendiente"), no un bug; queda anotado para que el equipo decida si lo completa |
+| 2026-11-06 | Flash (~1s) de la landing pública al visitar `/` con sesión activa, antes de redirigir a `/dashboard`. `frontend/src/app/page.tsx:117`: el guard `if (isLoaded && isSignedIn) return null` solo evita el parpadeo cuando Clerk ya confirmó la sesión; mientras `isLoaded` sigue en `false` (justo después de una navegación completa, por ejemplo escribir el dominio a mano) no hay ninguna guarda y se renderiza la landing completa | Importante | `/` | Con sesión iniciada (Admin o Colaborador), borrar la barra de direcciones y escribir de nuevo `dev.margenx.tech` | Leandro Herrera — confirmado en Android/Chrome **e** iPhone/Safari | [iPhone, en transición](evidencias/255/iphone-01-landing-flash.png) / [iPhone, resuelto](evidencias/255/iphone-02-dashboard-tras-flash.png) | Abierto — issue de seguimiento del Sprint 6 (no es grave: no pierde datos ni rompe funcionalidad) |
+| 2026-11-06 | "50 % %" — símbolo de porcentaje duplicado en el campo "Margen Mínimo Sugerido" de Perfil. `frontend/src/app/perfil/page.tsx:202-211`: el propio `NumericInput` ya renderiza su `suffixSymbol="%"` (línea 205) y el código agrega otro `<span>%</span>` suelto al lado (línea 211). Los otros 2 usos de `NumericInput` con `%` en el proyecto (`productos/nuevo/page.tsx`, `ProductMasterDataForm.tsx`) no tienen el duplicado | Menor | `/perfil` | Entrar a Perfil como Admin y mirar el campo "Margen Mínimo Sugerido" | Leandro Herrera (Android) | [captura](evidencias/255/android-02-perfil-margen-duplicado.png) (recortada, sin el correo de la cuenta) | Abierto — issue de seguimiento del Sprint 6 |
+| 2026-11-06 | Terminología inconsistente para el mismo estado de margen bajo: las listas y el panel inferior dicen "Crítico" (`MarginBadge.tsx`), el banner grande de la ficha de producto dice "Margen Bajo" (`ProductStatusBanner.tsx`) — mismo cálculo (`margin < objetivo`), dos palabras distintas | Menor | `/productos/:id` | Abrir un producto con margen por debajo del objetivo como Admin y comparar el banner de arriba con el badge del panel inferior | Leandro Herrera (Android) | [captura](evidencias/255/android-05-tarta-ricota-critico-vs-bajo.png) | Abierto — issue de seguimiento del Sprint 6 (el término único se acuerda en la issue) |
+
+No se registraron defectos de severidad alta/grave en ningún rol ni
+dispositivo.
+
+**Escala de severidad de la matriz.** "Grave" equivale a la "severidad
+alta" de la issue: bloquea un flujo, pierde o corrompe datos, o expone
+datos financieros o de otra cuenta; todo defecto grave se convierte en
+issue antes de cerrar el recorrido. "Importante" afecta lo que el usuario
+ve o entiende sin bloquear ni perder datos. "Menor" es cosmético. Los
+defectos Importante y Menor de esta matriz se registran como issues de
+seguimiento del Sprint 6 (review RV342-I1).
+
+### 2.7 Lo no cubierto
+
+- **El enlace "Ajustar" con un mail real en iPhone:** no se probó; en
+  Android sí (§2.5). Queda para el Sprint 6 (ver §2.9).
+- **Widget de login de Clerk (`<SignIn/>`) en el entorno de
+  automatización:** no se pudo verificar visualmente con Playwright por
+  el bloqueo de red descrito en §2.2. El recorrido real contra
+  `dev.margenx.tech` sí lo usó en cada login, sin novedades.
+- **Scroll-lock (PR #195) en Android:** no se probó explícitamente — el
+  bug original fue específico de iOS Safari, así que no formaba parte
+  del alcance mínimo, aunque el hook es compartido por ambas
+  plataformas.
+- **Captura del paso de instalación en iPhone y del scroll-lock en
+  iPhone:** confirmados por reporte directo durante el recorrido, sin
+  una captura de ese paso puntual (el resto de la prueba en iPhone sí
+  tiene evidencia, ver §2.5).
+
+### 2.8 Verificación
+
+- Build de producción real: `npx vite build` (se evitó `tsc -b` porque
+  falla por un problema preexistente y no relacionado — `xlsx` resuelto
+  desde un CDN bloqueado en el entorno de automatización, el mismo que
+  ya afectó a las revisiones de los PR #338-#341; no es código de esta
+  issue). Se confirmó que `dist/` quedó completo y consistente:
+  `index.html` referencia exactamente los bundles generados, y
+  `manifest.webmanifest`, `sw.js`, `offline.html` están presentes.
+- `npx vite preview` sirviendo ese build en `localhost`, recorrido con
+  Playwright real (Chromium) a 390×844 (`deviceScaleFactor: 2`),
+  capturando status, título, contenido de página, y errores de consola
+  por URL.
+- `npx vitest run src/components/__tests__/protected-route.test.tsx
+  src/routes.public.test.tsx`: el primero, **7/7 en verde**, incluida la
+  prueba de redirección sin sesión con mock de Clerk. El segundo falla al
+  cargar por el mismo bloqueo preexistente de `xlsx` (importa `./routes`,
+  que arrastra toda la app) — no es un resultado de esta issue.
+- `curl -sSv https://dev.margenx.tech/`: confirmó un certificado Let's
+  Encrypt válido para el sitio real, descartando que el bloqueo fuera del
+  lado del sitio.
+- Admin y Colaborador, Android e iPhone: recorrido real contra
+  `dev.margenx.tech` (no un doble ni un build local), con capturas de
+  cada pantalla relevante (`docs/qa/evidencias/255/`). Cada uno de los 3
+  hallazgos de §2.6 se verificó además leyendo el componente responsable
+  en el código fuente (`page.tsx`, `perfil/page.tsx`,
+  `NumericInput.tsx`, `MarginBadge.tsx`, `ProductStatusBanner.tsx`)
+  antes de registrarlo, y se descartó un posible cuarto hallazgo (ícono
+  faltante en el menú del Colaborador) tras revisar
+  `bottom-nav.tsx`/`navigation.ts` y confirmar visualmente que no había
+  ninguna falla real.
+
+### 2.9 Pendiente / próximos pasos
+
+- Probar el enlace "Ajustar" con un mail real en iPhone y completar esa
+  columna de §2.5 con su captura (issue de seguimiento del Sprint 6).
+- Los tres defectos abiertos de §2.6 pasan a issues de seguimiento del
+  Sprint 6: el flash de la landing (cambio acotado a
+  `frontend/src/app/page.tsx`, falta la guarda para `!isLoaded`), el
+  "% %" de Perfil y la terminología "Crítico" / "Margen Bajo". No
+  bloquean esta issue.
+- El recorrido del Visitante contra `dev.margenx.tech`, incluido el
+  widget `<SignIn/>`, se repite en vivo en el recorrido final del
+  Sprint 6 (S6-QA-03), como prevé el recorte de la issue.
+
+### 2.10 Definition of Done
+
+- [x] Los tres roles recorridos y los dos dispositivos probados. *(Instalación, standalone y sesión persistente confirmados en ambos. El enlace "Ajustar" con mail real se confirmó en Android; en iPhone queda como issue de seguimiento del Sprint 6 — ver §2.9)*
+- [x] Matriz de defectos publicada (§2.6), con evidencia.
+- [x] Defectos graves convertidos en issues. *(no se encontró ningún defecto grave — nada que convertir)*
+- [x] PR abierto hacia `develop` con CI en verde. *(PR #342)*
+- [x] Documentación actualizada en el mismo PR (esta sección).
