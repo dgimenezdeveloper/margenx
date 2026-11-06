@@ -82,7 +82,7 @@ export function Navbar({
         {backHref ? (
           <Link
             href={backHref}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-700 dark:bg-gray-800 dark:text-gray-100"
             aria-label="Volver"
           >
             <ArrowLeft className="size-4" />

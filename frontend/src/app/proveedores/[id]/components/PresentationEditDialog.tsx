@@ -241,7 +241,7 @@ export function PresentationEditDialog({
                       value={watchedSize}
                       onChange={(val) => setValue('packageSize', Number(val) || 0, { shouldValidate: true, shouldDirty: true })}
                       placeholder="25"
-                      containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800"
+                      containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-500 dark:border-gray-700 dark:bg-gray-800"
                       className="text-sm font-bold text-gray-900 dark:text-white"
                       error={errors.packageSize?.message}
                     />
@@ -257,7 +257,7 @@ export function PresentationEditDialog({
                       onChange={(val) => setValue('packagePrice', Number(val) || 0, { shouldValidate: true, shouldDirty: true })}
                       prefixSymbol="$"
                       placeholder="0,00"
-                      containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800"
+                      containerClassName="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-500 dark:border-gray-700 dark:bg-gray-800"
                       className="text-sm font-bold text-gray-900 dark:text-white"
                       error={errors.packagePrice?.message}
                     />

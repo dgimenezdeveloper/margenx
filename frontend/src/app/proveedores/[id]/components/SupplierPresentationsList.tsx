@@ -117,7 +117,7 @@ export function SupplierPresentationsList({
                   onClick={() => onEdit(item)}
                   aria-label={`Editar presentación de ${item.ingredient.name}`}
                   title="Editar presentación"
-                  className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:border-indigo-300 hover:text-indigo-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:border-indigo-300  dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:text-indigo-300"
                 >
                   <Pencil className="size-4" aria-hidden="true" />
                 </button>
@@ -126,7 +126,7 @@ export function SupplierPresentationsList({
                   onClick={() => onDelete(item)}
                   aria-label={`Quitar presentación de ${item.ingredient.name}`}
                   title="Quitar presentación"
-                  className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-50 dark:border-rose-900/60 dark:bg-gray-800 dark:text-rose-300"
+                  className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-50 dark:border-rose-900/60 dark:bg-gray-800 dark:text-rose-300 dark:hover:bg-rose-950/40"
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
                 </button>
