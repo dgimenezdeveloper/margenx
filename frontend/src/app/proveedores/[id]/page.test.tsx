@@ -156,6 +156,14 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
       )
     })
     expect(await screen.findByText('Presentación actualizada correctamente')).toBeInTheDocument()
+
+    // Regresión [RV341-B1]: comprobar que las demás presentaciones predeterminadas conservan su estado
+    const list = screen.getByRole('list', { name: 'Presentaciones mayoristas' })
+    const items = within(list).getAllByRole('listitem')
+    expect(within(items[0]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[1]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[2]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[3]).queryByText('Predeterminada')).toBeNull()
   })
 
   it('Escenario Gherkin "Código repetido": error 409 se muestra en el campo y no se guarda', async () => {
@@ -239,6 +247,14 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     expect(
       await screen.findByText('Presentación de "Manteca en bloque mayorista" establecida como predeterminada')
     ).toBeInTheDocument()
+
+    // Regresión [RV341-B1]: Manteca se vuelve predeterminada sin desmarcar a Harina 000, Harina 0000 ni Azúcar
+    const list = screen.getByRole('list', { name: 'Presentaciones mayoristas' })
+    const items = within(list).getAllByRole('listitem')
+    expect(within(items[0]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[1]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[2]).getByText('Predeterminada')).toBeInTheDocument()
+    expect(within(items[3]).getByText('Predeterminada')).toBeInTheDocument()
   })
 
   it('muestra estado de error con botón Reintentar si falla la carga inicial', async () => {
