@@ -7,6 +7,22 @@ La pantalla **Proveedores** reúne a quién le comprás, cómo contactarlo y cu�
 - **En la computadora:** en la barra de arriba, botón **Proveedores**.
 - **En el celular:** en el menú de abajo, ícono del camión **Proveedores**.
 
+La sección tiene dos pestañas, arriba de todo:
+
+- **Proveedores:** la lista de a quién le comprás (lo que explica este manual a continuación).
+- **Cuarentena:** la bandeja de precios retenidos (ver [Revisar la cuarentena](#revisar-la-cuarentena)). Si hay precios esperando tu decisión, la pestaña muestra cuántos.
+
+## Tu dirección para listas de precios
+
+Debajo de las pestañas está la **dirección de tu comercio** para recibir listas de precios. Tiene la forma `precios-<slug>@margenx.tech`, donde `<slug>` es el identificador de tu comercio. Por ejemplo, para Panadería Central es `precios-panaderia-central@margenx.tech`.
+
+1. Tocá **Copiar**. El botón pasa a decir **Copiada** y abajo aparece el aviso "Dirección copiada. Pasásela a tu proveedor."
+2. Pegala donde la necesites: en un mail o un WhatsApp a tu proveedor para que mande ahí sus listas, o como destinatario cuando reenvíes una lista que te llegó a vos.
+
+Si el navegador no deja copiar (por ejemplo, en un sitio sin `https`), aparece el aviso "No se pudo copiar": mantené presionada la dirección (o seleccionala) y copiala a mano.
+
+La dirección es la misma para todos tus proveedores: MargenX reconoce de quién es cada precio por el código de artículo de la lista. Solo la ve el administrador.
+
 ## Qué muestra la lista
 
 Arriba, tres números: **Proveedores activos**, **Insumos vinculados** (la suma de lo que le comprás a cada uno) y **Precios en cuarentena**. Si hay precios retenidos, aparece un aviso con el botón **Revisar**, que lleva a la bandeja de cuarentena.
@@ -98,4 +114,27 @@ Si le comprás el mismo insumo a varios proveedores, tocá **Hacer predeterminad
 
 ## Listas de precios y cuarentena
 
-Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente o el costo unitario calculado es menor o igual a $0,01, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
+Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente, queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
+Las listas de precios de tus proveedores actualizan el costo de los insumos que ya tenés vinculados con su código de artículo (ver [Primeros pasos](01-primeros-pasos.md), "Con la lista de precios del proveedor"). Se mandan a [tu dirección para listas de precios](#tu-dirección-para-listas-de-precios). Solo se aplican las de proveedores **activos**. Si un precio cambia más de un 50 % respecto del vigente (o llega en cero o casi cero), queda retenido en **Proveedores › Cuarentena** hasta que lo apruebes o lo rechaces, y se cuenta en la columna **Cuarentena** de la lista.
+
+Mientras un precio está retenido, el costo del insumo **no cambia**.
+
+## Revisar la cuarentena
+
+Entrá a **Proveedores** y tocá la pestaña **Cuarentena**. También llegás desde el aviso **Revisar** de la lista, desde la columna **Cuarentena** de cada proveedor o desde la ficha del insumo.
+
+Por cada precio retenido ves el insumo y el proveedor, el costo **Actual** y el **Propuesto** (por unidad), la **Variación** en porcentaje y el **Motivo** (por ejemplo, "Aumento > 50%" o "Costo casi nulo"). Si no hay ninguno, la bandeja dice "Bandeja limpia".
+
+Para decidir:
+
+1. Tocá **Liberar** si el precio es correcto (por ejemplo, el proveedor aumentó de verdad), o **Rechazar** si es un error de la lista.
+2. Leé el diálogo de confirmación:
+   - **Liberar** aplica el precio nuevo. Si ese proveedor es el predeterminado del insumo, se actualiza el costo y se recalculan las recetas que lo usan; si algún producto queda por debajo de su margen mínimo, te llega la alerta. Si no es el predeterminado, solo se actualiza esa presentación.
+   - **Rechazar** descarta el precio retenido: el insumo conserva su costo actual.
+3. Tocá **Sí, liberar** o **Sí, rechazar**. Al terminar, el precio sale de la bandeja y aparece un aviso de confirmación.
+
+Si algo falla (por ejemplo, se cortó la conexión), el mensaje de error aparece **dentro del mismo diálogo**, que queda abierto para que vuelvas a intentar o toques **Cancelar**. El precio sigue retenido hasta que la acción salga bien.
+
+## El aviso en la ficha del insumo
+
+Si un insumo tiene un precio retenido, al abrir su ficha en **Insumos** la sección **Proveedores y Empaques** muestra un aviso ("1 precio de este insumo está retenido en cuarentena") con el enlace **Revisar en Cuarentena**, y la presentación de ese proveedor lleva la marca **En cuarentena**.

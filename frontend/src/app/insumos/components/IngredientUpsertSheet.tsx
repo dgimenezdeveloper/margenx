@@ -201,21 +201,28 @@ export function IngredientUpsertSheet({
                 </div>
               )}
 
-              <label className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
+              <label htmlFor="ingredient-current-cost" className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
                 Costo unitario ({selected ? selected.unit : selectedUnit})
                 <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                   <span className="text-lg font-bold text-gray-400">$</span>
                   <input
+                    id="ingredient-current-cost"
                     {...register('currentCost')}
                     onKeyDown={onNumericKeyDown}
                     onChange={onDecimalChange}
                     inputMode="decimal"
                     type="text"
                     placeholder="0.00"
+                    aria-invalid={!!errors.currentCost}
+                    aria-describedby={errors.currentCost ? 'ingredient-cost-error' : undefined}
                     className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
                   />
                 </div>
-                {errors.currentCost && <p className="mt-1 text-xs font-bold text-rose-500">{errors.currentCost.message}</p>}
+                {errors.currentCost && (
+                  <p id="ingredient-cost-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                    {errors.currentCost.message}
+                  </p>
+                )}
               </label>
 
               {hasDefaultSupplier && (
