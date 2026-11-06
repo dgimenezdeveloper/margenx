@@ -396,10 +396,10 @@ frontend (`fluent-moose-9060.clerk.accounts.dev`, codificada en
 `VITE_CLERK_PUBLISHABLE_KEY`). Esa instancia alternativa tiene a los 2
 usuarios de Panadería Central pero no a los de Química GyJ ni a la cuenta
 Demo — confirmado buscándolos por email con `users.getUserList`, 0
-resultados. Por decisión explícita de Leandro Herrera (hoy, 06/11, con el
-sprint cerrando el mismo día, y sin ubicar la secret key de la instancia
-correcta), esa corrección queda para después del cierre y se declara como
-no cubierto, con motivo, en vez de demorar el cierre de la issue.
+resultados. No ubiqué la secret key de la instancia correcta a tiempo, con
+el sprint cerrando hoy mismo (06/11), así que decido dejar esa corrección
+para después del cierre y declararla como no cubierto, con motivo, en vez
+de demorar el cierre de la issue.
 
 ### 3.1 Objetivo
 
@@ -510,12 +510,11 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
   (vía la secret key disponible) — dos aplicaciones de Clerk distintas no
   pueden compartir una sesión, y el intento real hizo timeout a los 30s
   en vez de autenticar.
-- Ambos puntos comparten la misma causa raíz (la secret key correcta no
-  se localizó a tiempo) y quedan a cargo de Leandro Herrera para después
-  del cierre de este sprint (decisión explícita, por la fecha de cierre).
-  No son hallazgos de calidad del producto: nada en el código de la
-  aplicación cambió para este punto, es exclusivamente una credencial de
-  entorno pendiente.
+- Ambos puntos comparten la misma causa raíz (no ubiqué la secret key
+  correcta a tiempo) y quedan de mi lado para después del cierre de este
+  sprint, por la fecha de cierre. No son hallazgos de calidad del
+  producto: nada en el código de la aplicación cambió para este punto, es
+  exclusivamente una credencial de entorno pendiente.
 
 ### 3.6 Verificación
 
