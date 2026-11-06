@@ -22,15 +22,19 @@ export interface SupplierSummary extends Supplier {
 export interface SupplierPresentation {
   id: string
   supplierCode?: string | null
+  rawDescription?: string | null
   packageSize: number | string
   packageUnit: string
   packagePrice: number | string
   isDefault: boolean
   isQuarantined?: boolean
+  quarantinedAt?: string | null
+  quarantineReason?: string | null
   ingredient: {
     id: string
     name: string
     unit: string
+    currentCost?: number | string
   }
 }
 
@@ -47,6 +51,8 @@ export interface SupplierIngredient {
   packagePrice: number
   isDefault: boolean
   isQuarantined?: boolean
+  supplierCode?: string | null
+  rawDescription?: string | null
   supplier?: {
     id: string
     name: string
@@ -59,6 +65,8 @@ export interface SupplierPackagingInput {
   packageUnit: 'kg' | 'l' | 'u'
   packagePrice: number
   isDefault?: boolean
+  supplierCode?: string | null
+  rawDescription?: string | null
 }
 
 export interface SupplierPackagingResponse {
@@ -133,6 +141,16 @@ export const supplierService = {
     return fetchApi<SupplierPackagingResponse>(`/suppliers/${supplierId}/ingredients`, getToken, {
       method: 'POST',
       body: JSON.stringify(input),
+    })
+  },
+
+  async removePackaging(
+    getToken: TokenGetter,
+    supplierId: string,
+    ingredientId: string
+  ): Promise<void> {
+    await fetchApi(`/suppliers/${supplierId}/ingredients/${ingredientId}`, getToken, {
+      method: 'DELETE',
     })
   },
 

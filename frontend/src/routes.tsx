@@ -11,6 +11,7 @@ import ProfilePage from './app/perfil/page'
 import PrivacyPage from './app/privacidad/page'
 import InstallPage from './app/instalar/page'
 import SuppliersListPage from './app/proveedores/page'
+import SupplierDetailPage from './app/proveedores/[id]/page'
 import QuarantinePage from './app/proveedores/cuarentena/page'
 import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
@@ -53,6 +54,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <AdminOnlyRoute>
           <SuppliersListPage />
+        </AdminOnlyRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/proveedores/:id',
+    element: (
+      <ProtectedRoute>
+        <AdminOnlyRoute>
+          <SupplierDetailPage />
         </AdminOnlyRoute>
       </ProtectedRoute>
     ),
