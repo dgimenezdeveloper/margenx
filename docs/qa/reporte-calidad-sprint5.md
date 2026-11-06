@@ -380,3 +380,143 @@ seguimiento del Sprint 6 (review RV342-I1).
 - [x] Defectos graves convertidos en issues. *(no se encontró ningún defecto grave — nada que convertir)*
 - [x] PR abierto hacia `develop` con CI en verde. *(PR #342)*
 - [x] Documentación actualizada en el mismo PR (esta sección).
+
+## 3. Regresión del Sprint 5 con matriz de defectos (issue #270)
+
+**Estado de esta sección: ejecutada parcialmente.** Se armó el entorno local
+(Postgres 16, migraciones, seed, backend) y se corrió la única colección de
+Postman que no depende de Clerk (Webhooks API), en verde. Las otras 5
+colecciones de la issue #264 y el E2E de RBAC (`rbac-security.spec.ts`) no
+se pudieron correr: el `CLERK_SECRET_KEY` de este entorno es inválido y
+faltan además las credenciales de la cuenta Demo para el E2E. Por decisión
+explícita de Leandro Herrera (hoy, 06/11, con el sprint cerrando el mismo
+día), esa corrección queda para después del cierre y se declara como no
+cubierto, con motivo, en vez de demorar el cierre de la issue.
+
+### 3.1 Objetivo
+
+Ejecutar una regresión liviana del sprint — las colecciones de Postman
+actualizadas en la issue #264, el E2E de RBAC y los casos clave de la
+issue #255 — para completar la matriz fechada de defectos del sprint,
+declarar lo no cubierto con su motivo y emitir una recomendación de
+publicación con las excepciones que Darío decida aceptar.
+
+### 3.2 Método
+
+- Se levantó Postgres 16 local (estaba instalado pero el cluster apagado),
+  se configuró `DATABASE_URL` contra una base `margenx_dev` propia y
+  descartable, se corrieron las 14 migraciones (`npx prisma migrate
+  deploy`) y el seed (`npx prisma db seed`), y se levantó el backend en
+  `localhost:3000` (health check en verde).
+- Al generar los tokens de prueba de Clerk (`backend/scripts/get-test-token.ts`,
+  necesarios para 5 de las 6 colecciones de la issue #264) se detectó que
+  el `CLERK_SECRET_KEY` configurado en el entorno de esta sesión es
+  inválido — confirmado llamando directamente a `users.getUserList` y
+  `users.getUser` contra la API real de Clerk, que responde
+  `401 clerk_key_invalid`. No es un problema del script, del seed ni del
+  backend: la misma clave falla para cualquier llamada, incluso antes de
+  tocar un `userId` puntual.
+- De las 6 colecciones, la única que no depende de un token de Clerk
+  (Webhooks API, usa `INTERNAL_WEBHOOK_SECRET`) sí se pudo correr
+  completa, con un secreto propio generado para esta corrida (no se
+  reutilizó ningún secreto real de producción ni de otro entorno).
+- El E2E de RBAC depende, además del `CLERK_SECRET_KEY`, de
+  `E2E_CLERK_TEST_EMAIL`/`PASSWORD` y `E2E_CLERK_COLLAB_EMAIL`/`PASSWORD`
+  (la cuenta Demo, no las cuentas piloto de Panadería/Química — ver
+  `frontend/.env.test.example`), que no están configuradas en este
+  entorno en absoluto.
+- Se intentó corregir el `CLERK_SECRET_KEY` en vivo durante esta misma
+  sesión (variable de entorno del lado del proyecto en `backend/.env` y,
+  después, la variable del entorno cloud "Default" de la cuenta). Ninguna
+  corrección impactó: la primera porque la clave real no la tiene este
+  entorno, la segunda porque las variables de un entorno cloud solo se
+  aplican la próxima vez que la sesión arranca de cero, no al reabrir la
+  misma vista — y en este caso, Postgres y el backend seguían corriendo
+  después de "reabrir", prueba de que el contenedor nunca se reinició de
+  verdad.
+- Como los casos clave de la issue #255 (los 3 hallazgos de §2.6) ya están
+  verificados y fechados hoy mismo, no se repitió el recorrido completo:
+  se releyó el código vigente de los tres (`page.tsx:117`,
+  `perfil/page.tsx:202-211`, `MarginBadge.tsx:79` vs
+  `ProductStatusBanner.tsx:54`) para confirmar que ninguno cambió ni se
+  corrigió por accidente desde que se registraron.
+
+### 3.3 Resultados
+
+| Suite | Resultado |
+|---|---|
+| Webhooks API (Postman, issue #264) | ✅ 5/5 requests, 10/10 assertions, 0 failures |
+| Insumos API, Productos API, Proveedores y Conversiones, Colaborador RBAC, Alertas de margen (Postman) | No ejecutadas — `CLERK_SECRET_KEY` inválido, ver §3.5 |
+| E2E de RBAC (`rbac-security.spec.ts`) | No ejecutado — `CLERK_SECRET_KEY` inválido + credenciales de la cuenta Demo ausentes, ver §3.5 |
+| Casos clave de §2.6 (issue #255) | Releídos contra el código vigente: los 3 siguen idénticos a como se registraron, sin regresión ni corrección adicional |
+
+### 3.4 Matriz de defectos (fechada)
+
+No se encontró ningún defecto nuevo en lo que sí se pudo ejecutar hoy
+(Webhooks API, 0 failures). Los 3 defectos abiertos del sprint siguen
+siendo exactamente los de la matriz de §2.6 (issue #255); esta sección no
+los repite ni agrega ninguno nuevo, para no reproducir el problema de
+listas duplicadas que ya se señaló en la revisión del PR #343.
+
+No se registraron defectos de severidad alta/grave en ningún frente
+verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
+
+### 3.5 Lo no cubierto
+
+- **5 de las 6 colecciones de Postman** de la issue #264 (Insumos,
+  Productos, Proveedores y Conversiones, Colaborador RBAC, Alertas de
+  margen): no se pudieron correr porque el `CLERK_SECRET_KEY` de este
+  entorno es inválido (`401 clerk_key_invalid` contra la API real de
+  Clerk) y por lo tanto no genera tokens de prueba. Motivo de
+  configuración de entorno, no de código ni de producto.
+- **E2E de RBAC** (`rbac-security.spec.ts`): no se pudo correr por el
+  mismo motivo, más la ausencia de `E2E_CLERK_TEST_EMAIL`/`PASSWORD` y
+  `E2E_CLERK_COLLAB_EMAIL`/`PASSWORD` de la cuenta Demo en este entorno.
+- Ambos puntos quedan a cargo de Leandro Herrera para después del cierre
+  de este sprint (decisión explícita, por la fecha de cierre). No son
+  hallazgos de calidad del producto: nada en el código de la aplicación
+  cambió para este punto, es exclusivamente configuración del entorno de
+  esta sesión de QA.
+
+### 3.6 Verificación
+
+- `npx prisma migrate deploy` contra Postgres 16 local recién levantado:
+  14 migraciones aplicadas sin errores.
+- `npx prisma db seed`: `Seed completado: 2 cuentas, 4 usuarios, 20
+  insumos, 4 proveedores, 21 presentaciones mayoristas, 20 productos y
+  sus recetas`.
+- Backend levantado en `localhost:3000`: `GET /api/health` responde `200
+  {"status":"ok"}`.
+- `INTERNAL_WEBHOOK_SECRET=<propio, generado para esta corrida>
+  ./run-tests-webhooks.sh`: 5/5 requests, 10/10 assertions, 0 failures.
+- Llamadas directas con `@clerk/backend` (`users.getUserList`,
+  `users.getUser`) confirman `401 clerk_key_invalid` contra la API real de
+  Clerk — no es una inferencia, es la respuesta textual de Clerk.
+- Lectura directa del código vigente de los 3 hallazgos de §2.6: los tres
+  idénticos a como se registraron hoy.
+
+### 3.7 Recomendación de publicación
+
+**Se recomienda publicar, con una excepción que debe aceptar Darío:**
+ningún defecto grave está abierto en ningún frente que se pudo verificar
+— ni en el recorrido de dispositivos reales de §2, ni en la colección de
+Webhooks corrida hoy, ni en el código de los 3 hallazgos menores ya
+trackeados para el Sprint 6. La excepción es que 5 de las 6 colecciones de
+Postman y el E2E de RBAC no se ejecutaron hoy por credenciales de entorno
+pendientes (no por sospecha de ningún defecto concreto) y quedan para
+correr apenas se actualicen `CLERK_SECRET_KEY` y las credenciales de la
+cuenta Demo. Si esa corrida pendiente llegara a encontrar algo, se
+reporta como issue de seguimiento igual que el resto de los hallazgos de
+este sprint.
+
+### 3.8 Definition of Done
+
+- [x] Regresión ejecutada (parcialmente, ver §3.1) y matriz publicada —
+      §3.3/§3.4.
+- [x] Lo no cubierto declarado, con motivo — §3.5.
+- [x] Recomendación de publicación escrita, con la excepción que acepta
+      Darío — §3.7.
+- [ ] PR abierto hacia `develop` con CI en verde. *(pendiente — lo abre
+      Leandro manualmente)*
+- [x] Documentación actualizada en el mismo PR (esta sección, más
+      CHANGELOG).
