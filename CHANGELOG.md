@@ -4,7 +4,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-11-08 (Sprint 5: Proveedores, PWA instalable y operación en producción)
+## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 
 ### Added
 
