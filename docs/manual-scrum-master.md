@@ -199,65 +199,55 @@ En la raíz del repositorio, actualizar `CHANGELOG.md` siguiendo el estándar [K
 
 ---
 
-### FASE 4: Regla Crítica de Permisos y Procedimiento de Release en GitHub (Runbook de Despliegue)
+### FASE 4: Release a Producción (`develop` → `main`)
 
-> ⚠️ **REGLA DE PERMISOS ESTRICTA (NO BYPASS):**  
-> Las ramas `main` y `develop` cuentan con **reglas de protección de ramas activas**. Ningún desarrollador (incluido el Scrum Master) tiene permisos para hacer merge por terminal ni hacer push directo de tags por consola (`git push origin vX.Y.Z` será rechazado).  
-> **El proceso de release debe ejecutarse 100% a través de la interfaz web de GitHub.**
+El procedimiento completo, con los comandos, está en `docs/runbook-release.md`. Este resumen no lo reemplaza.
+
+> ⚠️ **Reglas que no se negocian:**
+> - `main` no acepta push directo: el código entra solo por Pull Request desde `develop` (`docs/politica-proteccion-main.md` §1).
+> - El PR de release se mergea con **"Create a merge commit"**, nunca con Squash and Merge ni Rebase (`docs/politica-proteccion-main.md` §2.4 y `CONTRIBUTING.md` §4). Los releases v0.1.0 a v0.4.0 se publicaron con squash y dejaron `develop` desfasada; desde v0.5.0 se usa merge commit.
+> - El despliegue a producción lo dispara el **merge** a `main` (`.github/workflows/deploy.yml`), no la etiqueta ni la Release.
 
 ```
-                           FLUJO DE RELEASE WEB EN GITHUB
+                         FLUJO DE RELEASE (docs/runbook-release.md)
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. PR en GitHub Web: develop ➔ main (Squash & Merge tras aprobación)        │
-│ 2. GitHub Web ➔ Releases ➔ Draft a new release (Crear tag vX.Y.Z en main)   │
-│ 3. GitHub Actions dispara deploy.yml automáticamente hacia la VPS           │
+│ 1. Lista previa: develop congelada, copia pg_dump, ensayo de migraciones    │
+│    sobre una copia e imagen anterior conservada en la VPS                   │
+│ 2. PR develop ➔ main con "Refs #N" ➔ merge con "Create a merge commit"      │
+│ 3. deploy.yml despliega en producción (migraciones incluidas)               │
+│ 4. Etiqueta anotada vX.Y.Z sobre el merge commit y Release de GitHub        │
+│ 5. Prueba rápida con la cuenta Demo y aviso en Discord                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Procedimiento Paso a Paso:
+#### Paso 1: Lista de verificación previa
+Seguir `docs/runbook-release.md` §2 y dejar los resultados como comentario en la issue del release.
 
-#### Paso 1: Abrir el Pull Request de Release en la Web de GitHub
-1. Ir a: `https://github.com/dgimenezdeveloper/margenx/compare/main...develop`.
-2. **Configuración:** `base: main` ⟵ `compare: develop`.
-3. **Título:** `release: vX.Y.Z - Cierre Sprint X (<Hito Principal>)`.
-4. **Descripción:** Pegar el bloque de cambios redactado en el `CHANGELOG.md`. En *Issue Vinculada* colocar: `N/A - Release formal de cierre de Sprint X`.
-5. Esperar que el pipeline de CI (`ci.yml`) termine en verde y solicitar aprobación de Peer Review.
+#### Paso 2: Pull Request de release
+1. Ir a `https://github.com/dgimenezdeveloper/margenx/compare/main...develop` (`base: main` ⟵ `compare: develop`).
+2. **Título:** `release: vX.Y.Z - Cierre Sprint X (<Hito Principal>)`.
+3. **Descripción:** plantilla del repositorio con el resumen de la sección `[X.Y.Z]` del `CHANGELOG.md`. En *Issue Vinculada*, `Refs #N` por cada issue incluida, una por línea (nunca `Closes`; `CONTRIBUTING.md` §3). El comando para armar la lista está en `docs/runbook-release.md` §3.1.
+4. Esperar el CI en verde y las aprobaciones de Peer Review y QA.
 
-#### Paso 2: Ejecutar la Fusión Web (Squash and Merge)
-1. Hacer clic en **Squash and merge**. La rama `main` de producción queda actualizada con todo el código del sprint.
+#### Paso 3: Merge con merge commit
+En el menú del botón de merge, elegir **Create a merge commit** y confirmar. Comprobar que `develop` no quedó desfasada (`docs/runbook-release.md` §3.2).
 
-#### Paso 3: Crear el Tag de Release desde la Web de GitHub
-1. Ir a la pestaña **Releases** (`https://github.com/dgimenezdeveloper/margenx/releases`).
-2. Hacer clic en **Draft a new release**.
-3. En *Choose a tag*: Escribir el nuevo tag con la convención oficial: **`vX.Y.Z`** (ej. `v0.2.0`), asegurando que el *Target* sea **`main`**.
-4. En *Release title*: Colocar `MargenX Release vX.Y.Z - Sprint X`, pegar las notas del `CHANGELOG.md` en la descripción y hacer clic en **Publish release**.
-
-#### Paso 4: Impacto y Monitoreo del Pipeline de Despliegue (`deploy.yml`)
-Al publicarse el Release en `main`, GitHub Actions dispara automáticamente el workflow `deploy.yml`:
-1. Compila las imágenes de Frontend y Backend con tag `:latest`.
-2. Sube las imágenes a Docker Hub (`dgimenezdeveloper/margenx-frontend:latest` y `dgimenezdeveloper/margenx-backend:latest`).
-3. Se conecta por SSH a la VPS Donweb (`<VPS_IP>`) y ejecuta:
+#### Paso 4: Despliegue (`deploy.yml`)
+El merge en `main` dispara `deploy.yml`, que:
+1. Compila las imágenes de Frontend y Backend con la etiqueta `:latest` y las sube a Docker Hub.
+2. Se conecta por SSH a la VPS Donweb y ejecuta:
    ```bash
    docker compose pull backend-prod frontend-prod
-   docker compose run --rm backend-prod npx prisma migrate deploy  # Contra la base margenx_prod en puerto 5435
+   docker compose run --rm backend-prod npx prisma migrate deploy  # contra la base margenx_prod
    docker compose up -d --no-deps backend-prod frontend-prod
    ```
-4. Envía notificación verde a Discord con mención `@everyone`.
+3. Envía la notificación del resultado a Discord.
 
-#### Paso 5: Sincronización Local Post-Release
-```bash
-git checkout develop
-git pull origin develop
-git fetch --tags  # Descarga el tag creado en la web a tu máquina local
-```
+#### Paso 5: Etiqueta y Release
+Etiqueta **anotada** `vX.Y.Z` sobre el merge commit, creada con `git tag -a` y publicada con `git push origin vX.Y.Z` (no hay reglas que bloqueen etiquetas), y Release con las notas de la sección del `CHANGELOG.md` (`docs/runbook-release.md` §3.4). La pantalla *Draft a new release* de GitHub crea etiquetas livianas: no se usa para crear la etiqueta.
 
-#### Paso 6: Verificación en Vivo (Smoke Test de Producción)
-- [ ] Verificar endpoint de healthcheck en producción:
-  ```bash
-  curl -I https://api.margenx.tech/api/health
-  # Debe responder HTTP/2 200 OK
-  ```
-- [ ] Abrir `https://margenx.tech` en navegador de celular (360px) y verificar inicio de sesión con Clerk y listados operativos.
+#### Paso 6: Prueba rápida, aviso y cierre
+Prueba rápida en producción con la cuenta Demo (`docs/runbook-release.md` §4), aviso del lanzamiento en Discord (§6) y cierre de la issue (§7). Ante un fallo grave, vuelta atrás según §5.
 
 ---
 
