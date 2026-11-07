@@ -383,23 +383,29 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ## 3. Regresión del Sprint 5 con matriz de defectos (issue #270)
 
-**Estado de esta sección: ejecutada parcialmente.** Se armó el entorno local
-(Postgres 16, migraciones, seed, backend) y, tras corregir el
-`CLERK_SECRET_KEY` del entorno, se corrieron 3 de las 6 colecciones de
-Postman de la issue #264 en verde: Webhooks API, Colaborador RBAC API y
-Alertas de margen (Insumos). Las otras 3 (Insumos, Productos, Proveedores y
-Conversiones) y el E2E de RBAC (`rbac-security.spec.ts`) no se pudieron
-correr por un motivo puntual y confirmado, no por una clave inválida: la
-secret key disponible en este entorno corresponde a una instancia de Clerk
+**Estado de esta sección: ejecutada parcialmente, en local.** Se armó el
+entorno local (Postgres 16, migraciones, seed, backend) y, en el camino,
+apareció y se corrigió un defecto real en
+`backend/scripts/get-test-token.ts` (D1 de §3.4, commit `d8d8b77`).
+Tras corregir también el `CLERK_SECRET_KEY` del entorno (inválido al
+principio, por una causa distinta a la del script), corrieron 3 de las 6
+colecciones de Postman de la issue #264 en verde: Webhooks API,
+Colaborador RBAC API y Alertas de margen (Insumos). El E2E de RBAC
+(`rbac-security.spec.ts`) no corrió localmente, pero sí tiene evidencia
+real: pasó sus 18 tests en el job `E2E Tests Suite (Playwright)` del CI de
+este mismo PR, así que no es una excepción. Las otras 3 colecciones
+(Insumos, Productos, Proveedores y Conversiones) sí quedan sin cubrir, por
+un motivo puntual y confirmado (D2 de §3.4): la secret key disponible en
+este entorno corresponde a una instancia de Clerk
 (`possible-alpaca-7097.clerk.accounts.dev`) distinta a la que usa el
 frontend (`fluent-moose-9060.clerk.accounts.dev`, codificada en
 `VITE_CLERK_PUBLISHABLE_KEY`). Esa instancia alternativa tiene a los 2
-usuarios de Panadería Central pero no a los de Química GyJ ni a la cuenta
-Demo — confirmado buscándolos por email con `users.getUserList`, 0
-resultados. No ubiqué la secret key de la instancia correcta a tiempo, con
-el sprint cerrando hoy mismo (06/11), así que decido dejar esa corrección
-para después del cierre y declararla como no cubierto, con motivo, en vez
-de demorar el cierre de la issue.
+usuarios de Panadería Central pero no a los de Química GyJ — confirmado
+buscándolos por email con `users.getUserList`, 0 resultados. No ubiqué la
+secret key de la instancia correcta a tiempo, con el sprint cerrando hoy
+mismo, así que decido dejar esa corrección para después del cierre y
+declararla como no cubierto, con motivo, en vez de demorar el cierre de
+la issue.
 
 ### 3.1 Objetivo
 
@@ -415,33 +421,33 @@ publicación con las excepciones que Darío decida aceptar.
   se configuró `DATABASE_URL` contra una base `margenx_dev` propia y
   descartable, se corrieron las 14 migraciones (`npx prisma migrate
   deploy`) y el seed (`npx prisma db seed`), y se levantó el backend en
-  `localhost:3000` (health check en verde).
-- Al generar los tokens de prueba de Clerk (`backend/scripts/get-test-token.ts`,
-  necesarios para 5 de las 6 colecciones de la issue #264) se detectó que
-  el `CLERK_SECRET_KEY` configurado en el entorno de esta sesión es
-  inválido — confirmado llamando directamente a `users.getUserList` y
-  `users.getUser` contra la API real de Clerk, que responde
-  `401 clerk_key_invalid`. No es un problema del script, del seed ni del
-  backend: la misma clave falla para cualquier llamada, incluso antes de
-  tocar un `userId` puntual.
+  `localhost:3000` (health check en verde). Esta corrida es local, no
+  contra `dev.margenx.tech` — ver el desvío declarado en §3.5.
+- Al generar el primer token de prueba de Clerk
+  (`backend/scripts/get-test-token.ts`, necesario para 5 de las 6
+  colecciones de la issue #264) apareció un defecto real: el script tenía
+  los `authProviderId` de `panaderia-admin` y `panaderia-colab`
+  desactualizados — la siembra de la cuenta Demo y pilotos en producción
+  (#240) los cambió en `backend/prisma/seed.ts` pero no se reflejó acá, y
+  Clerk devolvía Bad Request al pedir el token por default. Corregido en
+  el commit `d8d8b77` de este mismo PR; queda registrado como defecto en
+  §3.4 (D1), no se da por verificado sin matriz.
+- Ya con el script corregido, generar el token siguió fallando: el
+  `CLERK_SECRET_KEY` configurado en el entorno de esta sesión es inválido
+  — confirmado llamando directamente a `users.getUserList` y `users.getUser`
+  contra la API real de Clerk, que responde `401 clerk_key_invalid`. Esta
+  parte sí es ajena al script: la misma clave falla para cualquier
+  llamada, incluso antes de tocar un `userId` puntual.
 - De las 6 colecciones, la única que no depende de un token de Clerk
   (Webhooks API, usa `INTERNAL_WEBHOOK_SECRET`) sí se pudo correr
   completa, con un secreto propio generado para esta corrida (no se
   reutilizó ningún secreto real de producción ni de otro entorno).
-- El E2E de RBAC depende, además del `CLERK_SECRET_KEY`, de
-  `E2E_CLERK_TEST_EMAIL`/`PASSWORD` y `E2E_CLERK_COLLAB_EMAIL`/`PASSWORD`
-  (la cuenta Demo, no las cuentas piloto de Panadería/Química — ver
-  `frontend/.env.test.example`), que no están configuradas en este
-  entorno en absoluto.
-- Se corrigió el `CLERK_SECRET_KEY` en la variable del entorno cloud
-  "Default" de la cuenta. El primer intento no impactó porque las
-  variables de un entorno cloud solo se aplican la próxima vez que la
-  sesión arranca de cero, no al reabrir la misma vista (confirmado: tras
-  "reabrir", Postgres y el backend seguían corriendo, prueba de que el
-  contenedor no se había reiniciado). En un segundo intento el contenedor
-  sí se reinició de verdad: Postgres y el backend se volvieron a levantar
-  (los datos sembrados persistieron en disco) y la nueva clave resultó
-  válida contra la API real de Clerk.
+- El `CLERK_SECRET_KEY` se corrigió en la variable del entorno cloud de
+  la cuenta; la primera actualización no tomó efecto en la sesión en
+  curso y hubo que reiniciar el contenedor para que se aplicara (Postgres
+  y el backend se volvieron a levantar solos, los datos sembrados
+  persistieron en disco). La nueva clave resultó válida contra la API
+  real de Clerk.
 - Con la clave nueva se regeneraron los tokens y corrieron Colaborador
   RBAC API y Alertas de margen (Insumos), ambas en verde. `quimica-admin`
   devolvió `404 Not Found` al generar su token. Se decodificó
@@ -449,19 +455,25 @@ publicación con las excepciones que Darío decida aceptar.
   en el bundle del frontend) y se confirmó que apunta a la instancia
   `fluent-moose-9060.clerk.accounts.dev`, distinta de la instancia
   `possible-alpaca-7097.clerk.accounts.dev` de la nueva secret key. Se
-  buscaron los emails de los usuarios de Química GyJ
-  (`admin.quimica@hotmail.com`, `colab.quimica@hotmail.com`) con
+  buscó por email a `quimica-admin` y `quimica-colab` (los alias de la
+  tabla `USERS` de `get-test-token.ts`, no los emails del seed) con
   `users.getUserList` directamente contra la API de Clerk: 0 resultados,
   confirmando que no existen en esta instancia bajo ningún ID.
-- Se intentó igualmente el E2E de RBAC (`auth.collaborator.setup.ts` +
-  `rbac-security.spec.ts`), con un `executablePath` explícito al Chromium
-  ya instalado en este entorno para evitar una descarga de browser
-  innecesaria. El sign-in de `@clerk/testing` hizo timeout a los 30s: el
-  frontend (instancia `fluent-moose-9060`) y el token generado
-  (instancia `possible-alpaca-7097`) no pueden coincidir en una sesión
-  válida al ser dos aplicaciones de Clerk distintas.
-- No se localizó la secret key de `fluent-moose-9060` (la única que
-  destrabaría química y el E2E) entre las credenciales disponibles hoy.
+- Se intentó también el E2E de RBAC localmente (`auth.collaborator.setup.ts`
+  + `rbac-security.spec.ts`), con un `executablePath` explícito al
+  Chromium ya instalado en este entorno. El sign-in de `@clerk/testing`
+  hizo timeout a los 30s: el frontend (instancia `fluent-moose-9060`) y el
+  token generado (instancia `possible-alpaca-7097`) no pueden coincidir en
+  una sesión válida al ser dos aplicaciones de Clerk distintas. Esa corrida
+  local fallida queda solo como dato de este entorno puntual: el job
+  requerido `E2E Tests Suite (Playwright)` del CI de este mismo PR
+  (run [42304817428](https://github.com/dgimenezdeveloper/margenx/actions/runs/42304817428/job/128191920642),
+  SHA `799d2e3`) corrió con sus propios secretos de Clerk (consistentes
+  entre sí) y pasó `rbac-security.spec.ts` dentro del proyecto
+  `chromium-collaborator` — 18 tests en verde en 49,5s. Esa es la
+  evidencia real del E2E de RBAC, no la corrida local.
+- No se localizó la secret key de `fluent-moose-9060` (la que destrabaría
+  química) entre las credenciales disponibles hoy.
 - Como los casos clave de la issue #255 (los 3 hallazgos de §2.6) ya están
   verificados y fechados hoy mismo, no se repitió el recorrido completo:
   se releyó el código vigente de los tres (`page.tsx:117`,
@@ -476,18 +488,23 @@ publicación con las excepciones que Darío decida aceptar.
 | Webhooks API (Postman, issue #264) | ✅ 5/5 requests, 10/10 assertions, 0 failures |
 | Colaborador RBAC API (Postman) | ✅ 5/5 requests, 10/10 assertions, 0 failures |
 | Alertas de margen (Insumos) (Postman) | ✅ 4/4 requests, 12/12 assertions, 0 failures |
-| Insumos API, Productos API, Proveedores y Conversiones (Postman) | No ejecutadas — necesitan un token de `quimica-admin` que no existe en la instancia de Clerk disponible, ver §3.5 |
-| E2E de RBAC (`rbac-security.spec.ts`) | No ejecutado — instancia de Clerk del frontend y de la secret key no coinciden, ver §3.5 |
+| Insumos API, Productos API, Proveedores y Conversiones (Postman) | No ejecutadas en esta regresión — necesitan un token de `quimica-admin` que no existe en la instancia de Clerk disponible, ver §3.5 |
+| E2E de RBAC (`rbac-security.spec.ts`) | ✅ 18 passed (49,5s) — evidencia del job `E2E Tests Suite (Playwright)` del CI de este PR, ver §3.6. La corrida local falló por el mismo motivo que química (instancias de Clerk distintas); no es la evidencia operativa |
 | Casos clave de §2.6 (issue #255) | Releídos contra el código vigente: los 3 siguen idénticos a como se registraron, sin regresión ni corrección adicional |
 
 ### 3.4 Matriz de defectos (fechada)
 
-No se encontró ningún defecto nuevo en lo que sí se pudo ejecutar hoy
-(Webhooks API, Colaborador RBAC API y Alertas de margen, las 3 en 0
-failures). Los 3 defectos abiertos del sprint siguen
-siendo exactamente los de la matriz de §2.6 (issue #255); esta sección no
-los repite ni agrega ninguno nuevo, para no reproducir el problema de
-listas duplicadas que ya se señaló en la revisión del PR #343.
+| Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Quién lo encontró | Evidencia | Estado |
+|---|---|---|---|---|---|---|---|
+| 2026-11-06 | `backend/scripts/get-test-token.ts` tenía los `authProviderId` de `panaderia-admin` y `panaderia-colab` desactualizados contra `backend/prisma/seed.ts` (la siembra de la cuenta Demo y pilotos en producción, #240, los cambió ahí pero no acá); generar el token por default devolvía Bad Request de Clerk | Menor (herramienta de desarrollo, sin impacto en producción ni en los comercios piloto) | — (script de backend, no hay pantalla) | `npx tsx scripts/get-test-token.ts panaderia-admin` contra el seed actual | Leandro Herrera, en esta misma regresión | commit `d8d8b77` | **Corregido en este PR** |
+| 2026-11-06 | La secret key de Clerk disponible en el entorno de QA de esta sesión pertenece a una instancia (`possible-alpaca-7097`) distinta de la que usa el frontend (`fluent-moose-9060`); no tiene a los usuarios de Química GyJ, lo que bloquea 3 de las 6 colecciones de Postman en esta regresión puntual | Importante (bloquea cobertura de QA; no es un defecto del producto) | — (entorno de pruebas, no pantalla de la app) | Generar un token de `quimica-admin` con `get-test-token.ts` en este entorno | Leandro Herrera | `users.getUserList` por email, 0 resultados; `VITE_CLERK_PUBLISHABLE_KEY` decodificada (§3.6) | Abierto — pendiente ubicar la secret key de `fluent-moose-9060` |
+
+Ninguno de los dos es un defecto del código de la aplicación en producción
+(uno es de un script de desarrollo, ya corregido; el otro es de las
+credenciales del entorno de pruebas de esta sesión). Los 3 defectos
+abiertos del sprint en el producto siguen siendo los de la matriz de §2.6
+(issue #255); esta sección no los repite, para no reproducir el problema
+de listas duplicadas que ya se señaló en la revisión del PR #343.
 
 No se registraron defectos de severidad alta/grave en ningún frente
 verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
@@ -500,21 +517,21 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
   en paralelo, que sí funciona). La secret key de Clerk disponible en
   este entorno es válida, pero pertenece a una instancia
   (`possible-alpaca-7097.clerk.accounts.dev`) que no tiene ningún usuario
-  de Química GyJ — confirmado buscándolos por email, 0 resultados. No es
-  un problema de código ni de producto: la app de Clerk correcta
-  (`fluent-moose-9060`, la que ya usa el frontend) seguramente sí los
-  tiene, pero su secret key no se localizó hoy.
-- **E2E de RBAC** (`rbac-security.spec.ts`): el frontend inicializa
-  contra `fluent-moose-9060` (vía `VITE_CLERK_PUBLISHABLE_KEY`, sin
-  tocar) y el sign-in de prueba se generó contra `possible-alpaca-7097`
-  (vía la secret key disponible) — dos aplicaciones de Clerk distintas no
-  pueden compartir una sesión, y el intento real hizo timeout a los 30s
-  en vez de autenticar.
-- Ambos puntos comparten la misma causa raíz (no ubiqué la secret key
-  correcta a tiempo) y quedan de mi lado para después del cierre de este
-  sprint, por la fecha de cierre. No son hallazgos de calidad del
-  producto: nada en el código de la aplicación cambió para este punto, es
-  exclusivamente una credencial de entorno pendiente.
+  de Química GyJ — confirmado buscándolos por email, 0 resultados (D2 de
+  §3.4). No es un problema de código ni de producto: la app de Clerk
+  correcta (`fluent-moose-9060`, la que ya usa el frontend) seguramente sí
+  los tiene, pero su secret key no se localizó hoy. Queda de mi lado para
+  después del cierre de este sprint.
+- **La regresión corrió en local, no contra `dev.margenx.tech`** como pide
+  el Alcance Técnico de la issue #270. Las colecciones de la issue #264
+  están diseñadas para correr contra una base sembrada local, no contra
+  `dev` (ver `docs/qa/ejecutar-colecciones-postman.md`); no evalué
+  adaptarlas a `dev` en esta corrida. El E2E de RBAC sí tiene evidencia
+  contra el entorno de CI (§3.3/§3.6), que tampoco es `dev`.
+- El E2E de RBAC (`rbac-security.spec.ts`) **no** es una excepción: corrió
+  en verde en el CI de este mismo PR (§3.3/§3.6). La corrida local falló
+  por el mismo desajuste de instancias de Clerk que química, pero ya hay
+  evidencia real y no hace falta repetirla.
 
 ### 3.6 Verificación
 
@@ -534,43 +551,46 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
 - Llamadas directas con `@clerk/backend` (`users.getUser` contra el
   `userId` de `panaderia-admin`): confirmado, responde con el usuario
   real. El mismo método contra `quimica-admin` responde `404 Not Found`.
-- `users.getUserList({ emailAddress: ['admin.quimica@hotmail.com',
-  'colab.quimica@hotmail.com'] })` contra la API real de Clerk: 0
-  resultados.
+- `users.getUserList` por email contra `quimica-admin` y `quimica-colab`
+  (alias de `get-test-token.ts`, no emails del seed) contra la API real
+  de Clerk: 0 resultados.
 - Decodificación de `VITE_CLERK_PUBLISHABLE_KEY` (campo público por
   diseño de Clerk, no es un secreto): confirma la instancia
   `fluent-moose-9060.clerk.accounts.dev`, distinta de la que resuelve la
   secret key actual.
-- Intento real de `auth.collaborator.setup.ts`: `page.waitForFunction`
-  agota el timeout de 30s dentro de `clerk.signIn()` — no es una
-  suposición, es la traza real de Playwright.
+- CI de este PR, SHA `799d2e3`, job
+  [`E2E Tests Suite (Playwright)`](https://github.com/dgimenezdeveloper/margenx/actions/runs/42304817428/job/128191920642):
+  `--project=chromium --project=chromium-collaborator`, **18 passed
+  (49,5s)** — incluye `rbac-security.spec.ts`. Esta es la evidencia real
+  del E2E de RBAC.
+- Intento local de `auth.collaborator.setup.ts` (dato, no evidencia
+  operativa): `page.waitForFunction` agota el timeout de 30s dentro de
+  `clerk.signIn()` por el desajuste de instancias de Clerk de este
+  entorno puntual — no reproduce en CI.
 - Lectura directa del código vigente de los 3 hallazgos de §2.6: los tres
   idénticos a como se registraron hoy.
 
 ### 3.7 Recomendación de publicación
 
-**Se recomienda publicar, con una excepción que debe aceptar Darío:**
-ningún defecto grave está abierto en ningún frente que se pudo verificar
-— ni en el recorrido de dispositivos reales de §2, ni en las 3 colecciones
-de Postman corridas hoy (Webhooks, Colaborador RBAC y Alertas de margen,
-las tres en 0 failures), ni en el código de los 3 hallazgos menores ya
-trackeados para el Sprint 6. La excepción es más acotada que al cierre
-original de esta sección: solo Insumos, Productos y Proveedores (por el
-token de `quimica-admin`) y el E2E de RBAC (por la instancia de Clerk del
-frontend) no se ejecutaron hoy, por la misma causa raíz puntual — no por
-sospecha de ningún defecto concreto — y quedan para correr apenas se
-localice la secret key de la instancia `fluent-moose-9060`. Si esa corrida
-pendiente llegara a encontrar algo, se reporta como issue de seguimiento
-igual que el resto de los hallazgos de este sprint.
+**Propongo publicar, con una excepción que Darío todavía tiene que
+aceptar:** ningún defecto grave está abierto en ningún frente que se pudo
+verificar — ni en el recorrido de dispositivos reales de §2, ni en las 3
+colecciones de Postman corridas hoy (Webhooks, Colaborador RBAC y Alertas
+de margen, las tres en 0 failures), ni en el E2E de RBAC (18 passed en el
+CI de este PR), ni en el código de los 3 hallazgos menores ya trackeados
+para el Sprint 6. La excepción es solo Insumos, Productos y Proveedores
+(por el token de `quimica-admin`, D2 de §3.4), que quedan para correr
+apenas se localice la secret key de la instancia `fluent-moose-9060`. Si
+esa corrida pendiente llegara a encontrar algo, se reporta como issue de
+seguimiento igual que el resto de los hallazgos de este sprint.
 
 ### 3.8 Definition of Done
 
 - [x] Regresión ejecutada (parcialmente, ver §3.1) y matriz publicada —
       §3.3/§3.4.
 - [x] Lo no cubierto declarado, con motivo — §3.5.
-- [x] Recomendación de publicación escrita, con la excepción que acepta
-      Darío — §3.7.
-- [ ] PR abierto hacia `develop` con CI en verde. *(pendiente — lo abre
-      Leandro manualmente)*
+- [x] Recomendación de publicación escrita, con una excepción propuesta
+      que Darío todavía no aceptó — §3.7.
+- [x] PR abierto hacia `develop` con CI en verde. *(PR #344)*
 - [x] Documentación actualizada en el mismo PR (esta sección, más
       CHANGELOG).
