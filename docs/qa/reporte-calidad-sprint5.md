@@ -392,8 +392,8 @@ principio, por una causa distinta a la del script), corrieron 3 de las 6
 colecciones de Postman de la issue #264 en verde: Webhooks API,
 Colaborador RBAC API y Alertas de margen (Insumos). El E2E de RBAC
 (`rbac-security.spec.ts`) no corrió localmente, pero sí tiene evidencia
-real: pasó sus 18 tests en el job `E2E Tests Suite (Playwright)` del CI de
-este mismo PR, así que no es una excepción. Las otras 3 colecciones
+real: pasaron sus 7 pruebas en el job `E2E Tests Suite (Playwright)` del
+CI de este mismo PR, así que no es una excepción. Las otras 3 colecciones
 (Insumos, Productos, Proveedores y Conversiones) sí quedan sin cubrir, por
 un motivo puntual y confirmado (D2 de §3.4): la secret key disponible en
 este entorno corresponde a una instancia de Clerk
@@ -443,11 +443,7 @@ publicación con las excepciones que Darío decida aceptar.
   (Webhooks API, usa `INTERNAL_WEBHOOK_SECRET`) sí se pudo correr
   completa, con un secreto propio generado para esta corrida (no se
   reutilizó ningún secreto real de producción ni de otro entorno).
-- El `CLERK_SECRET_KEY` se corrigió en la variable del entorno cloud de
-  la cuenta; la primera actualización no tomó efecto en la sesión en
-  curso y hubo que reiniciar el contenedor para que se aplicara (Postgres
-  y el backend se volvieron a levantar solos, los datos sembrados
-  persistieron en disco). La nueva clave resultó válida contra la API
+- Se reemplazó el `CLERK_SECRET_KEY` por una clave válida contra la API
   real de Clerk.
 - Con la clave nueva se regeneraron los tokens y corrieron Colaborador
   RBAC API y Alertas de margen (Insumos), ambas en verde. `quimica-admin`
@@ -455,9 +451,8 @@ publicación con las excepciones que Darío decida aceptar.
   `VITE_CLERK_PUBLISHABLE_KEY` (no es secreta: Clerk la expone a propósito
   en el bundle del frontend) y se confirmó que apunta a la instancia
   `fluent-moose-9060.clerk.accounts.dev`, distinta de la instancia
-  `possible-alpaca-7097.clerk.accounts.dev` de la nueva secret key. Se
-  buscó por email a `quimica-admin` y `quimica-colab` (los alias de la
-  tabla `USERS` de `get-test-token.ts`, no los emails del seed) con
+  `possible-alpaca-7097.clerk.accounts.dev` de la nueva secret key. Se buscaron las cuentas de `quimica-admin` y `quimica-colab` por sus
+  emails (las direcciones no se publican en este reporte) con
   `users.getUserList` directamente contra la API de Clerk: 0 resultados,
   confirmando que no existen en esta instancia bajo ningún ID.
 - Se intentó también el E2E de RBAC localmente (`auth.collaborator.setup.ts`
@@ -470,8 +465,10 @@ publicación con las excepciones que Darío decida aceptar.
   requerido `E2E Tests Suite (Playwright)` del CI de este mismo PR
   (run [42304817428](https://github.com/dgimenezdeveloper/margenx/actions/runs/42304817428/job/128191920642),
   SHA `799d2e3`) corrió con sus propios secretos de Clerk (consistentes
-  entre sí) y pasó `rbac-security.spec.ts` dentro del proyecto
-  `chromium-collaborator` — 18 tests en verde en 49,5s. Esa es la
+  entre sí) y pasó `rbac-security.spec.ts` dentro del proyecto `chromium-collaborator`:
+  el job terminó con 18 passed en 49,5 s, de los cuales 7 son las pruebas
+  de `rbac-security.spec.ts` (el resto son el proyecto `chromium` y los dos
+  setups de sesión). Esa es la
   evidencia real del E2E de RBAC, no la corrida local.
 - Según confirmó el Scrum Master, la configuración de Clerk de Química
   GyJ todavía no está creada — no es una secret key que haya que buscar
@@ -491,7 +488,7 @@ publicación con las excepciones que Darío decida aceptar.
 | Colaborador RBAC API (Postman) | ✅ 5/5 requests, 10/10 assertions, 0 failures |
 | Alertas de margen (Insumos) (Postman) | ✅ 4/4 requests, 12/12 assertions, 0 failures |
 | Insumos API, Productos API, Proveedores y Conversiones (Postman) | No ejecutadas en esta regresión — necesitan un token de `quimica-admin` que no existe en la instancia de Clerk disponible, ver §3.5 |
-| E2E de RBAC (`rbac-security.spec.ts`) | ✅ 18 passed (49,5s) — evidencia del job `E2E Tests Suite (Playwright)` del CI de este PR, ver §3.6. La corrida local falló por el mismo motivo que química (instancias de Clerk distintas); no es la evidencia operativa |
+| E2E de RBAC (`rbac-security.spec.ts`) | ✅ 7/7 pruebas en verde (job completo: 18 passed, 49,5 s) — evidencia del job `E2E Tests Suite (Playwright)` del CI de este PR, ver §3.6. La corrida local falló por el mismo motivo que química (instancias de Clerk distintas); no es la evidencia operativa |
 | Casos clave de §2.6 (issue #255) | Releídos contra el código vigente: los 3 siguen idénticos a como se registraron, sin regresión ni corrección adicional |
 
 ### 3.4 Matriz de defectos (fechada)
@@ -553,8 +550,8 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
 - Llamadas directas con `@clerk/backend` (`users.getUser` contra el
   `userId` de `panaderia-admin`): confirmado, responde con el usuario
   real. El mismo método contra `quimica-admin` responde `404 Not Found`.
-- `users.getUserList` por email contra `quimica-admin` y `quimica-colab`
-  (alias de `get-test-token.ts`, no emails del seed) contra la API real
+- `users.getUserList` con los emails de las cuentas de `quimica-admin` y
+  `quimica-colab` (no se publican) contra la API real
   de Clerk: 0 resultados.
 - Decodificación de `VITE_CLERK_PUBLISHABLE_KEY` (campo público por
   diseño de Clerk, no es un secreto): confirma la instancia
@@ -562,8 +559,7 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
   secret key actual.
 - CI de este PR, SHA `799d2e3`, job
   [`E2E Tests Suite (Playwright)`](https://github.com/dgimenezdeveloper/margenx/actions/runs/42304817428/job/128191920642):
-  `--project=chromium --project=chromium-collaborator`, **18 passed
-  (49,5s)** — incluye `rbac-security.spec.ts`. Esta es la evidencia real
+  `--project=chromium --project=chromium-collaborator`, **18 passed (49,5 s)**, de los cuales 7 son de `rbac-security.spec.ts`. Esta es la evidencia real
   del E2E de RBAC.
 - Intento local de `auth.collaborator.setup.ts` (dato, no evidencia
   operativa): `page.waitForFunction` agota el timeout de 30s dentro de
@@ -578,8 +574,7 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
 aceptar:** ningún defecto grave está abierto en ningún frente que se pudo
 verificar — ni en el recorrido de dispositivos reales de §2, ni en las 3
 colecciones de Postman corridas hoy (Webhooks, Colaborador RBAC y Alertas
-de margen, las tres en 0 failures), ni en el E2E de RBAC (18 passed en el
-CI de este PR), ni en el código de los 3 hallazgos menores ya trackeados
+de margen, las tres en 0 failures), ni en el E2E de RBAC (7/7 en el CI de este PR), ni en el código de los 3 hallazgos menores ya trackeados
 para el Sprint 6. La excepción es solo Insumos, Productos y Proveedores
 (por el token de `quimica-admin`, D2 de §3.4), que quedan para correr
 cuando el equipo cree la configuración de Clerk de Química GyJ
