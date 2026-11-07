@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ## [Unreleased]
 
+### Added
+
+- **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
+- **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
+
+### Fixed
+
+- **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
+
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 
 ### Added
