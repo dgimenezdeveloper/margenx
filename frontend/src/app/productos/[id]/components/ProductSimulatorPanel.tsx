@@ -1,8 +1,8 @@
 import { LoaderCircle, Save } from 'lucide-react'
 import type { UseFormSetValue, UseFormRegister, FieldErrors } from 'react-hook-form'
 import type { z } from 'zod'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { productSchema } from '@/schemas/productSchema'
+import { NumericInput } from '@/components/NumericInput'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -92,25 +92,19 @@ export function ProductSimulatorPanel({
         <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">
           Precio de Venta al Público ($)
         </label>
-        <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-          <span className="text-lg font-bold text-gray-400">$</span>
-          <input
-            value={watchedSalePrice == null ? '' : String(watchedSalePrice)}
-            onKeyDown={handleNumericKeyDown}
-            onChange={(e) => {
-              const clean = sanitizeDecimal(e.target.value)
-              setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-              setActiveStrategy('custom')
-            }}
-            inputMode="decimal"
-            type="text"
-            placeholder="0.00"
-            className="no-spinners w-full bg-transparent px-2 text-lg font-bold outline-none text-gray-900 dark:text-white dark:placeholder-gray-500"
-          />
-        </div>
-        {errors.salePrice && (
-          <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
-        )}
+        <NumericInput
+          value={watchedSalePrice}
+          onChange={(val) => {
+            setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
+            setActiveStrategy('custom')
+          }}
+          prefixSymbol="$"
+          prefixClassName="text-lg font-bold"
+          placeholder="0,00"
+          containerClassName="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+          className="text-lg font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+          error={errors.salePrice?.message}
+        />
       </div>
 
       <p

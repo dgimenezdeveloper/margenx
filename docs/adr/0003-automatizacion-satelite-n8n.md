@@ -1,6 +1,6 @@
 # 3. Orquestador de Eventos Satélite n8n Desacoplado vía Webhooks
 
-* **Estado:** Aceptado
+* **Estado:** Aceptado · Enmendado por ADR-005 (canal de ingesta)
 * **Fecha:** 2026-08-30
 * **Decisores:** Dario Gimenez (DevOps/SM)
 
@@ -25,3 +25,13 @@ Se decide adoptar **n8n self-hosted** (`https://n8n.margenx.tech:5678`) como ser
   * Aislamiento de consumo de recursos: si la generación de un PDF consume CPU, no afecta la disponibilidad de la API REST.
 * **Regla Inviolable de Arquitectura:**
   * **n8n nunca escribe directamente en la base de datos PostgreSQL de producción.** n8n solo lee a través de endpoints autorizados de la API y consume webhooks para orquestar notificaciones.
+
+## Nota de vigencia (28/10/2026)
+
+La decisión de usar n8n como satélite desacoplado y la regla de que **n8n nunca escribe directamente en la base de datos** siguen vigentes. Estas afirmaciones del texto original ya no describen el sistema:
+
+* **Azure:** el despliegue es 100 % en la VPS (ADR-002). La justificación por la memoria de los contenedores se mantiene, aplicada a la VPS.
+* **URL de n8n:** n8n escucha en `127.0.0.1:5678` y se publica por Nginx en `https://n8n.margenx.tech` (puerto 443), según `infra/vps/README.md`.
+* **"n8n solo lee":** n8n también **envía** listas de precios al backend por `POST /api/webhooks/supplier-prices`, autenticado con `x-margenx-webhook-secret`. Toda escritura pasa por la API, que valida y aplica las reglas de negocio. El canal de ingesta y la cuarentena están en **ADR-005**.
+* **Alerta de margen:** el backend envía el evento a la URL de `N8N_MARGIN_ALERT_WEBHOOK_URL` (`backend/src/services/marginAlertDispatcher.ts`, workflow `infra/n8n/workflows/alertas-margen.json`).
+* **Reporte semanal en PDF:** no está implementado y el endpoint `GET /api/reports/margin-summary` no existe. Está planificado para el Sprint 6.

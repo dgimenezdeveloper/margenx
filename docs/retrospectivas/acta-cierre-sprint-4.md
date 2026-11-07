@@ -29,6 +29,7 @@ Consolidar la **protección financiera automatizada y desatendida** en MargenX:
 - **Workflow n8n de Alertas Críticas (Brevo Relay):** Despacho asíncrono SMTP vía Brevo (`smtp-relay.brevo.com:587`, STARTTLS) con plantilla HTML responsive y accesible (WCAG AA), disparado por el webhook `margin.alert.triggered` del backend (Issue #172 / PR #187). Enlace dinámico según entorno mediante `APP_BASE_URL` (Issue #222 / PR #223).
 - **Monitor Centinela de Memoria VPS (`monitor-memory.sh`):** Script host cronometrado cada 5 minutos que audita el uso de RAM del servidor Donweb, inspecciona `docker stats` y emite alertas Embed a Discord con cooldown ante consumo $\ge 85\%$ (Issue #173 / PR #188).
 - **Entorno de Demo Dedicado y Sanitización:** Creación del script `backend/prisma/seed-demo.ts` para sembrar la cuenta ficticia *Demo MargenX* (`demo-admin@margenx.tech` / `demo-colab@margenx.tech`) para evaluación docente (Issue #220 / PR #221) y depuración de credenciales sensibles en archivos de ejemplo (Issue #224 / PR #225).
+- **Release v0.5.0 (Issue #226, Done):** merge de `develop` a `main` con merge commit (sin squash, [PR #231](https://github.com/dgimenezdeveloper/margenx/pull/231)), despliegue a producción, [tag v0.5.0](https://github.com/dgimenezdeveloper/margenx/tree/v0.5.0), [Release](https://github.com/dgimenezdeveloper/margenx/releases/tag/v0.5.0) y comparación [v0.4.0...v0.5.0](https://github.com/dgimenezdeveloper/margenx/compare/v0.4.0...v0.5.0).
 - **Gobernanza Arquitectónica:** Sincronización del SAD v2.0 con diagramas C4 y UML (Issue #179 / PR #189) y confección de ADR-004 formalizando la adopción de Margen sobre Ventas vs. Markup (Issue #180, regularizado en Issue #227 / PR #228).
 
 ### B. Arquitectura de Datos y Backend (Mauricio Barreras)
@@ -94,6 +95,13 @@ Consolidar la **protección financiera automatizada y desatendida** en MargenX:
 | Actualizar colecciones de Postman/Newman al contrato vigente | Leandro Herrera | 100% de requests en verde en las 6 colecciones |
 | Auditoría de accesibilidad WCAG y performance en Lighthouse | Leandro Herrera / Federico Paal | Puntaje superior a 90 puntos en móvil (360px) |
 | Facilitación ágil y preparación de release final | Darío Giménez | Tablero sincronizado, burndown saludable y 0 bloqueos |
+| Moneda y cotización: conversión ARS/USD con cotización BCRA/BNA | A definir en el Sprint Planning | A definir en el Sprint Planning |
+| Separar las instancias de Clerk y rotar credenciales de entregas anteriores al cierre de la cursada | Darío Giménez | Instancias separadas y credenciales rotadas |
+| Índices compuestos en PostgreSQL | A definir en el Sprint Planning | A definir en el Sprint Planning |
+| Convertir sugerencias de las revisiones en issues de seguimiento (`review-followup`) | A definir en el Sprint Planning | Issues creadas y priorizadas |
+| Pendientes del release v0.5.0: siembra de la cuenta Demo y login autenticado en producción, webhook 200/401 y alerta de prueba en producción, limpieza de datos de conexión en docs y archivos de ejemplo | Darío Giménez | Verificaciones registradas en el tablero |
+
+*Período: 25/10/2026 al 07/11/2026. Los ítems sin responsable asignado se planifican y estiman en el Sprint Planning del 25/10.*
 
 ---
 
@@ -105,9 +113,9 @@ En cumplimiento de las directivas de rotación de roles del manual operativo de 
 - **Scrum Master Entrante:** Darío Giménez (conducción para Sprint 5 y 6 hacia la defensa final)
 
 ### Checklist de Traspaso Verificado:
-- [x] **Tablero Limpio:** 34 de 35 issues del Sprint 4 en estado `Done` (incluyendo la issue `#181` tras este commit); queda pendiente `#226` (release v0.5.0) hasta publicar el tag.
+- [x] **Tablero Limpio:** 35 de 35 issues del Sprint 4 en estado `Done` (103 de 103 SP, 100 %); `#226` (release v0.5.0) se cerró tras publicar el [tag v0.5.0](https://github.com/dgimenezdeveloper/margenx/tree/v0.5.0) y la [Release](https://github.com/dgimenezdeveloper/margenx/releases/tag/v0.5.0).
 - [x] **Ambientes en Producción y Staging:** `https://margenx.tech` y `https://dev.margenx.tech` operativos con certificados SSL y healthchecks respondiendo HTTP 200 OK.
-- [ ] **Release v0.5.0 Publicado:** a completar al publicar el tag `v0.5.0` (creación en GitHub y despliegue en la VPS mediante `deploy.yml`).
+- [x] **Release v0.5.0 Publicado:** tag anotado `v0.5.0` sobre el merge commit `fc99acb` ([PR #231](https://github.com/dgimenezdeveloper/margenx/pull/231)), [Release](https://github.com/dgimenezdeveloper/margenx/releases/tag/v0.5.0) y despliegue en la VPS (healthcheck en 200). Quedan pendientes en producción la siembra de la cuenta Demo y la verificación de login autenticado (Sprint 5).
 - [ ] **Backlog Refinado para Sprint 5:** pendiente: issues del Sprint 5 por crear (Smart Purchasing, Reportes PDF y Backups, con criterios de aceptación Gherkin y prioridades).
 - [x] **Secretos e Infraestructura de VPS Verificados:** Archivo `/opt/margenx-infra/.env` en orden, variables de n8n actualizadas y centinela de memoria activo.
 

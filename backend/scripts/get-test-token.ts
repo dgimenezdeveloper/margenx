@@ -34,8 +34,8 @@ const clerkClient = createClerkClient({ secretKey: getClerkSecretKey() });
 
 // Mapa de los 4 usuarios del seed (ver backend/prisma/seed.ts).
 const USERS: Record<string, string> = {
-  'panaderia-admin': 'user_3J3QH50TxpOxRky6qNX7C79lj7x',
-  'panaderia-colab': 'user_3J3Qf8N1X4mH5z5B9Ol757UdJmE',
+  'panaderia-admin': 'user_3LHkU9OL8FBdKxkZOsI0CvoVJ1j',
+  'panaderia-colab': 'user_3LHkX5fpp3AcI7HvYn42PBV1xwP',
   'quimica-admin': 'user_3J3QxljX607yJ96D5uYViLqZYvD',
   'quimica-colab': 'user_3J3R65zdLKecDm1vFiUZhOvgWq7',
 };

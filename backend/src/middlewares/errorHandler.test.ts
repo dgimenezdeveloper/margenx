@@ -1,9 +1,13 @@
 // src/middlewares/errorHandler.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import helmet from 'helmet';
 import { Prisma } from '@prisma/client';
 import { errorHandler, AppError } from './errorHandler';
 
 import type { Request, Response } from 'express';
+
 
 function buildRes(): Response {
   const json = vi.fn();
@@ -34,6 +38,134 @@ describe('errorHandler', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'El cuerpo de la solicitud contiene JSON inválido.',
     });
+  });
+
+  it('maneja errores genéricos como 500 (Catch-all)', () => {
+    // 1. Forzamos el entorno a producción para este caso específico
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    
+    // 2. Inicializamos 'res' usando la función auxiliar que ya tienes
+    const res = buildRes();
+    
+    const genericErr = new Error('Database connection lost');
+    
+    // 3. Ejecutamos el middleware
+    errorHandler(genericErr, req, res, next);
+    
+    // 4. Verificamos
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Error interno del servidor.' });
+    
+    // 5. Restauramos el entorno
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('mapea P2002 de Prisma a 409 para asociación duplicada (Líneas 66-69)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['supplierId', 'ingredientId'] },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe una asociación de este insumo con el proveedor.',
+    });
+  });
+
+  it('mapea P2002 de Prisma a 409 cuando se repite supplierCode para un mismo proveedor', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+      code: 'P2002',
+      clientVersion: '6.19.3',
+      meta: { target: ['supplierId', 'supplierCode'] },
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ya existe una presentación con ese código para este proveedor.',
+    });
+  });
+
+  it('mapea P2003 de Prisma a 409 (Línea 81)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('FK violation', {
+      code: 'P2003',
+      clientVersion: '6.19.3',
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'La operación viola una relación existente con otro recurso.',
+    });
+  });
+
+  it('mapea P2020 de Prisma a 400 (Línea 95)', () => {
+    const res = buildRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Overflow', {
+      code: 'P2020',
+      clientVersion: '6.19.3',
+    });
+    errorHandler(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Uno de los valores numéricos excede la capacidad máxima admitida.',
+    });
+  });
+  
+  it('responde 413 con código estable cuando el cuerpo supera el límite permitido', () => {
+    const res = buildRes();
+    const err = Object.assign(new Error('request entity too large'), {
+      type: 'entity.too.large',
+      status: 413,
+      statusCode: 413,
+      expose: true,
+    });
+
+    errorHandler(err, req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: 'La lista es demasiado grande. Dividila en varios lotes más pequeños.',
+    });
+  });
+
+  it('incluye cabeceras de seguridad por defecto de Helmet', async () => {
+    const app = express();
+    app.use(helmet());
+    app.get('/health', (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['x-dns-prefetch-control']).toBe('off');
+    expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('responde 413 en otra ruta cuando el cuerpo supera el límite global', async () => {
+    const app = express();
+    app.use(express.json({ limit: '256kb' }));
+    app.post('/api/other', (_req, res) => {
+      res.json({ ok: true });
+    });
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .post('/api/other')
+      .send({ payload: 'x'.repeat(1_000_000) });
+
+    expect(response.status).toBe(413);
+    expect(response.body).toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      error: expect.stringContaining('demasiado grande'),
+    });
+    expect(response.status).not.toBe(500);
   });
 
   it('respeta status y mensaje de un AppError', () => {
@@ -93,6 +225,24 @@ describe('errorHandler', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'Ya existe un producto con ese nombre.',
     });
+  });
+
+  it.each([
+    ['Supplier', 'Ya existe un proveedor con ese nombre.'],
+    ['Ingredient', 'Ya existe un insumo con ese nombre.'],
+    ['Product', 'Ya existe un producto con ese nombre.'],
+  ])('mapea P2002 del índice %s_accountId_lower_name_key a 409 (target como lista o como texto)', (model, message) => {
+    for (const target of [[`${model}_accountId_lower_name_key`], `${model}_accountId_lower_name_key`]) {
+      const res = buildRes();
+      const err = new Prisma.PrismaClientKnownRequestError('Unique violation', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target },
+      });
+      errorHandler(err, req, res, next);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ error: message });
+    }
   });
 
   it('mapea P2003 de Prisma a 409', () => {

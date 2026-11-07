@@ -118,5 +118,43 @@ const run = (file, ctx) => {
  assert.ok(!r[0].json.text.includes('Descartadas por')&&!r[0].json.text.includes('Se detallan'));
  // 10 Alerta a Discord: una sola alerta por ejecución aunque fallen varios lotes/correos (el secreto roto afecta a todos)
  assert.equal(wf.nodes.find((n)=>n.name==='Alerta a Discord (401/403)').executeOnce,true);
+ // 11 CSV en UTF-8 con tildes: no se reinterpreta como latin1 (los encabezados "Código" y "Descripción" se conservan)
+ const bufU=Buffer.from('Código;Descripción;Precio\n001;Harina 000 x 25 kg;18.500\n');
+ r=await run('csv.js',{items:[{json:{binaryKey:'attachment_0'}}],self:{helpers:{getBinaryDataBuffer:async()=>bufU}}});
+ assert.deepEqual(r[0].json,{'Código':'001','Descripción':'Harina 000 x 25 kg','Precio':'18.500'});
+ // CSV en latin1 (Excel en Windows): se decodifica como latin1
+ const bufL=Buffer.from('Código;Precio\n002;980,50\n','latin1');
+ r=await run('csv.js',{items:[{json:{binaryKey:'attachment_0'}}],self:{helpers:{getBinaryDataBuffer:async()=>bufL}}});
+ assert.equal(r[0].json['Código'],'002');
+ // 12 Entornos (#253): solo el prefijo explícito precios-dev-<slug>@ o el dominio dev.margenx.tech van a staging
+ const env={IMAP_USER:'margenx.saas@gmail.com'};
+ for(const [to,slug,isDev] of [
+   ['precios-panaderia-central@margenx.tech','panaderia-central',false],
+   ['precios-dev-panaderia-central@margenx.tech','panaderia-central',true],
+   ['precios+dev-panaderia-central@margenx.tech','panaderia-central',true],
+   ['precios-panaderia-central@dev.margenx.tech','panaderia-central',true],
+   ['precios-demo-margenx@margenx.tech','demo-margenx',false], // la Demo de producción sigue en producción
+   ['precios-devoto-almacen@margenx.tech','devoto-almacen',false],
+ ]){r=await run('extraer.js',{items:[mail(to,['lista.csv'])],env});assert.deepEqual([r[0].json.slug,r[0].json.isDev,r[0].json.error],[slug,isDev,''],to);}
+ r=await run('normalizar.js',{items:[{json:{Codigo:'A1',Precio:'10'}}],nodes:{'Extraer Slug y Adjunto':{...meta,isDev:true}}});assert.equal(r[0].json.isDev,true);
+ // 13 Despacho: URL base sin /api (infra/vps/.env.example); dev sin URL configurada no despacha a ningún lado
+ const spy=()=>{const urls=[];return {urls,self:{helpers:{httpRequest:async(o)=>{urls.push(o.url);return {statusCode:200,body:{received:1}};}}}};};
+ const urlEnv={MARGENX_API_URL:'https://api.margenx.tech',MARGENX_DEV_API_URL:'https://api-dev.margenx.tech/'};
+ let sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:urlEnv});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']);
+ sp=spy();await run('despacho.js',{items:[batch({isDev:true})],self:sp.self,env:urlEnv});assert.deepEqual(sp.urls,['https://api-dev.margenx.tech/api/webhooks/supplier-prices']);
+ sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:{MARGENX_API_URL:'https://api.margenx.tech/api/'}});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']); // también con /api
+ sp=spy();await run('despacho.js',{items:[batch()],self:sp.self,env:{}});assert.deepEqual(sp.urls,['https://api.margenx.tech/api/webhooks/supplier-prices']);
+ sp=spy();r=await run('despacho.js',{items:[batch({isDev:true})],self:sp.self,env:{MARGENX_API_URL:'https://api.margenx.tech'}});
+ assert.deepEqual([sp.urls.length,r[0].json.dispatchOk,r[0].json.status],[0,false,0]); // nunca cae en producción
+ // 14 Correo de error: 413 pide dividir la lista; un 400 no reenvía al proveedor el detalle interno de la API
+ r=await run('error.js',{items:[{json:{...meta,dispatchOk:false,status:413,apiError:'La lista es demasiado grande.'}}]});
+ assert.ok(r[0].json.text.includes('demasiado grande')&&r[0].json.text.includes('Dividila')&&r[0].json.text.includes('5 MB'));
+ r=await run('error.js',{items:[{json:{...meta,dispatchOk:false,status:400,apiError:'items.0.price: Expected number'}}]});
+ assert.ok(r[0].json.text.includes('formato que MargenX no pudo procesar')&&!r[0].json.text.includes('Expected'));
+ // 15 Exporte portable: inactivo, sin ids de credenciales de una instancia concreta y con versión de texto plano
+ assert.equal(wf.active,false);assert.equal(wf.meta,undefined);
+ for(const n of wf.nodes.filter((x)=>x.credentials)) for(const c of Object.values(n.credentials)) assert.ok(c.id.startsWith('margenx-'),n.name);
+ // emailSend 2.1 solo conserva `text` con emailFormat 'both'; el nombre del remitente va dentro de fromEmail
+ for(const nm of ['Enviar Resumen (Brevo)','Enviar Error al Remitente (Brevo)']){const p=wf.nodes.find((n)=>n.name===nm).parameters;assert.deepEqual([p.emailFormat,p.text,p.fromEmail],['both','={{ $json.text }}','MargenX Ingesta <alertas@margenx.tech>'],nm);}
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});

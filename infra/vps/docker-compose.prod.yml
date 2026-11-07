@@ -48,6 +48,7 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - INTERNAL_WEBHOOK_SECRET=${INTERNAL_WEBHOOK_SECRET}
       - MARGENX_API_URL=${MARGENX_API_URL}
+      - MARGENX_DEV_API_URL=${MARGENX_DEV_API_URL:-}
       - IMAP_USER=${IMAP_USER}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
@@ -83,6 +84,9 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_PROD}?schema=public
+      - APP_BASE_URL=https://margenx.tech
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY_PROD}
+      - CLERK_JWT_KEY=${CLERK_JWT_KEY_PROD}
     ports:
       - "127.0.0.1:3011:3000"
     networks:
@@ -134,6 +138,9 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_DEV}?schema=public
+      - APP_BASE_URL=https://dev.margenx.tech
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY_DEV}
+      - CLERK_JWT_KEY=${CLERK_JWT_KEY_DEV}
     ports:
       - "127.0.0.1:3021:3000"
     networks:

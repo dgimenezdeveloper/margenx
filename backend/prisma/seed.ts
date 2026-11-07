@@ -7,6 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { hasIdentityConflict, resolveSeedUser } from "./seed-identity";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
 // Issue #178 — proveedores mayoristas reales y mapeo de SKU por SupplierIngredient.
@@ -21,8 +22,8 @@ const accounts = [
     businessName: "Panadería Central",
     slug: "panaderia-central",
     users: [
-      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QH50TxpOxRky6qNX7C79lj7x" },
-      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3Qf8N1X4mH5z5B9Ol757UdJmE" },
+      { id: "30d00001-0000-4000-8000-000000000001", email: "admin.panaderia@seed.example.test", role: Role.ADMIN, authProviderId: "user_3LHkU9OL8FBdKxkZOsI0CvoVJ1j" },
+      { id: "30d00001-0000-4000-8000-000000000002", email: "colab.panaderia@seed.example.test", role: Role.COLLABORATOR, authProviderId: "user_3LHkX5fpp3AcI7HvYn42PBV1xwP" },
     ],
     suppliers: [
       {
@@ -175,7 +176,10 @@ const accounts = [
     // sobrescritos con el costo real de esa presentación mayorista (ver el
     // paso de sincronización en main(), más abajo).
     ingredients: [
-      { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "742.98" },
+      // 736.25 == el costo activo post-seed (coincide a propósito, issue #265;
+      // ver docs/qa/seed-data-comercios.md). Los demás insumos de abajo sí
+      // difieren entre valor declarado y activo: es el comportamiento esperado.
+      { id: "30b00001-0000-4000-8000-000000000001", name: "Harina de trigo 000 Olavarriense", unit: "kg", currentCost: "736.25" },
       { id: "30b00001-0000-4000-8000-000000000002", name: "Harina de trigo 0000 Olavarriense", unit: "kg", currentCost: "868.77" },
       { id: "30b00001-0000-4000-8000-000000000003", name: "Azúcar común tipo A", unit: "kg", currentCost: "1150.00" },
       { id: "30b00001-0000-4000-8000-000000000004", name: "Manteca en bloque mayorista", unit: "kg", currentCost: "12090.00" },
@@ -331,8 +335,8 @@ const accounts = [
     businessName: "Química GyJ",
     slug: "quimica-gyj",
     users: [
-      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@hotmail.com", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
-      { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@hotmail.com", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
+      { id: "30d00002-0000-4000-8000-000000000001", email: "admin.quimica@seed.example.test", role: Role.ADMIN, authProviderId: "user_3J3QxljX607yJ96D5uYViLqZYvD" },
+      { id: "30d00002-0000-4000-8000-000000000002", email: "colab.quimica@seed.example.test", role: Role.COLLABORATOR, authProviderId: "user_3J3R65zdLKecDm1vFiUZhOvgWq7" },
     ],
     suppliers: [
       {
@@ -574,7 +578,7 @@ const accounts = [
   },
 ];
 
-// Usuarios ficticios de base de datos: no registran usuarios en Clerk.
+// Usuarios de prueba de base de datos.
 const prisma = new PrismaClient();
 
 function confirmDatabaseTarget() {
@@ -640,27 +644,18 @@ async function main() {
       });
 
       for (const user of account.users) {
-        const matchingUsers = await tx.user.findMany({
-          where: {
-            OR: [
-              { id: user.id },
-              { email: user.email },
-              { authProviderId: user.authProviderId },
-            ],
-          },
+        const existingUsers = await tx.user.findMany({
+          where: { OR: [{ id: user.id }, { email: user.email }] },
         });
 
-        if (matchingUsers.some((row) =>
-          row.id !== user.id || row.accountId !== account.id ||
-          row.email !== user.email || row.authProviderId !== user.authProviderId
-        )) {
-          throw new Error("Conflicto de identidad del usuario de prueba " + user.email + ".");
-        }
+        // Un usuario existente conserva su email y su authProviderId: en
+        // producción difieren del seed y pisarlos rompería el login de Clerk.
+        const identity = resolveSeedUser(existingUsers, user, account.id);
 
         await tx.user.upsert({
           where: { id: user.id },
-          create: { ...user, accountId: account.id },
-          update: { role: user.role },
+          create: { id: user.id, accountId: account.id, role: user.role, ...identity },
+          update: { role: user.role, ...identity },
         });
       }
 
@@ -686,16 +681,12 @@ async function main() {
           where: {
             OR: [
               { id: ingredient.id },
-              { accountId: account.id, name: ingredient.name },
+              { accountId: account.id, name: { equals: ingredient.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingIngredients.some((row) =>
-          row.id !== ingredient.id ||
-          row.accountId !== account.id ||
-          row.name !== ingredient.name
-        )) {
+        if (hasIdentityConflict(matchingIngredients, ingredient.id, account.id)) {
           throw new Error("Conflicto de identidad en el insumo " + ingredient.name + ".");
         }
 
@@ -732,16 +723,12 @@ async function main() {
           where: {
             OR: [
               { id: supplier.id },
-              { accountId: account.id, name: supplier.name },
+              { accountId: account.id, name: { equals: supplier.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingSuppliers.some((row) =>
-          row.id !== supplier.id ||
-          row.accountId !== account.id ||
-          row.name !== supplier.name
-        )) {
+        if (hasIdentityConflict(matchingSuppliers, supplier.id, account.id)) {
           throw new Error("Conflicto de identidad en el proveedor " + supplier.name + ".");
         }
 
@@ -810,16 +797,12 @@ async function main() {
           where: {
             OR: [
               { id: product.id },
-              { accountId: account.id, name: product.name },
+              { accountId: account.id, name: { equals: product.name, mode: "insensitive" } },
             ],
           },
         });
 
-        if (matchingProducts.some((row) =>
-          row.id !== product.id ||
-          row.accountId !== account.id ||
-          row.name !== product.name
-        )) {
+        if (hasIdentityConflict(matchingProducts, product.id, account.id)) {
           throw new Error("Conflicto de identidad en el producto " + product.name + ".");
         }
 

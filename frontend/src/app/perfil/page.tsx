@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Check, LoaderCircle, LogOut, Save, Target } from 'lucide-react'
+import { Bell, Building2, Check, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -11,6 +12,8 @@ import { LogoutDialog } from '@/components/logout-dialog'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
+import { NumericInput } from '@/components/NumericInput'
 
 const profileTitle = 'Perfil y Configuración'
 
@@ -57,6 +60,10 @@ export default function ProfilePage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
 
+  const isCollaborator = user?.role === 'COLLABORATOR'
+  const roleLabel = isCollaborator ? 'COLABORADOR' : 'ADMINISTRADOR'
+  const roleShort = isCollaborator ? 'CL' : 'AD'
+
   const currentMarginValue =
     customMargin !== null ? customMargin : String(defaultMinMarginPercent ?? 30)
 
@@ -100,7 +107,8 @@ export default function ProfilePage() {
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
-    void signOut({ redirectUrl: '/' })
+    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
+    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
   return (
@@ -128,7 +136,7 @@ export default function ProfilePage() {
                   {isLoading ? (
                     <div className="size-8 animate-pulse rounded-full bg-indigo-400" />
                   ) : (
-                    user?.role === 'COLLABORATOR' ? 'CL' : 'AD'
+                    roleShort
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -138,10 +146,10 @@ export default function ProfilePage() {
                     ) : (
                       <>
                         <h2 className="truncate font-bold text-lg">
-                          {user?.role === 'COLLABORATOR' ? 'Colaborador' : 'Administrador'}
+                          {isCollaborator ? 'Colaborador' : 'Administrador'}
                         </h2>
                         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                          {user?.role || 'ADMIN'}
+                          {roleLabel}
                         </span>
                       </>
                     )}
@@ -177,89 +185,102 @@ export default function ProfilePage() {
               </section>
             </div>
 
-            {/* Columna Derecha: Margen Objetivo Global con Guardado y Alertas */}
-            <div className="space-y-6">
-              <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Target className="size-5 text-indigo-600" />
-                  <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Este porcentaje se usará como sugerencia inicial al crear nuevos productos y determinará el umbral de alerta en tu negocio.
-                </p>
-
-                <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
-                  <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      value={currentMarginValue}
-                      onChange={(e) => setCustomMargin(e.target.value.replace(/[^0-9.]/g, ''))}
-                      inputMode="decimal"
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="100"
-                      disabled={isSavingGlobalMargin}
-                      className="no-spinners w-16 bg-transparent text-right font-black text-xl text-indigo-600 outline-none disabled:opacity-50"
-                    />
-                    <span className="font-bold text-sm text-gray-400">%</span>
+            {!isCollaborator && (
+              <div className="space-y-6">
+                <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Target className="size-5 text-indigo-600" />
+                    <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
                   </div>
-                </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Este porcentaje se usará como sugerencia inicial al crear nuevos productos y determinará el umbral de alerta en tu negocio.
+                  </p>
 
-                {marginError && (
-                  <p className="text-xs font-bold text-rose-500">{marginError}</p>
-                )}
+                  <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
+                    <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
+                    <div className="flex items-center gap-1">
+                      <NumericInput
+                        value={currentMarginValue}
+                        onChange={setCustomMargin}
+                        suffixSymbol="%"
+                        suffixClassName="font-bold text-sm text-gray-400"
+                        disabled={isSavingGlobalMargin}
+                        containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
+                        className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                      />
+                      <span className="font-bold text-sm text-gray-400">%</span>
+                    </div>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleSaveGlobalMargin}
-                  disabled={isSavingGlobalMargin || user?.role !== 'ADMIN'}
-                  className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSavingGlobalMargin ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
+                  {marginError && (
+                    <p className="text-xs font-bold text-rose-500">{marginError}</p>
                   )}
-                  {isSavingGlobalMargin ? 'Guardando Margen...' : 'Guardar Margen'}
-                </button>
-              </section>
 
-              {/* Automatizaciones n8n */}
-              <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Bell className="size-5 text-indigo-600" />
-                  <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
-                </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveGlobalMargin}
+                    disabled={isSavingGlobalMargin || user?.role !== 'ADMIN'}
+                    className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingGlobalMargin ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {isSavingGlobalMargin ? 'Guardando Margen...' : 'Guardar Margen'}
+                  </button>
+                </section>
 
-                <div className="flex items-center justify-between gap-4 pt-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
-                    <p className="text-xs text-gray-500">Aviso inmediato por email cuando sube un insumo</p>
+                <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Bell className="size-5 text-indigo-600" />
+                    <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
                   </div>
-                  <ToggleSwitch
-                    checked={emailAlerts}
-                    onChange={setEmailAlerts}
-                    ariaLabel="Alerta de Margen Crítico"
-                  />
-                </div>
 
-                <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
-                    <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
+                  <div className="flex items-center justify-between gap-4 pt-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
+                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando sube un insumo</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={emailAlerts}
+                      onChange={setEmailAlerts}
+                      ariaLabel="Alerta de Margen Crítico"
+                    />
                   </div>
-                  <ToggleSwitch
-                    checked={weeklyReport}
-                    onChange={setWeeklyReport}
-                    ariaLabel="Reporte Semanal en PDF"
-                  />
-                </div>
-              </section>
-            </div>
+
+                  <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
+                      <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={weeklyReport}
+                      onChange={setWeeklyReport}
+                      ariaLabel="Reporte Semanal en PDF"
+                    />
+                  </div>
+                </section>
+              </div>
+            )}
           </div>
 
-          <div className="pt-2 md:flex md:justify-end md:pt-6">
+          <div className="pt-2 md:flex md:items-center md:justify-between md:pt-6">
+            <div className="mb-4 flex flex-wrap gap-3 md:mb-0">
+              <Link
+                to="/privacidad"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <ShieldCheck className="size-4" /> Política de privacidad
+              </Link>
+              <Link
+                to="/instalar"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <Smartphone className="size-4" /> Guía de instalación
+              </Link>
+            </div>
+
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
@@ -274,6 +295,8 @@ export default function ProfilePage() {
         {/* Footer Móvil de Perfil */}
         <div className="mt-8 flex flex-col items-center gap-4 pb-8 md:hidden">
           <div className="flex items-center gap-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
+            <Link to="/privacidad" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Política</Link>
+            <Link to="/instalar" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Instalar</Link>
             <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Soporte</button>
             <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Documentación</button>
           </div>

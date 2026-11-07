@@ -61,37 +61,35 @@ export function ProductRecipeBOM({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
-                    <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                      {displayQty}
-                    </span>
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                      {item.recipeUnit ?? item.unit}
-                    </span>
+                {!isCollaborator && (
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
+                      <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                        {displayQty}
+                      </span>
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                        {item.recipeUnit ?? item.unit}
+                      </span>
+                    </div>
+
+                    <div className="text-right min-w-20">
+                      <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
+                        {money(itemSubtotal)}
+                      </span>
+                      <span className="text-[10px] text-gray-400">subtotal</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onRemoveIngredient(item.ingredientId, item.name)}
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
+                      title="Remover insumo"
+                      aria-label={`Eliminar ${item.name}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
                   </div>
-
-                  {!isCollaborator && (
-                    <>
-                      <div className="text-right min-w-20">
-                        <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
-                          {money(itemSubtotal)}
-                        </span>
-                        <span className="text-[10px] text-gray-400">subtotal</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => onRemoveIngredient(item.ingredientId, item.name)}
-                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
-                        title="Remover insumo"
-                        aria-label={`Eliminar ${item.name}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
+                )}
               </div>
             )
           })}

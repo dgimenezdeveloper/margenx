@@ -8,8 +8,8 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 ---
 
 ### 1. Control de Versiones y Flujo Git
-- **Origen de la rama:** La rama de trabajo debe crearse siempre a partir de `develop`.
-- **Nomenclatura de ramas:** La rama debe contener obligatoriamente el número de issue (ej. `31-fe-maquetado-insumos` o `feat/35-middleware-errores`) para permitir la automatización del tablero.
+- **Origen de la rama:** La rama de trabajo se crea desde la propia issue, con el botón **Create a branch** de GitHub (sección *Development* de la issue), con base `develop`.
+- **Nomenclatura de ramas:** formato `N-slug`, donde `N` es el número de la issue y `slug` el título en minúsculas ASCII separado por guiones (ej. `31-fe-maquetado-insumos`). El botón propone el nombre a partir del título, pero conserva tildes y eñes: si el título las tiene, editá el nombre en el diálogo del botón antes de crear la rama. El número de la issue debe ser el primer número del nombre: el workflow `.github/workflows/auto-move-issues.yml` toma ese número para mover la tarjeta del tablero.
 - **Formato de Commits:** Los mensajes de commit deben seguir el estándar Conventional Commits en español o inglés (ej. `feat(ingredients): agregar paginacion y ordenamiento`, `fix(auth): corregir expiracion de token jwt`, `docs: ...`).
 - **Pull Request:** Debe estar abierto hacia `develop`, con descripción clara utilizando la plantilla estándar y vinculando la issue correspondiente (ej. `Closes #35`).
 - **Code Review:** Requiere la aprobación obligatoria de al menos **1 compañero de equipo** (Peer Review) antes de habilitar el merge.
@@ -32,7 +32,7 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 ### 4. Criterios de Aceptación y Testing (QA)
 - **Criterios Gherkin:** Cumplimiento verificado de todos los escenarios (Dado/Cuando/Entonces) especificados en la issue.
 - **Prueba en Local:** Funcionalidad probada y funcionando en el entorno estandarizado de DevContainers.
-- **Datos Realistas:** Prohibido el uso de cadenas genéricas ("test1", "asdasd", "1234"). Todo testing manual o semilla debe usar datos reales de Panadería Central o Química GyJ.
+- **Datos Realistas:** Prohibido el uso de cadenas genéricas ("test1", "asdasd", "1234"). Todo testing manual o semilla debe usar datos realistas de los rubros piloto (panadería y química de limpieza), en las cuentas del seed o en la cuenta Demo MargenX; nunca sobre la cuenta real de un comercio.
 - **Pruebas Automatizadas (según sprint):** Tests unitarios, colecciones de Postman o suites E2E con Playwright creados o actualizados si la tarea afecta el flujo crítico.
 - **Aprobación de QA:** El responsable de QA debe verificar y aprobar el PR (disparando el estado QA Approved en el tablero).
 
@@ -49,6 +49,7 @@ Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)**
 
 ### 6. Documentación de API (Backend)
 - **Documentación de Endpoints:** Todo nuevo endpoint debe tener documentado su método HTTP, ruta, cabeceras requeridas, payload esperado, respuestas HTTP posibles (200, 400, 401, 403, 404, 500) y su colección de Postman asociada.
+- **Cambio de contrato, colección en el mismo PR:** si un PR modifica el contrato de un endpoint existente (forma de la respuesta, código HTTP, mensaje de error, validación), la colección de Postman que lo cubre se actualiza en el mismo PR. No corresponde dejarla desactualizada para una issue de seguimiento (acuerdo de la retro del Sprint 4, issue #264).
 - **Aislamiento Multi-Tenant:** Toda consulta en base de datos debe filtrar de forma estricta e inviolable por `accountId`.
 
 ---

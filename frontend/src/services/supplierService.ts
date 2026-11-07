@@ -1,5 +1,6 @@
 import { fetchApi, type TokenGetter } from './api'
 import type { Ingredient } from './ingredientService'
+import type { SupplierPayload } from '@/schemas/supplierSchema'
 
 export interface Supplier {
   id: string
@@ -11,6 +12,36 @@ export interface Supplier {
   isActive: boolean
 }
 
+/** Proveedor de `GET /api/suppliers`, con sus contadores (`docs/api.md`). */
+export interface SupplierSummary extends Supplier {
+  ingredientCount: number
+  quarantineCount: number
+}
+
+/** Presentación de `GET /api/suppliers/:id`; montos y tamaños llegan como texto decimal. */
+export interface SupplierPresentation {
+  id: string
+  supplierCode?: string | null
+  rawDescription?: string | null
+  packageSize: number | string
+  packageUnit: string
+  packagePrice: number | string
+  isDefault: boolean
+  isQuarantined?: boolean
+  quarantinedAt?: string | null
+  quarantineReason?: string | null
+  ingredient: {
+    id: string
+    name: string
+    unit: string
+    currentCost?: number | string
+  }
+}
+
+export interface SupplierDetail extends Supplier {
+  ingredients: SupplierPresentation[]
+}
+
 export interface SupplierIngredient {
   id: string
   supplierId: string
@@ -20,6 +51,8 @@ export interface SupplierIngredient {
   packagePrice: number
   isDefault: boolean
   isQuarantined?: boolean
+  supplierCode?: string | null
+  rawDescription?: string | null
   supplier?: {
     id: string
     name: string
@@ -32,6 +65,8 @@ export interface SupplierPackagingInput {
   packageUnit: 'kg' | 'l' | 'u'
   packagePrice: number
   isDefault?: boolean
+  supplierCode?: string | null
+  rawDescription?: string | null
 }
 
 export interface SupplierPackagingResponse {
@@ -65,20 +100,37 @@ export interface QuarantineReleaseResponse {
 }
 
 export const supplierService = {
-  async getAll(getToken: TokenGetter): Promise<Supplier[]> {
-    const response = await fetchApi<{ suppliers: Supplier[] }>('/suppliers', getToken)
+  async getAll(getToken: TokenGetter): Promise<SupplierSummary[]> {
+    const response = await fetchApi<{ suppliers: SupplierSummary[] }>('/suppliers', getToken)
     return response.suppliers || []
+  },
+
+  async getById(getToken: TokenGetter, id: string): Promise<SupplierDetail> {
+    const response = await fetchApi<{ supplier: SupplierDetail }>(`/suppliers/${id}`, getToken)
+    return response.supplier
   },
 
   async create(
     getToken: TokenGetter,
-    input: { name: string; contactPhone?: string; email?: string; address?: string }
+    input: { name: string } & Partial<Omit<SupplierPayload, 'name'>>
   ): Promise<Supplier> {
     const response = await fetchApi<{ supplier: Supplier }>('/suppliers', getToken, {
       method: 'POST',
       body: JSON.stringify(input),
     })
     return response.supplier
+  },
+
+  async update(getToken: TokenGetter, id: string, input: Partial<SupplierPayload>): Promise<Supplier> {
+    const response = await fetchApi<{ supplier: Supplier }>(`/suppliers/${id}`, getToken, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+    return response.supplier
+  },
+
+  async remove(getToken: TokenGetter, id: string): Promise<void> {
+    await fetchApi(`/suppliers/${id}`, getToken, { method: 'DELETE' })
   },
 
   async addPackaging(
@@ -89,6 +141,16 @@ export const supplierService = {
     return fetchApi<SupplierPackagingResponse>(`/suppliers/${supplierId}/ingredients`, getToken, {
       method: 'POST',
       body: JSON.stringify(input),
+    })
+  },
+
+  async removePackaging(
+    getToken: TokenGetter,
+    supplierId: string,
+    ingredientId: string
+  ): Promise<void> {
+    await fetchApi(`/suppliers/${supplierId}/ingredients/${ingredientId}`, getToken, {
+      method: 'DELETE',
     })
   },
 

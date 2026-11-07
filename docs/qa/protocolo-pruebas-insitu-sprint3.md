@@ -99,7 +99,7 @@ sistema).
 ## 4. Casos a validar en caliente
 
 Los tres casos del Alcance Técnico de la issue #126, en formato Gherkin
-para mantener la misma convención que `docs/qa/casos-prueba-sprint1.md`.
+para mantener la misma convención que `docs/historicos/casos-prueba-sprint1.md`.
 A diferencia de ese documento, acá el "Cuando"/"Entonces" describe una
 interacción física, no una llamada HTTP — por eso cada caso incluye además
 una guía paso a paso y qué fotografiar.

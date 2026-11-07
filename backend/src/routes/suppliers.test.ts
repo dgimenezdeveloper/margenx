@@ -1,4 +1,3 @@
-// src/routes/suppliers.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Prisma } from '@prisma/client';
 import request from 'supertest';
@@ -7,9 +6,11 @@ import express from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
 
+const authState = vi.hoisted(() => ({ role: 'ADMIN' as 'ADMIN' | 'COLLABORATOR' }));
+
 vi.mock('../middlewares/auth', () => ({
   authMiddleware: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: 'ADMIN' };
+    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: authState.role };
     next();
   },
 }));
@@ -24,12 +25,19 @@ const supplierIngredientCreateMock = vi.fn();
 const supplierIngredientUpdateMock = vi.fn();
 const supplierIngredientUpdateManyMock = vi.fn();
 const supplierIngredientFindFirstMock = vi.fn();
+const supplierIngredientDeleteMock = vi.fn();
+const supplierIngredientCountMock = vi.fn();
 const ingredientFindFirstMock = vi.fn();
 const ingredientUpdateMock = vi.fn();
 const priceHistoryCreateMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+
+const productFindManyMock = vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
+  const found = await Promise.all(where.id.in.map((id) => productFindUniqueMock({ where: { id } })));
+  return found.filter(Boolean);
+});
 const accountFindUniqueMock = vi.fn();
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
@@ -38,10 +46,12 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
       findFirst: supplierIngredientFindFirstMock,
       update: supplierIngredientUpdateMock,
       updateMany: supplierIngredientUpdateManyMock,
+      delete: supplierIngredientDeleteMock,
+      count: supplierIngredientCountMock,
     },
     ingredient: { findFirst: ingredientFindFirstMock, update: ingredientUpdateMock },
     productIngredient: { findMany: productIngredientFindManyMock },
-    product: { findUnique: productFindUniqueMock, update: productUpdateMock },
+    product: { findUnique: productFindUniqueMock, findMany: productFindManyMock, update: productUpdateMock },
     priceHistory: { create: priceHistoryCreateMock },
   });
 });
@@ -65,6 +75,8 @@ vi.mock('../lib/prisma', () => ({
       update: (...args: unknown[]) => supplierIngredientUpdateMock(...args),
       updateMany: (...args: unknown[]) => supplierIngredientUpdateManyMock(...args),
       findFirst: (...args: unknown[]) => supplierIngredientFindFirstMock(...args),
+      delete: (...args: unknown[]) => supplierIngredientDeleteMock(...args),
+      count: (...args: unknown[]) => supplierIngredientCountMock(...args),
     },
     ingredient: {
       findFirst: (...args: unknown[]) => ingredientFindFirstMock(...args),
@@ -95,6 +107,7 @@ function buildApp() {
 }
 
 beforeEach(() => {
+  authState.role = 'ADMIN';
   findManyMock.mockReset();
   findFirstMock.mockReset();
   createMock.mockReset();
@@ -105,6 +118,8 @@ beforeEach(() => {
   supplierIngredientUpdateMock.mockReset();
   supplierIngredientUpdateManyMock.mockReset();
   supplierIngredientFindFirstMock.mockReset();
+  supplierIngredientDeleteMock.mockReset();
+  supplierIngredientCountMock.mockReset();
   ingredientFindFirstMock.mockReset();
   ingredientUpdateMock.mockReset();
   priceHistoryCreateMock.mockReset();
@@ -117,26 +132,56 @@ beforeEach(() => {
     id: 'account-1',
     businessName: 'Panadería Central',
     slug: 'panaderia-central',
-    users: [{ email: 'admin.panaderia@hotmail.com' }],
+    users: [{ email: 'admin.panaderia@seed.example.test' }],
   });
 });
 
 describe('GET /api/suppliers', () => {
   it('lista solo los proveedores de la cuenta ordenados por name asc', async () => {
     const suppliers = [
-      { id: 's-1', accountId: 'account-1', name: 'Acuario' },
-      { id: 's-2', accountId: 'account-1', name: 'Bodega' },
+      { id: 's-1', accountId: 'account-1', name: 'Acuario', ingredients: [] },
+      { id: 's-2', accountId: 'account-1', name: 'Bodega', ingredients: [] },
     ];
     findManyMock.mockResolvedValue(suppliers);
 
     const res = await request(buildApp()).get('/api/suppliers');
 
     expect(res.status).toBe(200);
-    expect(res.body.suppliers).toEqual(suppliers);
+    expect(res.body.suppliers).toEqual([
+      { id: 's-1', accountId: 'account-1', name: 'Acuario', ingredientCount: 0, quarantineCount: 0 },
+      { id: 's-2', accountId: 'account-1', name: 'Bodega', ingredientCount: 0, quarantineCount: 0 },
+    ]);
     expect(findManyMock).toHaveBeenCalledWith({
       where: { accountId: 'account-1' },
+      include: {
+        ingredients: {
+          select: {
+            isQuarantined: true,
+          },
+        },
+      },
       orderBy: { name: 'asc' },
     });
+  });
+
+  it('suma ingredientCount (todas las presentaciones) y quarantineCount (solo las retenidas) por proveedor', async () => {
+    findManyMock.mockResolvedValue([
+      {
+        id: 's-1',
+        accountId: 'account-1',
+        name: 'Molino Olavarriense',
+        ingredients: [{ isQuarantined: true }, { isQuarantined: false }, { isQuarantined: false }],
+      },
+      { id: 's-2', accountId: 'account-1', name: 'Distribuidora Química del Sur', ingredients: [{ isQuarantined: false }] },
+    ]);
+
+    const res = await request(buildApp()).get('/api/suppliers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.suppliers).toEqual([
+      { id: 's-1', accountId: 'account-1', name: 'Molino Olavarriense', ingredientCount: 3, quarantineCount: 1 },
+      { id: 's-2', accountId: 'account-1', name: 'Distribuidora Química del Sur', ingredientCount: 1, quarantineCount: 0 },
+    ]);
   });
 
   it('lista los precios en cuarentena filtrados por la cuenta del administrador', async () => {
@@ -525,15 +570,57 @@ describe('POST /api/suppliers', () => {
 });
 
 describe('GET /api/suppliers/:id', () => {
-  it('devuelve 200 con el proveedor y where: { id, accountId }', async () => {
-    const supplier = { id: 's-1', accountId: 'account-1', name: 'Proveedor' };
+  it('devuelve 200 con el proveedor y sus presentaciones e insumos asociados', async () => {
+    const supplier = {
+      id: 's-1',
+      accountId: 'account-1',
+      name: 'Molino Sur',
+      ingredients: [
+        {
+          id: 'si-1',
+          supplierCode: 'HAR-000',
+          packagePrice: new Prisma.Decimal('35000'),
+          packageSize: new Prisma.Decimal('50'),
+          ingredient: { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: new Prisma.Decimal('700') },
+        },
+      ],
+    };
     findFirstMock.mockResolvedValue(supplier);
 
     const res = await request(buildApp()).get('/api/suppliers/s-1');
 
     expect(res.status).toBe(200);
-    expect(res.body.supplier).toEqual(supplier);
-    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: 's-1', accountId: 'account-1' } });
+    expect(res.body.supplier).toEqual({
+      id: 's-1',
+      accountId: 'account-1',
+      name: 'Molino Sur',
+      ingredients: [
+        {
+          id: 'si-1',
+          supplierCode: 'HAR-000',
+          packagePrice: '35000',
+          packageSize: '50',
+          ingredient: { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '700' },
+        },
+      ],
+    });
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 's-1', accountId: 'account-1' },
+      include: {
+        ingredients: {
+          include: {
+            ingredient: {
+              select: {
+                id: true,
+                name: true,
+                unit: true,
+                currentCost: true,
+              },
+            },
+          },
+        },
+      },
+    });
   });
 
   it('devuelve 404 si no existe o es de otra cuenta', async () => {
@@ -718,6 +805,7 @@ describe('DELETE /api/suppliers/:id', () => {
   });
 });
 
+
 describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
   it('crea la asociación y actualiza el insumo con status 201 Created cuando es predeterminado', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
@@ -835,6 +923,29 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(priceHistoryCreateMock).not.toHaveBeenCalled();
   });
 
+  it('devuelve 422 si se intenta quitar el predeterminado sin reemplazo', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Cañuelas' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({
+      id: 'si-existente',
+      isDefault: true,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '40000', isDefault: false });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/No puedes quitar el proveedor predeterminado sin asignar otro/);
+    expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+  });
+
   it('si isDefault es false en nueva asociación no actualiza ingredient ni crea historial', async () => {
     findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
     ingredientFindFirstMock.mockResolvedValue({
@@ -864,7 +975,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       accountId: 'account-1',
       unit: 'kg',
     });
-    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1' });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1', isDefault: false });
     supplierIngredientUpdateMock.mockResolvedValue({ id: 'si-1', isDefault: false });
 
     const res = await request(buildApp())
@@ -923,7 +1034,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       id: 'account-1',
       businessName: 'Panadería Central',
       slug: 'panaderia-central',
-      users: [{ email: 'admin.panaderia@hotmail.com' }],
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
     };
     accountFindUniqueMock.mockResolvedValue(body);
 
@@ -963,6 +1074,35 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(res.body.error).toMatch(/costo unitario|mayor a cero|superar/i);
   });
 
+  it.each([
+    ['packageSize con 4 decimales', { packageSize: '25.1234', packagePrice: '35000' }, 'El campo "packageSize" debe ser un valor decimal válido con hasta 3 decimales (ej: "25.500").'],
+    ['packagePrice con 3 decimales', { packageSize: '25', packagePrice: '35000.555' }, 'El campo "packagePrice" debe ser un valor decimal válido con hasta 2 decimales (ej: "35000.50").'],
+    ['packageSize fuera de Decimal(10,3)', { packageSize: '10000000', packagePrice: '35000' }, 'El campo "packageSize" no puede superar 9.999.999,999.'],
+    ['packagePrice fuera de Decimal(10,2)', { packageSize: '25', packagePrice: '100000000' }, 'El campo "packagePrice" no puede superar $99.999.999,99.'],
+  ])('devuelve 400 si %s', async (_caso, values, message) => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageUnit: 'kg', ...values });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(message);
+  });
+
+  it('acepta packageSize con 3 decimales en el máximo de la columna', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({ id: 'ing-1', accountId: 'account-1', unit: 'kg' });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({ ingredientId: 'ing-1', packageSize: '9999999.999', packageUnit: 'kg', packagePrice: '99999999.99' });
+
+    // Pasa la validación de escala; si falla, es por otra regla, nunca por el formato.
+    expect(res.body.error ?? '').not.toMatch(/decimal válido|no puede superar/);
+  });
+
   it('devuelve 404 si el proveedor es ajeno a la cuenta', async () => {
     findFirstMock.mockResolvedValue(null);
 
@@ -972,6 +1112,136 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Proveedor no encontrado.');
+  });
+
+  it('guarda supplierCode y rawDescription al crear la asociación', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1', name: 'Molino Sur' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-1',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      supplierCode: 'HAR-000',
+      rawDescription: 'Harina 000 bolsa 50kg',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('35000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('700.00'),
+    });
+    priceHistoryCreateMock.mockResolvedValue({ id: 'ph-1' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        isDefault: true,
+        supplierCode: ' HAR-000 ',
+        rawDescription: ' Harina 000 bolsa 50kg ',
+      });
+
+    expect(res.status).toBe(201);
+    expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        supplierId: 's-1',
+        ingredientId: 'ing-1',
+        supplierCode: 'HAR-000',
+        rawDescription: 'Harina 000 bolsa 50kg',
+      }),
+    });
+  });
+
+  it('devuelve 409 con el insumo que ya tiene ese supplierCode', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'si-dup',
+        supplierId: 's-1',
+        ingredientId: 'ing-2',
+        supplierCode: 'har-000',
+        ingredient: { id: 'ing-2', name: 'Manteca' },
+      });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        supplierCode: 'har-000',
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/Manteca|har-000|código/i);
+    expect(supplierIngredientCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('guarda la asociación sin supplierCode y avisa que no recibirá precios por ingesta', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('1000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-1',
+      supplierId: 's-1',
+      ingredientId: 'ing-1',
+      supplierCode: null,
+      rawDescription: 'Harina 000 bolsa 50kg',
+      packageSize: new Prisma.Decimal('50'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('35000'),
+      isDefault: false,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-1/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '50',
+        packageUnit: 'kg',
+        packagePrice: '35000',
+        isDefault: false,
+        rawDescription: 'Harina 000 bolsa 50kg',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toMatch(/no recibirá precios por ingesta|código de proveedor/i);
+    expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        supplierCode: null,
+        rawDescription: 'Harina 000 bolsa 50kg',
+      }),
+    });
   });
 
   it('ignora accountId enviado en el body', async () => {
@@ -987,5 +1257,77 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ supplierId: 's-1', ingredientId: 'ing-1' }),
     });
+  });
+});
+
+describe('POST /api/suppliers/quarantine/:id/reject', () => {
+  it('rechaza un precio en cuarentena conservando el costo vigente y limpiando los metadatos', async () => {
+    const quarantined = {
+      id: 'sq-1',
+      ingredientId: 'ing-1',
+      supplierId: 's-1',
+      packagePrice: new Prisma.Decimal('1000'),
+      pendingPackagePrice: new Prisma.Decimal('5000'),
+      isQuarantined: true,
+    };
+
+    supplierIngredientFindFirstMock.mockResolvedValue(quarantined);
+    supplierIngredientUpdateMock.mockResolvedValue({
+      ...quarantined,
+      pendingPackagePrice: null,
+      isQuarantined: false,
+      quarantinedAt: null,
+      quarantineReason: null,
+    });
+
+    const res = await request(buildApp()).post('/api/suppliers/quarantine/sq-1/reject');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'sq-1' },
+      data: expect.objectContaining({
+        pendingPackagePrice: null,
+        isQuarantined: false,
+        quarantinedAt: null,
+        quarantineReason: null,
+      }),
+    });
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('DELETE /api/suppliers/:id/ingredients/:ingredientId', () => {
+  it('responde 409 si se intenta eliminar la presentación predeterminada existiendo otras alternativas', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-1', isDefault: true });
+    supplierIngredientCountMock.mockResolvedValue(1); // Existen otras presentaciones
+
+    const res = await request(buildApp()).delete('/api/suppliers/s-1/ingredients/ing-1');
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/No puedes eliminar la presentación predeterminada/i);
+    expect(supplierIngredientDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it('elimina correctamente la presentación común sin alterar el costo vigente', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-1', accountId: 'account-1' });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-2', isDefault: false });
+    supplierIngredientDeleteMock.mockResolvedValue({ id: 'si-2' });
+
+    const res = await request(buildApp()).delete('/api/suppliers/s-1/ingredients/ing-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/eliminada correctamente/i);
+    expect(supplierIngredientDeleteMock).toHaveBeenCalledWith({ where: { id: 'si-2' } });
+    expect(ingredientUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve 403 al colaborador y no elimina nada', async () => {
+    authState.role = 'COLLABORATOR';
+
+    const res = await request(buildApp()).delete('/api/suppliers/s-1/ingredients/ing-1');
+
+    expect(res.status).toBe(403);
+    expect(supplierIngredientDeleteMock).not.toHaveBeenCalled();
   });
 });

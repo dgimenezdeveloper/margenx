@@ -15,7 +15,6 @@ describe('IngredientUpsertSheet', () => {
         showDeleteConfirm={false}
         isCollaborator={false}
         onSubmit={vi.fn()}
-        onClose={vi.fn()}
         onRequestClose={vi.fn()}
         onDeleteConfirm={vi.fn()}
         onCancelDelete={onCancelDelete}

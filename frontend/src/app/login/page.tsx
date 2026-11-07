@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import Link from 'next/link'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { isClerkConfigured } from '@/lib/clerkConfig'
+import { isStandaloneMode } from '@/lib/displayMode'
+import { clearStoredReturnUrl, resolveReturnUrl } from '@/lib/returnUrl'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function LoginPage() {
@@ -13,7 +15,10 @@ export default function LoginPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
+  const location = useLocation()
   const wasLoggedOutRef = useRef(false)
+  // Destino tras el login (por ejemplo, el producto del enlace "Ajustar"); se resuelve una vez al montar
+  const [returnUrl] = useState(() => resolveReturnUrl(location.search))
 
   const isE2E = (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
     typeof window !== 'undefined' && Boolean(window.navigator.webdriver)
@@ -23,7 +28,8 @@ export default function LoginPage() {
   const hasTabSession =
     typeof window !== 'undefined' && sessionStorage.getItem('margenx_active_session') === 'true'
 
-  const isSessionAlive = isE2E || hasTabSession || hasBrowserSessionCookie
+  // En la app instalada cerrar la app no cierra la sesión: manda la duración configurada en Clerk (ADR-006)
+  const isSessionAlive = isE2E || isStandaloneMode() || hasTabSession || hasBrowserSessionCookie
 
   // Sesión residual: Clerk tiene cookies pero el navegador se cerró previamente
   const isStaleSession = Boolean(!isE2E && isLoaded && isSignedIn && !isSessionAlive)
@@ -37,10 +43,15 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isLoaded) return
 
-    // 1. Si ya tiene sesión activa en esta misma sesión de navegador, va directo al dashboard
-    if (isSessionAlive && isSignedIn) {
+    const goToReturnUrl = () => {
       authorizeSession()
-      navigate('/dashboard', { replace: true })
+      clearStoredReturnUrl()
+      navigate(returnUrl, { replace: true })
+    }
+
+    // 1. Si ya tiene sesión activa (en esta sesión de navegador o en la app instalada), va directo al destino
+    if (isSessionAlive && isSignedIn) {
+      goToReturnUrl()
       return
     }
 
@@ -50,6 +61,7 @@ export default function LoginPage() {
       sessionStorage.removeItem('margenx_active_session')
       document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
       localStorage.removeItem('margenx_last_active')
+      void clearSessionCaches()
 
       void signOut(() => {
         wasLoggedOutRef.current = true
@@ -62,10 +74,9 @@ export default function LoginPage() {
       wasLoggedOutRef.current = true
     } else if (isSignedIn && wasLoggedOutRef.current) {
       // 4. Si estaba deslogueado y acaba de completar el login con éxito (humano o Playwright)
-      authorizeSession()
-      navigate('/dashboard', { replace: true })
+      goToReturnUrl()
     }
-  }, [isLoaded, isSignedIn, isSessionAlive, isStaleSession, isE2E, signOut, navigate])
+  }, [isLoaded, isSignedIn, isSessionAlive, isStaleSession, isE2E, signOut, navigate, returnUrl])
 
   // Toast de inactividad
   const [toast, setToast] = useState<string | null>(() => {
@@ -101,7 +112,7 @@ export default function LoginPage() {
         </div>
       )}
       <Link
-        href="/"
+        to="/"
         className="absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-indigo-600"
       >
         <ArrowLeft className="size-4" /> Volver a la web
@@ -116,6 +127,15 @@ export default function LoginPage() {
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
 
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+          <Link to="/privacidad" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
+            Política de privacidad
+          </Link>
+          <Link to="/instalar" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
+            Guía de instalación
+          </Link>
+        </div>
+
         {!isLoaded || isStaleSession ? (
           <div className="flex h-64 items-center justify-center">
             <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -127,8 +147,8 @@ export default function LoginPage() {
             onFocusCapture={authorizeSession}
           >
             <SignIn
-              fallbackRedirectUrl="/dashboard"
-              forceRedirectUrl="/dashboard"
+              fallbackRedirectUrl={returnUrl}
+              forceRedirectUrl={returnUrl}
               routing="path"
               path="/login"
               appearance={{

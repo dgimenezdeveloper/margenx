@@ -75,7 +75,7 @@ export function ToastAlert({
         touchAction: 'pan-y',
         borderLeftColor,
       }}
-      className="fixed inset-x-4 top-4 z-50 mx-auto md:inset-x-auto md:right-4 md:mx-0 flex max-w-md items-start justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl select-none dark:border-slate-800/90 dark:bg-[#0d1527] border-l-4 animate-in fade-in slide-in-from-top-4 md:slide-in-from-right-4"
+      className="fixed inset-x-4 top-4 z-100 mx-auto md:inset-x-auto md:right-4 md:mx-0 flex max-w-md items-start justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl select-none dark:border-slate-800/90 dark:bg-[#0d1527] border-l-4 animate-in fade-in slide-in-from-top-4 md:slide-in-from-right-4"
     >
       <div className={`flex ${description ? 'items-start' : 'items-center'} gap-3 min-w-0 flex-1`}>
         <Icon className={`size-5 shrink-0 ${description ? 'mt-0.5' : ''} ${iconColor}`} />

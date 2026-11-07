@@ -3,15 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { Prisma } from '@prisma/client';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
 
+let currentUserRole: 'ADMIN' | 'COLLABORATOR' = 'ADMIN';
+
 vi.mock('../middlewares/auth', () => ({
   authMiddleware: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: 'ADMIN' };
+    req.user = { id: 'user-1', accountId: 'account-1', email: 'a@a.com', role: currentUserRole };
     next();
   },
 }));
@@ -67,7 +69,12 @@ function buildApp() {
   return app;
 }
 
+function setAuthRole(role: 'ADMIN' | 'COLLABORATOR') {
+  currentUserRole = role;
+}
+
 beforeEach(() => {
+  setAuthRole('ADMIN');
   productFindManyMock.mockReset();
   productCountMock.mockReset();
   productFindFirstMock.mockReset();
@@ -101,10 +108,54 @@ function firstUpdateData(): ProductUpdateData {
   return (call as [{ data: ProductUpdateData }])[0].data;
 }
 
-describe('schema Prisma', () => {
-  it('define una restricción única de nombre por cuenta en Product', () => {
+describe('schema Prisma y migración', () => {
+  // Recorre todas las migraciones en orden, no solo la última: así la prueba no se
+  // rompe cuando se agrega una migración nueva, pero sí falla si alguna posterior
+  // borra los índices (por ejemplo, un `prisma migrate dev` que no los conoce).
+  const migrationDir = join(__dirname, '../../prisma/migrations');
+  const allMigrationsSql = readdirSync(migrationDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .map((dir) => readFileSync(join(migrationDir, dir, 'migration.sql'), 'utf8'))
+    .join('\n');
+
+  it.each(['Product', 'Supplier', 'Ingredient'])(
+    'crea el índice único (accountId, lower(name)) de %s y ninguna migración posterior lo borra',
+    (model) => {
+      const indexName = `${model}_accountId_lower_name_key`;
+      const createSql = `CREATE UNIQUE INDEX "${indexName}" ON "${model}"("accountId", lower("name"));`;
+
+      const createdAt = allMigrationsSql.lastIndexOf(createSql);
+      expect(createdAt).toBeGreaterThanOrEqual(0);
+      expect(allMigrationsSql.indexOf(`DROP INDEX "${indexName}"`, createdAt)).toBe(-1);
+      expect(allMigrationsSql.indexOf(`DROP INDEX IF EXISTS "${indexName}"`, createdAt)).toBe(-1);
+    }
+  );
+
+  it('la auditoría previa de duplicados cubre las tres tablas y es de solo lectura', () => {
+    const auditSql = readFileSync(join(__dirname, '../../prisma/sql/auditar-nombres-duplicados.sql'), 'utf8');
+    const statements = auditSql
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('--'))
+      .join('\n');
+
+    for (const model of ['Supplier', 'Ingredient', 'Product']) {
+      expect(statements).toContain(`FROM "${model}" t`);
+    }
+    expect(statements.match(/GROUP BY a\.slug, lower\(t\."name"\) HAVING count\(\*\) > 1/g)).toHaveLength(3);
+    expect(statements).not.toMatch(/\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE)\b/i);
+  });
+
+  it('documenta en schema.prisma que la unicidad case-insensitive vive en la migración SQL', () => {
     const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
-    expect(schema).toContain('@@unique([accountId, name])');
+
+    expect(schema).toContain('La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE');
+    for (const model of ['Product', 'Supplier', 'Ingredient']) {
+      expect(schema).toContain(
+        `CREATE UNIQUE INDEX "${model}_accountId_lower_name_key" ON "${model}"("accountId", lower("name"));`
+      );
+    }
   });
 });
 
@@ -151,40 +202,328 @@ describe('POST /api/products', () => {
       expect.objectContaining({ where: { accountId: 'account-1', id: { in: ['ing-1'] } } })
     );
   });
-  it('permite salePrice = 0 (producto borrador) y calcula margen negativo sin lanzar 400 (fix del bug reportado por QA)', async () => {
-    // Insumo con currentCost = 1500, cantidad 1 => cost total = 1500
-    txIngredientFindManyMock.mockResolvedValue([
-      { id: 'ing-1', currentCost: new Prisma.Decimal('1500') },
-    ]);
+  it('permite salePrice = 0 en un producto borrador sin receta', async () => {
+    txIngredientFindManyMock.mockResolvedValue([]);
     txProductCreateMock.mockResolvedValue({
       id: 'p-borrador',
       name: 'Producto borrador',
-      cost: '1500.00',
-      marginAmount: '-1500.00',
+      cost: '0.00',
+      marginAmount: '0.00',
       marginPercent: '0.00',
     });
 
     const payload = {
       name: 'Producto borrador',
-      salePrice: '0', // <- antes del fix, esto tiraba 400 "debe ser mayor a cero"
+      salePrice: '0',
       minMarginPercent: '0',
-      ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+      ingredients: [],
     };
 
     const res = await request(buildApp()).post('/api/products').send(payload);
 
     expect(res.status).toBe(201);
-    expect(res.body.product.marginAmount).toBe('-1500.00');
+    expect(res.body.product.marginAmount).toBe('0.00');
     expect(res.body.product.marginPercent).toBe('0.00');
 
-    // Verificamos qué se le pasó realmente a product.create, no solo el mock de retorno
     const createCall = txProductCreateMock.mock.calls[0] as [{ data: any }];
     const createData = createCall[0].data;
 
     expect(createData.salePrice.toString()).toBe('0');
-    expect(createData.cost.toString()).toBe('1500');
-    expect(createData.marginAmount.toString()).toBe('-1500');
+    expect(createData.cost.toString()).toBe('0');
+    expect(createData.marginAmount.toString()).toBe('0');
     expect(createData.marginPercent.toString()).toBe('0');
+  });
+
+  it('rechaza salePrice = 0 cuando el producto tiene receta', async () => {
+    txIngredientFindManyMock.mockResolvedValue([
+      { id: 'ing-1', currentCost: new Prisma.Decimal('1500') },
+    ]);
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con receta y precio cero',
+        salePrice: '0',
+        minMarginPercent: '0',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/precio de venta debe ser mayor a cero/i);
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT rechaza salePrice = 0 cuando el producto conserva la receta', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p1',
+      name: 'Prod',
+      salePrice: new Prisma.Decimal('30.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('20.00'),
+      marginAmount: new Prisma.Decimal('10.00'),
+      marginPercent: new Prisma.Decimal('33.33'),
+    });
+    txProductIngredientCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp())
+      .put('/api/products/p1')
+      .send({ salePrice: '0' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/precio de venta debe ser mayor a cero/i);
+    expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT rechaza una receta nueva cuando salePrice = 0', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p2',
+      name: 'Borrador',
+      salePrice: new Prisma.Decimal('0'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('0'),
+      marginAmount: new Prisma.Decimal('0'),
+      marginPercent: new Prisma.Decimal('0'),
+    });
+    txIngredientFindManyMock.mockResolvedValue([
+      { id: 'ing-1', currentCost: new Prisma.Decimal('12.50') },
+    ]);
+
+    const res = await request(buildApp())
+      .put('/api/products/p2')
+      .send({
+        salePrice: '0',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/precio de venta debe ser mayor a cero/i);
+    expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT admite salePrice = 0 en un borrador que sigue sin receta', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p3',
+      name: 'Borrador',
+      salePrice: new Prisma.Decimal('100.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('0'),
+      marginAmount: new Prisma.Decimal('0'),
+      marginPercent: new Prisma.Decimal('0'),
+    });
+    txProductIngredientCountMock.mockResolvedValue(0);
+    txProductUpdateMock.mockResolvedValue({ id: 'p3', salePrice: '0.00', cost: '0.00', marginPercent: '0.00' });
+
+    const res = await request(buildApp()).put('/api/products/p3').send({ salePrice: '0' });
+
+    expect(res.status).toBe(200);
+    const data = firstUpdateData();
+    expect(data.salePrice.toString()).toBe('0');
+    expect(data.cost.toString()).toBe('0');
+    expect(data.marginPercent.toString()).toBe('0');
+  });
+
+  it('PUT admite salePrice = 0 si en el mismo pedido se vacía la receta', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p1',
+      name: 'Prod',
+      salePrice: new Prisma.Decimal('30.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('20.00'),
+      marginAmount: new Prisma.Decimal('10.00'),
+      marginPercent: new Prisma.Decimal('33.33'),
+    });
+    txProductUpdateMock.mockResolvedValue({ id: 'p1' });
+
+    const res = await request(buildApp()).put('/api/products/p1').send({ salePrice: '0', ingredients: [] });
+
+    expect(res.status).toBe(200);
+    expect(txProductIngredientDeleteManyMock).toHaveBeenCalledWith({ where: { productId: 'p1' } });
+    expect(txProductIngredientCountMock).not.toHaveBeenCalled();
+    expect(firstUpdateData().cost.toString()).toBe('0');
+  });
+
+  it('devuelve el mensaje exacto de la issue al rechazar salePrice = 0 con receta', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con receta',
+        salePrice: 0,
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(
+      'El precio de venta debe ser mayor a cero cuando el producto tiene ingredientes en su receta.'
+    );
+    expect(txIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza quantity que no entra en la columna Decimal(10,3)', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con cantidad enorme',
+        salePrice: '100',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '10000000' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('El campo "quantity" excede la capacidad máxima permitida.');
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('acepta quantity en el máximo de la columna (9999999.999)', async () => {
+    txIngredientFindManyMock.mockResolvedValue([{ id: 'ing-1', currentCost: new Prisma.Decimal('0.01') }]);
+    txProductCreateMock.mockResolvedValue({ id: 'p-max' });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto cantidad máxima',
+        salePrice: '100000.00',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '9999999.999' }],
+      });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('indica el formato admitido al rechazar un salePrice con 3 decimales (1500.555)', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Producto precio 3 decimales', salePrice: '1500.555', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('El campo "salePrice" debe ser un valor decimal válido con hasta 2 decimales (ej: "1500.50").');
+  });
+
+  it('devuelve 409 si el índice único case-insensitive rechaza un alta concurrente', async () => {
+    txIngredientFindManyMock.mockResolvedValue([]);
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target: 'Product_accountId_lower_name_key' },
+      })
+    );
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Pan de Campo', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un producto con ese nombre.');
+  });
+
+  it('rechaza un insumo repetido en la receta en POST', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con insumo duplicado',
+        salePrice: '150',
+        minMarginPercent: '20',
+        ingredients: [
+          { ingredientId: 'ing-1', quantity: '1' },
+          { ingredientId: 'ing-1', quantity: '2' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/No se puede repetir el mismo insumo/i);
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un insumo repetido en la receta en PUT', async () => {
+    txProductFindFirstMock.mockResolvedValue({
+      id: 'p1',
+      name: 'Prod',
+      salePrice: new Prisma.Decimal('30.00'),
+      minMarginPercent: new Prisma.Decimal('10'),
+      cost: new Prisma.Decimal('0'),
+      marginAmount: new Prisma.Decimal('0'),
+      marginPercent: new Prisma.Decimal('0'),
+    });
+
+    const res = await request(buildApp())
+      .put('/api/products/p1')
+      .send({
+        ingredients: [
+          { ingredientId: 'ing-1', quantity: '1' },
+          { ingredientId: 'ing-1', quantity: '2' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/No se puede repetir el mismo insumo/i);
+    expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza salePrice con escala decimal inválida en POST', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con precio inválido',
+        salePrice: '123.456',
+        minMarginPercent: '10',
+        ingredients: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/valor decimal válido/i);
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza quantity con escala decimal inválida en POST', async () => {
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con cantidad inválida',
+        salePrice: '100',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1.2345' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/valor decimal válido/i);
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('acepta quantity con 3 decimales válidos y crea el producto', async () => {
+    txIngredientFindManyMock.mockResolvedValue([
+      { id: 'ing-1', currentCost: new Prisma.Decimal('10.00') },
+    ]);
+    txProductCreateMock.mockResolvedValue({
+      id: 'p-quantity-3',
+      name: 'Producto con cantidad válida',
+      cost: '12.34',
+      marginAmount: '87.66',
+      marginPercent: '87.66',
+    });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({
+        name: 'Producto con cantidad válida',
+        salePrice: '100',
+        minMarginPercent: '10',
+        ingredients: [{ ingredientId: 'ing-1', quantity: '1.234' }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(txProductCreateMock).toHaveBeenCalled();
+
+    const call = txProductCreateMock.mock.calls[0];
+    expect(call).toBeDefined();
+
+    const createData = (call as [{ data: { ingredients: { create: Array<{ quantity: Prisma.Decimal }> } } }])[0].data;
+    expect(createData.ingredients.create).toHaveLength(1);
+
+    const quantity = createData.ingredients.create[0]?.quantity;
+    expect(quantity).toBeDefined();
+    expect(quantity!.toString()).toBe('1.234');
   });
 
   it('sigue rechazando salePrice negativo con 400', async () => {
@@ -291,6 +630,70 @@ describe('GET /api/products/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.product).toEqual(product);
     expect(productFindFirstMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' }, include: { ingredients: { include: { ingredient: true } } } });
+  });
+
+  it('oculta quantity cost y margin para COLLABORATOR en la respuesta real del endpoint', async () => {
+    setAuthRole('COLLABORATOR');
+    const product = {
+      id: 'p1',
+      accountId: 'account-1',
+      name: 'Prod',
+      cost: '120.00',
+      marginAmount: '30.00',
+      marginPercent: '25.00',
+      ingredients: [
+        {
+          ingredientId: 'ing-1',
+          quantity: '2.5',
+          ingredient: {
+            id: 'ing-1',
+            name: 'Harina',
+            currentCost: '10.00',
+          },
+        },
+      ],
+    };
+    productFindFirstMock.mockResolvedValue(product);
+
+    const res = await request(buildApp()).get('/api/products/p1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.product).not.toHaveProperty('cost');
+    expect(res.body.product).not.toHaveProperty('marginAmount');
+    expect(res.body.product).not.toHaveProperty('marginPercent');
+    expect(res.body.product.ingredients[0]).not.toHaveProperty('quantity');
+  });
+
+  it('mantiene quantity cost y margin visibles para ADMIN en la respuesta real del endpoint', async () => {
+    setAuthRole('ADMIN');
+    const product = {
+      id: 'p1',
+      accountId: 'account-1',
+      name: 'Prod',
+      cost: '120.00',
+      marginAmount: '30.00',
+      marginPercent: '25.00',
+      ingredients: [
+        {
+          ingredientId: 'ing-1',
+          quantity: '2.5',
+          ingredient: {
+            id: 'ing-1',
+            name: 'Harina',
+            currentCost: '10.00',
+          },
+        },
+      ],
+    };
+    productFindFirstMock.mockResolvedValue(product);
+
+    const res = await request(buildApp()).get('/api/products/p1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.product.cost).toBe('120.00');
+    expect(res.body.product.marginAmount).toBe('30.00');
+    expect(res.body.product.marginPercent).toBe('25.00');
+    expect(res.body.product.ingredients[0].quantity).toBe('2.5');
   });
 });
 
@@ -452,5 +855,98 @@ describe('DELETE /api/products/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true });
     expect(productDeleteManyMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' } });
+  });
+});
+
+/* Nombres de producto: se guardan tal como los escribe el usuario (#236) y la
+ * unicidad por cuenta es case-insensitive. Desde que se quitó el toLowerCase()
+ * al guardar, la restricción @@unique([accountId, name]) de Postgres distingue
+ * mayúsculas, así que la única barrera contra "Pan de Campo" / "PAN DE CAMPO"
+ * es la validación con mode: 'insensitive' de la ruta. */
+describe('Nombres de producto: formato original y unicidad case-insensitive', () => {
+  const existingProduct = {
+    id: 'p1',
+    name: 'Pan de Campo',
+    salePrice: new Prisma.Decimal('30.00'),
+    minMarginPercent: new Prisma.Decimal('10'),
+    cost: new Prisma.Decimal('0'),
+    marginAmount: new Prisma.Decimal('0'),
+    marginPercent: new Prisma.Decimal('0'),
+  };
+
+  beforeEach(() => {
+    // Prisma siempre devuelve un array; los POST de este bloque van sin receta.
+    txIngredientFindManyMock.mockResolvedValue([]);
+  });
+
+  it('POST guarda el nombre con las mayúsculas y minúsculas que escribió el usuario', async () => {
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockResolvedValue({ id: 'p1', name: 'Pan de Campo' });
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'Pan de Campo', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(201);
+    expect(txProductCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ name: 'Pan de Campo' }) })
+    );
+  });
+
+  it('POST busca duplicados sin distinguir mayúsculas y dentro de la misma cuenta', async () => {
+    txProductFindFirstMock.mockResolvedValue(null);
+    txProductCreateMock.mockResolvedValue({ id: 'p2', name: 'PAN DE CAMPO' });
+
+    await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'PAN DE CAMPO', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(txProductFindFirstMock).toHaveBeenCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'PAN DE CAMPO', mode: 'insensitive' } },
+    });
+  });
+
+  it('POST rechaza con 409 un nombre que solo difiere en mayúsculas de uno existente', async () => {
+    txProductFindFirstMock.mockResolvedValue(existingProduct);
+
+    const res = await request(buildApp())
+      .post('/api/products')
+      .send({ name: 'PAN DE CAMPO', salePrice: '30.00', minMarginPercent: '10', ingredients: [] });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Ya existe un producto con ese nombre.');
+    expect(txProductCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT rechaza con 409 renombrar a un nombre de otro producto con distinto casing', async () => {
+    txProductFindFirstMock
+      .mockResolvedValueOnce({ ...existingProduct, id: 'p2', name: 'Medialuna' })
+      .mockResolvedValueOnce(existingProduct);
+    txProductIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp())
+      .put('/api/products/p2')
+      .send({ name: 'pan de campo' });
+
+    expect(res.status).toBe(409);
+    expect(txProductFindFirstMock).toHaveBeenLastCalledWith({
+      where: { accountId: 'account-1', name: { equals: 'pan de campo', mode: 'insensitive' } },
+    });
+    expect(txProductUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT permite corregir solo el casing del propio nombre y lo guarda tal cual', async () => {
+    txProductFindFirstMock.mockResolvedValueOnce({ ...existingProduct, name: 'pan de campo' });
+    txProductIngredientCountMock.mockResolvedValue(0);
+    txProductUpdateMock.mockResolvedValue({ id: 'p1', name: 'Pan de Campo' });
+
+    const res = await request(buildApp())
+      .put('/api/products/p1')
+      .send({ name: 'Pan de Campo' });
+
+    expect(res.status).toBe(200);
+    // Solo la búsqueda del producto existente: no hay chequeo de duplicado contra sí mismo
+    expect(txProductFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(firstUpdateData().name).toBe('Pan de Campo');
   });
 });

@@ -193,7 +193,8 @@ jobs:
   # ============================================================
   move_to_in_progress_branch:
     name: "Branch creada → IN PROGRESS"
-    if: github.event_name == 'create' && github.event.ref_type == 'branch'
+    # Dependabot no recibe PROJECT_TOKEN y sus ramas no tienen tarjeta.
+    if: github.event_name == 'create' && github.event.ref_type == 'branch' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Extraer número de issue y mover a IN PROGRESS
@@ -203,7 +204,9 @@ jobs:
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
         run: |
           BRANCH="${{ github.ref_name }}"
-          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+          # Solo ramas N-slug (DoD §1). Así las ramas de Dependabot, que llevan
+          # versiones o hashes en el nombre, no mueven tarjetas ajenas.
+          ISSUE_NUMBER=$(echo "$BRANCH" | grep -oP '^\d+(?=-)' | head -1)
           [ -z "$ISSUE_NUMBER" ] && echo "No se detectó número de issue en la rama '$BRANCH'. Omitiendo." && exit 0
 
           ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
@@ -270,8 +273,10 @@ jobs:
   # ============================================================
   move_to_in_review:
     name: "PR Abierto / Re-Review → IN REVIEW"
+    # Los PRs de Dependabot no tienen tarjeta ni reciben PROJECT_TOKEN.
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'review_requested')
     runs-on: ubuntu-latest
     steps:
@@ -330,7 +335,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -397,7 +402,7 @@ jobs:
   # ============================================================
   handle_qa_review:
     name: "Decisión QA → QA APPROVED o IN PROGRESS"
-    if: github.event_name == 'pull_request_review' && github.event.action == 'submitted'
+    if: github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Validar si el reviewer es QA
@@ -484,7 +489,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -603,7 +608,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -725,6 +730,7 @@ jobs:
     name: "PR mergeado → DONE"
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -780,7 +786,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then
@@ -833,6 +839,7 @@ jobs:
     name: "PR cerrado sin merge → BACKLOG"
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == false
     runs-on: ubuntu-latest
@@ -888,7 +895,7 @@ jobs:
             --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]')
 
           if [ -z "$CLOSING_ISSUES" ]; then
-            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '(?<![0-9])\d+(?![0-9])' | head -1)
+            ISSUE_NUMBER=$(echo "$PR_BRANCH" | grep -oP '^\d+(?=-)' | head -1)
             if [ -n "$ISSUE_NUMBER" ]; then
               ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "null")
               if [ "$ISSUE_DATA" != "null" ]; then

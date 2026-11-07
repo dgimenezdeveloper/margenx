@@ -43,7 +43,7 @@ Establecer las bases arquitecturales, el entorno de desarrollo estandarizado, el
 
 ### D. Calidad, Testing y Enlace con Dominio Real (Leandro Herrera)
 - **Framework E2E:** Setup inicial de Playwright con configuración de reportes, trazas y script npm run test:e2e.
-- **Matriz de Pruebas Sprint 1:** Documentación de casos de prueba funcionales y de seguridad multi-tenant en formato Gherkin (docs/qa/casos-prueba-sprint1.md).
+- **Matriz de Pruebas Sprint 1:** Documentación de casos de prueba funcionales y de seguridad multi-tenant en formato Gherkin (`docs/historicos/casos-prueba-sprint1.md`).
 - **Dataset Realista de Validación (Seed Data):** Relevamiento de datos con dos comercios reales (Panadería Central y Química GyJ), con insumos, productos terminados y recetas detalladas con verificación matemática de márgenes y casos deliberados de alerta roja.
 
 ---

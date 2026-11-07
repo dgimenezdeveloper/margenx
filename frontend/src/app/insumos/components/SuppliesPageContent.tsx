@@ -2,7 +2,7 @@
 
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Boxes, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
+import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -11,18 +11,19 @@ import { z } from 'zod'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
 import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
+import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
@@ -46,11 +47,14 @@ export default function SuppliesPageContent() {
   const { user } = useCurrentUser()
   const navigate = useNavigate()
   const isCollaborator = user?.role === 'COLLABORATOR'
+  // La carga masiva es solo del administrador: mientras el rol no se conoce, no se muestra.
+  const canBulkUpload = user?.role === 'ADMIN'
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [quarantineCount, setQuarantineCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -58,18 +62,25 @@ export default function SuppliesPageContent() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPackagingModal, setShowPackagingModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
 
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-  useBodyScrollLock(newOpen || selected !== null || showHistoryModal || showPackagingModal)
+  const handleRetry = () => {
+    setIsLoading(true)
+    setLoadError(null)
+    setReloadKey((prev) => prev + 1)
+  }
+
+  // Tras la carga masiva se recarga la lista sin reemplazarla por el indicador de carga.
+  const refreshSupplies = () => setReloadKey((prev) => prev + 1)
+  const openBulkModal = () => setShowBulkModal(true)
 
   useEffect(() => {
     let active = true
 
-    // Si getQuarantine falla, se captura silenciosamente devolviendo array vacío
-    // para que la pantalla principal de insumos NUNCA sea bloqueada.
     Promise.all([
       ingredientService.getAll(getToken),
       !isCollaborator
@@ -78,21 +89,28 @@ export default function SuppliesPageContent() {
     ])
       .then(([ingredients, quarantined]) => {
         if (active) {
-          setSupplies(sortIngredients(ingredients))
+          setSupplies(sortIngredients(ingredients ?? []))
           setQuarantineCount(quarantined.length)
         }
       })
       .catch((error: unknown) => {
-        if (active) setLoadError(error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.')
+        if (active) {
+          const msg = error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'
+          setLoadError(msg)
+          setSupplies([])
+          setQuarantineCount(0)
+        }
       })
       .finally(() => {
-        if (active) setIsLoading(false)
+        if (active) {
+          setIsLoading(false)
+        }
       })
 
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator])
+  }, [getToken, isCollaborator, reloadKey])
 
   useEffect(() => {
     if (!currentToast && toastQueue.length > 0) {
@@ -159,6 +177,7 @@ export default function SuppliesPageContent() {
   })
 
   const selectedUnit = useWatch({ control, name: 'unit' })
+
   const filtered = useMemo(
     () => supplies.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())),
     [supplies, query]
@@ -343,7 +362,7 @@ export default function SuppliesPageContent() {
                 Administra los costos de tus materias primas y empaques mayoristas.
               </p>
             </div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-end">
               <div className="relative w-full md:w-72 lg:w-80 shrink-0">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                   <Search className="size-4 text-gray-400" />
@@ -353,9 +372,22 @@ export default function SuppliesPageContent() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar insumos..."
+                  aria-label="Buscar insumos por nombre"
                   className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>
+              {canBulkUpload && (
+                <button
+                  type="button"
+                  onClick={openBulkModal}
+                  aria-label="Cargar desde planilla"
+                  className="hidden md:inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+                  <span className="lg:hidden">Planilla</span>
+                  <span className="hidden lg:inline">Cargar desde planilla</span>
+                </button>
+              )}
               {!isCollaborator && (
                 <button
                   type="button"
@@ -381,87 +413,117 @@ export default function SuppliesPageContent() {
             </div>
           </section>
 
-          {!isCollaborator && quarantineCount > 0 && (
-            <div className="md:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
-                  <ShieldAlert className="size-5" />
-                  <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+          {loadError ? (
+            <ErrorState
+              title="Error al cargar insumos"
+              description={loadError}
+              onRetry={handleRetry}
+            />
+          ) : (
+            <>
+              {!isCollaborator && quarantineCount > 0 && (
+                <div className="md:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+                      <ShieldAlert className="size-5" />
+                      <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/proveedores/cuarentena')}
+                      className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer"
+                    >
+                      Revisar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/proveedores/cuarentena')}
-                  className="text-xs font-bold text-amber-700 underline dark:text-amber-300 cursor-pointer"
-                >
-                  Revisar
-                </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
+                  <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
+                  <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
+                </div>
+                <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
+                  <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
+                  <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
+                </div>
+                <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
+                </div>
+                <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
+                  <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
+                </div>
               </div>
-            </div>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 truncate text-lg font-bold">Todos los insumos</h2>
+                  <div className="flex shrink-0 items-center gap-2 md:hidden">
+                    {canBulkUpload && (
+                      <button
+                        type="button"
+                        onClick={openBulkModal}
+                        aria-label="Cargar desde planilla"
+                        title="Cargar desde planilla"
+                        className="flex size-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-indigo-600 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-indigo-400"
+                      >
+                        <FileSpreadsheet className="size-5" aria-hidden="true" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleOpenNew}
+                      className="min-h-11 rounded-xl bg-indigo-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                    >
+                      + Nuevo Insumo
+                    </button>
+                  </div>
+                </div>
+                {isLoading && (
+                  <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
+                  </div>
+                )}
+                {!isLoading && isTotalEmpty && (
+                  <EmptyState
+                    icon={<Boxes className="size-6" />}
+                    title="Sin insumos en la despensa"
+                    description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
+                    actionLabel="Crear nuevo insumo"
+                    onAction={handleOpenNew}
+                  />
+                )}
+                {!isLoading && isTotalEmpty && canBulkUpload && (
+                  <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                    ¿Tenés tu lista en Excel?{' '}
+                    <button
+                      type="button"
+                      onClick={openBulkModal}
+                      className="min-h-11 cursor-pointer font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-300"
+                    >
+                      Cargala desde una planilla
+                    </button>
+                  </p>
+                )}
+                {!isLoading && isSearchEmpty && (
+                  <EmptyState
+                    icon={<Search className="size-6" />}
+                    title="Insumo no encontrado"
+                    description={`No existe ningún insumo con el nombre "${query}".`}
+                  />
+                )}
+                {!isLoading && !isTotalEmpty && !isSearchEmpty && (
+                  <>
+                    <SuppliesCardsMobile supplies={filtered} onSelect={handleOpenEdit} money={money} />
+                    <SuppliesTableDesktop supplies={filtered} onSelect={handleOpenEdit} money={money} />
+                  </>
+                )}
+              </section>
+            </>
           )}
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
-              <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
-              <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
-            </div>
-            <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
-              <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
-              <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
-            </div>
-            <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
-              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
-              <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
-            </div>
-            <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
-              <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
-            </div>
-          </div>
-
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Todos los insumos</h2>
-              <button
-                type="button"
-                onClick={handleOpenNew}
-                className="md:hidden rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                + Nuevo Insumo
-              </button>
-            </div>
-            {isLoading && (
-              <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <LoaderCircle className="mr-2 size-5 animate-spin" /> Cargando insumos...
-              </div>
-            )}
-            {!isLoading && loadError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
-                {loadError}
-              </div>
-            )}
-            {!isLoading && !loadError && isTotalEmpty && (
-              <EmptyState
-                icon={<Boxes className="size-6" />}
-                title="Sin insumos en la despensa"
-                description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
-                actionLabel="Crear nuevo insumo"
-                onAction={handleOpenNew}
-              />
-            )}
-            {!isLoading && !loadError && isSearchEmpty && (
-              <EmptyState
-                icon={<Search className="size-6" />}
-                title="Insumo no encontrado"
-                description={`No existe ningún insumo con el nombre "${query}".`}
-              />
-            )}
-            {!isLoading && !loadError && !isTotalEmpty && !isSearchEmpty && (
-              <>
-                <SuppliesCardsMobile supplies={filtered} onSelect={handleOpenEdit} money={money} />
-                <SuppliesTableDesktop supplies={filtered} onSelect={handleOpenEdit} money={money} />
-              </>
-            )}
-          </section>
         </div>
         <DesktopFooter />
       </div>
@@ -472,7 +534,6 @@ export default function SuppliesPageContent() {
         showDeleteConfirm={showDeleteConfirm}
         isCollaborator={isCollaborator}
         onSubmit={handleSubmit(handleSave)}
-        onClose={requestCloseSheet}
         onRequestClose={requestCloseSheet}
         onRequestDelete={() => setShowDeleteConfirm(true)}
         onDeleteConfirm={confirmDelete}
@@ -521,6 +582,14 @@ export default function SuppliesPageContent() {
           ingredient={selected}
           existingConnection={editingConnection}
           onSuccess={handlePackagingSuccess}
+        />
+      )}
+      {canBulkUpload && (
+        <BulkIngredientsModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          existingSupplies={supplies}
+          onSuccess={refreshSupplies}
         />
       )}
     </main>

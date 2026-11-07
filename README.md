@@ -23,7 +23,7 @@ When a raw material increases in price (e.g., flour, beef, chemicals, containers
 **MargenX** solves this problem through:
 - **Cascading Recalculation:** Updating an ingredient's cost triggers an automated database transaction that recalculates the total cost and gross profit margin of every finished good using that ingredient across the entire catalog.
 - **Visual & Automated Alerts:** Immediate traffic-light badges on the dashboard and asynchronous alerts via **n8n** (Email / Telegram) when a product falls below the target margin threshold.
-- **Zero-Click Supplier Ingestion:** Business owners forward supplier price lists (Excel/CSV) to a virtual inbox (`precios+<slug>@margenx.tech`). The system updates mapped items and discards unmapped rows (anti-pollution catalog protection).
+- **Zero-Click Supplier Ingestion:** Business owners forward supplier price lists (Excel/CSV) to a virtual inbox (`precios-<slug>@margenx.tech`). The system updates mapped items and discards unmapped rows (anti-pollution catalog protection).
 
 ---
 
@@ -32,11 +32,12 @@ To ensure an intuitive user experience and validate recipe creation flows prior 
 
 🔗 **[View Interactive Figma Prototype](https://www.figma.com/proto/VP7NOtPGVwSCPZex5wYpmZ/Margen-X?node-id=0-1&t=AkoTRJ9OMR8ePuRU-1)**
 
-The application is structured into four core operational modules:
+The application is structured into five core operational modules:
 1. **Authentication & Onboarding (`/login`):** Streamlined sign-in with delegated identity management and multi-tenant domain isolation.
 2. **Main Dashboard (`/dashboard`):** Real-time financial summary displaying monitored catalog items, average profitability, and risk alerts with WCAG AA compliant contrast badges (Green $\ge 30\%$, Red $< 30\%$).
 3. **Pantry & Supply Management (`/insumos`):** Responsive inventory catalog with live unit cost tracking, search filtering, and inline modal creation.
 4. **Products & Recipes (`/productos`, `/productos/nuevo`):** Bill of Materials (BOM) constructor with dynamic supply row additions, yield factor conversions, and interactive pricing simulator (+5%, +10%, target 30%).
+5. **Supplier Price Quarantine (`/proveedores/cuarentena`):** Review tray for supplier price updates that triggered the anti-pollution anomaly guard (>50% variation or a near-zero computed unit cost) — an ADMIN releases the update to apply it or rejects it to keep the current price.
 
 ---
 
@@ -53,10 +54,10 @@ The application is structured into four core operational modules:
 - **Progressive Complexity Strategy:** Decoupled ingredients from mandatory suppliers on Day 1, allowing draft "Uncosted" products (`cost = 0, margin = 0`) to prevent blocking commercial onboarding.
 
 #### DevOps, Cloud Infrastructure & Automation
-- **Standardized DevContainers:** Configured Dockerized VS Code environments (Node.js 20, TypeScript, PostgreSQL 16) ensuring zero configuration drift between Windows, macOS, and Linux.
+- **Standardized DevContainers:** Configured Dockerized VS Code environments (Node.js 22 LTS, TypeScript, PostgreSQL 16) ensuring zero configuration drift between Windows, macOS, and Linux.
 - **Production VPS Deployment:** Configured a dedicated Ubuntu VPS hosting persistent PostgreSQL 16 (port 5435), n8n orchestrator (port 5678), Docker Compose, and Nginx reverse proxy with SSL certificates.
 - **CI/CD Pipelines:**
-  - `ci.yml`: Automated GitHub Actions pipeline verifying TypeScript compilation, ESLint, and Vite production build with Discord failure alerts.
+  - `ci.yml`: Automated GitHub Actions pipeline on Node.js 22 LTS: backend build and Vitest, frontend ESLint, Vite build and Vitest with a 90% coverage gate, n8n node tests, production `npm audit`, and the Playwright E2E suite, with Discord failure alerts. Dependabot opens weekly grouped minor/patch update PRs; npm major versions are planned as issues.
   - `deploy.yml`: Automated continuous deployment building Docker Hub images, executing SSH deployment to VPS, running `prisma migrate deploy`, and notifying success/failure to team channels.
 - **Satellite Automation with n8n:** Offloaded heavy reporting and email delivery to a self-hosted n8n instance via HTTP webhooks, ensuring n8n never directly writes to production PostgreSQL.
 
@@ -66,7 +67,7 @@ The application is structured into four core operational modules:
 
 #### Tech Stack
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7, Zustand, React Hook Form, Zod, Base UI, Lucide Icons.
-- **Backend:** Node.js 20, Express 5, TypeScript, Prisma ORM 6.
+- **Backend:** Node.js 22 LTS, Express 5, TypeScript, Prisma ORM 6.
 - **Database:** PostgreSQL 16 (strict multi-tenant partitioning by `accountId`).
 - **Identity & RBAC:** Clerk (asymmetric JWT verification; `ADMIN` with full financial visibility vs. `COLLABORATOR` with sanitized operational access).
 - **Automation & Alerts:** n8n (self-hosted), Cloudflare Email Routing Catch-All, Discord Webhooks.
@@ -75,9 +76,13 @@ The application is structured into four core operational modules:
 #### Relational Schema Overview
 - `Account`: Multi-tenant business account with unique routing slug and subscription status.
 - `User`: Team operators linked to Clerk `authProviderId` with assigned role (`ADMIN` or `COLLABORATOR`).
-- `Ingredient`: Raw materials with internal unit of measure (`kg`, `l`, `u`) and current cost.
+- `Ingredient`: Raw materials with internal unit of measure (`kg`, `l`, `u`) and current cost — derived from its default supplier presentation when one exists (see `Supplier`/`SupplierIngredient` below).
+- `Supplier`: Wholesale vendor for an account's ingredients.
+- `SupplierIngredient`: A supplier's specific presentation of an ingredient (package size/unit/price, and whether it is the default source for that ingredient). A price update that moves the computed unit cost by more than 50% or drops it near zero is held in **price quarantine** (`isQuarantined`) instead of applying automatically, pending an ADMIN's manual release or rejection.
 - `Product`: Finished goods with sale price, minimum margin threshold, and calculated financial metrics.
 - `ProductIngredient`: Relational recipe matrix joining products and ingredients with specific yield quantities.
+
+**Role-based visibility:** `/insumos` and `/proveedores/cuarentena` redirect `COLLABORATOR` sessions to `/productos` outright. On the screens a `COLLABORATOR` *can* reach (`/productos`, `/dashboard`, `/perfil`), every financial field is stripped from both the API response and the UI — cost, margin amount/percent, and recipe quantities are invisible, not merely hidden with CSS.
 
 ---
 
@@ -115,6 +120,8 @@ cp .env.example .env
 npm run dev
 ```
 
+Seeding staging or production on the VPS (pilot accounts and the Demo account): see `docs/runbook-operacion.md`.
+
 ---
 
 ### 6. Project Team & Academic Context
@@ -141,7 +148,7 @@ Cuando sube el costo de una materia prima (harina, carne, cloro, envases), los p
 **MargenX** resuelve este problema mediante:
 - **Recálculo en Cascada:** La modificación del costo de un insumo actualiza de forma transaccional el costo total de receta y el margen porcentual de todos los productos vinculados en el catálogo.
 - **Alertas Visuales y Automatizadas:** Semáforo de rentabilidad en el panel principal y notificaciones inmediatas por email o Telegram vía **n8n** ante quiebres del umbral mínimo de rentabilidad.
-- **Ingesta Desatendida "Zero-Click":** El dueño reenvía listas mayoristas en Excel/CSV a una casilla virtual (`precios+<slug>@margenx.tech`). El sistema actualiza los códigos equivalentes y descarta automáticamente los miles de artículos que el negocio no consume (filtro anti-polución).
+- **Ingesta Desatendida "Zero-Click":** El dueño reenvía listas mayoristas en Excel/CSV a una casilla virtual (`precios-<slug>@margenx.tech`). El sistema actualiza los códigos equivalentes y descarta automáticamente los miles de artículos que el negocio no consume (filtro anti-polución).
 
 ---
 
@@ -155,6 +162,7 @@ Módulos principales del sistema:
 2. **Dashboard Principal (`/dashboard`):** Resumen de rentabilidad en tiempo real con semáforo de alerta visual accesible bajo estándar WCAG AA (Verde $\ge 30\%$, Rojo $< 30\%$).
 3. **Insumos (`/insumos`):** Gestión de materias primas con buscador, unidades de medida (`kg`, `l`, `u`) y formulario modal de alta y edición rápida.
 4. **Productos y Recetas (`/productos`, `/productos/nuevo`):** Ficha técnica con selector dinámico de ingredientes por receta, conversión de unidades y simulador interactivo de precios de venta (+5%, +10%, margen 30%).
+5. **Cuarentena de Precios de Proveedores (`/proveedores/cuarentena`):** Bandeja de revisión para los cambios de precio de proveedor que disparan el filtro anti-polución (variación mayor al 50% o costo unitario calculado casi nulo) — un ADMIN libera el cambio para aplicarlo o lo rechaza para mantener el precio vigente.
 
 ---
 
@@ -171,10 +179,10 @@ Módulos principales del sistema:
 - **Estrategia de Complejidad Progresiva:** Desacoplamiento de insumos y proveedores para permitir productos en borrador "Sin Costear" (`cost = 0, margin = 0`), evitando trabas en el onboarding inicial.
 
 #### DevOps, Infraestructura y Automatización
-- **DevContainers Estandarizados:** Configuración de contenedores en VS Code (Node 20, TypeScript, PostgreSQL 16 local) para que cualquier integrante levante el stack en menos de 10 minutos sin discrepancias de entorno.
+- **DevContainers Estandarizados:** Configuración de contenedores en VS Code (Node 22 LTS, TypeScript, PostgreSQL 16 local) para que cualquier integrante levante el stack en menos de 10 minutos sin discrepancias de entorno.
 - **Infraestructura en VPS Linux:** Despliegue en servidor propio Ubuntu con PostgreSQL 16 persistente (puerto 5435), n8n (puerto 5678), red aislada en Docker Compose y Nginx con certificados SSL.
 - **Pipelines de CI/CD:**
-  - `ci.yml`: Integración continua validando compilación de backend y build de frontend con alertas enriquecidas en Discord.
+  - `ci.yml`: Integración continua sobre Node.js 22 LTS: build y Vitest del backend, ESLint, build y Vitest del frontend (con umbral de cobertura del 90 %), prueba de los nodos de n8n, `npm audit` de producción y suite E2E de Playwright, con alertas en Discord. Los checks obligatorios para mergear están en `docs/politica-proteccion-main.md`. Dependabot abre cada semana PRs agrupados de versiones menores y parches hacia `develop`; las versiones mayores de npm se planifican como issue propia y sus PRs no pasan por el tablero.
   - `deploy.yml`: Despliegue continuo hacia Staging (`dev.margenx.tech`) y Producción (`margenx.tech`) mediante Docker Hub, conexión SSH a VPS y ejecución de migraciones automáticas (`prisma migrate deploy`).
 - **Automatización Satélite con n8n:** Desacoplamiento de reportes PDF y correos transaccionales en n8n mediante webhooks HTTP, preservando la regla: *n8n nunca escribe directamente en la base de datos de producción.*
 
@@ -184,7 +192,7 @@ Módulos principales del sistema:
 
 #### Stack Tecnológico
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7, Zustand, React Hook Form, Zod, Base UI, Lucide Icons.
-- **Backend:** Node.js 20, Express 5, TypeScript, Prisma ORM 6.
+- **Backend:** Node.js 22 LTS, Express 5, TypeScript, Prisma ORM 6.
 - **Base de Datos:** PostgreSQL 16 (particionamiento multiempresa por `accountId`).
 - **Autenticación:** Clerk (JWT asimétrico con roles `ADMIN` y `COLLABORATOR`).
 - **Automatización:** n8n, Cloudflare Email Routing Catch-All, Webhooks Discord.
@@ -193,9 +201,13 @@ Módulos principales del sistema:
 #### Entidades Principales de Persistencia
 - `Account`: Comercio registrado con slug único para la recepción de listas por correo.
 - `User`: Usuarios vinculados al proveedor Clerk con rol asignado.
-- `Ingredient`: Insumo con unidad de costeo y costo vigente.
+- `Ingredient`: Insumo con unidad de costeo y costo vigente — tomado de la presentación de su proveedor predeterminado cuando existe uno (ver `Supplier`/`SupplierIngredient` abajo).
+- `Supplier`: Proveedor mayorista de los insumos de una cuenta.
+- `SupplierIngredient`: Presentación concreta de un insumo en un proveedor (tamaño de paquete, precio, y si es la fuente predeterminada de ese insumo). Un cambio de precio que mueve el costo unitario calculado más de un 50% o lo deja casi en cero queda retenido en **cuarentena de precios** (`isQuarantined`) en vez de aplicarse solo: un ADMIN tiene que liberarlo o rechazarlo a mano.
 - `Product`: Producto final con precio de venta, costo calculado y margen resultante.
 - `ProductIngredient`: Receta compuesta que vincula producto con insumos y sus cantidades.
+
+**Visibilidad según el rol:** `/insumos` y `/proveedores/cuarentena` redirigen directamente a `/productos` a las sesiones `COLLABORATOR`. En las pantallas a las que sí llegan (`/productos`, `/dashboard`, `/perfil`), todo campo financiero queda afuera — ni en la respuesta de la API ni en la UI: costo, margen (monto y porcentaje) y cantidades de receta quedan invisibles, no solo ocultos con CSS.
 
 ---
 
@@ -210,9 +222,11 @@ Módulos principales del sistema:
    cd margenx
    code .
    ```
-4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configurará automáticamente Node.js 20 y PostgreSQL 16.
+4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configurará automáticamente Node.js 22 LTS y PostgreSQL 16. Si ya tenías el contenedor creado con Node 20, ejecutá **"Dev Containers: Rebuild Container"** para tomar la imagen nueva.
 
 #### Opción B: Ejecución Manual
+Requiere Node.js 22 LTS. La versión está fijada en `.nvmrc` (con nvm: `nvm use`); es la misma que usan el CI y las imágenes Docker.
+
 ```bash
 # 1. Iniciar PostgreSQL 16
 docker run --name margenx_postgres_dev -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=<tu_password_local> -e POSTGRES_DB=margenx_dev -p 5432:5432 -d postgres:16-alpine
@@ -232,6 +246,8 @@ npm install
 cp .env.example .env
 npm run dev
 ```
+
+Para sembrar staging o producción en la VPS (cuentas piloto y Demo): ver `docs/runbook-operacion.md`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, type KeyboardEvent } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ChevronRight, LoaderCircle, Package, Plus, Search } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
@@ -59,6 +59,13 @@ export default function ProductsPage() {
   const isTotalEmpty = !isLoading && products.length === 0
   const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
 
+  const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, productId: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      router.push(`/productos/${productId}`)
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
@@ -85,6 +92,7 @@ export default function ProductsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar productos..."
+                  aria-label="Buscar productos por nombre"
                   className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition-colors focus:border-indigo-600 dark:border-gray-800 dark:bg-gray-900"
                 />
               </div>
@@ -209,10 +217,14 @@ export default function ProductsPage() {
                       {filtered.map((product) => (
                         <tr
                           key={product.id}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Ver detalle del producto ${product.name}`}
                           onClick={() => router.push(`/productos/${product.id}`)}
-                          className="group cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
+                          onKeyDown={(event) => handleRowKeyDown(event, product.id)}
+                          className="group cursor-pointer transition-colors hover:bg-indigo-50/50 focus-visible:bg-indigo-50/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-indigo-900/20 dark:focus-visible:bg-indigo-950/40"
                         >
-                          <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400">
+                          <td className="px-5 py-4 font-bold text-gray-900 transition-colors group-hover:text-indigo-600 group-focus-visible:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400 dark:group-focus-visible:text-indigo-400">
                             {product.name}
                           </td>
                           {!isCollaborator && (

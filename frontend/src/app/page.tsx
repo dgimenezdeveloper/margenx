@@ -1,6 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -26,7 +29,6 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 
 const benefits = [
@@ -100,9 +102,21 @@ function ThemeToggle() {
 }
 
 export default function LandingPage() {
+  const { isLoaded, isSignedIn } = useAuth()
+  const router = useRouter()
   const [menu, setMenu] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [activePilot, setActivePilot] = useState<'panaderia' | 'quimica'>('panaderia')
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace('/dashboard')
+    }
+  }, [isLoaded, isSignedIn, router])
+
+  if (isLoaded && isSignedIn) {
+    return null // Evita el parpadeo de la landing antes de redirigir
+  }
 
   return (
     <main className="min-h-screen overflow-hidden bg-slate-50 text-slate-950 transition-colors dark:bg-slate-950 dark:text-white">

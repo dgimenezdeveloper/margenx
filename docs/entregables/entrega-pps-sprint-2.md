@@ -79,3 +79,7 @@
 
 - **Cierre Sprint 2 (hasta 02/10):** Fusión de PR #89 (`#79`), finalización de `#81` (despliegue del entorno productivo `https://margenx.tech` con SSL y base `margenx_prod`), smoke test final y publicación del Release `v0.3.0`.
 - **Inicio Sprint 3 (03/10 al 16/10):** Migración relacional de proveedores (`Supplier`, `SupplierIngredient`, `PriceHistory`), sanitización financiera por RBAC para rol `COLLABORATOR` y protocolo de pruebas in-situ en 360px con los comercios piloto (_Panadería Central_ y _Química GyJ_).
+
+---
+
+> **Documento histórico.** Es el entregable académico presentado al cierre del Sprint 2 y se conserva tal como se entregó. Las fechas y estados que menciona corresponden a ese momento: el cronograma vigente está en `CHANGELOG.md` y en las actas de `docs/retrospectivas/`; el estado actual del sistema, en `docs/especificacion-funcional.md` §11.

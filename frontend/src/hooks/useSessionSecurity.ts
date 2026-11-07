@@ -1,5 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useClerk, useAuth } from '@clerk/clerk-react'
+import { isStandaloneMode } from '@/lib/displayMode'
+import { buildLoginUrl } from '@/lib/returnUrl'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 
 // 30 minutos exactos (1.800.000 ms) según la historia de usuario
 const DEFAULT_INACTIVITY_LIMIT = 30 * 60 * 1000
@@ -38,14 +41,15 @@ export function useSessionSecurity() {
     sessionStorage.setItem(LOGOUT_REASON_KEY, 'inactivity')
 
     try {
-      await signOut(() => {})
+      await Promise.all([clearSessionCaches(), signOut(() => {})])
     } finally {
-      window.location.href = '/login?reason=inactivity'
+      window.location.href = buildLoginUrl(window.location, 'inactivity')
     }
   }, [signOut])
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
+    // En la app instalada no corre el temporizador propio: manda la duración configurada en Clerk (ADR-006)
+    if (!isLoaded || !isSignedIn || isStandaloneMode()) return
 
     if (!localStorage.getItem(LAST_ACTIVE_KEY)) {
       localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()))

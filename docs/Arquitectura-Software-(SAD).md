@@ -1,7 +1,7 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 2.1 (Consolidada Cierre Sprint 4 — Ingesta Zero-Click y Cuarentena)
+**Versión:** 2.2 (Sincronización Sprint 5 — integración real con n8n y backlog reprogramado)
 **Fecha de Actualización:** 24 de Octubre de 2026
 
 ---
@@ -91,22 +91,25 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 
 ## 2. Arquitectura de Integración con n8n
 
-### Webhooks salientes del backend (eventos trigger)
+### Comunicación entre el backend y n8n
 
-| Evento | Disparado por | Payload mínimo | Endpoint n8n |
-| :---- | :---- | :---- | :---- |
-| `margin.alert.triggered` | Backend, tras recalcular márgenes y detectar que un producto cruzó el umbral mínimo | `{ accountId, tradeName, ownerEmail, ingredient, criticalProducts }` | `POST /webhook/margin-alert` |
-| `report.weekly.requested` | Cron interno del backend (o cron nativo de n8n consultando la API) cada lunes 08:00 | `{ accountId, ownerEmail, periodStart, periodEnd }` | `POST /webhook/weekly-report` |
-| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | `POST /webhook/ingredient-updated` |
-| `supplier.pricelist.received` | n8n al recibir lista mayorista adjunta por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` |
+Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
+
+| Evento | Dirección y disparador | Payload principal | Destino | Estado |
+| :---- | :---- | :---- | :---- | :---- |
+| `margin.alert.triggered` | Backend → n8n, después de la transacción en la que un producto cruzó su margen mínimo (edición manual del costo, presentación predeterminada o liberación de cuarentena) | `{ accountId, accountSlug, tradeName, ownerEmail, ingredient: { id, name }, affectedProductsCount, criticalProducts, triggeredAt }` | Webhook `margin-alert` de n8n (URL en `N8N_MARGIN_ALERT_WEBHOOK_URL`) | Implementado |
+| `supplier.pricelist.received` | n8n → backend, al recibir una lista mayorista por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` | Implementado (reglas en ADR-005) |
+| `report.weekly.requested` | Cron de n8n los lunes a las 08:00, consultando la API | `{ accountId, ownerEmail, periodStart, periodEnd }` | A definir | Planificado (Sprint 6) |
+| `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | A definir | Propuesta (no planificado) |
 
 ### Tareas resueltas por n8n
 
 1. **Alertas de margen bajo:** al recibir `margin.alert.triggered`, n8n responde inmediatamente con `200 OK` al backend y procesa de forma asíncrona una plantilla HTML responsive con diseño accesible (WCAG AA). Despacha el correo a través del relay SMTP autenticado de Brevo (`smtp-relay.brevo.com:587`, STARTTLS) firmado por `alertas@margenx.tech`.
-2. **Reporte PDF semanal:** n8n consulta la API del backend (`GET /api/accounts/:id/margin-report`), genera un PDF con la tabla de márgenes de todos los productos y lo envía por email al Administrador todos los lunes.
-3. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
+2. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
+3. **Reporte PDF semanal** · *Planificado (Sprint 6)*: n8n consultaría la API del backend, generaría un PDF con los márgenes de todos los productos y lo enviaría al Administrador los lunes. El endpoint de consulta todavía no existe.
+4. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
 
-**Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n solo consume eventos/API y orquesta notificaciones — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
+**Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n consume eventos, orquesta notificaciones y envía las listas de precios a la API, que es la única que escribe — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
 ### Observabilidad de Infraestructura
 Para mitigar el riesgo de saturación de memoria RAM en el servidor ante procesos masivos de ingesta, se implementó en el host de la VPS Donweb un script centinela (`/opt/margenx-infra/scripts/monitor-memory.sh`) ejecutado vía `crontab` cada 5 minutos:
@@ -155,7 +158,7 @@ erDiagram
     INGREDIENT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Nombre del insumo"
+        string name "Nombre del insumo (UK con accountId, sin distinguir mayúsculas)"
         string unit "Unidad base: kg, l, u"
         decimal currentCost "Decimal(10,2) Costo activo de costeo"
         datetime updatedAt
@@ -164,7 +167,7 @@ erDiagram
     SUPPLIER {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Razón social / Nombre fantasía (UK con accountId)"
+        string name "Razón social / Nombre fantasía (UK con accountId, sin distinguir mayúsculas)"
         string contactPhone "Teléfono comercial (opcional)"
         string email "Correo de contacto (opcional)"
         string address "Dirección física (opcional)"
@@ -198,7 +201,7 @@ erDiagram
     PRODUCT {
         string id PK "uuid"
         string accountId FK "uuid"
-        string name "Denominación comercial (UK con accountId)"
+        string name "Denominación comercial (UK con accountId, sin distinguir mayúsculas)"
         decimal salePrice "Decimal(10,2) Precio de venta al público"
         decimal minMarginPercent "Decimal(5,2) Umbral de alerta"
         decimal cost "Decimal(10,2) Costo total de receta"
@@ -481,6 +484,22 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
 - **Postgres protegido:** el puerto se vincula a `127.0.0.1:5435:5432` (solo loopback del host), eliminando exposición pública directa a internet.
 - **`DATABASE_URL` por entorno:** cada servicio de backend la toma de su propio archivo de entorno (`.env.prod` / `.env.dev`).
 
+### Estrategia de Caché del Frontend (PWA)
+
+El frontend registra un service worker generado con `vite-plugin-pwa` (Workbox, modo `generateSW`) solo en el build de producción. La configuración vive en `frontend/pwa.config.ts` y la prueba `frontend/src/__tests__/service-worker.test.ts` la valida en cada `npm test`. Los datos de costos y márgenes dependen del rol (`COLLABORATOR` no los ve, `docs/especificacion-funcional.md` §8), así que la regla es que **ningún dato del comercio queda en caché del navegador**:
+
+| Recurso | Estrategia | Motivo |
+|---|---|---|
+| JS, CSS e íconos del build | Precache, se sirven desde caché | Abren rápido. Llevan hash (o revisión de Workbox) y no contienen datos. |
+| `offline.html` | Precache | Página de respaldo "Sin conexión" con botón Reintentar. Es autónoma: no carga React, Clerk ni la API. |
+| Navegaciones de la app (`/dashboard`, `/productos`, ...) | `NetworkOnly`, con `offline.html` si falla la red | `index.html` siempre se pide a la red: con conexión se carga la versión publicada; sin conexión se ve "Sin conexión" y nunca una pantalla con datos viejos. |
+| API (`/api/...`, en `api.margenx.tech` o en el mismo origen) | `NetworkOnly` | Las respuestas nunca se guardan. Las mutaciones (POST, PUT, DELETE) no pasan por ninguna regla y van directo a la red. |
+| Denylist: `/api`, `/login` y sus pasos, `/__clerk` y URLs con parámetros `__clerk_*` | Sin intercepción para la navegación | Nunca reciben la página Sin conexión ni contenido en caché. La API de Clerk está en otro dominio y el service worker no la toca. |
+
+* **Actualización:** modo `prompt`. La versión nueva queda en espera y la app muestra el aviso "Hay una versión nueva de MargenX" con **Actualizar** y **Más tarde** (`frontend/src/components/pwa-update-prompt.tsx`); no recarga sola en medio de un formulario. La app busca la versión nueva al abrirse y al volver a primer plano. Al actualizar, Workbox borra el precache de la versión anterior.
+* **Cierre de sesión:** todos los caminos de cierre (manual, inactividad, sesión huérfana) llaman a `clearSessionCaches()` (`frontend/src/lib/serviceWorkerCache.ts`), que borra toda caché que no sea el precache. El precache se conserva porque solo tiene el shell del build y es lo que permite mostrar "Sin conexión" después de cerrar sesión.
+* **Nginx** (`frontend/nginx.conf`): `sw.js`, `offline.html` e `index.html` no llevan hash y se sirven con `expires -1`, igual que el manifest, para que la versión nueva se detecte en la próxima apertura y el navegador no reutilice un HTML viejo. Los assets con hash conservan la caché de un año.
+
 ---
 
 ## 5. Estrategia de Pruebas y Calidad (QA)
@@ -647,36 +666,52 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA] Suite E2E en Playwright para validación del flujo integral de recálculo en cascada (Completado).
   * [QA] Pruebas de concurrencia y estrés sobre recálculos masivos de recetas (Completado).
 
-#### Sprint 5: Smart Purchasing, Reportes PDF y Endurecimiento (25/10 al 07/11)
+#### Sprint 5: Proveedores, PWA, Deuda Técnica y Endurecimiento (25/10 al 07/11) — [En curso]
 * **Hito Cátedra:** Ensayo general de defensa y revisión integral (Clase 14/11).
-* **Entregable:** Motor de sugerencia de compras al proveedor más económico (Smart Purchasing), generador de orden de compra sugerida, reporte PDF semanal generado por n8n, base de datos optimizada con índices y ensayo de recuperación ante desastres (Restore).
-* **Backend (Mauricio Barreras):**
-  * [BE] Motor de compras inteligentes (`/api/purchasing/smart-suggestions`) y agrupación por proveedor óptimo (RF-15).
-  * [BE] Endpoint consolidado `/api/reports/margin-summary` para generación de reportes ejecutivos.
-  * [BE] Optimización de índices relacionales en PostgreSQL y auditoría de seguridad (RNF-01, RNF-08).
-* **Frontend (Federico Paal):**
-  * [FE] Vista de Smart Purchasing con comparador de ofertas y generador de orden de compra sugerida (RF-15).
-  * [FE] Interfaz de solicitud y descarga manual de reportes consolidados en PDF/Excel.
-* **QA / PO (Leandro Herrera):**
-  * [QA/FE] Auditoría de accesibilidad (a11y) y performance con Google Lighthouse > 90 pts (RNF-01, RNF-02).
-  * [QA] Suite completa de regresión automatizada y redacción preliminar del Manual de Usuario.
-* **DevOps / n8n (Darío Giménez):**
-  * [N8N] Workflow con trigger Cron semanal para generación y envío del PDF de márgenes.
-  * [DEVOPS] Automatización de backups diarios de PostgreSQL en la VPS y ensayo de Disaster Recovery.
+* **Entregable:** Vista y detalle de proveedores con cuarentena integrada, código de artículo y carga masiva de insumos (camino B); PWA instalable con sesión persistente y página offline; accesibilidad de diálogos y formularios; backup diario con ensayo de restauración; endurecimiento de la VPS y de Nginx; Node 22 LTS con CI completo; documentación sincronizada con el código. Smart Purchasing, el reporte PDF semanal y la meta de Lighthouse se reprogramaron al Sprint 6.
+* **Backend:**
+  * [BE] Integridad de datos en la base (unicidad y validación de decimales).
+  * [BE] Código de artículo en el alta de presentaciones y detalle de proveedor.
+  * [BE] Carga masiva de insumos por plantilla (camino B).
+  * [BE] Recálculo en cascada en lote.
+  * [BE] Límites de cuerpo, error 413 y cabeceras de seguridad con helmet.
+  * [BE] Receta sin cantidades ni costos para el colaborador.
+* **Frontend:**
+  * [FE] Guards de rutas y nombres de producto; entrada numérica en formato es-AR; asociar empaque sin pisar el predeterminado.
+  * [FE] Vista de proveedores, detalle de proveedor, cuarentena integrada y dirección de ingesta.
+  * [FE] Carga masiva de insumos (camino B).
+  * [FE] PWA instalable, sesión persistente en modo standalone, service worker y página offline; página de privacidad y guía de instalación (RNF-11).
+  * [FE] Errores con reintento, diálogos accesibles y teclado, etiquetas y validación de formularios.
+* **DevOps / n8n:**
+  * [DEVOPS] Clerk de producción en una cuenta empresarial y cuenta Demo en producción.
+  * [DEVOPS] Backup diario de PostgreSQL y ensayo de restauración.
+  * [DEVOPS] Endurecimiento de la VPS y de Nginx (cabeceras, www y vencimientos de certificados).
+  * [DEVOPS] Node 22 LTS, CI completo con auditoría de dependencias y Dependabot.
+  * [N8N] Activación de la ingesta automática y rediseño del correo de resumen.
+* **QA / Documentación:**
+  * [QA] Cobertura unitaria del 90 % en backend y frontend; colecciones de Postman al contrato vigente.
+  * [QA] Recorrido por rol en dispositivos reales y regresión del sprint con matriz de defectos.
+  * [DOCS] ADR del costo vigente, la cuarentena y el canal de ingesta; especificación funcional unificada; convención de docs como código; documentos históricos; READMEs, runbook y manual de usuario.
 
-#### Sprint 6: PWA Instalable, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
+#### Sprint 6: Smart Purchasing, Reporte PDF, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
 * **Hito Cátedra:** ENTREGA FINAL Y DEFENSA DE PPS (Clase 28/11).
-* **Entregable:** Versión final Release v1.0 congelada, aplicación Mobile-First instalable como Progressive Web App (PWA), documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
+* **Entregable:** Versión final Release v1.0 congelada, Smart Purchasing, reporte PDF semanal, documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
 * **Frontend (Federico Paal):**
-  * [FE] Configuración de Progressive Web App (PWA) con Service Workers y soporte offline básico (RNF-11).
+  * [FE] Vista de Smart Purchasing con comparador de ofertas y orden de compra sugerida (RF-15). *Reprogramado desde el Sprint 5.*
+  * [FE] Solicitud y descarga del reporte consolidado de márgenes. *Reprogramado desde el Sprint 5.*
   * [FE] Verificación de compatibilidad cross-browser y pulido final de microinteracciones (RNF-07).
 * **Backend (Mauricio Barreras):**
+  * [BE] Motor de compras inteligentes y agrupación por proveedor óptimo (RF-15). *Reprogramado desde el Sprint 5.*
+  * [BE] Endpoint de consulta para el reporte de márgenes. *Reprogramado desde el Sprint 5.*
   * [BE] Publicación de documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
   * [BE] Congelamiento de código, remoción de endpoints de test y limpieza final.
 * **QA / PO (Leandro Herrera):**
+  * [QA/FE] Auditoría de accesibilidad y performance con Google Lighthouse > 90 pts (RNF-01, RNF-02). *Reprogramado desde el Sprint 5.*
   * [QA/PO] Versión final del Manual de Usuario y Guía Rápida para el comercio en formato PDF.
   * [QA] Reporte final de métricas de calidad y cierre formal de la matriz de trazabilidad.
 * **DevOps / SM (Darío Giménez):**
+  * [N8N] Workflow con disparador semanal para generar y enviar el PDF de márgenes. *Reprogramado desde el Sprint 5.*
+  * [DEVOPS] Vitest y su cobertura en la misma versión mayor en backend y frontend.
   * [DEVOPS] Tagging formal de Release `v1.0.0` en Git y congelamiento de rama `main`.
   * [SCRUM/ALL] Grabación del Video Demo comercial, redacción del Acta de Cierre y diapositivas de defensa.
 
@@ -696,16 +731,15 @@ Para garantizar la estabilidad del código en producción y permitir integració
 
 * **main:** Rama de producción. Es inmutable mediante push directo; solo recibe código a través de Pull Requests aprobados desde develop o ramas de release. Cada merge exitoso dispara el despliegue automático hacia producción en la VPS Donweb (`margenx.tech`).
 * **develop:** Rama de integración continua del equipo. Es la base de trabajo diaria donde convergen todas las funcionalidades finalizadas y verificadas por CI. Cada merge dispara el despliegue automático hacia staging (`dev.margenx.tech`).
-* **feature/<modulo>-<descripcion>:** Una rama aislada por cada tarjeta del tablero de GitHub Projects (ej. `feature/middleware-errores`, `feature/maquetado-insumos`). Se origina siempre desde `develop` y se reintegra exclusivamente hacia `develop` mediante Pull Request.
-* **fix/<modulo>-<descripcion>:** Rama específica para la resolución rápida de defectos o bugs detectados durante pruebas de QA o revisiones de sprint.
+* **`N-slug` (ramas de trabajo):** Una rama aislada por cada issue del tablero de GitHub Projects, sea funcionalidad, corrección de defectos o documentación. Se crea desde la issue con el botón **Create a branch** de GitHub, con base `develop`, y se reintegra exclusivamente hacia `develop` mediante Pull Request. `N` es el número de la issue y `slug` su título en minúsculas ASCII con guiones (ej. `31-fe-maquetado-insumos`); si el título tiene tildes o eñes, se editan en el diálogo del botón. El número de la issue debe ser el primer número del nombre, porque es el que usa la automatización del tablero (ver `docs/definition-of-done.md` §1).
 
 ### 7.3. Reglas de Pull Requests
 
 1. **Prohibición de Push Directo:** Ningún integrante del equipo (incluidos administradores) puede realizar push directo a main o develop. Todo cambio ingresa por Pull Request.
 2. **Revisión por Pares Obligatoria (Peer Review):** Todo Pull Request requiere la aprobación formal de al menos un compañero de equipo antes de habilitar su fusión (no se permite la autoaprobación).
 3. **Integración Continua Obligatoria (CI en Verde):** El pipeline automatizado de GitHub Actions (linters, typecheck estricto de TypeScript y compilación de producción) debe finalizar con éxito. El botón de merge permanece bloqueado si el CI falla.
-4. **Trazabilidad con el Backlog:** Todo Pull Request debe utilizar la plantilla estándar (`.github/PULL_REQUEST_TEMPLATE.md`) y vincular explícitamente el número de issue correspondiente mediante palabras clave de cierre (ej. `Closes #<numero-issue>`).
-5. **Historial Limpio mediante Squash Merge:** Se utiliza obligatoriamente la estrategia de Squash and Merge hacia develop y main, condensando los commits intermedios de trabajo en un único commit descriptivo.
+4. **Trazabilidad con el Backlog:** Todo Pull Request debe utilizar la plantilla estándar (`.github/PULL_REQUEST_TEMPLATE.md`) y vincular explícitamente el número de issue correspondiente mediante palabras clave de cierre (ej. `Closes #<numero-issue>`). El Pull Request de release (`develop` → `main`) usa `Refs #<numero-issue>` por cada issue incluida, porque esas issues ya se cerraron al integrarse en develop (`CONTRIBUTING.md` §3).
+5. **Método de Merge según la Rama Destino:** Hacia develop se usa obligatoriamente Squash and Merge, que condensa los commits intermedios de trabajo en un único commit descriptivo. Hacia main (release) se usa únicamente "Create a merge commit", sin squash ni rebase, para que main y develop conserven la misma historia (`docs/politica-proteccion-main.md` §2.4). El procedimiento completo del release está en `docs/runbook-release.md`.
 6. **Convención de Commits Semánticos:** Los mensajes de commit siguen la convención internacional Conventional Commits con la estructura `tipo(módulo): descripción breve` (ej. `feat(ingredients): agregar paginación y ordenamiento`, `fix(auth): corregir expiración del token jwt`).
 
 ### 7.4. Estándares de Documentación y Gobernanza Técnica (Docs-as-Code)
@@ -717,6 +751,8 @@ Para evitar la obsolescencia documental y garantizar que la arquitectura evoluci
   * **ADR-002:** Despliegue Consolidado 100% en VPS Donweb (Frontend, Backend, PostgreSQL 16 interno y n8n bajo Docker Compose con Nginx Host y doble entorno Staging/Prod a costo $0), reemplazando la arquitectura híbrida Azure + VPS evaluada inicialmente.
   * **ADR-003:** Orquestador satélite n8n desacoplado del monolito vía Webhooks HTTP asíncronos para alertas y generación de PDFs.
   * **ADR-004:** Adopción del Margen Comercial sobre Precio de Venta (Profit Margin) en lugar del Recargo sobre Costo (Markup).
+  * **ADR-005:** Costo vigente desde la presentación predeterminada, retención en cuarentena de precios anómalos y canal de ingesta desatendida.
+  * **ADR-006:** Sesión persistente en la app instalada (PWA standalone), regida solo por la duración configurada en Clerk, y URL de retorno tras el login.
 * **Contratos de API Vivos (Living Documentation):** La documentación de endpoints se mantiene sincronizada con el código mediante colecciones de Postman versionadas en `backend/tests/postman/` (formato JSON v2.1) y su posterior exportación a especificación OpenAPI / Swagger.
 * **Registro de Cambios y Versionado Semántico (CHANGELOG):** Se adopta el estándar Keep a Changelog en el archivo raíz `CHANGELOG.md` junto a versionado semántico (SemVer), etiquetando cada cierre de sprint con tags anotados en Git (ej. `v0.1.0`, `v0.4.0`, `v1.0.0`).
 * **README como Fuente Única de Onboarding:** El archivo `README.md` principal garantiza que cualquier desarrollador levante el stack local completo en menos de 10 minutos utilizando Docker DevContainers, documentando variables de entorno (`.env.example`), diagramas y comandos de test.

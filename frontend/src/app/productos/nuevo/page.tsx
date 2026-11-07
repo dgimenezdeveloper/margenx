@@ -29,7 +29,8 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 import { productService } from '@/services/productService'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { NumericInput } from '@/components/NumericInput'
+import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -133,14 +134,15 @@ export default function NewProductPage() {
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body cuando el dropdown de insumos está desplegado o el modal de confirmación está abierto
-  useBodyScrollLock(isDropdownOpen || Boolean(ingredientToDelete))
+  // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
+  // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
+  useBodyScrollLock(isDropdownOpen)
 
   // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
-  const watchedSalePrice = useWatch({ control, name: 'salePrice' })
-  const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' })
+  const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
+  const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
 
   const targetMargin = Number(watchedMinMargin) || defaultMinMarginPercent || 30
 
@@ -354,53 +356,39 @@ export default function NewProductPage() {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                       <span>Precio de Venta</span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                        <span className="font-bold text-gray-400">$</span>
-                        <input
-                          {...register('salePrice')}
-                          onKeyDown={handleNumericKeyDown}
-                          onChange={(e) => {
-                            const clean = sanitizeDecimal(e.target.value)
-                            setValue('salePrice', clean, { shouldValidate: true, shouldDirty: true })
-                            setActiveStrategy('custom')
-                          }}
-                          inputMode="decimal"
-                          type="text"
-                          placeholder="0.00"
-                          className="no-spinners w-full bg-transparent px-2 text-base font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                        />
-                      </div>
+                      <NumericInput
+                        value={watchedSalePrice}
+                        onChange={(val) => {
+                          setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
+                          setActiveStrategy('custom')
+                        }}
+                        prefixSymbol="$"
+                        prefixClassName="font-bold"
+                        placeholder="0,00"
+                        containerClassName="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                        className="text-base font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+                        error={errors.salePrice?.message}
+                      />
                     </label>
-                    {errors.salePrice && (
-                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.salePrice.message}</p>
-                    )}
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
-                      Separador decimal con punto (ej: 1250.50).
+                      Separador decimal con coma (ej: 1.250,50).
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                       <span>Margen Mínimo (%)</span>
-                      <div className="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                        <input
-                          {...register('minMarginPercent')}
-                          onKeyDown={handleNumericKeyDown}
-                          onChange={(e) => {
-                            const clean = sanitizeDecimal(e.target.value)
-                            setValue('minMarginPercent', clean, { shouldValidate: true, shouldDirty: true })
-                          }}
-                          inputMode="decimal"
-                          type="text"
-                          placeholder="30"
-                          className="no-spinners w-full bg-transparent text-right font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                        />
-                        <span className="ml-1 font-bold text-gray-400">%</span>
-                      </div>
+                      <NumericInput
+                        value={watchedMinMargin}
+                        onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
+                        suffixSymbol="%"
+                        suffixClassName="font-bold"
+                        placeholder="30"
+                        containerClassName="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+                        className="text-right font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+                        error={errors.minMarginPercent?.message}
+                      />
                     </label>
-                    {errors.minMarginPercent && (
-                      <p className="mt-1 text-xs font-bold text-rose-500">{errors.minMarginPercent.message}</p>
-                    )}
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Margen personalizado para este producto.
                     </p>
@@ -509,14 +497,12 @@ export default function NewProductPage() {
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
                         Cantidad utilizada
                       </label>
-                      <input
+                      <NumericInput
                         value={inputQty}
-                        onKeyDown={handleNumericKeyDown}
-                        onChange={(e) => setInputQty(sanitizeDecimal(e.target.value))}
+                        onChange={setInputQty}
                         placeholder="100"
-                        inputMode="decimal"
-                        type="text"
-                        className="no-spinners min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        containerClassName="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
+                        className="text-sm font-bold text-gray-900 dark:text-white"
                       />
                     </div>
                     <div className="w-28 sm:w-36">
@@ -797,39 +783,12 @@ export default function NewProductPage() {
       </form>
       <BottomNav />
 
-      {/* MODAL DE CONFIRMACIÓN PARA QUITAR INSUMO */}
-      {ingredientToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="fixed inset-0" onClick={() => setIngredientToDelete(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-gray-900 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="size-7" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              ¿Quitar insumo de la receta?
-            </h3>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Estás a punto de remover <strong>{ingredientToDelete.name}</strong> de la preparación. El costo total y el margen se recalcularán automáticamente.
-            </p>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setIngredientToDelete(null)}
-                className="min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmRemoveItem}
-                className="min-h-11 flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer inline-flex items-center justify-center gap-1.5 transition"
-              >
-                Sí, quitar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirmación para quitar un insumo de la receta */}
+      <ProductRemoveIngredientDialog
+        ingredientName={ingredientToDelete?.name ?? null}
+        onClose={() => setIngredientToDelete(null)}
+        onConfirm={confirmRemoveItem}
+      />
 
       {/* Diálogo de confirmación para cambios no guardados */}
       <UnsavedChangesDialog

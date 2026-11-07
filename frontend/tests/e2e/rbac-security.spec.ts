@@ -16,7 +16,7 @@ import { test, expect, type Page, type Response } from '@playwright/test'
 // completo de FINANCIAL_FIELDS del backend (PR #143 esconde más campos,
 // como minMarginPercent, oldCost/newCost o toda la info de proveedores) —
 // se audita exactamente lo que pide la Historia de Usuario de esta issue.
-const FORBIDDEN_KEYS = ['cost', 'marginAmount', 'marginPercent'] as const
+const FORBIDDEN_KEYS = ['cost', 'marginAmount', 'marginPercent', 'quantity'] as const
 
 interface KeyMatch {
   key: string
@@ -136,6 +136,7 @@ test.describe('TC-RBAC-01: Ocultamiento de costo y margen en /productos (issue #
     // únicos datos que la Historia de Usuario permite ver al colaborador).
     await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
 
+    await expect(page.getByText(/subtotal/i)).toHaveCount(0)
     await expect(page.getByText(COSTO_TEXT)).toHaveCount(0)
     await expect(page.getByText(MARGEN_TEXT)).toHaveCount(0)
     await expect(page.getByText(/simulador financiero/i)).toHaveCount(0)
@@ -189,5 +190,48 @@ test.describe('TC-RBAC-03: Fuga de datos financieros en tráfico de red (issue #
       audit.pageErrors,
       `Hubo excepciones de JS no controladas: ${JSON.stringify(audit.pageErrors, null, 2)}`
     ).toEqual([])
+  })
+})
+
+test.describe('TC-RBAC-04: Intercepción de ruta administrativa /productos/nuevo', () => {
+  test('forzar la navegación a /productos/nuevo redirige de inmediato a /productos', async ({ page }) => {
+    // Se intenta acceder directamente a la ruta de creación de productos,
+    // la cual ahora está protegida por AdminOnlyRoute.
+    await page.goto('/productos/nuevo')
+
+    // El colaborador debe ser redirigido al catálogo de productos.
+    await expect(page).toHaveURL(/\/productos$/)
+
+    // Confirma que la redirección fue efectiva y no se renderizó el formulario de alta.
+    await expect(page.getByRole('heading', { name: /nuevo producto/i })).toHaveCount(0)
+  })
+})
+test.describe('TC-RBAC-05: Intercepción de ruta administrativa /proveedores (issue #249)', () => {
+  test('forzar la navegación a /proveedores redirige a /productos y el menú no ofrece el enlace', async ({ page }) => {
+    await page.goto('/proveedores')
+
+    await expect(page).toHaveURL(/\/productos$/)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de proveedores.
+    await expect(page.getByRole('heading', { name: /^proveedores$/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Proveedores" al colaborador.
+    await expect(page.getByRole('link', { name: 'Proveedores' })).toHaveCount(0)
+    await expect(page.getByTestId('bottom-nav-proveedores')).toHaveCount(0)
+  })
+})
+
+test.describe('TC-RBAC-06: Bandeja de cuarentena y dirección de ingesta (issue #251)', () => {
+  test('forzar la navegación a /proveedores/cuarentena redirige a /productos sin mostrar la bandeja ni la dirección de ingesta', async ({ page }) => {
+    await page.goto('/proveedores/cuarentena')
+
+    await expect(page).toHaveURL(/\/productos$/)
+    // Control positivo: el catálogo del colaborador cargó, así que las ausencias de abajo no son por una página en blanco.
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+
+    // AdminOnlyRoute reemplazó el árbol: ni la bandeja ni sus pestañas quedaron montadas.
+    await expect(page.getByRole('heading', { name: /precios en cuarentena/i })).toHaveCount(0)
+    await expect(page.getByRole('navigation', { name: 'Secciones de proveedores' })).toHaveCount(0)
+    // La dirección precios-<slug>@margenx.tech es solo para el administrador (GET /api/auth/me no le envía el slug).
+    await expect(page.getByText(/precios[-.+][a-z0-9-]+@margenx\.tech/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Copiar dirección' })).toHaveCount(0)
   })
 })

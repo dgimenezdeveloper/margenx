@@ -17,7 +17,7 @@ const scenarioMap = {
     body: {
       name: 'Harina de trigo 000 Olavarriense',
       unit: 'kg',
-      currentCost: '742.98',
+      currentCost: '736.25',
     },
   },
   forbidden: {

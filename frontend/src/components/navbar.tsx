@@ -14,11 +14,14 @@ import {
   Moon,
   Package,
   Sun,
+  Truck,
 } from 'lucide-react'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useTheme } from '@/hooks/useTheme'
 import { LogoutDialog } from '@/components/logout-dialog'
+import { clearSessionCaches } from '@/lib/serviceWorkerCache'
+import { isNavLinkActive, isNavLinkVisible } from '@/lib/navigation'
 
 export function ThemeToggle() {
   const { isDark, toggleTheme } = useTheme()
@@ -52,7 +55,7 @@ export function Navbar({
   const pathname = usePathname()
   const { signOut } = useAuth()
   const { businessName, isLoading } = useCurrentUser()
-  const { isCollaborator } = useUserRole()
+  const role = useUserRole()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const displayedCompanyName = companyName || businessName
@@ -61,14 +64,16 @@ export function Navbar({
     { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
+    { label: 'Proveedores', href: '/proveedores', icon: Truck },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
-  ].filter(link => !(isCollaborator && link.href === '/insumos'))
+  ].filter(link => isNavLinkVisible(link.href, role))
 
   const handleConfirmSignOut = () => {
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
-    void signOut({ redirectUrl: '/' })
+    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
+    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
   return (
@@ -77,7 +82,7 @@ export function Navbar({
         {backHref ? (
           <Link
             href={backHref}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-700 dark:bg-gray-800 dark:text-gray-100"
             aria-label="Volver"
           >
             <ArrowLeft className="size-4" />
@@ -130,11 +135,12 @@ export function Navbar({
       {/* Navegación Desktop */}
       <nav className="hidden items-center gap-1 rounded-2xl border border-gray-200/80 bg-white/80 p-1 shadow-sm backdrop-blur md:flex dark:border-gray-800 dark:bg-gray-900/80">
         {navLinks.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || (href === '/productos' && pathname?.startsWith('/productos/'))
+          const active = isNavLinkActive(pathname, href)
           return (
             <Link
               key={label}
               href={href}
+              aria-current={active ? 'page' : undefined}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 active
                   ? 'bg-indigo-600 text-white shadow-sm'
