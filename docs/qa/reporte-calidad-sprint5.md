@@ -401,11 +401,12 @@ este entorno corresponde a una instancia de Clerk
 frontend (`fluent-moose-9060.clerk.accounts.dev`, codificada en
 `VITE_CLERK_PUBLISHABLE_KEY`). Esa instancia alternativa tiene a los 2
 usuarios de Panadería Central pero no a los de Química GyJ — confirmado
-buscándolos por email con `users.getUserList`, 0 resultados. No ubiqué la
-secret key de la instancia correcta a tiempo, con el sprint cerrando hoy
-mismo, así que decido dejar esa corrección para después del cierre y
-declararla como no cubierto, con motivo, en vez de demorar el cierre de
-la issue.
+buscándolos por email con `users.getUserList`, 0 resultados. Según me
+confirmó el Scrum Master, la configuración de Clerk para Química GyJ
+todavía no está creada — no es una clave que haya que encontrar, es
+trabajo pendiente del equipo. Con el sprint cerrando hoy mismo, declaro
+esto como no cubierto, con motivo, en vez de demorar el cierre de la
+issue.
 
 ### 3.1 Objetivo
 
@@ -472,8 +473,9 @@ publicación con las excepciones que Darío decida aceptar.
   entre sí) y pasó `rbac-security.spec.ts` dentro del proyecto
   `chromium-collaborator` — 18 tests en verde en 49,5s. Esa es la
   evidencia real del E2E de RBAC, no la corrida local.
-- No se localizó la secret key de `fluent-moose-9060` (la que destrabaría
-  química) entre las credenciales disponibles hoy.
+- Según confirmó el Scrum Master, la configuración de Clerk de Química
+  GyJ todavía no está creada — no es una secret key que haya que buscar
+  entre las credenciales disponibles, es trabajo pendiente del equipo.
 - Como los casos clave de la issue #255 (los 3 hallazgos de §2.6) ya están
   verificados y fechados hoy mismo, no se repitió el recorrido completo:
   se releyó el código vigente de los tres (`page.tsx:117`,
@@ -497,7 +499,7 @@ publicación con las excepciones que Darío decida aceptar.
 | Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Quién lo encontró | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|
 | 2026-11-06 | `backend/scripts/get-test-token.ts` tenía los `authProviderId` de `panaderia-admin` y `panaderia-colab` desactualizados contra `backend/prisma/seed.ts` (la siembra de la cuenta Demo y pilotos en producción, #240, los cambió ahí pero no acá); generar el token por default devolvía Bad Request de Clerk | Menor (herramienta de desarrollo, sin impacto en producción ni en los comercios piloto) | — (script de backend, no hay pantalla) | `npx tsx scripts/get-test-token.ts panaderia-admin` contra el seed actual | Leandro Herrera, en esta misma regresión | commit `d8d8b77` | **Corregido en este PR** |
-| 2026-11-06 | La secret key de Clerk disponible en el entorno de QA de esta sesión pertenece a una instancia (`possible-alpaca-7097`) distinta de la que usa el frontend (`fluent-moose-9060`); no tiene a los usuarios de Química GyJ, lo que bloquea 3 de las 6 colecciones de Postman en esta regresión puntual | Importante (bloquea cobertura de QA; no es un defecto del producto) | — (entorno de pruebas, no pantalla de la app) | Generar un token de `quimica-admin` con `get-test-token.ts` en este entorno | Leandro Herrera | `users.getUserList` por email, 0 resultados; `VITE_CLERK_PUBLISHABLE_KEY` decodificada (§3.6) | Abierto — pendiente ubicar la secret key de `fluent-moose-9060` |
+| 2026-11-06 | La secret key de Clerk disponible en el entorno de QA de esta sesión pertenece a una instancia (`possible-alpaca-7097`) distinta de la que usa el frontend (`fluent-moose-9060`); no tiene a los usuarios de Química GyJ, lo que bloquea 3 de las 6 colecciones de Postman en esta regresión puntual | Importante (bloquea cobertura de QA; no es un defecto del producto) | — (entorno de pruebas, no pantalla de la app) | Generar un token de `quimica-admin` con `get-test-token.ts` en este entorno | Leandro Herrera | `users.getUserList` por email, 0 resultados; `VITE_CLERK_PUBLISHABLE_KEY` decodificada (§3.6) | Abierto — la configuración de Clerk de Química GyJ todavía no está creada (confirmado por el Scrum Master), no es algo que haya que buscar |
 
 Ninguno de los dos es un defecto del código de la aplicación en producción
 (uno es de un script de desarrollo, ya corregido; el otro es de las
@@ -518,10 +520,10 @@ verificado, ni hoy ni en lo acumulado del sprint (§1, §2 y §3).
   este entorno es válida, pero pertenece a una instancia
   (`possible-alpaca-7097.clerk.accounts.dev`) que no tiene ningún usuario
   de Química GyJ — confirmado buscándolos por email, 0 resultados (D2 de
-  §3.4). No es un problema de código ni de producto: la app de Clerk
-  correcta (`fluent-moose-9060`, la que ya usa el frontend) seguramente sí
-  los tiene, pero su secret key no se localizó hoy. Queda de mi lado para
-  después del cierre de este sprint.
+  §3.4). No es un problema de código ni de producto ni algo que haya que
+  buscar entre credenciales existentes: el Scrum Master confirmó que la
+  configuración de Clerk de Química GyJ todavía no está creada. Queda
+  para cuando el equipo la cree, después del cierre de este sprint.
 - **La regresión corrió en local, no contra `dev.margenx.tech`** como pide
   el Alcance Técnico de la issue #270. Las colecciones de la issue #264
   están diseñadas para correr contra una base sembrada local, no contra
@@ -580,9 +582,11 @@ de margen, las tres en 0 failures), ni en el E2E de RBAC (18 passed en el
 CI de este PR), ni en el código de los 3 hallazgos menores ya trackeados
 para el Sprint 6. La excepción es solo Insumos, Productos y Proveedores
 (por el token de `quimica-admin`, D2 de §3.4), que quedan para correr
-apenas se localice la secret key de la instancia `fluent-moose-9060`. Si
-esa corrida pendiente llegara a encontrar algo, se reporta como issue de
-seguimiento igual que el resto de los hallazgos de este sprint.
+cuando el equipo cree la configuración de Clerk de Química GyJ
+(confirmado pendiente por el Scrum Master, no una clave que haya que
+buscar). Si esa corrida pendiente llegara a encontrar algo, se reporta
+como issue de seguimiento igual que el resto de los hallazgos de este
+sprint.
 
 ### 3.8 Definition of Done
 
