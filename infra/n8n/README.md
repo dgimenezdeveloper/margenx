@@ -7,6 +7,7 @@ n8n **nunca escribe en la base de datos**: solo lee/escribe a través de la API 
 | `workflows/alertas-margen.json` | Recibe el webhook del backend y envía el correo de margen crítico. | #172 |
 | `workflows/ingesta-listas.json` | Lee la casilla central por IMAP, convierte la planilla adjunta, la despacha al backend y envía el resumen al dueño. | #170, #171, #253 |
 | `tests/ingesta-nodos.test.mjs` | Prueba los nodos Code de la ingesta sin necesitar n8n. | #170, #171 |
+| `tests/alertas-nodos.test.mjs` | Prueba el nodo `Generar Plantilla Dinámica` de las alertas: enlaces "Ajustar" y botón principal, con y sin ID de producto, en producción y en staging. | #329 |
 
 ## Ingesta de listas de precios (`ingesta-listas.json`)
 
@@ -36,4 +37,10 @@ Varios correos en una misma ejecución se procesan por separado: cada fila queda
 4. Importar `workflows/ingesta-listas.json`, reasignar las credenciales de los tres nodos que las usan (el exporte trae ids de ejemplo) y activarlo. El exporte del repositorio queda inactivo, sin ids reales de credenciales ni metadatos de la instancia, y los correos usan `emailFormat: both` (HTML + texto plano) con el nombre dentro de `fromEmail`: al reexportar desde n8n, restaurarlo antes del commit (`node infra/n8n/tests/ingesta-nodos.test.mjs` lo verifica).
 5. Probar en staging enviando un `.csv` a `precios-dev-<slug-de-prueba>@margenx.tech` y revisar el resumen recibido y que la ejecución no aparezca en producción.
 
-Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`.
+Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs` y `node infra/n8n/tests/alertas-nodos.test.mjs` (CI corre las dos).
+
+## Alertas de margen (`alertas-margen.json`)
+
+El backend llama al webhook `margin-alert` con el secreto `x-margenx-webhook-secret` y `appBaseUrl` (`APP_BASE_URL` de cada backend). Un solo n8n atiende a producción y a staging: los enlaces del mail usan `appBaseUrl` si es `https://margenx.tech` o `https://dev.margenx.tech`, y si no, producción. Cada producto crítico lleva un botón "Ajustar" a `<appBase>/productos/<productId>`; si la alerta no trae el ID (o no queda nada al sanearlo), el enlace va al listado `<appBase>/productos`. El botón principal sigue la misma regla con el primer producto.
+
+Para publicar un cambio: importar `workflows/alertas-margen.json` en n8n sobre el workflow existente, reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Despachar Alerta SMTP (Brevo)` y activarlo. Como es la misma instancia, se importa una sola vez para los dos entornos.
