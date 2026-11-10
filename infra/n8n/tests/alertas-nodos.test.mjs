@@ -58,6 +58,38 @@ const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   [r] = await run(alerta([sinId], { appBaseUrl: 'https://evil.example' }));
   assert.ok(hrefs(r.json.emailHtml).every((h) => h === 'https://margenx.tech/productos'));
 
+  // 7 Remitente (#254): emailSend 2.1 ignora `senderName`; el nombre va dentro de fromEmail, con HTML + texto plano y sin el pie de n8n
+  const envio = wf.nodes.find((n) => n.name === 'Despachar Alerta SMTP (Brevo)').parameters;
+  assert.deepEqual(
+    [envio.fromEmail, envio.emailFormat, envio.html, envio.text, envio.options.appendAttribution, envio.options.senderName],
+    ['MargenX <alertas@margenx.tech>', 'both', '={{ $json.emailHtml }}', '={{ $json.emailText }}', false, undefined],
+  );
+
+  // 8 Plantilla compartida con el resumen de ingesta (#254)
+  const plantilla = fs.readFileSync(path.join(dir, '../plantillas/mail-margenx.js'), 'utf8').trim();
+  assert.ok(node.parameters.jsCode.includes(plantilla), 'plantilla desincronizada: correr node infra/n8n/plantillas/sincronizar.mjs');
+  [r] = await run(alerta([conId]));
+  assert.ok(r.json.emailHtml.includes('MARGEN<span') && r.json.emailHtml.includes('#4f46e5'));
+
+  // 9 Escapes: el HTML escapa comercio, insumo y destinatario; el texto plano no lleva entidades HTML
+  [r] = await run(alerta([{ ...conId, productName: 'Pan <b>' }], { tradeName: 'Panadería <Central>', ingredient: { name: 'Harina "000"' } }));
+  assert.ok(!r.json.emailHtml.includes('<Central>') && r.json.emailHtml.includes('Panadería &lt;Central&gt;'));
+  assert.ok(!r.json.emailHtml.includes('Pan <b>') && r.json.emailHtml.includes('Harina &quot;000&quot;'));
+  assert.ok(r.json.emailText.includes('Panadería <Central>') && r.json.emailText.includes('Harina "000"') && r.json.emailText.includes('Pan <b>'));
+  assert.ok(!r.json.emailText.includes('&lt;') && !r.json.emailText.includes('&quot;'));
+  assert.ok(!r.json.emailSubject.includes('&lt;'));
+  [r] = await run(alerta([conId], { ownerEmail: 'a<b>@x.com' }));
+  assert.ok(!r.json.emailHtml.includes('a<b>@x.com'));
+
+  // 10 Singular y plural en el aviso
+  [r] = await run(alerta([conId]));
+  assert.ok(r.json.emailText.includes('1 producto quedó debajo de su margen mínimo'));
+  [r] = await run(alerta([conId, { ...conId, productName: 'Medialunas' }]));
+  assert.ok(r.json.emailText.includes('2 productos quedaron debajo de su margen mínimo'));
+  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Productos con margen bajo detectados - Panadería Central');
+  [r] = await run(alerta([conId]));
+  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central');
+
   console.log('alertas-nodos: OK');
 })().catch((e) => {
   console.error(e);
