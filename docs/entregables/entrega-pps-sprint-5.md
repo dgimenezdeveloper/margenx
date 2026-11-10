@@ -284,7 +284,7 @@ Toda la aplicación corre en una VPS propia (Donweb) con Docker Compose: Nginx c
 
 Memoria de la API durante la prueba: de 72 MB a 168 MB como máximo. Ningún error en el log; se registraron 130 cambios de costo y ningún precio quedó retenido por error. Los tiempos en la VPS pueden diferir: la medición con `docker stats` en el servidor queda para el Sprint 6 (`#313`).
 
-* **Regresión del Sprint 5 con matriz de defectos:** `docs/qa/reporte-calidad-sprint5.md` (`#270`). [Completar con el resultado al mergear PR #344.]
+* **Regresión del Sprint 5 con matriz de defectos:** `docs/qa/reporte-calidad-sprint5.md` (`#270`, PR #344). Resultado: colecciones Postman de Webhooks, Colaborador RBAC y Alertas de margen en verde (0 fallas) y E2E de RBAC con 7 de 7 pruebas en verde en el CI; ningún defecto grave abierto. Las colecciones de Insumos, Productos y Proveedores no se corrieron porque falta la configuración de Clerk de Química GyJ, y pasan al Sprint 6 (§3.3 a §3.7 del reporte).
 * **Decisiones de arquitectura:** ADR-005 (costo vigente, cuarentena e ingesta, `#234`), ADR-006 (sesión persistente en la app instalada, `#241`) y ADR-007 (roles fijos frente a permisos granulares).
 
 ### 8. Definition of Done (DoD) del equipo
