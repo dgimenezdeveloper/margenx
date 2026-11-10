@@ -1,3 +1,4 @@
+// frontend/src/app/productos/nuevo/page.tsx
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
@@ -31,33 +32,16 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
 import { NumericInput } from '@/components/NumericInput'
 import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
+import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-
-function getAvailableRecipeUnits(baseUnit: string): string[] {
-  if (baseUnit === 'kg') return ['gr', 'kg']
-  if (baseUnit === 'litro' || baseUnit === 'l') return ['ml', 'litro']
-  return [baseUnit || 'unidad']
-}
-
-function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): number {
-  if (baseUnit === 'kg' && selectedUnit === 'gr') return qty / 1000
-  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return qty / 1000
-  return qty
-}
-
-function convertToRecipeUnitQty(baseQty: number, selectedUnit: string, baseUnit: string): number {
-  if (baseUnit === 'kg' && selectedUnit === 'gr') return baseQty * 1000
-  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return baseQty * 1000
-  return baseQty
-}
 
 export default function NewProductPage() {
   const router = useRouter()
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
   // Flag defensivo para silenciar el blocker durante el redirect post-guardado
@@ -81,7 +65,7 @@ export default function NewProductPage() {
     }, 180)
   }
 
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message: msg, type })
   }
 
@@ -103,6 +87,7 @@ export default function NewProductPage() {
   const items = useRecipeStore((s: RecipeState) => s.items)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
   const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
   const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
   const resetStore = useRecipeStore((s: RecipeState) => s.reset)
@@ -213,7 +198,7 @@ export default function NewProductPage() {
     const num = Number(inputQty)
     if (!selectedSupply || num <= 0) return
 
-    const baseQty = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
+    const { baseQty } = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
 
     addIngredient({
       ingredientId: selectedSupply.id,
@@ -235,6 +220,10 @@ export default function NewProductPage() {
     removeIngredient(ingredientToDelete.id)
     notify(`"${ingredientToDelete.name}" eliminado de la receta`)
     setIngredientToDelete(null)
+  }
+
+  const handleUpdateQuantity = (id: string, inputQty: number, recipeUnit: string, baseQty: number) => {
+    updateQuantity(id, baseQty, inputQty, recipeUnit)
   }
 
   const applySuggestedMargin = (percentage: number) => {
@@ -313,9 +302,9 @@ export default function NewProductPage() {
   }
 
   const previewNumericQty = Number(inputQty) || 0
-  const previewBaseQty = selectedSupply
+  const { baseQty: previewBaseQty, precisionLost } = selectedSupply
     ? convertToBaseQty(previewNumericQty, recipeUnit, selectedSupply.unit)
-    : 0
+    : { baseQty: 0, precisionLost: false }
   const previewSubtotal = selectedSupply ? previewBaseQty * selectedSupply.currentCost : 0
 
   return (
@@ -524,11 +513,18 @@ export default function NewProductPage() {
                   </div>
 
                   {selectedSupply && previewNumericQty > 0 && (
-                    <div className="mt-3 flex items-center justify-between rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
-                      <span>
-                        Equivalencia: <strong>{previewNumericQty} {recipeUnit}</strong> ({previewBaseQty} {selectedSupply.unit})
-                      </span>
-                      <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
+                    <div className="mt-3 flex flex-col gap-2 rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          Equivalencia: <strong>{previewNumericQty} {recipeUnit}</strong> ({previewBaseQty} {selectedSupply.unit})
+                        </span>
+                        <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
+                      </div>
+                      {precisionLost && (
+                        <p className="font-bold text-amber-600 dark:text-amber-400">
+                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {selectedSupply.unit}.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -575,15 +571,28 @@ export default function NewProductPage() {
                             <p className="text-xs text-gray-400">
                               Costo base: {money(item.unitCost)} por {item.unit}
                             </p>
+                            {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
+                              <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                ⚠️ El costo de esta línea supera el precio de venta.
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            {/* Cantidad estática en solo lectura para evitar ediciones accidentales */}
-                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
-                              <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                                {displayQty}
-                              </span>
-                              <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+                              <NumericInput
+                                value={displayQty}
+                                onChange={(val) => {
+                                  const num = Number(val)
+                                  if (num > 0) {
+                                    const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
+                                    handleUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
+                                  }
+                                }}
+                                containerClassName="min-h-8 h-8 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
+                                className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
+                              />
+                              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">
                                 {item.recipeUnit ?? item.unit}
                               </span>
                             </div>
