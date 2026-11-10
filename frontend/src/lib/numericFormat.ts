@@ -23,8 +23,8 @@ export function parseNumeroAR(value: string | number | undefined | null): string
 
   // 2. Si no hay coma:
   // Caso A: Grupos estándar de miles con puntos (ej: "1.234", "12.345", "1.500.000", "12.345.678")
-  // Exige de 1 a 3 dígitos iniciales seguidos de uno o más bloques de exactamente 3 dígitos.
-  if (/^-?\d{1,3}(\.\d{3})+$/.test(str)) {
+  // Exige de 1 a 3 dígitos iniciales (que no sean 0) seguidos de uno o más bloques de exactamente 3 dígitos.
+  if (/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(str)) {
     return str.replace(/\./g, '');
   }
 
@@ -33,7 +33,7 @@ export function parseNumeroAR(value: string | number | undefined | null): string
     return '';
   }
 
-  // Caso C: Un solo punto decimal (ej: "12.5", "1234.56", "12345.678") o entero sin puntos (ej: "1500")
+  // Caso C: Un solo punto decimal (ej: "12.5", "1234.56", "12345.678", "0.250") o entero sin puntos (ej: "1500")
   if (/^-?\d+(\.\d+)?$/.test(str)) {
     return str;
   }
