@@ -12,6 +12,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Fixed
 
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
+- **Docs:** `docs/process/revision-de-prs.md` §5, punto 6: se quitó un párrafo duplicado y se aclara cómo se mide la cobertura en cada paquete y en el CI (`#307`).
+
+### Security
+
+- **DevOps:** `vitest` y `@vitest/coverage-v8` en 5.1.0 en `backend/` y `frontend/` (antes 2.1 y 4.1). El `npm audit` completo del backend baja de 13 vulnerabilidades (3 críticas, 4 altas, 6 moderadas) a 3 altas, todas de `prisma` → `deepmerge-ts` (en `.github/audit-allowlist.json`); ya no aparecen las de la cadena de Vitest 2 (`vitest`, `vite-node`, `vite`, `esbuild`, `tinypool`, `@vitest/mocker`, `test-exclude`, `glob`, `minimatch`). Adaptaciones: `backend/vitest.config.mts` (antes `.ts`, porque el paquete es CommonJS) vuelve a excluir `dist/`, que el valor por defecto de Vitest 4 en adelante ya no ignora, y `frontend/vitest-env.d.ts` suma los matchers de `@testing-library/jest-dom` a `Matchers<R, T>`, porque Vitest 5 ya no lee `jest.Matchers`. Las suites no cambian (283 pruebas en el backend y 419 en el frontend); la cobertura de líneas del backend pasa de 93,35 % a 91,85 % sin cambios en pruebas ni en código, porque desde Vitest 4 coverage-v8 no cuenta las líneas sin código ejecutable. Vitest 5 requiere Node 22.12 o superior (`.nvmrc`) (`#307`).
 
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 
