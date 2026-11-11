@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import type { RecipeItem } from '@/stores/useRecipeStore'
-import { NumericInput } from '@/components/NumericInput'
-import { convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
+import { convertToRecipeUnitQty } from '@/lib/recipeConversion'
+import { RecipeQuantityField } from './RecipeQuantityField'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -68,24 +68,15 @@ export function ProductRecipeBOM({
 
                 {!isCollaborator && (
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
-                      <NumericInput
-                        aria-label={`Cantidad de ${item.name}`}
-                        value={displayQty}
-                        onChange={(val) => {
-                          const num = Number(val)
-                          if (num <= 0 || !onUpdateQuantity) return
-                          const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
-                          // Una cantidad que redondea a 0 en la unidad base la rechazaría la API
-                          if (baseQty > 0) onUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
-                        }}
-                        containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
-                        className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
-                      />
-                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">
-                        {item.recipeUnit ?? item.unit}
-                      </span>
-                    </div>
+                    <RecipeQuantityField
+                      ingredientName={item.name}
+                      value={displayQty}
+                      recipeUnit={item.recipeUnit ?? item.unit}
+                      baseUnit={item.unit}
+                      onChange={(inputQty, baseQty) =>
+                        onUpdateQuantity?.(item.ingredientId, inputQty, item.recipeUnit ?? item.unit, baseQty)
+                      }
+                    />
 
                     <div className="text-right min-w-20">
                       <span className="block text-xs font-black text-gray-900 dark:text-gray-100">

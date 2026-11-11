@@ -172,6 +172,7 @@ export function ProductAddIngredientModal({
                     aria-label="Cantidad utilizada"
                     value={inputQty}
                     onChange={setInputQty}
+                    maxDecimals={3}
                     placeholder="50"
                     containerClassName="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
                     className="text-sm font-bold text-gray-900 dark:text-white"

@@ -111,7 +111,7 @@ export default function ProductDetailPage() {
 
       reset({ name: prodData.name, salePrice: String(prodData.salePrice), minMarginPercent: String(prodData.minMarginPercent ?? 30) })
 
-      // Mapeo inicial de receta con selección de unidad legible para submúltiplos (RV370-B3)
+      // Mapeo inicial de receta: las cantidades menores a 1 kg o 1 l se muestran en gr o ml
       setItems(prodData.ingredients.map((pi) => {
         const baseUnit = pi.ingredient?.unit || 'u'
         const baseQty = Number(pi.quantity)
