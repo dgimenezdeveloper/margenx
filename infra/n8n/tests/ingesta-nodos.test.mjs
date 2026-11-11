@@ -59,7 +59,9 @@ const run = (file, ctx) => {
  // 4 Resumen
  const resp={received:1000,updated:2,discarded:998,account:{tradeName:'Panadería <Central>',ownerEmail:'dueno@x.com'},criticalProductsAlerts:[{productName:'Pan <b>',currentMarginPercent:'18.00',minMarginPercent:'30.00',newCost:'820.00'}]};
  r=await run('resumen.js',{items:[{json:{mailId:'0',fileName:'x.xlsx',rowsInvalid:0,body:resp}}]});
- assert.ok(r[0].json.text.includes('Se actualizaron 2 insumos de 1.000 filas. 998 filas descartadas por filtro anti-polución.'));assert.ok(!r[0].json.html.includes('<b>'));
+ assert.ok(r[0].json.text.includes('Leímos 1.000 filas de la lista.')&&r[0].json.text.includes('2 precios actualizados.'));assert.ok(!r[0].json.text.includes('anti-polución'));
+ assert.ok(!r[0].json.html.includes('<b>')&&!r[0].json.html.includes('<Central>')&&r[0].json.html.includes('Panadería &lt;Central&gt;'));
+ assert.ok(r[0].json.text.includes('Panadería <Central>')); // el texto plano no lleva entidades HTML
  r=await run('resumen.js',{items:[{json:{mailId:'0',body:{received:1,updated:1,discarded:0}}}]});assert.equal(r.length,0);
  // 5 Error
  r=await run('error.js',{items:[{json:{...meta,error:'Algo'}}]});
@@ -98,24 +100,28 @@ const run = (file, ctx) => {
  // 8 Resumen: un correo por mailId
  const ok1=(mailId,upd,own)=>({json:{dispatchOk:true,mailId,accountSlug:'s'+mailId,fileName:mailId+'.csv',rowsInvalid:0,body:{received:10,updated:upd,discarded:10-upd,account:{tradeName:'T'+mailId,ownerEmail:own}}}});
  r=await run('resumen.js',{items:[ok1('0',3,'d0@x.com'),ok1('1',5,'d1@x.com'),ok1('2',1,'')]});
- assert.equal(r.length,2);assert.equal(r[0].json.ownerEmail,'d0@x.com');assert.ok(r[0].json.text.includes('3 insumos'));assert.ok(r[1].json.text.includes('5 insumos'));
- // 9 Resumen: detalle de códigos descartados (contrato #208)
+ assert.equal(r.length,2);assert.equal(r[0].json.ownerEmail,'d0@x.com');assert.ok(r[0].json.text.includes('3 precios actualizados'));assert.ok(r[1].json.text.includes('5 precios actualizados'));
+ // 9 Resumen: detalle de códigos no aplicados (contrato #208). NOT_FOUND va como "sin mapear" (#254), el resto con su motivo
  const dc=(n,reason,pre='X')=>Array.from({length:n},(_,i)=>({code:pre+i,reason}));
  r=await run('resumen.js',{items:[{json:{mailId:'0',fileName:'x.xlsx',rowsInvalid:0,body:{received:30,updated:5,discarded:25,discardedCodes:[...dc(2,'NOT_FOUND','001'),{code:'<b>',reason:'AMBIGUOUS'},{code:'S1',reason:'INACTIVE_SUPPLIER'},...dc(21,'NOT_FOUND','Z'),{code:'Q',reason:'OTRA'}],account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
- assert.ok(r[0].json.text.includes('Descartadas por código no encontrado en tus proveedores (23): 0010, 0011, Z0,'));
+ assert.ok(r[0].json.text.includes('23 códigos sin mapear'));
+ assert.ok(r[0].json.text.includes('Códigos: 0010, 0011, Z0,'));
  assert.ok(r[0].json.text.includes('y 3 más.')); // 23 códigos, se listan 20
- assert.ok(r[0].json.text.includes('Descartadas por código presente en más de un proveedor activo (1): <b>.'));
- assert.ok(r[0].json.text.includes('Descartadas por proveedor inactivo (1): S1.'));
- assert.ok(r[0].json.text.includes('Descartadas por otro motivo (1): Q.'));
- assert.ok(!r[0].json.text.includes('Se detallan')); // 26 listados >= 25 descartadas: sin nota
+ assert.ok(r[0].json.text.includes('No se aplicaron por estar en más de un proveedor activo (1): <b>.'));
+ assert.ok(r[0].json.text.includes('No se aplicaron por proveedor inactivo (1): S1.'));
+ assert.ok(r[0].json.text.includes('No se aplicaron por otro motivo (1): Q.'));
+ assert.ok(!r[0].json.text.includes('Se detallan')); // 26 listados >= 25 no aplicados: sin nota
  assert.ok(!r[0].json.html.includes('<b>')&&r[0].json.html.includes('&lt;b&gt;')); // el HTML escapa códigos
- // dos lotes: se suman; si se listan menos que las descartadas (tope de la API) se avisa
+ // dos lotes: se suman; si se listan menos que los no aplicados (tope de la API) se avisa
  r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:200,updated:0,discarded:150,discardedCodes:dc(100,'NOT_FOUND','A'),account:{tradeName:'T',ownerEmail:'d@x.com'}}}},{json:{mailId:'0',rowsInvalid:0,body:{received:10,updated:0,discarded:3,discardedCodes:dc(3,'INACTIVE_SUPPLIER','B')}}}]});
- assert.ok(r[0].json.text.includes('Descartadas por código no encontrado en tus proveedores (100)'));assert.ok(r[0].json.text.includes('Descartadas por proveedor inactivo (3): B0, B1, B2.'));
- assert.ok(r[0].json.text.includes('Se detallan 103 de 153 filas descartadas.'));
- // sin discardedCodes (API v1 o nada descartado): el resumen no cambia
+ assert.ok(r[0].json.text.includes('100 códigos sin mapear'));assert.ok(r[0].json.text.includes('No se aplicaron por proveedor inactivo (3): B0, B1, B2.'));
+ assert.ok(r[0].json.text.includes('Se detallan 103 de 153 filas no aplicadas.'));
+ // sin discardedCodes (API v1 o nada descartado): sin bloques de códigos
  r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:5,updated:5,discarded:0,account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
- assert.ok(!r[0].json.text.includes('Descartadas por')&&!r[0].json.text.includes('Se detallan'));
+ assert.ok(!r[0].json.text.includes('sin mapear')&&!r[0].json.text.includes('No se aplicaron')&&!r[0].json.text.includes('Se detallan'));
+ // API sin detalle de códigos pero con descartes: se informan como no aplicados, sin inventar motivos
+ r=await run('resumen.js',{items:[{json:{mailId:'0',rowsInvalid:0,body:{received:5,updated:3,discarded:2,account:{tradeName:'T',ownerEmail:'d@x.com'}}}}]});
+ assert.ok(r[0].json.text.includes('2 filas no se aplicaron.'));
  // 10 Alerta a Discord: una sola alerta por ejecución aunque fallen varios lotes/correos (el secreto roto afecta a todos)
  assert.equal(wf.nodes.find((n)=>n.name==='Alerta a Discord (401/403)').executeOnce,true);
  // 11 CSV en UTF-8 con tildes: no se reinterpreta como latin1 (los encabezados "Código" y "Descripción" se conservan)
@@ -154,7 +160,60 @@ const run = (file, ctx) => {
  // 15 Exporte portable: inactivo, sin ids de credenciales de una instancia concreta y con versión de texto plano
  assert.equal(wf.active,false);assert.equal(wf.meta,undefined);
  for(const n of wf.nodes.filter((x)=>x.credentials)) for(const c of Object.values(n.credentials)) assert.ok(c.id.startsWith('margenx-'),n.name);
- // emailSend 2.1 solo conserva `text` con emailFormat 'both'; el nombre del remitente va dentro de fromEmail
- for(const nm of ['Enviar Resumen (Brevo)','Enviar Error al Remitente (Brevo)']){const p=wf.nodes.find((n)=>n.name===nm).parameters;assert.deepEqual([p.emailFormat,p.text,p.fromEmail],['both','={{ $json.text }}','MargenX Ingesta <alertas@margenx.tech>'],nm);}
+ // emailSend 2.1 solo conserva `text` con emailFormat 'both'; el nombre del remitente va dentro de fromEmail (#254: se muestra "MargenX")
+ // y sin el pie "This email was sent automatically with n8n" (appendAttribution)
+ for(const nm of ['Enviar Resumen (Brevo)','Enviar Error al Remitente (Brevo)']){const p=wf.nodes.find((n)=>n.name===nm).parameters;assert.deepEqual([p.emailFormat,p.text,p.fromEmail,p.options.appendAttribution],['both','={{ $json.text }}','MargenX <alertas@margenx.tech>',false],nm);assert.equal(p.options.senderName,undefined,nm);}
+ // 16 Rediseño del resumen (#254)
+ const cuenta={tradeName:'Panadería Central',ownerEmail:'dueno@panaderiacentral.com.ar'};
+ const resumen=(body,extra={})=>run('resumen.js',{items:[{json:{mailId:'0',fileName:'lista-molino.xlsx',rowsInvalid:0,...extra,body:{account:cuenta,...body}}}]});
+ // Escenario: resumen con decisiones pendientes -> el mail empieza por los precios en cuarentena, con enlace a la bandeja
+ r=await resumen({received:40,updated:30,unchanged:8,quarantined:2,discarded:0});
+ let {text,html,subject}=r[0].json;
+ const cuerpo=text.split('\n').filter((l)=>l.trim()&&!l.startsWith('Hola')&&!l.startsWith('Procesamos'));
+ assert.equal(cuerpo[0],'PARA REVISAR');assert.ok(cuerpo[1].startsWith('2 precios quedaron en cuarentena'),cuerpo[1]);
+ assert.ok(text.includes('https://margenx.tech/proveedores/cuarentena'));
+ assert.ok(html.includes('href="https://margenx.tech/proveedores/cuarentena"'));
+ assert.ok(html.indexOf('cuarentena')<html.indexOf('precios actualizados')); // lo que pide decisión va antes que el resumen
+ assert.ok(subject.includes('2 precios en cuarentena'));
+ r=await resumen({received:3,updated:2,quarantined:1,discarded:0});
+ assert.ok(r[0].json.text.includes('1 precio quedó en cuarentena'));
+ // el enlace apunta al entorno de la lista: staging va a dev.margenx.tech
+ r=await resumen({received:40,updated:38,quarantined:2,discarded:0},{isDev:true});
+ assert.ok(r[0].json.html.includes('href="https://dev.margenx.tech/proveedores/cuarentena"')&&!r[0].json.html.includes('https://margenx.tech/'));
+ // el despacho conserva isDev para que el resumen sepa el entorno
+ h=mk([200]);r=await run('despacho.js',{items:[batch({isDev:true})],self:h.self,env:{MARGENX_DEV_API_URL:'https://api-dev.margenx.tech'}});assert.equal(r[0].json.isDev,true);
+ h=mk([200]);r=await run('despacho.js',{items:[batch()],self:h.self});assert.equal(r[0].json.isDev,false);
+ // Escenario: códigos sin mapear -> figuran como sin mapear, no como errores ni descartes, con enlace a Proveedores
+ r=await resumen({received:12,updated:9,discarded:3,discardedCodes:dc(3,'NOT_FOUND','HAR-')});
+ ({text,html,subject}=r[0].json);
+ assert.ok(text.includes('3 códigos sin mapear')&&text.includes('Códigos: HAR-0, HAR-1, HAR-2.'));
+ assert.ok(html.includes('href="https://margenx.tech/proveedores"'));
+ for(const t of [text,html,subject]) assert.ok(!/error|descartad|anti-polución/i.test(t),t.slice(0,200));
+ r=await resumen({received:2,updated:1,discarded:1,discardedCodes:dc(1,'NOT_FOUND','HAR-')});
+ assert.ok(r[0].json.text.includes('1 código sin mapear'));
+ // Escenario: singular y plural (ingestas de 0, 1 y N filas)
+ r=await resumen({received:1,updated:1,discarded:0});
+ ({text,subject}=r[0].json);
+ assert.ok(text.includes('Leímos 1 fila de la lista.')&&text.includes('1 precio actualizado.'));
+ assert.ok(!/\b1 (filas|precios|códigos|productos)\b/.test(text+subject));
+ r=await resumen({received:1,updated:0,unchanged:1,duplicates:1,discarded:0},{rowsInvalid:1});
+ assert.ok(r[0].json.text.includes('1 precio sin cambios.')&&r[0].json.text.includes('1 fila repetida en la lista (vale la última).')&&r[0].json.text.includes('1 fila ignorada por no tener código o precio válido.'));
+ r=await resumen({received:0,updated:0,discarded:0});
+ assert.ok(r[0].json.text.includes('Leímos 0 filas de la lista.')&&r[0].json.text.includes('0 precios actualizados.'));
+ r=await resumen({received:2500,updated:2400,unchanged:100,discarded:0});
+ assert.ok(r[0].json.text.includes('Leímos 2.500 filas de la lista.')&&r[0].json.text.includes('2.400 precios actualizados.')&&r[0].json.text.includes('100 precios sin cambios.'));
+ // sin decisiones pendientes: se dice que no hay nada para revisar
+ assert.ok(r[0].json.text.includes('No hay nada para revisar')&&!r[0].json.text.includes('PARA REVISAR'));
+ assert.equal(r[0].json.subject,'[MargenX] Resumen de tu lista de precios');
+ // productos en margen crítico: plural correcto y enlace "Ajustar" al producto en el entorno de la lista
+ r=await resumen({received:5,updated:5,discarded:0,criticalProductsAlerts:[{productId:'3f2c1a9e-7b4d',productName:'Pan francés',currentMarginPercent:'18.00',minMarginPercent:'30.00',newCost:'820.00'}]},{isDev:true});
+ ({text,html,subject}=r[0].json);
+ assert.ok(text.includes('1 producto quedó debajo de su margen mínimo')&&subject.includes('1 producto en margen crítico'));
+ assert.ok(html.includes('href="https://dev.margenx.tech/productos/3f2c1a9e-7b4d"'));
+ assert.ok(!subject.includes('(s)'));
+ // Plantilla compartida: el resumen usa el bloque de infra/n8n/plantillas/mail-margenx.js tal cual
+ const plantilla=fs.readFileSync(path.join(dir,'../plantillas/mail-margenx.js'),'utf8').trim();
+ assert.ok(wf.nodes.find((n)=>n.name==='Generar Resumen al Dueño').parameters.jsCode.includes(plantilla),'plantilla desincronizada: correr node infra/n8n/plantillas/sincronizar.mjs');
+ assert.ok(html.includes('MARGEN<span')&&html.includes('#4f46e5')); // encabezado y color de marca
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});

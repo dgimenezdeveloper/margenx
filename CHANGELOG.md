@@ -9,8 +9,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 
+### Changed
+
+- **DevOps / n8n:** Rediseño del mail de resumen de ingesta. Empieza por "Para revisar", con enlaces directos al entorno de la lista (`margenx.tech` o `dev.margenx.tech`): precios en cuarentena (a la bandeja), códigos sin mapear (a Proveedores; los `NOT_FOUND` ya no se informan como descartes) y productos debajo de su margen mínimo (botón "Ajustar"). Después, el resumen en números, con singular y plural correctos ("1 fila", "1 precio quedó en cuarentena"). El resumen y la alerta de margen comparten la plantilla `infra/n8n/plantillas/mail-margenx.js`, con estilos de MargenX y tabla de productos legible a 360 px; `sincronizar.mjs` la copia a los workflows y las pruebas fallan si se desincroniza. Documentado en `infra/n8n/README.md` (`#254`).
+
 ### Fixed
 
+- **DevOps / n8n:** Los mails de resumen, de error de ingesta y de alerta de margen llegan con el remitente "MargenX": `emailSend` 2.1 ignoraba `senderName` y la alerta salía como "alertas". La alerta pasa a enviar HTML y texto plano (`emailFormat: both`), y ninguno lleva el pie de n8n (`appendAttribution: false`). El texto plano de la alerta ya no muestra entidades HTML (`&lt;`) en el nombre del comercio o del insumo, y el destinatario del pie va escapado (`#254`).
 - **DevOps / n8n:** El enlace "Ajustar" y el botón principal del mail de alerta de margen apuntan a `<appBase>/productos` cuando la alerta no trae el ID del producto; antes el `href` salía con el texto literal `${appBase}/productos` y no llevaba a ningún lado. Prueba del nodo en `infra/n8n/tests/alertas-nodos.test.mjs`, que ahora corre en CI, y sección de alertas en `infra/n8n/README.md` (`#329`).
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
 
