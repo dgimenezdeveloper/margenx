@@ -1,4 +1,4 @@
--- Unificar 'unit' a 'u' en Ingredient y SupplierIngredient (issue SPRINT6-BE-01 / #350)
+-- Unificar 'unit' a 'u' en Ingredient y SupplierIngredient (issue SPRINT6-BE-01 / #353)
 UPDATE "Ingredient"
 SET "unit" = 'u'
 WHERE "unit" = 'unit';
