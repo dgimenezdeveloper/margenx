@@ -16,6 +16,7 @@ Este documento no contiene credenciales. Las contraseñas de los usuarios Demo v
 |---|---|---|
 | `piloto` | `backend/prisma/seed.ts` | Panadería Central y Química GyJ: insumos, proveedores con sus presentaciones mayoristas (MarJuanC, Molinera, Don Roque, Limpikorn), productos y recetas. |
 | `demo` | `backend/prisma/seed-demo.ts` | Demo MargenX: 8 insumos, 2 proveedores (uno con códigos y otro sin códigos), 9 presentaciones, 1 en cuarentena y 3 productos con receta. |
+| `volumen` | `backend/prisma/seed-volumen.ts` | Solo staging. Suma a la Demo MargenX 210 insumos, 5 proveedores, unas 280 presentaciones (3 en cuarentena y 8 insumos con 5 proveedores), 336 productos (borradores, con pérdida, en riesgo y en objetivo, y uno con el precio mal cargado), unas 1.300 líneas de receta y 240 cambios de historial. Sirve para probar paginación, rendimiento e integridad con un catálogo grande. Requiere la Demo ya sembrada. |
 
 Reglas al resembrar:
 
@@ -62,6 +63,14 @@ infra/scripts/seed-remoto.sh prod todo --confirmar margenx_prod
 infra/scripts/seed-remoto.sh prod piloto --confirmar margenx_prod
 infra/scripts/seed-remoto.sh prod demo --confirmar margenx_prod
 ```
+
+```bash
+# Staging: catálogo grande en la Demo, y vuelta atrás
+infra/scripts/seed-remoto.sh dev volumen --confirmar margenx_dev
+infra/scripts/seed-remoto.sh dev volumen-limpiar --confirmar margenx_dev
+```
+
+El volumen usa IDs con prefijo `32` y no toca los datos base de la Demo: `volumen` borra la carga anterior antes de volver a cargar, y `volumen-limpiar` la quita. Si un usuario agregó un insumo del volumen a un producto base de la Demo, esa línea de receta se borra con él; resembrar `demo` lo deja como estaba. En producción el script rechaza las dos opciones. Al terminar, `volumen` imprime los tiempos de escritura y un chequeo de integridad de la cuenta (costos guardados frente a la receta, presentaciones predeterminadas y productos por estado de margen).
 
 `--confirmar` debe repetir el nombre de la base del entorno; si no coincide, el script no hace nada.
 

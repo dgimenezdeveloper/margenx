@@ -1,7 +1,7 @@
 ---
 description: Revisa un PR de MargenX con el formato normalizado y devuelve el veredicto (no publica nada). Uso: /revisar-pr 123 [--e2e] [--postman] [foco]
 argument-hint: <número de PR, con o sin #> [--e2e] [--postman] [foco opcional]
-allowed-tools: Read, Grep, Glob, Bash(timeout 20 gh auth status:*), Bash(timeout 30 gh api user:*), Bash(timeout 30 gh repo view:*), Bash(timeout 30 gh pr view:*), Bash(timeout 30 gh pr diff:*), Bash(timeout 30 gh pr checks:*), Bash(timeout 30 gh issue view:*), Bash(timeout 60 gh run view:*), Bash(git fetch:*), Bash(git worktree:*), Bash(git -C /tmp/review-pr:*), Bash(git log:*), Bash(git diff:*), Bash(git show:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(npm ci:*), Bash(npm run build:*), Bash(npm run lint:*), Bash(npm test:*), Bash(npm run test:coverage:*), Bash(npx prisma generate:*), Bash(npx prisma validate:*), Bash(npx vitest run:*), Bash(timeout 120 npm audit:*), Bash(node infra/n8n/tests/ingesta-nodos.test.mjs:*), Bash(node --test .github/scripts/audit-check.test.mjs:*), Bash(node .github/scripts/audit-check.mjs:*)
+allowed-tools: Read, Grep, Glob, Bash(timeout 20 gh auth status:*), Bash(timeout 30 gh api user:*), Bash(timeout 30 gh repo view:*), Bash(timeout 30 gh pr view:*), Bash(timeout 30 gh pr diff:*), Bash(timeout 30 gh pr checks:*), Bash(timeout 30 gh issue view:*), Bash(timeout 60 gh run view:*), Bash(git fetch:*), Bash(git worktree:*), Bash(git -C /tmp/review-pr:*), Bash(git log:*), Bash(git diff:*), Bash(git show:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(npm ci:*), Bash(npm run build:*), Bash(npm run lint:*), Bash(npm test:*), Bash(npm run test:coverage:*), Bash(npx prisma generate:*), Bash(npx prisma validate:*), Bash(npx vitest run:*), Bash(timeout 120 npm audit:*), Bash(node infra/n8n/tests/ingesta-nodos.test.mjs:*), Bash(node infra/n8n/tests/alertas-nodos.test.mjs:*), Bash(node --test .github/scripts/audit-check.test.mjs:*), Bash(node .github/scripts/audit-check.mjs:*)
 ---
 
 # /revisar-pr — Revisión de PR de MargenX (QA/Testing senior)
@@ -139,7 +139,7 @@ Registrá **por cada comando**: paquete, comando, resultado (OK / FALLA), error 
 
 ### 6.3. Otros, según el diff
 
-- Si toca `infra/n8n/`: `node infra/n8n/tests/ingesta-nodos.test.mjs` (desde `WT`); que cada JSON de `infra/n8n/workflows/` parsee (`node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" <archivo>`); y que no haya nodos que escriban en la base (`grep -nE '"type": *"n8n-nodes-base\.(postgres|mySql|microsoftSql|mongoDb|redis)"'`): cualquiera es **B** (ADR-003). Sin credenciales embebidas en los JSON.
+- Si toca `infra/n8n/`: `node infra/n8n/tests/ingesta-nodos.test.mjs` y, si existe, `node infra/n8n/tests/alertas-nodos.test.mjs` (desde `WT`; los dos corren en el job `n8n Nodes Tests`); que cada JSON de `infra/n8n/workflows/` parsee (`node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" <archivo>`); y que no haya nodos que escriban en la base (`grep -nE '"type": *"n8n-nodes-base\.(postgres|mySql|microsoftSql|mongoDb|redis)"'`): cualquiera es **B** (ADR-003). Sin credenciales embebidas en los JSON.
 - Si toca `.github/scripts/` o `.github/audit-allowlist.json`: `node --test .github/scripts/audit-check.test.mjs`.
 - Si toca `backend/tests/postman/`: que cada `*.json` parsee y que los environments tengan solo placeholders (sin tokens, secretos ni IDs reales de Clerk).
 - **Seguridad de dependencias, igual que el job `Dependency Audit`**, desde `WT`:
