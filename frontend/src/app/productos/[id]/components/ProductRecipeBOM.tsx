@@ -70,6 +70,7 @@ export function ProductRecipeBOM({
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
                     <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
                       <NumericInput
+                        aria-label={`Cantidad de ${item.name}`}
                         value={displayQty}
                         onChange={(val) => {
                           const num = Number(val)
@@ -78,7 +79,7 @@ export function ProductRecipeBOM({
                             onUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
                           }
                         }}
-                        containerClassName="min-h-8 h-8 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
+                        containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
                         className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
                       />
                       <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">

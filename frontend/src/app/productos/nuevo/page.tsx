@@ -1,4 +1,3 @@
-// frontend/src/app/productos/nuevo/page.tsx
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
@@ -44,16 +43,10 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
-  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
-  // Estado de intercepción para eliminar insumo de la receta
   const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
-
-  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
-
-  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
   const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -115,15 +108,10 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
-  // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
   useBodyScrollLock(isDropdownOpen)
-
-  // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
@@ -214,7 +202,6 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
-  // Ejecución diferida de la eliminación (Confirmación Controlada)
   const confirmRemoveItem = () => {
     if (!ingredientToDelete) return
     removeIngredient(ingredientToDelete.id)
@@ -581,6 +568,7 @@ export default function NewProductPage() {
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
                             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
                               <NumericInput
+                                aria-label={`Cantidad de ${item.name}`}
                                 value={displayQty}
                                 onChange={(val) => {
                                   const num = Number(val)
@@ -589,7 +577,7 @@ export default function NewProductPage() {
                                     handleUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
                                   }
                                 }}
-                                containerClassName="min-h-8 h-8 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
+                                containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
                                 className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
                               />
                               <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">
