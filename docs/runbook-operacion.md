@@ -22,6 +22,7 @@ Reglas al resembrar:
 
 - Se identifica cada registro por su ID fijo. Volver a correr no duplica nada.
 - Restaura nombres, costos, precios y recetas del seed, aunque los hayan editado o renombrado. En la Demo, también la cuarentena pendiente.
+- Las unidades de medida válidas en insumos y presentaciones están estrictamente estandarizadas a `kg`, `l` y `u` (estándar `VALID_UNITS`).
 - No borra lo que se cargó a mano fuera del seed (por ejemplo, un proveedor nuevo). Si otro registro de la cuenta usa el nombre de uno del seed (sin distinguir mayúsculas), el seed se detiene sin cambiar nada.
 - Los usuarios existentes conservan su email y su `authProviderId` en el seed `piloto`. En el seed `demo`, el `authProviderId` se toma de las variables del punto 3 y se actualiza.
 - Cada seed corre en una sola transacción: si falla, la base queda como estaba.

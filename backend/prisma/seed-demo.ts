@@ -54,7 +54,7 @@ const ingredients = [
   { id: ING.harina, name: "Harina 000 (demo)", unit: "kg" },
   { id: ING.azucar, name: "Azúcar común (demo)", unit: "kg" },
   { id: ING.manteca, name: "Manteca (demo)", unit: "kg" },
-  { id: ING.huevos, name: "Huevos (demo)", unit: "unit" },
+  { id: ING.huevos, name: "Huevos (demo)", unit: "u" },
   { id: ING.leche, name: "Leche entera (demo)", unit: "l" },
   { id: ING.cacao, name: "Cacao amargo (demo)", unit: "kg" },
   { id: ING.dulceDeLeche, name: "Dulce de leche repostero (demo)", unit: "kg" },
@@ -107,7 +107,7 @@ const suppliers: Array<{
     email: "ventas@proveedor-demo-sin-codigos.example",
     address: "Avenida Inventada 200, Ciudad Demo",
     ingredients: [
-      { id: "31e00001-0000-4000-8000-000000000007", ingredientId: ING.huevos, rawDescription: "Maple de huevos x30", packageSize: "30.000", packageUnit: "unit", packagePrice: "7500.00", isDefault: true },
+      { id: "31e00001-0000-4000-8000-000000000007", ingredientId: ING.huevos, rawDescription: "Maple de huevos x30", packageSize: "30.000", packageUnit: "u", packagePrice: "7500.00", isDefault: true },
       { id: "31e00001-0000-4000-8000-000000000008", ingredientId: ING.leche, rawDescription: "Leche entera sachet, caja x12 L", packageSize: "12.000", packageUnit: "l", packagePrice: "14400.00", isDefault: true },
       { id: "31e00001-0000-4000-8000-000000000009", ingredientId: ING.azucar, rawDescription: "Azúcar 10 kg", packageSize: "10.000", packageUnit: "kg", packagePrice: "11500.00", isDefault: false },
     ],
