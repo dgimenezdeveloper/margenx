@@ -1,5 +1,6 @@
 // backend/prisma/seed-units.test.ts
 import { describe, it, expect, afterAll } from 'vitest';
+import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrismaClient, Prisma } from '@prisma/client';
