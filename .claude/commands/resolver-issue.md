@@ -107,7 +107,7 @@ Regla de cierre: si el diff cambia comportamiento y no toca ningún documento, j
 1. Ejecutá y registrá resultado:
    - `backend/`: `npm run build`, `npm test` y `npm run test:coverage` (mínimo 90 % de líneas).
    - `frontend/`: `npm run lint`, `npm test` y `npm run build`. Cobertura mínima del 90 % de líneas: se mide solo si `frontend/package.json` ya tiene `@vitest/coverage-v8`; si no, se declara "no verificado". No agregues la dependencia salvo que la issue lo pida.
-   - Si tocaste `infra/n8n/`: `node infra/n8n/tests/ingesta-nodos.test.mjs`.
+   - Si tocaste `infra/n8n/`: `node infra/n8n/tests/ingesta-nodos.test.mjs` y, si existe, `node infra/n8n/tests/alertas-nodos.test.mjs` (los dos corren en el job `n8n Nodes Tests`).
    - E2E (`frontend/`: `npm run test:e2e`) si el entorno tiene base con seed, backend levantado y `frontend/.env.test`; si no, "no verificado".
    - `timeout 120 npm audit --omit=dev` en cada paquete tocado.
    - Control rápido de aislamiento si tocaste rutas: `grep -rn "prisma\." backend/src/routes/ | grep -v "accountId"` (`docs/manual-scrum-master.md` §4) y revisá cada resultado.

@@ -139,6 +139,16 @@ Las listas de precios de tus proveedores actualizan el costo de los insumos que 
 
 Mientras un precio está retenido, el costo del insumo **no cambia**.
 
+### El mail de resumen
+
+Después de procesar cada lista, MargenX le manda un mail de resumen al administrador del comercio. El remitente es **MargenX**. Empieza por **Para revisar**, con lo que necesita una decisión tuya, y cada punto tiene su botón:
+
+- **Precios en cuarentena:** lleva a la bandeja (ver [Revisar la cuarentena](#revisar-la-cuarentena)).
+- **Códigos sin mapear:** son artículos de la lista que todavía no vinculaste con ninguna presentación, así que no se actualizaron. No es un error: si te interesa que la próxima lista los actualice, cargá el código en la presentación del proveedor (ver [Corregir un código o descripción](#corregir-un-código-o-descripción)). El botón lleva a **Proveedores**.
+- **Productos debajo de su margen mínimo:** el botón **Ajustar** abre el producto para revisar su precio de venta o su receta.
+
+Si no hay nada para revisar, el mail lo dice. Al final está el resumen en números: filas leídas, precios actualizados, precios sin cambios y las filas que no se aplicaron, con el motivo.
+
 ---
 
 ## Revisar la cuarentena

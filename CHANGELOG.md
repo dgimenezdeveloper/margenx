@@ -9,12 +9,23 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 
+### Changed
+
+- **DevOps / n8n:** Rediseño del mail de resumen de ingesta. Empieza por "Para revisar", con enlaces directos al entorno de la lista (`margenx.tech` o `dev.margenx.tech`): precios en cuarentena (a la bandeja), códigos sin mapear (a Proveedores; los `NOT_FOUND` ya no se informan como descartes) y productos debajo de su margen mínimo (botón "Ajustar"). Después, el resumen en números, con singular y plural correctos ("1 fila", "1 precio quedó en cuarentena"). El resumen y la alerta de margen comparten la plantilla `infra/n8n/plantillas/mail-margenx.js`, con estilos de MargenX y tabla de productos legible a 360 px; `sincronizar.mjs` la copia a los workflows y las pruebas fallan si se desincroniza. Documentado en `infra/n8n/README.md` (`#254`).
+
 ### Fixed
 
 - **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
 - **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
 - **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
+- **DevOps / n8n:** Los mails de resumen, de error de ingesta y de alerta de margen llegan con el remitente "MargenX": `emailSend` 2.1 ignoraba `senderName` y la alerta salía como "alertas". La alerta pasa a enviar HTML y texto plano (`emailFormat: both`), y ninguno lleva el pie de n8n (`appendAttribution: false`). El texto plano de la alerta ya no muestra entidades HTML (`&lt;`) en el nombre del comercio o del insumo, y el destinatario del pie va escapado (`#254`).
+- **DevOps / n8n:** El enlace "Ajustar" y el botón principal del mail de alerta de margen apuntan a `<appBase>/productos` cuando la alerta no trae el ID del producto; antes el `href` salía con el texto literal `${appBase}/productos` y no llevaba a ningún lado. Prueba del nodo en `infra/n8n/tests/alertas-nodos.test.mjs`, que ahora corre en CI, y sección de alertas en `infra/n8n/README.md` (`#329`).
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
+- **Docs:** `docs/process/revision-de-prs.md` §5, punto 6: se quitó un párrafo duplicado y se aclara cómo se mide la cobertura en cada paquete y en el CI (`#307`).
+
+### Security
+
+- **DevOps:** `vitest` y `@vitest/coverage-v8` en 5.1.0 en `backend/` y `frontend/` (antes 2.1 y 4.1). El `npm audit` completo del backend baja de 13 vulnerabilidades (3 críticas, 4 altas, 6 moderadas) a 3 altas, todas de `prisma` → `deepmerge-ts` (en `.github/audit-allowlist.json`); ya no aparecen las de la cadena de Vitest 2 (`vitest`, `vite-node`, `vite`, `esbuild`, `tinypool`, `@vitest/mocker`, `test-exclude`, `glob`, `minimatch`). Adaptaciones: `backend/vitest.config.mts` (antes `.ts`, porque el paquete es CommonJS) vuelve a excluir `dist/`, que el valor por defecto de Vitest 4 en adelante ya no ignora, y `frontend/vitest-env.d.ts` suma los matchers de `@testing-library/jest-dom` a `Matchers<R, T>`, porque Vitest 5 ya no lee `jest.Matchers`. Las suites no cambian (283 pruebas en el backend y 419 en el frontend); la cobertura de líneas del backend pasa de 93,35 % a 91,85 % sin cambios en pruebas ni en código, porque desde Vitest 4 coverage-v8 no cuenta las líneas sin código ejecutable. Vitest 5 requiere Node 22.12 o superior (`.nvmrc`) (`#307`).
 
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 

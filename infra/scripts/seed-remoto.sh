@@ -3,16 +3,21 @@
 # MargenX — Sembrar o resembrar staging o producción desde la máquina del operador
 #
 # Uso:
-#   infra/scripts/seed-remoto.sh <dev|prod> <piloto|demo|todo> --confirmar <base>
+#   infra/scripts/seed-remoto.sh <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar> --confirmar <base>
 #
 #   piloto  backend/prisma/seed.ts       (Panadería Central y Química GyJ)
 #   demo    backend/prisma/seed-demo.ts  (Demo MargenX)
 #   todo    los dos, en ese orden
+#   volumen          backend/prisma/seed-volumen.ts: cientos de insumos y productos
+#                    en la cuenta Demo para pruebas de carga y usabilidad (solo dev)
+#   volumen-limpiar  borra lo que cargó "volumen" y deja la Demo como estaba (solo dev)
 #
 # Variables:
 #   SSH_HOST                  alias de ~/.ssh/config hacia la VPS (por defecto vps-donweb)
 #   SEED_DEMO_ADMIN_AUTH_ID   user_id de Clerk del administrador Demo  } solo prod: obligatorias
 #   SEED_DEMO_COLAB_AUTH_ID   user_id de Clerk del colaborador Demo    } para "demo" y "todo"; en dev se ignoran
+#   SEED_BACKUP_DIR           carpeta del respaldo previo en la VPS (por defecto /opt/margenx-infra/backups/manual);
+#                             útil si el usuario de SSH no puede escribir ahí
 #
 # Qué hace (detalle en docs/runbook-operacion.md):
 #   0. En prod exige estar en main y sin cambios sin commitear.
@@ -27,7 +32,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Uso: $0 <dev|prod> <piloto|demo|todo> --confirmar <base>" >&2
+  echo "Uso: $0 <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar> --confirmar <base>" >&2
   exit 2
 }
 
@@ -43,8 +48,16 @@ case "$QUE" in
   piloto) SEEDS=(seed) ;;
   demo)   SEEDS=(seed-demo) ;;
   todo)   SEEDS=(seed seed-demo) ;;
+  volumen|volumen-limpiar) SEEDS=(seed-volumen) ;;
   *) usage ;;
 esac
+VOLUMEN_MODO="cargar"
+[[ "$QUE" == "volumen-limpiar" ]] && VOLUMEN_MODO="limpiar"
+# El volumen es de prueba: nunca se carga en producción.
+if [[ "$ENTORNO" == "prod" && "$QUE" == volumen* ]]; then
+  echo "El seed de volumen es solo para dev. No se hizo nada." >&2
+  exit 1
+fi
 
 if [[ "$CONFIRMAR" != "$DB" ]]; then
   echo "La base confirmada ($CONFIRMAR) no coincide con la del entorno $ENTORNO ($DB). No se hizo nada." >&2
@@ -54,7 +67,7 @@ fi
 SSH_HOST="${SSH_HOST:-vps-donweb}"
 POSTGRES="margenx_postgres_prod"
 NETWORK="margenx_network"
-BACKUP_DIR="/opt/margenx-infra/backups/manual"
+BACKUP_DIR="${SEED_BACKUP_DIR:-/opt/margenx-infra/backups/manual}"
 TARGET="postgres:5432/$DB"   # host:puerto/base que validan los seeds
 
 ADMIN_ID="${SEED_DEMO_ADMIN_AUTH_ID:-}"
@@ -68,7 +81,7 @@ if [[ "$ENTORNO" == "dev" ]]; then
   fi
   ADMIN_ID=""; COLAB_ID=""
 fi
-if [[ "$ENTORNO" == "prod" && "$QUE" != "piloto" && ( -z "$ADMIN_ID" || -z "$COLAB_ID" ) ]]; then
+if [[ "$ENTORNO" == "prod" && ( "$QUE" == "demo" || "$QUE" == "todo" ) && ( -z "$ADMIN_ID" || -z "$COLAB_ID" ) ]]; then
   echo "En prod, la Demo necesita SEED_DEMO_ADMIN_AUTH_ID y SEED_DEMO_COLAB_AUTH_ID (user_id del Clerk de producción)." >&2
   exit 1
 fi
@@ -132,7 +145,7 @@ for SEED in "${SEEDS[@]}"; do
   REMOTE_CMD="set -eu; IMAGE=\$(docker inspect -f '{{.Image}}' $BACKEND);"
   REMOTE_CMD+=" DATABASE_URL=\$(docker exec $BACKEND printenv DATABASE_URL); export DATABASE_URL;"
   REMOTE_CMD+=" docker run --rm -i --network $NETWORK -e DATABASE_URL -e NODE_PATH=/app/node_modules"
-  REMOTE_CMD+=" -e SEED_CONFIRM_TARGET=$TARGET -e SEED_DEMO_CONFIRM=$TARGET -e ALLOW_PRODUCTION_SEED=true"
+  REMOTE_CMD+=" -e SEED_CONFIRM_TARGET=$TARGET -e SEED_DEMO_CONFIRM=$TARGET -e SEED_VOLUMEN_CONFIRM=$TARGET -e SEED_VOLUMEN_MODO=$VOLUMEN_MODO -e ALLOW_PRODUCTION_SEED=true"
   REMOTE_CMD+=" -e SEED_DEMO_ADMIN_AUTH_ID=$ADMIN_ID -e SEED_DEMO_COLAB_AUTH_ID=$COLAB_ID"
   REMOTE_CMD+=" --entrypoint sh \"\$IMAGE\" -c 'mkdir -p /tmp/seed && tar xz -C /tmp/seed && node /tmp/seed/prisma/$SEED.js'"
   # El código compilado viaja por la entrada estándar; el comando, como argumento de sh.
