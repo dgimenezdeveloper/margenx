@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -64,13 +64,29 @@ function renderPage() {
         path: '/productos/:id',
         element: <ProductDetailPage />,
       },
+      { path: '/productos', element: <h1>Catálogo de productos</h1> },
     ],
     {
       initialEntries: ['/productos/prod-1'],
     }
   )
-  return render(<RouterProvider router={router} />)
+  render(<RouterProvider router={router} />)
+  return router
 }
+
+const harinaGuardada = (quantity: number): Product => ({
+  ...mockProduct,
+  ingredients: [
+    {
+      ingredientId: 'ing-1',
+      quantity,
+      ingredient: { id: 'ing-1', name: 'Harina', unit: 'kg', currentCost: 500 },
+    },
+  ],
+})
+
+// Al salir del campo se vuelve a montar con la cantidad vigente: siempre se busca de nuevo
+const campoHarina = () => screen.getByLabelText('Cantidad de Harina')
 
 describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
   beforeEach(() => {
@@ -85,7 +101,7 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
       new ApiError('La cantidad excede el límite permitido.', 400)
     )
 
-    renderPage()
+    const router = renderPage()
 
     // 1. Esperar a que cargue la ficha del producto
     expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
@@ -114,6 +130,13 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
 
     // 6. Certificar que el campo conserva el borrador editado (0,5) y no se reseteó al valor original
     expect(screen.getByLabelText('Cantidad de Harina')).toHaveValue('0,5')
+
+    // 7. El borrador sigue marcado como no guardado: salir de la pantalla pide confirmación
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+    expect(await screen.findByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Catálogo de productos' })).not.toBeInTheDocument()
   })
 
   it('Escenario Gherkin: las líneas guardadas con cantidades menores a 1 kg se presentan en gramos', async () => {
@@ -136,5 +159,55 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     // Debe presentarse como 250 gr automáticamente para mayor legibilidad
     expect(screen.getByLabelText('Cantidad de Harina')).toHaveValue('250')
     expect(screen.getByText('gr')).toBeInTheDocument()
+  })
+
+  it('edición en la lista: una cantidad menor al mínimo se avisa, no se guarda y se restaura la vigente', async () => {
+    const user = userEvent.setup()
+    vi.mocked(productService.getById).mockResolvedValueOnce(harinaGuardada(0.25))
+    vi.mocked(productService.update).mockResolvedValue(harinaGuardada(0.25))
+
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    // 0,4 gr = 0,0004 kg: redondea a 0 kg, que la API rechaza con 400
+    await user.clear(campoHarina())
+    await user.type(campoHarina(), '0,4')
+    await user.tab()
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Es menor al mínimo que se puede guardar (0,001 kg). Se mantiene 250 gr.'
+    )
+    expect(campoHarina()).toHaveValue('250')
+
+    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+    await waitFor(() => expect(productService.update).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(productService.update).mock.calls[0]?.[1]).toMatchObject({
+      ingredients: [{ ingredientId: 'ing-1', quantity: 0.25 }],
+    })
+  })
+
+  it('edición en la lista: una cantidad que se redondea se avisa y se guarda lo mismo que se muestra', async () => {
+    const user = userEvent.setup()
+    vi.mocked(productService.getById).mockResolvedValueOnce(harinaGuardada(0.25))
+    vi.mocked(productService.update).mockResolvedValue(harinaGuardada(0.001))
+
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    // 0,5 gr = 0,0005 kg: la base guarda 3 decimales, queda 0,001 kg = 1 gr
+    await user.clear(campoHarina())
+    await user.type(campoHarina(), '0,5')
+    await user.tab()
+
+    expect(screen.getByRole('status')).toHaveTextContent('Se guarda como 1 gr (0,001 kg): hasta 3 decimales en kg.')
+    expect(campoHarina()).toHaveValue('1')
+
+    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+    await waitFor(() => expect(productService.update).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(productService.update).mock.calls[0]?.[1]).toMatchObject({
+      ingredients: [{ ingredientId: 'ing-1', quantity: 0.001 }],
+    })
+    expect(await screen.findByText('Producto guardado exitosamente')).toBeInTheDocument()
+    expect(campoHarina()).toHaveValue('1')
   })
 })

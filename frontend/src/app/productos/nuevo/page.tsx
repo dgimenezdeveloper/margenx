@@ -31,6 +31,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
 import { NumericInput } from '@/components/NumericInput'
 import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
+import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
@@ -120,7 +121,7 @@ export default function NewProductPage() {
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
   // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
-    // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
+  // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
   useBodyScrollLock(isDropdownOpen)
 
   // Protección contra pérdida de datos por navegación accidental
@@ -199,6 +200,8 @@ export default function NewProductPage() {
     if (!selectedSupply || num <= 0) return
 
     const { baseQty } = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
+    // Por debajo de 0,001 de la unidad base la API rechaza la línea (cantidad mayor a cero, 3 decimales)
+    if (baseQty <= 0) return
 
     addIngredient({
       ingredientId: selectedSupply.id,
@@ -489,6 +492,7 @@ export default function NewProductPage() {
                       <NumericInput
                         value={inputQty}
                         onChange={setInputQty}
+                        maxDecimals={3}
                         placeholder="100"
                         containerClassName="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
                         className="text-sm font-bold text-gray-900 dark:text-white"
@@ -520,7 +524,11 @@ export default function NewProductPage() {
                         </span>
                         <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
                       </div>
-                      {precisionLost && (
+                      {previewBaseQty <= 0 ? (
+                        <p className="font-bold text-rose-600 dark:text-rose-400">
+                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {selectedSupply.unit}).
+                        </p>
+                      ) : precisionLost && (
                         <p className="font-bold text-amber-600 dark:text-amber-400">
                           ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {selectedSupply.unit}.
                         </p>
@@ -531,7 +539,7 @@ export default function NewProductPage() {
                   <button
                     type="button"
                     onClick={handleAddIngredient}
-                    disabled={isLoadingSupplies || !selectedSupply || previewNumericQty <= 0}
+                    disabled={isLoadingSupplies || !selectedSupply || previewBaseQty <= 0}
                     className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                   >
                     {isLoadingSupplies ? (
@@ -579,24 +587,15 @@ export default function NewProductPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
-                              <NumericInput
-                                aria-label={`Cantidad de ${item.name}`}
-                                value={displayQty}
-                                onChange={(val) => {
-                                  const num = Number(val)
-                                  if (num > 0) {
-                                    const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
-                                    handleUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
-                                  }
-                                }}
-                                containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
-                                className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
-                              />
-                              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">
-                                {item.recipeUnit ?? item.unit}
-                              </span>
-                            </div>
+                            <RecipeQuantityField
+                              ingredientName={item.name}
+                              value={displayQty}
+                              recipeUnit={item.recipeUnit ?? item.unit}
+                              baseUnit={item.unit}
+                              onChange={(qty, baseQty) =>
+                                handleUpdateQuantity(item.ingredientId, qty, item.recipeUnit ?? item.unit, baseQty)
+                              }
+                            />
 
                             <div className="text-right min-w-20">
                               <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
