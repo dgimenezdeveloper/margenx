@@ -89,116 +89,104 @@ describe('Auditoría estática de consistencia de unidades en Seeds y Schema (Is
   });
 });
 
-const runIntegrationTests = Boolean(process.env.DATABASE_URL);
+const testDbUrl = process.env.TEST_DATABASE_URL;
+const describeOrSkip = testDbUrl ? describe : describe.skip;
 
-(runIntegrationTests ? describe : describe.skip)(
-  'Escenario Gherkin: Datos existentes (Migración SQL contra PostgreSQL real) — [RV371-B1]',
-  () => {
-    const prisma = new PrismaClient();
-    const TEST_ACCOUNT_ID = '33a00000-0000-4000-8000-000000000099';
-    const TEST_INGREDIENT_ID = '33b00000-0000-4000-8000-000000000099';
-    const TEST_SUPPLIER_ID = '33c00000-0000-4000-8000-000000000099';
-    const TEST_SUPPLIER_ING_ID = '33e00000-0000-4000-8000-000000000099';
+describeOrSkip('Escenario Gherkin: Datos existentes (Migración SQL contra PostgreSQL real)', () => {
+  const TEST_ACCOUNT_ID = '33a00000-0000-4000-8000-000000000099';
+  const TEST_SUPPLIER_ID = '33c00000-0000-4000-8000-000000000099';
 
-    afterAll(async () => {
-      // Limpieza atómica de registros efímeros de prueba
-      try {
-        await prisma.account.deleteMany({ where: { id: TEST_ACCOUNT_ID } });
-      } catch {
-        // Ignorar si no llegó a crearse
-      } finally {
-        await prisma.$disconnect();
+  it('convierte efectivamente registros preexistentes de "unit" a "u" y preserva kg y l mediante rollback', async () => {
+    const prisma = new PrismaClient({ datasources: { db: { url: testDbUrl } } });
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 1. DADO: creamos una cuenta, insumos de prueba (incluyendo control con kg y l) y presentaciones
+        await tx.account.upsert({
+          where: { id: TEST_ACCOUNT_ID },
+          create: {
+            id: TEST_ACCOUNT_ID,
+            businessName: 'Cuenta Test Migración Unidades',
+            slug: 'test-migracion-unidades',
+          },
+          update: {},
+        });
+
+        await tx.ingredient.createMany({
+          data: [
+            { id: '33b00001-0000-4000-8000-000000000091', accountId: TEST_ACCOUNT_ID, name: 'Insumo Unit', unit: 'unit', currentCost: new Prisma.Decimal('150.00') },
+            { id: '33b00001-0000-4000-8000-000000000092', accountId: TEST_ACCOUNT_ID, name: 'Insumo KG', unit: 'kg', currentCost: new Prisma.Decimal('150.00') },
+            { id: '33b00001-0000-4000-8000-000000000093', accountId: TEST_ACCOUNT_ID, name: 'Insumo L', unit: 'l', currentCost: new Prisma.Decimal('150.00') },
+          ],
+        });
+
+        await tx.supplier.create({
+          data: {
+            id: TEST_SUPPLIER_ID,
+            accountId: TEST_ACCOUNT_ID,
+            name: 'Proveedor Histórico Test',
+          },
+        });
+
+        await tx.supplierIngredient.createMany({
+          data: [
+            { id: '33e00001-0000-4000-8000-000000000091', supplierId: TEST_SUPPLIER_ID, ingredientId: '33b00001-0000-4000-8000-000000000091', packageSize: new Prisma.Decimal('10.000'), packageUnit: 'unit', packagePrice: new Prisma.Decimal('1500.00'), isDefault: true },
+            { id: '33e00001-0000-4000-8000-000000000092', supplierId: TEST_SUPPLIER_ID, ingredientId: '33b00001-0000-4000-8000-000000000092', packageSize: new Prisma.Decimal('10.000'), packageUnit: 'kg', packagePrice: new Prisma.Decimal('1500.00'), isDefault: false },
+          ],
+        });
+
+        // Verificación previa dentro de la transacción
+        const beforeIngUnit = await tx.ingredient.findUnique({ where: { id: '33b00001-0000-4000-8000-000000000091' } });
+        const beforeIngKg = await tx.ingredient.findUnique({ where: { id: '33b00001-0000-4000-8000-000000000092' } });
+        expect(beforeIngUnit?.unit).toBe('unit');
+        expect(beforeIngKg?.unit).toBe('kg');
+
+        // 2. CUANDO: ejecutamos el archivo SQL real de la migración dentro de tx
+        const migrationFilePath = join(
+          __dirname,
+          'migrations',
+          '20261111120000_unify_ingredient_unit_u',
+          'migration.sql'
+        );
+        const migrationSql = readFileSync(migrationFilePath, 'utf8');
+
+        const cleanSql = migrationSql
+          .split('\n')
+          .filter((line) => !line.trim().startsWith('--'))
+          .join('\n');
+
+        const statements = cleanSql
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        for (const statement of statements) {
+          await tx.$executeRawUnsafe(statement);
+        }
+
+        // 3. ENTONCES: verificamos conversión de 'unit' a 'u' y que 'kg' / 'l' se mantienen intactos
+        const afterIngUnit = await tx.ingredient.findUnique({ where: { id: '33b00001-0000-4000-8000-000000000091' } });
+        const afterIngKg = await tx.ingredient.findUnique({ where: { id: '33b00001-0000-4000-8000-000000000092' } });
+        const afterIngL = await tx.ingredient.findUnique({ where: { id: '33b00001-0000-4000-8000-000000000093' } });
+        const afterSupUnit = await tx.supplierIngredient.findUnique({ where: { id: '33e00001-0000-4000-8000-000000000091' } });
+        const afterSupKg = await tx.supplierIngredient.findUnique({ where: { id: '33e00001-0000-4000-8000-000000000092' } });
+
+        expect(afterIngUnit?.unit).toBe('u');
+        expect(afterSupUnit?.packageUnit).toBe('u');
+        // Filas de control para comprobar que el WHERE funciona correctamente
+        expect(afterIngKg?.unit).toBe('kg');
+        expect(afterIngL?.unit).toBe('l');
+        expect(afterSupKg?.packageUnit).toBe('kg');
+
+        // Forzar rollback para aislar totalmente la ejecución
+        throw new Error('TEST_ROLLBACK_SENTINEL');
+      });
+    } catch (err: any) {
+      if (err.message !== 'TEST_ROLLBACK_SENTINEL') {
+        throw err;
       }
-    });
-
-    it('convierte efectivamente registros preexistentes de "unit" a "u" al ejecutar el script migration.sql', async () => {
-      // 1. DADO: creamos una cuenta, insumo y presentación con unidad "unit" previa a la migración
-      await prisma.account.upsert({
-        where: { id: TEST_ACCOUNT_ID },
-        create: {
-          id: TEST_ACCOUNT_ID,
-          businessName: 'Cuenta Test Migración Unidades',
-          slug: 'test-migracion-unidades',
-        },
-        update: {},
-      });
-
-      // Inserción deliberada de 'unit' simulando datos históricos en la base
-      await prisma.ingredient.upsert({
-        where: { id: TEST_INGREDIENT_ID },
-        create: {
-          id: TEST_INGREDIENT_ID,
-          accountId: TEST_ACCOUNT_ID,
-          name: 'Insumo Histórico Con Unidad Vieja',
-          unit: 'unit',
-          currentCost: new Prisma.Decimal('150.00'),
-        },
-        update: {
-          unit: 'unit',
-        },
-      });
-
-      await prisma.supplier.upsert({
-        where: { id: TEST_SUPPLIER_ID },
-        create: {
-          id: TEST_SUPPLIER_ID,
-          accountId: TEST_ACCOUNT_ID,
-          name: 'Proveedor Histórico Test',
-        },
-        update: {},
-      });
-
-      await prisma.supplierIngredient.upsert({
-        where: { id: TEST_SUPPLIER_ING_ID },
-        create: {
-          id: TEST_SUPPLIER_ING_ID,
-          supplierId: TEST_SUPPLIER_ID,
-          ingredientId: TEST_INGREDIENT_ID,
-          packageSize: new Prisma.Decimal('10.000'),
-          packageUnit: 'unit',
-          packagePrice: new Prisma.Decimal('1500.00'),
-          isDefault: true,
-        },
-        update: {
-          packageUnit: 'unit',
-        },
-      });
-
-      // Verificación previa: confirmar que los datos se crearon en la base con 'unit'
-      const beforeIng = await prisma.ingredient.findUnique({ where: { id: TEST_INGREDIENT_ID } });
-      const beforeSup = await prisma.supplierIngredient.findUnique({ where: { id: TEST_SUPPLIER_ING_ID } });
-      expect(beforeIng?.unit).toBe('unit');
-      expect(beforeSup?.packageUnit).toBe('unit');
-
-      // 2. CUANDO: ejecutamos el archivo SQL real de la migración
-      const migrationFilePath = join(
-        __dirname,
-        'migrations',
-        '20261111120000_unify_ingredient_unit_u',
-        'migration.sql'
-      );
-      const migrationSql = readFileSync(migrationFilePath, 'utf8');
-
-      const cleanSql = migrationSql
-        .split('\n')
-        .filter((line) => !line.trim().startsWith('--'))
-        .join('\n');
-
-      const statements = cleanSql
-        .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      for (const statement of statements) {
-        await prisma.$executeRawUnsafe(statement);
-      }
-
-      // 3. ENTONCES: verificamos que ambas entidades fueron actualizadas a 'u'
-      const afterIng = await prisma.ingredient.findUnique({ where: { id: TEST_INGREDIENT_ID } });
-      const afterSup = await prisma.supplierIngredient.findUnique({ where: { id: TEST_SUPPLIER_ING_ID } });
-
-      expect(afterIng?.unit).toBe('u');
-      expect(afterSup?.packageUnit).toBe('u');
-    });
-  }
-);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+});
