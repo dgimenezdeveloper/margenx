@@ -231,7 +231,7 @@ export default function ProductDetailPage() {
   const simulatorProps = { cost, margin, targetMargin, hasRecipe, watchedSalePrice: watchedSalePrice as string | number, isSaving, activeStrategy, flashingKey, register, setValue, errors, onAdjustPriceFactor: adjustPriceFactor, onApplySuggestedMargin: applySuggestedMargin, onSave, setActiveStrategy }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
+    <main className="min-h-screen bg-gray-50 px-4 pb-52 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && <ToastAlert key={`${toast.type}-${toast.message}`} message={toast.message} type={toast.type} />}
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
