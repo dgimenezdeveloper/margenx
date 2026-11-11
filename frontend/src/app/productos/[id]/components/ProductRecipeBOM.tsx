@@ -1,26 +1,26 @@
 import { Plus, Trash2 } from 'lucide-react'
 import type { RecipeItem } from '@/stores/useRecipeStore'
+import { NumericInput } from '@/components/NumericInput'
+import { convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-
-function convertToRecipeUnitQty(baseQty: number, selectedUnit: string, baseUnit: string): number {
-  if (baseUnit === 'kg' && selectedUnit === 'gr') return baseQty * 1000
-  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return baseQty * 1000
-  return baseQty
-}
 
 export interface ProductRecipeBOMProps {
   isCollaborator: boolean
   items: RecipeItem[]
+  salePrice: number
   onAddIngredient: () => void
   onRemoveIngredient: (id: string, name: string) => void
+  onUpdateQuantity?: (id: string, inputQty: number, recipeUnit: string, baseQty: number) => void
 }
 
 export function ProductRecipeBOM({
   isCollaborator,
   items,
+  salePrice,
   onAddIngredient,
   onRemoveIngredient,
+  onUpdateQuantity,
 }: ProductRecipeBOMProps) {
   const hasRecipe = items.length > 0
 
@@ -59,15 +59,30 @@ export function ProductRecipeBOM({
                       Costo base: {money(item.unitCost)} por {item.unit}
                     </p>
                   )}
+                  {itemSubtotal > salePrice && salePrice > 0 && !isCollaborator && (
+                    <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                      ⚠️ El costo de esta línea supera el precio de venta.
+                    </p>
+                  )}
                 </div>
 
                 {!isCollaborator && (
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-3 py-1.5 dark:border-gray-700/60 dark:bg-gray-800">
-                      <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                        {displayQty}
-                      </span>
-                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/60 bg-gray-100 px-2 py-1 dark:border-gray-700/60 dark:bg-gray-800 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+                      <NumericInput
+                        aria-label={`Cantidad de ${item.name}`}
+                        value={displayQty}
+                        onChange={(val) => {
+                          const num = Number(val)
+                          if (num > 0 && onUpdateQuantity) {
+                            const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
+                            onUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
+                          }
+                        }}
+                        containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
+                        className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
+                      />
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">
                         {item.recipeUnit ?? item.unit}
                       </span>
                     </div>

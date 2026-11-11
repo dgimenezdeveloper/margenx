@@ -20,7 +20,7 @@ import { productSchema } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
-import { useRecipeStore, type RecipeState, type RecipeItem } from '@/stores/useRecipeStore'
+import { useRecipeStore, type RecipeState } from '@/stores/useRecipeStore'
 
 import { ProductMasterDataForm } from './components/ProductMasterDataForm'
 import { ProductRecipeBOM } from './components/ProductRecipeBOM'
@@ -50,6 +50,7 @@ export default function ProductDetailPage() {
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [isRecipeDirty, setIsRecipeDirty] = useState(false)
 
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
   const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
@@ -57,12 +58,13 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
   const removeIngredient = useRecipeStore((s: RecipeState) => s.removeIngredient)
+  const updateQuantity = useRecipeStore((s: RecipeState) => s.updateQuantity)
   const setSalePrice = useRecipeStore((s: RecipeState) => s.setSalePrice)
   const setMinMarginPercent = useRecipeStore((s: RecipeState) => s.setMinMarginPercent)
   const resetStore = useRecipeStore((s: RecipeState) => s.reset)
@@ -74,7 +76,7 @@ export default function ProductDetailPage() {
 
   const hasRecipe = items.length > 0
 
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message: msg, type })
     window.setTimeout(() => setToast(null), 3000)
   }
@@ -89,7 +91,8 @@ export default function ProductDetailPage() {
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
   const targetMargin = watchedMinMargin !== '' && !isNaN(Number(watchedMinMargin)) ? Number(watchedMinMargin) : (product?.minMarginPercent ?? 30)
 
-  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(!isCollaborator && isDirty && !isSaving && !isDeleting)
+  const hasUnsavedChanges = !isCollaborator && (isDirty || isRecipeDirty) && !isSaving && !isDeleting
+  const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   useEffect(() => { setSalePrice(Number(watchedSalePrice) || 0) }, [watchedSalePrice, setSalePrice])
   useEffect(() => { setMinMarginPercent(Number(watchedMinMargin) || 0) }, [watchedMinMargin, setMinMarginPercent])
@@ -107,15 +110,34 @@ export default function ProductDetailPage() {
       if (!isCollaborator && ingredientsData) setAvailablePantry(ingredientsData)
 
       reset({ name: prodData.name, salePrice: String(prodData.salePrice), minMarginPercent: String(prodData.minMarginPercent ?? 30) })
-      setItems(prodData.ingredients.map((pi) => ({
-        ingredientId: pi.ingredientId,
-        name: pi.ingredient?.name || 'Insumo desconocido',
-        unit: pi.ingredient?.unit || 'u',
-        recipeUnit: pi.ingredient?.unit || 'u',
-        inputQty: Number(pi.quantity),
-        quantity: Number(pi.quantity),
-        unitCost: pi.ingredient?.currentCost || 0,
-      })))
+
+      // Mapeo inicial de receta con selección de unidad legible para submúltiplos (RV370-B3)
+      setItems(prodData.ingredients.map((pi) => {
+        const baseUnit = pi.ingredient?.unit || 'u'
+        const baseQty = Number(pi.quantity)
+        let recipeUnit = baseUnit
+        let inputQty = baseQty
+
+        // Si la cantidad guardada en la base es menor a 1 kg/litro, la presentamos en gramos o mililitros
+        if (baseUnit === 'kg' && baseQty < 1) {
+          recipeUnit = 'gr'
+          inputQty = Math.round(baseQty * 1000)
+        } else if ((baseUnit === 'l' || baseUnit === 'litro') && baseQty < 1) {
+          recipeUnit = 'ml'
+          inputQty = Math.round(baseQty * 1000)
+        }
+
+        return {
+          ingredientId: pi.ingredientId,
+          name: pi.ingredient?.name || 'Insumo desconocido',
+          unit: baseUnit,
+          recipeUnit,
+          inputQty,
+          quantity: baseQty,
+          unitCost: pi.ingredient?.currentCost || 0,
+        }
+      }))
+
       setSalePrice(prodData.salePrice)
       setMinMarginPercent(Number(prodData.minMarginPercent ?? 30))
     }).catch((err) => {
@@ -148,20 +170,22 @@ export default function ProductDetailPage() {
 
   const handleAddIngredient = async (supply: Ingredient, inputQty: number, recipeUnit: string, baseQty: number) => {
     addIngredient({ ingredientId: supply.id, name: supply.name, unit: supply.unit, recipeUnit, inputQty, quantity: baseQty, unitCost: supply.currentCost })
-    try {
-      await productService.update(id!, { ingredients: (useRecipeStore.getState().items as RecipeItem[]).map(r => ({ ingredientId: r.ingredientId, quantity: r.quantity })) }, getToken)
-      setShowAddModal(false)
-      notify(`"${supply.name}" sumado a la receta`)
-    } catch { notify('Error al actualizar la receta', 'error') }
+    setIsRecipeDirty(true)
+    setShowAddModal(false)
+    notify(`"${supply.name}" sumado a la receta. Recordá guardar los cambios.`, 'info')
   }
 
   const confirmRemoveIngredient = async () => {
     if (!ingredientToDelete) return
     removeIngredient(ingredientToDelete.id)
-    try {
-      await productService.update(id!, { ingredients: (useRecipeStore.getState().items as RecipeItem[]).map(r => ({ ingredientId: r.ingredientId, quantity: r.quantity })) }, getToken)
-      notify(`"${ingredientToDelete.name}" eliminado de la receta`)
-    } catch { notify('Error al actualizar la receta', 'error') } finally { setIngredientToDelete(null) }
+    setIsRecipeDirty(true)
+    notify(`"${ingredientToDelete.name}" eliminado de la receta. Recordá guardar los cambios.`, 'info')
+    setIngredientToDelete(null)
+  }
+
+  const handleUpdateQuantity = (id: string, inputQty: number, recipeUnit: string, baseQty: number) => {
+    updateQuantity(id, baseQty, inputQty, recipeUnit)
+    setIsRecipeDirty(true)
   }
 
   const handleFormSubmit = async (data: ProductInput) => {
@@ -171,6 +195,7 @@ export default function ProductDetailPage() {
       const updated = await productService.update(id!, { name: String(data.name), salePrice: Number(data.salePrice), minMarginPercent: Number(data.minMarginPercent), ingredients: items.map(i => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) })) }, getToken)
       setProduct(updated)
       reset({ name: updated.name, salePrice: String(updated.salePrice), minMarginPercent: String(updated.minMarginPercent ?? 30) })
+      setIsRecipeDirty(false)
       notify('Producto guardado exitosamente', 'success')
       setIsSimulatorOpen(false)
     } catch (err) {
@@ -215,7 +240,7 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
             <div className={`space-y-6 ${isCollaborator ? 'lg:col-span-12 max-w-3xl mx-auto w-full' : 'lg:col-span-7'}`}>
               <ProductMasterDataForm isCollaborator={isCollaborator} isDirty={isDirty} productName={product.name} salePrice={product.salePrice} register={register} setValue={setValue} errors={errors} watchedMinMargin={watchedMinMargin} />
-              <ProductRecipeBOM isCollaborator={isCollaborator} items={items} onAddIngredient={() => setShowAddModal(true)} onRemoveIngredient={(id, name) => setIngredientToDelete({ id, name })} />
+              <ProductRecipeBOM isCollaborator={isCollaborator} items={items} salePrice={Number(watchedSalePrice) || 0} onAddIngredient={() => setShowAddModal(true)} onRemoveIngredient={(id, name) => setIngredientToDelete({ id, name })} onUpdateQuantity={handleUpdateQuantity} />
               {!isCollaborator && (
                 <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -3,20 +3,9 @@ import { ChevronDown, LoaderCircle, Plus, Search, X } from 'lucide-react'
 import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
+import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-
-function getAvailableRecipeUnits(baseUnit: string): string[] {
-  if (baseUnit === 'kg') return ['gr', 'kg']
-  if (baseUnit === 'litro' || baseUnit === 'l') return ['ml', 'litro']
-  return [baseUnit || 'unidad']
-}
-
-function convertToBaseQty(qty: number, selectedUnit: string, baseUnit: string): number {
-  if (baseUnit === 'kg' && selectedUnit === 'gr') return qty / 1000
-  if ((baseUnit === 'litro' || baseUnit === 'l') && selectedUnit === 'ml') return qty / 1000
-  return qty
-}
 
 export interface ProductAddIngredientModalProps {
   isOpen: boolean
@@ -77,7 +66,7 @@ export function ProductAddIngredientModal({
     if (!currentSupply || numQty <= 0) return
 
     setIsAdding(true)
-    const baseQty = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
+    const { baseQty } = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
     await onAdd(currentSupply, numQty, recipeUnit, baseQty)
     setIsAdding(false)
     setInputQty(recipeUnit === 'gr' ? '50' : recipeUnit === 'ml' ? '30' : '1')
@@ -86,7 +75,7 @@ export function ProductAddIngredientModal({
   if (!isOpen) return null
 
   const previewNumericQty = Number(inputQty) || 0
-  const previewBaseQty = currentSupply ? convertToBaseQty(previewNumericQty, recipeUnit, currentSupply.unit) : 0
+  const { baseQty: previewBaseQty, precisionLost } = currentSupply ? convertToBaseQty(previewNumericQty, recipeUnit, currentSupply.unit) : { baseQty: 0, precisionLost: false }
   const previewSubtotal = currentSupply ? previewBaseQty * currentSupply.currentCost : 0
 
   return (
@@ -209,6 +198,11 @@ export function ProductAddIngredientModal({
                 <p className="mt-1 font-bold text-indigo-700 dark:text-indigo-300">
                   Subtotal en receta: {money(previewSubtotal)}
                 </p>
+                {precisionLost && (
+                  <p className="mt-2 font-bold text-amber-600 dark:text-amber-400">
+                    ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {currentSupply.unit}.
+                  </p>
+                )}
               </div>
             )}
           </div>

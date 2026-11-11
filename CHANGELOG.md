@@ -88,6 +88,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Changed
 
+- **Frontend:** Las cantidades de las recetas se pueden cargar y visualizar en submúltiplos (gramos, mililitros) y editarse directamente en la lista sin necesidad de borrarlas (`#352`).
+- **Frontend:** Agregar o quitar un insumo de la receta ya no guarda los cambios automáticamente; se unificó el comportamiento con el botón "Guardar Cambios" y se advierte si se intenta salir sin guardar (`#352`).
+- **Frontend:** Se agregó un aviso visual en la receta si el costo de una línea supera el precio de venta del producto (`#352`).
 - **Docs:** SAD §7.3 y `docs/manual-scrum-master.md` §4 alineados con `docs/politica-proteccion-main.md` §2.4: el release `develop` → `main` se mergea con merge commit (no squash) y usa `Refs #N`; el despliegue a producción lo dispara el merge y la etiqueta anotada se crea después, por CLI (`#271`).
 - **DevOps / Security:** SSH de la VPS solo con clave (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`), sin reenvío de agente ni X11, en los puertos 22 y 5371; revisión de dueños de `authorized_keys` (se quitaron una clave sin dueño y la del CI de Allmart); confirmación de que MargenX solo publica en `127.0.0.1`; y hallazgos fuera de alcance (`ufw` inactivo, puertos de otros proyectos en `0.0.0.0`, Postfix en el 25) en `infra/vps/README.md` §9 (`#266`).
 - **Docs:** Actualización de `docs/process/revision-de-prs.md` §5 ítem 6 formalizando la medición obligatoria del 90 % de líneas en `frontend/` mediante `npm run test:coverage` y retirando la excepción temporal de cobertura no verificada (`#276`).
@@ -116,6 +119,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** `parseNumeroAR` ya no interpreta decimales menores a 1 con tres dígitos (ej. `0.250`) como separador de miles (`#352`).
+- **Frontend:** La conversión de gramos a kilos en recetas ahora redondea a 3 decimales (límite de la base de datos) y avisa si se pierde precisión (`#352`).
 - **Docs:** Eliminación de bloque de texto duplicado en la sección de listas de precios y cuarentena de `docs/manual-usuario/02-proveedores-y-listas.md`.
 - **Frontend / Accesibilidad:** Navegación accesible por teclado en las tablas desktop de `/insumos` (`SuppliesTableDesktop`) y `/productos` (`ProductsPage`): las filas cuentan con `tabIndex={0}`, `role="button"`, contorno de foco perimetral canónico (`focus-visible:-outline-offset-2`) y activación con teclas `Enter` y `Espacio` (`UX-06`).
 - **Frontend / Accesibilidad:** Incorporación de nombres accesibles en los buscadores de catálogo de `/insumos` y `/productos` mediante `aria-label`, y asociación explícita de `htmlFor` con `id="ingredient-current-cost"` en el campo de costo unitario de insumos (`UX-13`).
