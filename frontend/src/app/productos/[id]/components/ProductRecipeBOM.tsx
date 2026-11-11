@@ -74,10 +74,10 @@ export function ProductRecipeBOM({
                         value={displayQty}
                         onChange={(val) => {
                           const num = Number(val)
-                          if (num > 0 && onUpdateQuantity) {
-                            const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
-                            onUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
-                          }
+                          if (num <= 0 || !onUpdateQuantity) return
+                          const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
+                          // Una cantidad que redondea a 0 en la unidad base la rechazaría la API
+                          if (baseQty > 0) onUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
                         }}
                         containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
                         className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"

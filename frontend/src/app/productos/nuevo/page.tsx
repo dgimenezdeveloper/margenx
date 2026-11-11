@@ -120,7 +120,7 @@ export default function NewProductPage() {
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
   // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
-    // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
+  // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
   useBodyScrollLock(isDropdownOpen)
 
   // Protección contra pérdida de datos por navegación accidental
@@ -199,6 +199,8 @@ export default function NewProductPage() {
     if (!selectedSupply || num <= 0) return
 
     const { baseQty } = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
+    // Por debajo de 0,001 de la unidad base la API rechaza la línea (cantidad mayor a cero, 3 decimales)
+    if (baseQty <= 0) return
 
     addIngredient({
       ingredientId: selectedSupply.id,
@@ -520,7 +522,11 @@ export default function NewProductPage() {
                         </span>
                         <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
                       </div>
-                      {precisionLost && (
+                      {previewBaseQty <= 0 ? (
+                        <p className="font-bold text-rose-600 dark:text-rose-400">
+                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {selectedSupply.unit}).
+                        </p>
+                      ) : precisionLost && (
                         <p className="font-bold text-amber-600 dark:text-amber-400">
                           ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {selectedSupply.unit}.
                         </p>
@@ -531,7 +537,7 @@ export default function NewProductPage() {
                   <button
                     type="button"
                     onClick={handleAddIngredient}
-                    disabled={isLoadingSupplies || !selectedSupply || previewNumericQty <= 0}
+                    disabled={isLoadingSupplies || !selectedSupply || previewBaseQty <= 0}
                     className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                   >
                     {isLoadingSupplies ? (
@@ -585,10 +591,10 @@ export default function NewProductPage() {
                                 value={displayQty}
                                 onChange={(val) => {
                                   const num = Number(val)
-                                  if (num > 0) {
-                                    const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
-                                    handleUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
-                                  }
+                                  if (num <= 0) return
+                                  const { baseQty } = convertToBaseQty(num, item.recipeUnit ?? item.unit, item.unit)
+                                  // Una cantidad que redondea a 0 en la unidad base la rechazaría la API
+                                  if (baseQty > 0) handleUpdateQuantity(item.ingredientId, num, item.recipeUnit ?? item.unit, baseQty)
                                 }}
                                 containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
                                 className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"

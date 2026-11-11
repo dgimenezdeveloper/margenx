@@ -137,4 +137,34 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     expect(screen.getByLabelText('Cantidad de Harina')).toHaveValue('250')
     expect(screen.getByText('gr')).toBeInTheDocument()
   })
+
+  it('ignora una edición que redondea a 0 en la unidad base y conserva la cantidad válida', async () => {
+    const user = userEvent.setup()
+    vi.mocked(productService.getById).mockResolvedValueOnce({
+      ...mockProduct,
+      ingredients: [
+        {
+          ingredientId: 'ing-1',
+          quantity: 0.25,
+          ingredient: { id: 'ing-1', name: 'Harina', unit: 'kg', currentCost: 500 },
+        },
+      ],
+    })
+    vi.mocked(productService.update).mockResolvedValue({ ...mockProduct, ingredients: [] })
+
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    // 0,4 gr = 0,0004 kg: redondea a 0 kg, que la API rechaza con 400
+    const qtyInput = screen.getByLabelText('Cantidad de Harina')
+    await user.clear(qtyInput)
+    await user.type(qtyInput, '0,4')
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+
+    await waitFor(() => expect(productService.update).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(productService.update).mock.calls[0]?.[1]).toMatchObject({
+      ingredients: [{ ingredientId: 'ing-1', quantity: 0.25 }],
+    })
+  })
 })

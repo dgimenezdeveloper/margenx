@@ -65,8 +65,11 @@ export function ProductAddIngredientModal({
     const numQty = Number(inputQty)
     if (!currentSupply || numQty <= 0) return
 
-    setIsAdding(true)
     const { baseQty } = convertToBaseQty(numQty, recipeUnit, currentSupply.unit)
+    // Por debajo de 0,001 de la unidad base la API rechaza la línea (cantidad mayor a cero, 3 decimales)
+    if (baseQty <= 0) return
+
+    setIsAdding(true)
     await onAdd(currentSupply, numQty, recipeUnit, baseQty)
     setIsAdding(false)
     setInputQty(recipeUnit === 'gr' ? '50' : recipeUnit === 'ml' ? '30' : '1')
@@ -198,7 +201,11 @@ export function ProductAddIngredientModal({
                 <p className="mt-1 font-bold text-indigo-700 dark:text-indigo-300">
                   Subtotal en receta: {money(previewSubtotal)}
                 </p>
-                {precisionLost && (
+                {previewNumericQty > 0 && previewBaseQty <= 0 ? (
+                  <p className="mt-2 font-bold text-rose-600 dark:text-rose-400">
+                    ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {currentSupply.unit}).
+                  </p>
+                ) : precisionLost && (
                   <p className="mt-2 font-bold text-amber-600 dark:text-amber-400">
                     ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {currentSupply.unit}.
                   </p>
@@ -216,7 +223,7 @@ export function ProductAddIngredientModal({
             <button
               type="button"
               onClick={handleAdd}
-              disabled={!currentSupply || previewNumericQty <= 0 || isAdding}
+              disabled={!currentSupply || previewBaseQty <= 0 || isAdding}
               className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isAdding ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}

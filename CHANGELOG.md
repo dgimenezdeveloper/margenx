@@ -100,7 +100,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Fixed
 
 - **Frontend:** `parseNumeroAR` ya no interpreta decimales menores a 1 con tres dígitos (ej. `0.250`) como separador de miles (`#352`).
-- **Frontend:** La conversión de gramos a kilos en recetas ahora redondea a 3 decimales (límite de la base de datos) y avisa si se pierde precisión (`#352`).
+- **Frontend:** La conversión de gramos a kilos en recetas ahora redondea a 3 decimales (límite de la base de datos), avisa si se pierde precisión y no deja agregar ni editar una cantidad que redondea a 0 (`#352`).
 - **Docs:** Eliminación de bloque de texto duplicado en la sección de listas de precios y cuarentena de `docs/manual-usuario/02-proveedores-y-listas.md`.
 - **Frontend / Accesibilidad:** Navegación accesible por teclado en las tablas desktop de `/insumos` (`SuppliesTableDesktop`) y `/productos` (`ProductsPage`): las filas cuentan con `tabIndex={0}`, `role="button"`, contorno de foco perimetral canónico (`focus-visible:-outline-offset-2`) y activación con teclas `Enter` y `Espacio` (`UX-06`).
 - **Frontend / Accesibilidad:** Incorporación de nombres accesibles en los buscadores de catálogo de `/insumos` y `/productos` mediante `aria-label`, y asociación explícita de `htmlFor` con `id="ingredient-current-cost"` en el campo de costo unitario de insumos (`UX-13`).
