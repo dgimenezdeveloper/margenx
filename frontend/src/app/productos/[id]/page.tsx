@@ -110,15 +110,34 @@ export default function ProductDetailPage() {
       if (!isCollaborator && ingredientsData) setAvailablePantry(ingredientsData)
 
       reset({ name: prodData.name, salePrice: String(prodData.salePrice), minMarginPercent: String(prodData.minMarginPercent ?? 30) })
-      setItems(prodData.ingredients.map((pi) => ({
-        ingredientId: pi.ingredientId,
-        name: pi.ingredient?.name || 'Insumo desconocido',
-        unit: pi.ingredient?.unit || 'u',
-        recipeUnit: pi.ingredient?.unit || 'u',
-        inputQty: Number(pi.quantity),
-        quantity: Number(pi.quantity),
-        unitCost: pi.ingredient?.currentCost || 0,
-      })))
+
+      // Mapeo inicial de receta con selección de unidad legible para submúltiplos (RV370-B3)
+      setItems(prodData.ingredients.map((pi) => {
+        const baseUnit = pi.ingredient?.unit || 'u'
+        const baseQty = Number(pi.quantity)
+        let recipeUnit = baseUnit
+        let inputQty = baseQty
+
+        // Si la cantidad guardada en la base es menor a 1 kg/litro, la presentamos en gramos o mililitros
+        if (baseUnit === 'kg' && baseQty < 1) {
+          recipeUnit = 'gr'
+          inputQty = Math.round(baseQty * 1000)
+        } else if ((baseUnit === 'l' || baseUnit === 'litro') && baseQty < 1) {
+          recipeUnit = 'ml'
+          inputQty = Math.round(baseQty * 1000)
+        }
+
+        return {
+          ingredientId: pi.ingredientId,
+          name: pi.ingredient?.name || 'Insumo desconocido',
+          unit: baseUnit,
+          recipeUnit,
+          inputQty,
+          quantity: baseQty,
+          unitCost: pi.ingredient?.currentCost || 0,
+        }
+      }))
+
       setSalePrice(prodData.salePrice)
       setMinMarginPercent(Number(prodData.minMarginPercent ?? 30))
     }).catch((err) => {
