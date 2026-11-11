@@ -8,10 +8,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
+- **Frontend:** Aviso en la receta cuando el costo de una línea supera el precio de venta del producto, en `/productos/:id` y `/productos/nuevo` (`#352`).
 
 ### Changed
 
 - **DevOps / n8n:** Rediseño del mail de resumen de ingesta. Empieza por "Para revisar", con enlaces directos al entorno de la lista (`margenx.tech` o `dev.margenx.tech`): precios en cuarentena (a la bandeja), códigos sin mapear (a Proveedores; los `NOT_FOUND` ya no se informan como descartes) y productos debajo de su margen mínimo (botón "Ajustar"). Después, el resumen en números, con singular y plural correctos ("1 fila", "1 precio quedó en cuarentena"). El resumen y la alerta de margen comparten la plantilla `infra/n8n/plantillas/mail-margenx.js`, con estilos de MargenX y tabla de productos legible a 360 px; `sincronizar.mjs` la copia a los workflows y las pruebas fallan si se desincroniza. Documentado en `infra/n8n/README.md` (`#254`).
+- **Frontend:** La cantidad de una línea de receta se carga en la unidad que prefiera el usuario dentro de la misma magnitud (g o kg; ml o l) y se edita directamente en la lista. La base sigue guardando la cantidad en la unidad del insumo, y las líneas guardadas con menos de 1 kg o 1 l se muestran en gr o ml. La conversión vive en `frontend/src/lib/recipeConversion.ts`, compartida por el modal y las dos pantallas de producto (`#352`).
+- **Frontend:** Agregar o quitar un insumo de la receta en `/productos/:id` ya no guarda al instante: todo se guarda con "Guardar Cambios", y salir con cambios sin guardar pide confirmación. Si el guardado falla (por ejemplo, con un 400), el borrador se conserva para corregirlo (`#352`).
 
 ### Fixed
 
@@ -19,6 +22,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **DevOps / n8n:** El enlace "Ajustar" y el botón principal del mail de alerta de margen apuntan a `<appBase>/productos` cuando la alerta no trae el ID del producto; antes el `href` salía con el texto literal `${appBase}/productos` y no llevaba a ningún lado. Prueba del nodo en `infra/n8n/tests/alertas-nodos.test.mjs`, que ahora corre en CI, y sección de alertas en `infra/n8n/README.md` (`#329`).
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
 - **Docs:** `docs/process/revision-de-prs.md` §5, punto 6: se quitó un párrafo duplicado y se aclara cómo se mide la cobertura en cada paquete y en el CI (`#307`).
+- **Frontend:** `parseNumeroAR` interpretaba `0.250` como 250 (separador de miles); ahora es 0,25 (`#352`).
+- **Frontend:** `NumericInput` volvía a leer su propio valor como formato argentino: `1,250` kg pasaba a 1250 kg al entrar y salir otra vez del campo. Además mostraba solo 2 decimales (1,125 kg se veía 1,13); las cantidades de receta muestran 3 (`#352`).
+- **Frontend:** Las cantidades de receta se redondean a 3 decimales de la unidad del insumo (límite de la base). El modal y la edición en la lista avisan cuando la cantidad se redondea ("se guarda como 1 gr") o no llega al mínimo (0,001 kg o l), que no se puede agregar; al salir del campo se muestra la cantidad que quedó en la receta (`#352`).
 
 ### Security
 

@@ -2,6 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { parseNumeroAR, formatNumeroAR } from '@/lib/numericFormat';
 import { cn } from '@/lib/utils';
 
+// Formato canónico: el que emite onChange y el de String(número) (punto decimal, sin miles)
+const CANONICAL_REGEX = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Normaliza la prop `value` a formato canónico. Las props llegan del estado del formulario,
+ * que guarda lo que emitió onChange: "1.250" es 1,25 y no mil doscientos cincuenta.
+ */
+function toCanonical(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+  const str = value.trim();
+  return CANONICAL_REGEX.test(str) ? str : parseNumeroAR(str);
+}
+
+function toDisplay(value: string | number | undefined | null, maxDecimals: number): string {
+  const canonical = toCanonical(value);
+  return canonical === '' ? '' : formatNumeroAR(Number(canonical), maxDecimals);
+}
+
 interface NumericInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   value?: string | number;
   onChange?: (val: string) => void;
@@ -11,6 +30,8 @@ interface NumericInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   suffixSymbol?: string;
   suffixClassName?: string;
   containerClassName?: string;
+  /** Decimales que se muestran al formatear (por defecto 2). Las cantidades de receta usan 3. */
+  maxDecimals?: number;
 }
 
 export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
@@ -27,35 +48,31 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       suffixClassName,
       className,
       containerClassName,
+      maxDecimals = 2,
       ...props
     },
     ref
   ) => {
-    const [displayValue, setDisplayValue] = useState(() => {
-      if (value !== undefined && value !== null && value !== '') {
-        return formatNumeroAR(value);
-      }
-      return '';
-    });
+    const [displayValue, setDisplayValue] = useState(() => toDisplay(value, maxDecimals));
 
     const isFocusedRef = useRef(false);
-    const lastEmittedValueRef = useRef<string | undefined>(
-      value !== undefined && value !== null && value !== '' ? parseNumeroAR(value) : undefined
-    );
+    const lastEmittedValueRef = useRef<string | undefined>(toCanonical(value) || undefined);
 
     // Sincroniza displayValue únicamente cuando `value` cambia desde el exterior
     useEffect(() => {
-      const incoming = value !== undefined && value !== null && value !== '' ? String(value) : '';
-      const parsedIncoming = parseNumeroAR(incoming);
+      const incoming = toCanonical(value);
+      const lastEmitted = lastEmittedValueRef.current ?? '';
+      // Mismo número que lo último emitido ("1.250" y "1.25" son iguales): es el eco de onChange
+      const isEcho = incoming === lastEmitted || (incoming !== '' && lastEmitted !== '' && Number(incoming) === Number(lastEmitted));
 
       // Si el valor externo difiere de lo último emitido (ej. reset, sugerencia de margen, etc.)
-      if (parsedIncoming !== lastEmittedValueRef.current) {
-        lastEmittedValueRef.current = parsedIncoming;
+      if (!isEcho) {
+        lastEmittedValueRef.current = incoming;
         if (!isFocusedRef.current) {
-          setDisplayValue(incoming !== '' ? formatNumeroAR(incoming) : '');
+          setDisplayValue(toDisplay(incoming, maxDecimals));
         }
       }
-    }, [value]);
+    }, [value, maxDecimals]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
@@ -73,7 +90,8 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       const parsed = parseNumeroAR(raw);
 
       if (parsed !== '') {
-        setDisplayValue(formatNumeroAR(parsed));
+        // `parsed` ya es canónico: se formatea como número para no releer "1.250" como 1250
+        setDisplayValue(formatNumeroAR(Number(parsed), maxDecimals));
       } else {
         setDisplayValue('');
       }

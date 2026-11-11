@@ -61,7 +61,7 @@ Hay tres caminos de entrada. Los tres terminan en el mismo lugar, insumos en la 
 
 Reglas del camino A (vigentes):
 
-- La unidad del insumo es la unidad de la receta: si la harina se carga en `kg`, la receta pide kilos (0,65 kg, no 650 g).
+- La cantidad de la receta se puede cargar en la unidad que prefiera el usuario dentro de la misma magnitud (g o kg; ml o l). La base sigue guardando la cantidad en la unidad del insumo.
 - El costo debe ser mayor a cero y como máximo $99.999.999,99.
 - Si después se edita el costo, se registra el cambio en el historial de precios y se recalculan en cascada todos los productos que usan el insumo (§6).
 - Un insumo que está en una receta no se puede borrar (§10).
@@ -90,7 +90,7 @@ Un producto puede crearse **sin insumos**, para que el comercio cargue su lista 
 
 ### Receta (ficha técnica) · *Disponible*
 
-- Cada línea de la receta vincula un insumo con una cantidad expresada en la unidad del insumo (hasta 3 decimales). Un insumo aparece una sola vez por receta.
+- Cada línea de la receta vincula un insumo con una cantidad. En la interfaz se puede cargar y visualizar en submúltiplos (g, ml), pero en la base de datos se guarda expresada en la unidad base del insumo (hasta 3 decimales). Un insumo aparece una sola vez por receta.
 - Costo del producto = suma de `cantidad × costo actual del insumo`. Margen sobre el precio de venta, con `Prisma.Decimal` y redondeo a 2 decimales (ADR-004).
 - Cada producto tiene su margen mínimo (`minMarginPercent`); la cuenta tiene un margen mínimo por defecto (`defaultMinMarginPercent`, 30 %).
 

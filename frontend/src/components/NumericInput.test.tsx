@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { NumericInput } from './NumericInput';
@@ -55,5 +56,46 @@ describe('NumericInput', () => {
     render(<NumericInput value="abc" />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
     expect(input.value).toBe('');
+  });
+
+  it('no convierte 1,250 en 1250 al volver a entrar y salir del campo (#352)', () => {
+    const emitted: string[] = [];
+    function Harness() {
+      // Como los formularios reales: el estado guarda lo que emite onChange y vuelve como prop
+      const [value, setValue] = useState('1');
+      return <NumericInput value={value} maxDecimals={3} onChange={(v) => { emitted.push(v); setValue(v); }} />;
+    }
+    render(<Harness />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '1,250' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('1,25');
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(input.value).toBe('1,25');
+    expect(emitted.every((v) => Number(v) === 1.25)).toBe(true);
+  });
+
+  it('muestra un valor canónico de 3 decimales recibido por props sin leerlo como miles', () => {
+    render(<NumericInput value="1.125" maxDecimals={3} />);
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('1,125');
+  });
+
+  it('muestra 2 decimales por defecto y respeta maxDecimals para cantidades de receta', () => {
+    const { unmount } = render(<NumericInput value={1.125} />);
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('1,13');
+    unmount();
+
+    render(<NumericInput value={1.125} maxDecimals={3} />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toBe('1,125');
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '2,375' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('2,375');
   });
 });
