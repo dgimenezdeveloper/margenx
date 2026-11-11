@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
-import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
+import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT, buildDiacriticSearchConditions } from '../utils/pagination';
 import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
 const router = Router();
@@ -23,7 +23,10 @@ interface ProductPaginationParams {
   order: 'asc' | 'desc';
 }
 
-function parseProductPaginationParams(query: Record<string, unknown>, userRole?: 'ADMIN' | 'COLLABORATOR'): ProductPaginationParams {
+function parseProductPaginationParams(
+  query: Record<string, unknown>,
+  userRole?: 'ADMIN' | 'COLLABORATOR'
+): ProductPaginationParams & { search: string } {
   const rawPage = Number(query.page);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
 
@@ -40,7 +43,10 @@ function parseProductPaginationParams(query: Record<string, unknown>, userRole?:
   const rawOrder = typeof query.order === 'string' ? query.order.toLowerCase() : '';
   const order = rawOrder === 'desc' ? 'desc' : 'asc';
 
-  return { page, limit, sortBy, order };
+  const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
+  const search = rawSearch.slice(0, 100);
+
+  return { page, limit, sortBy, order, search };
 }
 
 interface ProductBody {
@@ -135,29 +141,38 @@ function parseBody(body: ProductBody) {
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
-  const { page, limit, sortBy, order } = parseProductPaginationParams(
+  const { page, limit, sortBy, order, search } = parseProductPaginationParams(
     req.query as Record<string, unknown>,
     req.user!.role
   );
 
   const skip = (page - 1) * limit;
 
+  const where: Prisma.ProductWhereInput = {
+    accountId,
+    ...(search
+      ? {
+          OR: buildDiacriticSearchConditions('name', search) as Prisma.ProductWhereInput[],
+        }
+      : {}),
+  };
+
   const [data, total] = await Promise.all([
     prisma.product.findMany({
-      where: { accountId },
+      where,
       include: { ingredients: { select: { ingredientId: true, quantity: true } } },
       orderBy: { [sortBy]: order },
       skip,
       take: limit,
     }),
-    prisma.product.count({ where: { accountId } }),
+    prisma.product.count({ where }),
   ]);
 
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
 
   return res.status(200).json({
     data,
-    products: data, // Mantenemos el alias para compatibilidad retroactiva
+    products: data,
     meta: { total, page, limit, totalPages },
   });
 });

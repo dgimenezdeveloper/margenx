@@ -180,6 +180,120 @@ describe('GET /api/products - paginación', () => {
   });
 });
 
+describe('GET /api/products - Búsqueda por nombre (search)', () => {
+  it('aplica la condición OR con variantes diacríticas cuando se envía search', async () => {
+    productFindManyMock.mockResolvedValue([
+      {
+        id: 'p-1',
+        name: 'Medialunas de manteca',
+        salePrice: new Prisma.Decimal('13500.00'),
+        cost: new Prisma.Decimal('3616.25'),
+        marginAmount: new Prisma.Decimal('9883.75'),
+        marginPercent: new Prisma.Decimal('73.21'),
+        minMarginPercent: new Prisma.Decimal('65.00'),
+        ingredients: [],
+      },
+    ]);
+    productCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp()).get('/api/products?search=medialuna');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].name).toBe('Medialunas de manteca');
+    expect(res.body.meta.total).toBe(1);
+
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+          OR: expect.arrayContaining([
+            { name: { contains: 'medialuna', mode: 'insensitive' } },
+          ]),
+        }),
+      })
+    );
+    expect(productCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        accountId: 'account-1',
+        OR: expect.arrayContaining([
+          { name: { contains: 'medialuna', mode: 'insensitive' } },
+        ]),
+      }),
+    });
+  });
+
+  it('combina search con page, limit, sortBy y order', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get(
+      '/api/products?search=pan&page=2&limit=5&sortBy=salePrice&order=desc'
+    );
+
+    expect(res.status).toBe(200);
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+          OR: expect.any(Array),
+        }),
+        orderBy: { salePrice: 'desc' },
+        skip: 5,
+        take: 5,
+      })
+    );
+    expect(res.body.meta).toEqual({ total: 0, page: 2, limit: 5, totalPages: 0 });
+  });
+
+  it('Escenario Aislamiento: la búsqueda no filtra productos de otra cuenta', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/products?search=Detergente');
+
+    expect(res.status).toBe(200);
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1', // Aislamiento garantizado por el token
+        }),
+      })
+    );
+  });
+
+  it('Sanitización RBAC: un COLLABORATOR puede buscar pero no recibe costos ni márgenes', async () => {
+    setAuthRole('COLLABORATOR');
+
+    productFindManyMock.mockResolvedValue([
+      {
+        id: 'p-1',
+        name: 'Pan de Campo',
+        salePrice: new Prisma.Decimal('4500.00'),
+        cost: new Prisma.Decimal('1800.00'),
+        marginAmount: new Prisma.Decimal('2700.00'),
+        marginPercent: new Prisma.Decimal('60.00'),
+        minMarginPercent: new Prisma.Decimal('40.00'),
+        ingredients: [{ ingredientId: 'ing-1', quantity: new Prisma.Decimal('1.000') }],
+      },
+    ]);
+    productCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp())
+      .get('/api/products?search=campo')
+      .set('x-role', 'COLLABORATOR');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].name).toBe('Pan de Campo');
+    expect(res.body.data[0].salePrice).toBe('4500');
+    // Campos purgados por sanitizeFinancialData
+    expect(res.body.data[0]).not.toHaveProperty('cost');
+    expect(res.body.data[0]).not.toHaveProperty('marginAmount');
+    expect(res.body.data[0]).not.toHaveProperty('marginPercent');
+    expect(res.body.data[0]).not.toHaveProperty('minMarginPercent');
+  });
+});
+
 describe('POST /api/products', () => {
   it('crea un producto calculando costo y márgenes cuando hay receta', async () => {
     txIngredientFindManyMock.mockResolvedValue([

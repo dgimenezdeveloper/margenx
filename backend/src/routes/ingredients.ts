@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
-import { parsePaginationParams } from '../utils/pagination';
+import { buildDiacriticSearchConditions, parsePaginationParams } from '../utils/pagination';
 import { parseArgentineDecimal } from '../utils/argentineNumber';
 import { applyIngredientCostChange } from '../services/marginCalculator';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
@@ -116,12 +116,21 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     }
   }
 
-  const { page, limit, sortBy, order } = parsePaginationParams(query);
+  const { page, limit, sortBy, order, search } = parsePaginationParams(query);
   const skip = (page - 1) * limit;
+
+  const where: Prisma.IngredientWhereInput = {
+    accountId,
+    ...(search
+      ? {
+          OR: buildDiacriticSearchConditions('name', search) as Prisma.IngredientWhereInput[],
+        }
+      : {}),
+  };
 
   const [data, total] = await Promise.all([
     prisma.ingredient.findMany({
-      where: { accountId },
+      where,
       include: {
         suppliers: {
           include: {
@@ -133,7 +142,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       skip,
       take: limit,
     }),
-    prisma.ingredient.count({ where: { accountId } }),
+    prisma.ingredient.count({ where }),
   ]);
 
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);

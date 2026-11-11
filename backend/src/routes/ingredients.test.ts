@@ -157,6 +157,67 @@ describe('GET /api/ingredients - paginación', () => {
   });
 });
 
+describe('GET /api/ingredients - Búsqueda por nombre (search)', () => {
+  it('aplica filtro de búsqueda por nombre insensible a mayúsculas y tildes', async () => {
+    findManyMock.mockResolvedValue([
+      { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', unit: 'kg', currentCost: '1500.00' },
+    ]);
+    countMock.mockResolvedValue(1);
+
+    const res = await request(buildApp()).get('/api/ingredients?search=sesamo');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].name).toBe('Semillas de sésamo La Molinera');
+    expect(res.body.meta.total).toBe(1);
+
+    // Debe incluir tanto 'sesamo' como 'sésamo' en la cláusula OR
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+          OR: expect.arrayContaining([
+            { name: { contains: 'sesamo', mode: 'insensitive' } },
+            { name: { contains: 'sésamo', mode: 'insensitive' } },
+          ]),
+        }),
+      })
+    );
+  });
+
+  it('respeta el aislamiento de cuenta al filtrar por search', async () => {
+    findManyMock.mockResolvedValue([]);
+    countMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/ingredients?search=Harina');
+
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+        }),
+      })
+    );
+  });
+
+  it('permite buscar a un COLLABORATOR sanitizando los costos', async () => {
+    findManyMock.mockResolvedValue([
+      { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: new Prisma.Decimal('736.25'), suppliers: [] },
+    ]);
+    countMock.mockResolvedValue(1);
+
+    const res = await request(buildApp())
+      .get('/api/ingredients?search=harina')
+      .set('x-role', 'COLLABORATOR');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].name).toBe('Harina 000');
+    expect(res.body.data[0]).not.toHaveProperty('currentCost');
+    expect(res.body.data[0]).not.toHaveProperty('suppliers');
+  });
+});
+
 describe('GET /api/ingredients/:id', () => {
   it('devuelve 200 con el insumo incluyendo proveedores asociados si pertenece a la cuenta', async () => {
     const ingredient = {

@@ -131,6 +131,9 @@ const supplierMetadataSchema = z.object({
   }, z.string().max(500, 'El campo "rawDescription" no puede superar 500 caracteres.').optional()),
 });
 
+const DEFAULT_PAGE = 1;
+import { DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
+
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers                                                   */
 /* Lista los proveedores de la cuenta autenticada, con la cantidad de  */
@@ -384,7 +387,7 @@ router.post('/quarantine/:id/reject', async (req: AuthenticatedRequest, res: Res
 
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers/:id                                               */
-/* Detalle del proveedor con sus presentaciones e insumos vinculados.   */
+/* Detalle del proveedor con sus presentaciones (soporta paginación).   */
 /* ------------------------------------------------------------------ */
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
@@ -393,29 +396,113 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
     throw new AppError('Proveedor no encontrado.', 404);
   }
 
-  const supplier = await prisma.supplier.findFirst({
-    where: { id, accountId },
-    include: {
-      ingredients: {
-        include: {
-          ingredient: {
-            select: {
-              id: true,
-              name: true,
-              unit: true,
-              currentCost: true,
+  const query = req.query as Record<string, unknown>;
+  const hasPagination = query.page !== undefined || query.limit !== undefined || query.search !== undefined;
+
+  // Compatibilidad retroactiva: si no se solicitan parámetros de paginación o búsqueda,
+  // se devuelve la estructura completa original con el include de ingredientes.
+  if (!hasPagination) {
+    const supplier = await prisma.supplier.findFirst({
+      where: { id, accountId },
+      include: {
+        ingredients: {
+          include: {
+            ingredient: {
+              select: {
+                id: true,
+                name: true,
+                unit: true,
+                currentCost: true,
+              },
             },
           },
         },
       },
-    },
+    });
+
+    if (!supplier) {
+      throw new AppError('Proveedor no encontrado.', 404);
+    }
+
+    return res.status(200).json({ supplier });
+  }
+
+  // Flujo con paginación explícita (Issue SPRINT6-BE-02)
+  const rawPage = Number(query.page);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
+
+  const rawLimit = Number(query.limit);
+  const limit =
+    Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
+
+  const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
+  const search = rawSearch.slice(0, 100);
+
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, accountId },
   });
 
   if (!supplier) {
     throw new AppError('Proveedor no encontrado.', 404);
   }
 
-  return res.status(200).json({ supplier });
+  const presentationWhere: Prisma.SupplierIngredientWhereInput = {
+    supplierId: id,
+    ...(search
+      ? {
+          OR: [
+            { rawDescription: { contains: search, mode: 'insensitive' } },
+            { supplierCode: { contains: search, mode: 'insensitive' } },
+            { ingredient: { name: { contains: search, mode: 'insensitive' } } },
+            {
+              ingredient: {
+                name: {
+                  contains: search.normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+                  mode: 'insensitive',
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const skip = (page - 1) * limit;
+
+  const [presentations, totalPresentations] = await Promise.all([
+    prisma.supplierIngredient.findMany({
+      where: presentationWhere,
+      include: {
+        ingredient: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            currentCost: true,
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+      skip,
+      take: limit,
+    }),
+    prisma.supplierIngredient.count({ where: presentationWhere }),
+  ]);
+
+  const totalPages = totalPresentations === 0 ? 0 : Math.ceil(totalPresentations / limit);
+
+  return res.status(200).json({
+    supplier: {
+      ...supplier,
+      ingredients: presentations,
+    },
+    meta: {
+      total: totalPresentations,
+      page,
+      limit,
+      totalPages,
+    },
+  });
 });
 
 /* ------------------------------------------------------------------ */
