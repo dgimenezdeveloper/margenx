@@ -43,10 +43,17 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
+
+  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
+  // Estado de intercepción para eliminar insumo de la receta
   const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
+
+  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
+
+  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
   const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -108,10 +115,15 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
+  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
+  // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
+    // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
   useBodyScrollLock(isDropdownOpen)
+
+  // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
@@ -202,6 +214,7 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
+  // Ejecución diferida de la eliminación (Confirmación Controlada)
   const confirmRemoveItem = () => {
     if (!ingredientToDelete) return
     removeIngredient(ingredientToDelete.id)
