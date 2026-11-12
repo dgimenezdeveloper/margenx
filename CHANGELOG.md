@@ -12,12 +12,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Changed
 
+- **Frontend:** En la pantalla de Perfil (`/perfil`), se eliminaron los interruptores sin persistencia ("Alerta de Margen Crítico" y "Reporte Semanal en PDF"). La alerta de margen crítico se muestra con badge informativo "Activa" y el reporte semanal con indicador "Próximamente", reflejando el estado real del sistema (`#356`).
 - **DevOps / n8n:** Rediseño del mail de resumen de ingesta. Empieza por "Para revisar", con enlaces directos al entorno de la lista (`margenx.tech` o `dev.margenx.tech`): precios en cuarentena (a la bandeja), códigos sin mapear (a Proveedores; los `NOT_FOUND` ya no se informan como descartes) y productos debajo de su margen mínimo (botón "Ajustar"). Después, el resumen en números, con singular y plural correctos ("1 fila", "1 precio quedó en cuarentena"). El resumen y la alerta de margen comparten la plantilla `infra/n8n/plantillas/mail-margenx.js`, con estilos de MargenX y tabla de productos legible a 360 px; `sincronizar.mjs` la copia a los workflows y las pruebas fallan si se desincroniza. Documentado en `infra/n8n/README.md` (`#254`).
 - **Frontend:** La cantidad de una línea de receta se carga en la unidad que prefiera el usuario dentro de la misma magnitud (g o kg; ml o l) y se edita directamente en la lista. La base sigue guardando la cantidad en la unidad del insumo, y las líneas guardadas con menos de 1 kg o 1 l se muestran en gr o ml. La conversión vive en `frontend/src/lib/recipeConversion.ts`, compartida por el modal y las dos pantallas de producto (`#352`).
 - **Frontend:** Agregar o quitar un insumo de la receta en `/productos/:id` ya no guarda al instante: todo se guarda con "Guardar Cambios", y salir con cambios sin guardar pide confirmación. Si el guardado falla (por ejemplo, con un 400), el borrador se conserva para corregirlo (`#352`).
 
 ### Fixed
 
+- **Frontend:** En la pantalla de Perfil (`/perfil`), se corrigió la duplicación del símbolo porcentual (`% %`) en el campo "Margen Mínimo Sugerido", eliminando el span redundante adyacente a `NumericInput` (`#356`).
 - **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
 - **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
 - **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
