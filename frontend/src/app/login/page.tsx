@@ -127,15 +127,6 @@ export default function LoginPage() {
           <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
         </div>
 
-        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
-          <Link to="/privacidad" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            Política de privacidad
-          </Link>
-          <Link to="/instalar" className="inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            Guía de instalación
-          </Link>
-        </div>
-
         {!isLoaded || isStaleSession ? (
           <div className="flex h-64 items-center justify-center">
             <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -172,6 +163,23 @@ export default function LoginPage() {
             Configura una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
           </div>
         )}
+
+        {/* Enlaces públicos al pie, discretos: el formulario es lo primero que se ve. */}
+        <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+          <Link
+            to="/privacidad"
+            className="underline-offset-2 hover:text-indigo-600 hover:underline focus-visible:underline dark:hover:text-indigo-300"
+          >
+            Política de privacidad
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            to="/instalar"
+            className="underline-offset-2 hover:text-indigo-600 hover:underline focus-visible:underline dark:hover:text-indigo-300"
+          >
+            Guía de instalación
+          </Link>
+        </footer>
       </section>
     </main>
   )

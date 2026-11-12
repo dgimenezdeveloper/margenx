@@ -87,3 +87,29 @@ describe('LoginPage: URL de retorno y app instalada', () => {
     await waitFor(() => expect(clerk.signOut).toHaveBeenCalledTimes(1))
   })
 })
+
+describe('LoginPage: enlaces públicos al pie', () => {
+  beforeEach(() => {
+    vi.spyOn(window.navigator, 'webdriver', 'get').mockReturnValue(false)
+    clearBrowserSession()
+    clerk.isSignedIn = false
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('Escenario Gherkin "Enlaces del login al pie": privacidad e instalación quedan debajo del formulario', () => {
+    renderAt('/login')
+
+    const signIn = screen.getByTestId('sign-in')
+    const privacy = screen.getByRole('link', { name: 'Política de privacidad' })
+    const install = screen.getByRole('link', { name: 'Guía de instalación' })
+
+    expect(privacy).toHaveAttribute('href', '/privacidad')
+    expect(install).toHaveAttribute('href', '/instalar')
+    expect(signIn.compareDocumentPosition(privacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(signIn.compareDocumentPosition(install) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('contentinfo')).toContainElement(privacy)
+  })
+})
