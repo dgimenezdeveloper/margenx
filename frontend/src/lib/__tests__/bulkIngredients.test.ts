@@ -1,10 +1,12 @@
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { describe, expect, it } from 'vitest'
 import {
   BULK_MAX_FILE_BYTES,
   BULK_MAX_ROWS,
   analyzeIngredientSheet,
   buildBulkPayload,
+  buildTemplateBuffer,
   buildTemplateWorkbook,
   describeBatchProblem,
   mapServerErrorsToSheetRows,
@@ -282,21 +284,45 @@ describe('mapServerErrorsToSheetRows', () => {
 })
 
 describe('buildTemplateWorkbook', () => {
-  it('Escenario Gherkin "Plantilla": la hoja Insumos trae las columnas Nombre, Unidad y Costo', () => {
-    const workbook = buildTemplateWorkbook(XLSX)
-    const insumos = workbook.Sheets.Insumos
+  it('Escenario Gherkin "Plantilla": la hoja Insumos va primera con Nombre, Unidad y Costo', () => {
+    const workbook = buildTemplateWorkbook(ExcelJS)
+    const insumos = workbook.getWorksheet('Insumos')
 
-    expect(workbook.SheetNames).toEqual(['Insumos', 'Instrucciones'])
-    expect([insumos?.A1?.v, insumos?.B1?.v, insumos?.C1?.v]).toEqual(['Nombre', 'Unidad', 'Costo'])
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Insumos', 'Instrucciones'])
+    expect([insumos?.getCell('A1').value, insumos?.getCell('B1').value, insumos?.getCell('C1').value]).toEqual([
+      'Nombre',
+      'Unidad',
+      'Costo',
+    ])
   })
 
-  it('los ejemplos son válidos y el costo es numérico con formato de moneda', async () => {
-    const workbook = buildTemplateWorkbook(XLSX)
-    const buffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  it('lleva la marca: encabezado índigo, título de MargenX y validaciones de unidad y costo', () => {
+    const workbook = buildTemplateWorkbook(ExcelJS)
+    const insumos = workbook.getWorksheet('Insumos')
+    const header = insumos?.getCell('A1')
 
-    expect(workbook.Sheets.Insumos?.C2).toMatchObject({ t: 'n', v: 736.25, z: '#,##0.00' })
-    const batch = batchOf(analyzeIngredientSheet(await readSpreadsheet(buffer)))
+    expect(header?.fill).toMatchObject({ type: 'pattern', fgColor: { argb: 'FF4338CA' } })
+    expect(insumos?.getCell('B2').dataValidation).toMatchObject({ type: 'list', formulae: ['"kg,l,u"'] })
+    expect(insumos?.getCell('C501').numFmt).toBe('"$" #,##0.00')
+    expect(String(workbook.getWorksheet('Instrucciones')?.getCell('A1').value)).toContain('MargenX')
+  })
+
+  it('Escenario Gherkin "Plantilla": se completa sin tocar el formato y todas las filas con costo válido quedan válidas', async () => {
+    const workbook = buildTemplateWorkbook(ExcelJS)
+    const insumos = workbook.getWorksheet('Insumos')
+    insumos?.addRow(['Azúcar común Ledesma', 'kg', 1250.5])
+    insumos?.addRow(['Manteca La Serenísima', 'kg', 7000.51])
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const batch = batchOf(analyzeIngredientSheet(await readSpreadsheet(new Uint8Array(buffer as ArrayLike<number>).buffer)))
     expect(batch.errors).toHaveLength(0)
+    expect(batch.valid).toHaveLength(7)
+    expect(batch.valid.find((row) => row.name === 'Manteca La Serenísima')?.cost).toBe('7000.51')
+  })
+
+  it('buildTemplateBuffer devuelve un .xlsx que se vuelve a leer', async () => {
+    const buffer = await buildTemplateBuffer(ExcelJS)
+    const batch = batchOf(analyzeIngredientSheet(await readSpreadsheet(buffer)))
     expect(batch.valid.length).toBeGreaterThan(0)
   })
 })
