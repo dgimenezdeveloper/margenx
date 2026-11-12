@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
-import { buildDiacriticSearchConditions, parsePaginationParams } from '../utils/pagination';
+import { parsePaginationParams, normalizeSearchText } from '../utils/pagination';
 import { parseArgentineDecimal } from '../utils/argentineNumber';
 import { applyIngredientCostChange } from '../services/marginCalculator';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
@@ -25,7 +25,6 @@ function getIdParam(rawId: string | string[] | undefined): string {
 const VALID_UNITS = ['kg', 'l', 'u'] as const;
 type Unit = (typeof VALID_UNITS)[number];
 const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
-const MAX_MONEY_VALUE_NUMBER = 99_999_999.99;
 const BULK_MAX_ROWS = 500;
 
 interface IngredientInputDTO {
@@ -119,14 +118,14 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const { page, limit, sortBy, order, search } = parsePaginationParams(query);
   const skip = (page - 1) * limit;
 
-  const where: Prisma.IngredientWhereInput = {
-    accountId,
-    ...(search
-      ? {
-          OR: buildDiacriticSearchConditions('name', search) as Prisma.IngredientWhereInput[],
-        }
-      : {}),
-  };
+  const where: Prisma.IngredientWhereInput = { accountId };
+  if (search) {
+    const normalized = normalizeSearchText(search);
+    where.OR = [
+      { searchName: { contains: normalized, mode: 'insensitive' } },
+      { name: { contains: search, mode: 'insensitive' } },
+    ];
+  }
 
   const [data, total] = await Promise.all([
     prisma.ingredient.findMany({
@@ -224,11 +223,10 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
     throw new AppError('Ya existe un insumo con ese nombre.', 409);
   }
 
-  // Un alta concurrente que choque con "Ingredient_accountId_lower_name_key" la
-  // traduce errorHandler a 409 con el mismo mensaje.
   const ingredient = await prisma.ingredient.create({
     data: {
       name,
+      searchName: normalizeSearchText(name),
       unit,
       currentCost,
       accountId,
@@ -240,11 +238,6 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
 
 /**
  * Carga masiva de insumos por planilla.
- *
- * El payload principal es un array de filas, pero aceptamos también un wrapper
- * con { rows: [...] } para tolerar futuras integraciones del frontend sin romper
- * la contractibilidad del PR. La validación es por fila, nunca bloquea el resto,
- * y la operación completa queda envuelta en una única transacción.
  */
 router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
@@ -267,7 +260,7 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
   }
 
   const errors: Array<{ row: number; reason: string }> = [];
-  const validRows: Array<{ name: string; unit: Unit; cost: Prisma.Decimal }> = [];
+  const validRows: Array<{ name: string; searchName: string; unit: Unit; cost: Prisma.Decimal }> = [];
   const existingNames = new Set(
     (await prisma.ingredient.findMany({
       where: { accountId },
@@ -291,17 +284,14 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
 
     const validationErrors: string[] = [];
 
-    // 1. Validación de nombre
     if (!name) {
       validationErrors.push('El campo "name" es obligatorio y debe ser un texto no vacío.');
     }
 
-    // 2. Validación de unidad
     if (!VALID_UNITS.includes(unit as Unit)) {
       validationErrors.push(`El campo "unit" debe ser uno de: ${VALID_UNITS.join(', ')}.`);
     }
 
-    // 3. Validación de costo
     let parsedCost: Prisma.Decimal | null = null;
     if (rawCost === undefined || rawCost === null || (typeof rawCost === 'string' && rawCost.trim() === '')) {
       validationErrors.push('El campo "cost" es obligatorio.');
@@ -322,20 +312,17 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
       }
     }
 
-    // Si hubo cualquier error de validación, se reporta y NO se considera como skipped
     if (validationErrors.length > 0) {
       errors.push({ row: index + 1, reason: validationErrors.join(' ') });
       continue;
     }
 
-    // 4. Chequeo de duplicado (solo sobre filas sintáctica y semánticamente válidas)
     if (existingNames.has(normalizedName) || seenInBatch.has(normalizedName)) {
       skipped += 1;
       continue;
     }
 
-    // 5. Fila válida y no duplicada: se encola para inserción
-    validRows.push({ name, unit: unit as Unit, cost: parsedCost! });
+    validRows.push({ name, searchName: normalizeSearchText(name), unit: unit as Unit, cost: parsedCost! });
     seenInBatch.add(normalizedName);
   }
 
@@ -344,6 +331,7 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
       await tx.ingredient.create({
         data: {
           name: item.name,
+          searchName: item.searchName,
           unit: item.unit,
           currentCost: item.cost,
           accountId,
@@ -413,7 +401,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const result = await prisma.$transaction(async (tx) => {
     const ingredient = await tx.ingredient.update({
       where: { id },
-      data: { name, unit, currentCost: nextCost },
+      data: { name, searchName: normalizeSearchText(name), unit, currentCost: nextCost },
     });
 
     const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);

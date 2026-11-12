@@ -45,6 +45,7 @@ model Ingredient {
   unit         String // kg, l, unit
   currentCost  Decimal              @db.Decimal(10, 2)
   updatedAt    DateTime             @updatedAt
+  searchName   String?
   account      Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
   products     ProductIngredient[]
   suppliers    SupplierIngredient[]
@@ -54,6 +55,7 @@ model Ingredient {
   // La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE
   // registrado en la migración SQL: CREATE UNIQUE INDEX "Ingredient_accountId_lower_name_key" ON "Ingredient"("accountId", lower("name"));
   @@index([accountId, name])
+  @@index([accountId, searchName])
 }
 
 model Supplier {
@@ -77,7 +79,7 @@ model SupplierIngredient {
   id                  String     @id @default(uuid())
   supplierId          String
   ingredientId        String
-  supplierCode        String? // <-- CORRECCIÓN: Ahora es OPCIONAL
+  supplierCode        String?
   rawDescription      String?
   packageSize         Decimal    @db.Decimal(10, 3)
   packageUnit         String
@@ -111,6 +113,7 @@ model Product {
   name             String
   salePrice        Decimal             @db.Decimal(10, 2)
   minMarginPercent Decimal             @db.Decimal(5, 2)
+  searchName       String?
   updatedAt        DateTime            @updatedAt
   account          Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   ingredients      ProductIngredient[]
@@ -122,6 +125,7 @@ model Product {
   // La unicidad case-insensitive por cuenta se garantiza con el índice funcional UNIQUE
   // registrado en la migración SQL: CREATE UNIQUE INDEX "Product_accountId_lower_name_key" ON "Product"("accountId", lower("name"));
   @@index([accountId, name])
+  @@index([accountId, searchName])
 }
 
 model ProductIngredient {

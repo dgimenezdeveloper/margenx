@@ -570,6 +570,64 @@ describe('POST /api/suppliers', () => {
 });
 
 describe('GET /api/suppliers/:id - Paginación de presentaciones', () => {
+  it('RV375-I2: responde 404 en la rama paginada si el proveedor pertenece a otra cuenta', async () => {
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp()).get('/api/suppliers/sup-ajeno?page=1&limit=20');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Proveedor no encontrado.');
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 'sup-ajeno', accountId: 'account-1' },
+    });
+    expect(supplierIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('RV375-M2: ordena las presentaciones paginadas alfabéticamente por nombre del insumo', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?page=1&limit=20');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { ingredient: { name: 'asc' } },
+      })
+    );
+  });
+
+  it('RV375-M1: permite buscar por coincidencia en searchName normalizado del insumo ("sesamo" -> "sésamo")', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?search=sesamo');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { ingredient: { searchName: { contains: 'sesamo', mode: 'insensitive' } } },
+            { ingredient: { name: { contains: 'sesamo', mode: 'insensitive' } } },
+          ]),
+        }),
+      })
+    );
+  });
+
   it('pagina las presentaciones del proveedor respetando limit, page y devolviendo meta', async () => {
     findFirstMock.mockResolvedValue({
       id: 's-marjuanc',

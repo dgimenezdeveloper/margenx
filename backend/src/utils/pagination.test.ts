@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parsePaginationParams,
-  buildDiacriticSearchConditions,
+  normalizeSearchText,
   DEFAULT_PAGE,
   DEFAULT_LIMIT,
   MAX_LIMIT,
@@ -78,56 +78,33 @@ describe('pagination utility', () => {
     });
   });
 
-  describe('buildDiacriticSearchConditions', () => {
-    it('retorna array vacío si el término de búsqueda está vacío o son solo espacios', () => {
-      expect(buildDiacriticSearchConditions('name', '')).toEqual([]);
-      expect(buildDiacriticSearchConditions('name', '   ')).toEqual([]);
+  describe('normalizeSearchText (RV375-B1)', () => {
+    it('normaliza a minúsculas y elimina espacios iniciales/finales', () => {
+      expect(normalizeSearchText('  HARINA 000  ')).toBe('harina 000');
     });
 
-    it('Gherkin: búsqueda sin tildes ("sesamo") genera condición para "sésamo"', () => {
-      const conditions = buildDiacriticSearchConditions('name', 'sesamo');
-      expect(conditions).toEqual(
-        expect.arrayContaining([
-          { name: { contains: 'sesamo', mode: 'insensitive' } },
-          { name: { contains: 'sésamo', mode: 'insensitive' } },
-        ])
-      );
+    it('elimina tildes simples y diacríticos estándar', () => {
+      expect(normalizeSearchText('Semillas de sésamo')).toBe('semillas de sesamo');
+      expect(normalizeSearchText('Azúcar')).toBe('azucar');
+      expect(normalizeSearchText('Almidón')).toBe('almidon');
     });
 
-    it('Gherkin: búsqueda con tildes ("sésamo") genera condición para "sesamo"', () => {
-      const conditions = buildDiacriticSearchConditions('name', 'sésamo');
-      expect(conditions).toEqual(
-        expect.arrayContaining([
-          { name: { contains: 'sésamo', mode: 'insensitive' } },
-          { name: { contains: 'sesamo', mode: 'insensitive' } },
-        ])
-      );
+    it('resuelve nombres con dos tildes (Caso RV375-B1)', () => {
+      expect(normalizeSearchText('Azúcar común')).toBe('azucar comun');
+      expect(normalizeSearchText('azúcar común')).toBe('azucar comun');
+      expect(normalizeSearchText('Almidón de maíz')).toBe('almidon de maiz');
+      expect(normalizeSearchText('Jabón líquido')).toBe('jabon liquido');
     });
 
-    it('genera variantes acentuadas para "azucar" -> "azúcar"', () => {
-      const conditions = buildDiacriticSearchConditions('name', 'azucar');
-      expect(conditions).toEqual(
-        expect.arrayContaining([
-          { name: { contains: 'azucar', mode: 'insensitive' } },
-          { name: { contains: 'azúcar', mode: 'insensitive' } },
-        ])
-      );
+    it('descompone la letra ñ en n mediante NFD (Caso RV375-B1)', () => {
+      expect(normalizeSearchText('Cañoncitos con dulce de leche')).toBe('canoncitos con dulce de leche');
+      expect(normalizeSearchText('cañoncitos')).toBe('canoncitos');
+      expect(normalizeSearchText('CANONCITOS')).toBe('canoncitos');
     });
 
-    it('genera condición para "frío" cuando se busca "frio" sin tilde', () => {
-      const conditions = buildDiacriticSearchConditions('name', 'frio');
-      expect(conditions).toEqual(
-        expect.arrayContaining([
-          { name: { contains: 'frio', mode: 'insensitive' } },
-          { name: { contains: 'frío', mode: 'insensitive' } },
-        ])
-      );
-    });
-
-    it('aplica el nombre de campo dinámico provisto (ej. rawDescription, supplierCode)', () => {
-      const conditions = buildDiacriticSearchConditions('rawDescription', 'integral');
-      expect(conditions.length).toBeGreaterThan(0);
-      expect(conditions[0]).toHaveProperty('rawDescription');
+    it('maneja strings vacíos o compuestos solo por espacios', () => {
+      expect(normalizeSearchText('')).toBe('');
+      expect(normalizeSearchText('    ')).toBe('');
     });
   });
 });

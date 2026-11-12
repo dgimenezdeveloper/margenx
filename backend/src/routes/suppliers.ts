@@ -11,6 +11,7 @@ import {
 } from '../services/marginCalculator';
 import { requireRole } from '../middlewares/rbac';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
+import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT, normalizeSearchText } from '../utils/pagination';
 
 const router = Router();
 router.use(authMiddleware);
@@ -130,9 +131,6 @@ const supplierMetadataSchema = z.object({
     return value;
   }, z.string().max(500, 'El campo "rawDescription" no puede superar 500 caracteres.').optional()),
 });
-
-const DEFAULT_PAGE = 1;
-import { DEFAULT_LIMIT, MAX_LIMIT } from '../utils/pagination';
 
 /* ------------------------------------------------------------------ */
 /* GET /api/suppliers                                                   */
@@ -437,6 +435,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
   const search = rawSearch.slice(0, 100);
+  const normalizedSearch = normalizeSearchText(search);
 
   const supplier = await prisma.supplier.findFirst({
     where: { id, accountId },
@@ -454,14 +453,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
             { rawDescription: { contains: search, mode: 'insensitive' } },
             { supplierCode: { contains: search, mode: 'insensitive' } },
             { ingredient: { name: { contains: search, mode: 'insensitive' } } },
-            {
-              ingredient: {
-                name: {
-                  contains: search.normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-                  mode: 'insensitive',
-                },
-              },
-            },
+            { ingredient: { searchName: { contains: normalizedSearch, mode: 'insensitive' } } },
           ],
         }
       : {}),
@@ -482,7 +474,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
           },
         },
       },
-      orderBy: { id: 'asc' },
+      orderBy: { ingredient: { name: 'asc' } },
       skip,
       take: limit,
     }),

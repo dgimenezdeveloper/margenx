@@ -90,6 +90,7 @@ beforeEach(() => {
 /** Forma de los datos que el router pasa a `product.update({ data })`. */
 interface ProductUpdateData {
   name?: Prisma.Decimal | string;
+  searchName?: string;
   salePrice: Prisma.Decimal;
   minMarginPercent: Prisma.Decimal;
   cost: Prisma.Decimal;
@@ -207,20 +208,41 @@ describe('GET /api/products - Búsqueda por nombre (search)', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           accountId: 'account-1',
-          OR: expect.arrayContaining([
+          OR: [
+            { searchName: { contains: 'medialuna', mode: 'insensitive' } },
             { name: { contains: 'medialuna', mode: 'insensitive' } },
-          ]),
+          ],
         }),
       })
     );
     expect(productCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
         accountId: 'account-1',
-        OR: expect.arrayContaining([
+        OR: [
+          { searchName: { contains: 'medialuna', mode: 'insensitive' } },
           { name: { contains: 'medialuna', mode: 'insensitive' } },
-        ]),
+        ],
       }),
     });
+  });
+
+  it('RV375-B1: encuentra productos reales buscando sin tildes ("jabon liquido", "canoncitos", "pan de campo")', async () => {
+    const cases = [
+      { search: 'pan de campo', name: 'Pan de Campo', normalized: 'pan de campo' },
+      { search: 'jabon liquido', name: 'Jabón líquido (Ariel/Skip/Ace) — 1 L', normalized: 'jabon liquido' },
+      { search: 'canoncitos', name: 'Cañoncitos con dulce de leche', normalized: 'canoncitos' },
+    ];
+
+    for (const c of cases) {
+      productFindManyMock.mockResolvedValueOnce([
+        { id: 'p-c', name: c.name, searchName: c.normalized, salePrice: new Prisma.Decimal('1000') },
+      ]);
+      productCountMock.mockResolvedValueOnce(1);
+
+      const res = await request(buildApp()).get(`/api/products?search=${encodeURIComponent(c.search)}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data[0].name).toBe(c.name);
+    }
   });
 
   it('combina search con page, limit, sortBy y order', async () => {

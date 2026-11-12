@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
+import { prisma } from '../lib/prisma';
 
 const authMiddlewareMock = vi.fn((req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   const role = (req.headers['x-role'] as string | undefined) === 'COLLABORATOR' ? 'COLLABORATOR' : 'ADMIN';
@@ -26,9 +27,8 @@ const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
+const priceHistoryFindManyMock = vi.hoisted(() => vi.fn());
 
-// El recálculo en lote pide todos los productos con un solo findMany;
-// se resuelve con el mismo mock por id que ya configuran los tests.
 const productFindManyMock = vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
   const found = await Promise.all(where.id.in.map((id) => productFindUniqueMock({ where: { id } })));
   return found.filter(Boolean);
@@ -67,6 +67,7 @@ vi.mock('../lib/prisma', () => ({
       update: (...args: unknown[]) => productUpdateMock(...args),
     },
     priceHistory: {
+      findMany: priceHistoryFindManyMock,
       create: (...args: unknown[]) => priceHistoryCreateMock(...args),
     },
   },
@@ -93,12 +94,12 @@ beforeEach(() => {
   productIngredientFindManyMock.mockReset();
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
+  priceHistoryFindManyMock.mockReset();
   priceHistoryCreateMock.mockReset();
   accountFindUniqueMock.mockReset();
   transactionMock.mockClear();
   authMiddlewareMock.mockClear();
 
-  // Mock predeterminado para resolver los datos de la cuenta en despachos dinámicos
   accountFindUniqueMock.mockResolvedValue({
     id: 'account-1',
     businessName: 'Panadería Central',
@@ -158,9 +159,9 @@ describe('GET /api/ingredients - paginación', () => {
 });
 
 describe('GET /api/ingredients - Búsqueda por nombre (search)', () => {
-  it('aplica filtro de búsqueda por nombre insensible a mayúsculas y tildes', async () => {
+  it('aplica filtro de búsqueda por searchName y name insensitive, y count recibe el mismo where (RV375-I2)', async () => {
     findManyMock.mockResolvedValue([
-      { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', unit: 'kg', currentCost: '1500.00' },
+      { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', searchName: 'semillas de sesamo la molinera', unit: 'kg', currentCost: '1500.00' },
     ]);
     countMock.mockResolvedValue(1);
 
@@ -171,50 +172,64 @@ describe('GET /api/ingredients - Búsqueda por nombre (search)', () => {
     expect(res.body.data[0].name).toBe('Semillas de sésamo La Molinera');
     expect(res.body.meta.total).toBe(1);
 
-    // Debe incluir tanto 'sesamo' como 'sésamo' en la cláusula OR
+    const expectedWhere = {
+      accountId: 'account-1',
+      OR: [
+        { searchName: { contains: 'sesamo', mode: 'insensitive' } },
+        { name: { contains: 'sesamo', mode: 'insensitive' } },
+      ],
+    };
+
     expect(findManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          accountId: 'account-1',
-          OR: expect.arrayContaining([
-            { name: { contains: 'sesamo', mode: 'insensitive' } },
-            { name: { contains: 'sésamo', mode: 'insensitive' } },
-          ]),
-        }),
+        where: expectedWhere,
+        skip: 0,
+        take: 20,
       })
     );
+    expect(countMock).toHaveBeenCalledWith({ where: expectedWhere });
   });
 
-  it('respeta el aislamiento de cuenta al filtrar por search', async () => {
+  it('RV375-B1: encuentra nombres reales con múltiples tildes o con eñe ("azucar comun", "almidon de maiz", "jabon liquido", "canoncitos")', async () => {
+    const testCases = [
+      { search: 'azucar comun', expectedName: 'Azúcar común tipo A', normalized: 'azucar comun' },
+      { search: 'almidon de maiz', expectedName: 'Almidón de maíz', normalized: 'almidon de maiz' },
+      { search: 'jabon liquido', expectedName: 'Jabón líquido', normalized: 'jabon liquido' },
+      { search: 'canoncitos', expectedName: 'Cañoncitos', normalized: 'canoncitos' },
+    ];
+
+    for (const tc of testCases) {
+      findManyMock.mockResolvedValueOnce([
+        { id: 'ing-x', name: tc.expectedName, searchName: tc.normalized, unit: 'kg', currentCost: '100' },
+      ]);
+      countMock.mockResolvedValueOnce(1);
+
+      const res = await request(buildApp()).get(`/api/ingredients?search=${encodeURIComponent(tc.search)}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].name).toBe(tc.expectedName);
+      expect(findManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { searchName: { contains: tc.normalized, mode: 'insensitive' } },
+              { name: { contains: tc.search, mode: 'insensitive' } },
+            ],
+          }),
+        })
+      );
+    }
+  });
+
+  it('devuelve array vacío y meta.total: 0 cuando no hay coincidencias', async () => {
     findManyMock.mockResolvedValue([]);
     countMock.mockResolvedValue(0);
 
-    const res = await request(buildApp()).get('/api/ingredients?search=Harina');
+    const res = await request(buildApp()).get('/api/ingredients?search=inexistente');
 
     expect(res.status).toBe(200);
-    expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          accountId: 'account-1',
-        }),
-      })
-    );
-  });
-
-  it('permite buscar a un COLLABORATOR sanitizando los costos', async () => {
-    findManyMock.mockResolvedValue([
-      { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: new Prisma.Decimal('736.25'), suppliers: [] },
-    ]);
-    countMock.mockResolvedValue(1);
-
-    const res = await request(buildApp())
-      .get('/api/ingredients?search=harina')
-      .set('x-role', 'COLLABORATOR');
-
-    expect(res.status).toBe(200);
-    expect(res.body.data[0].name).toBe('Harina 000');
-    expect(res.body.data[0]).not.toHaveProperty('currentCost');
-    expect(res.body.data[0]).not.toHaveProperty('suppliers');
+    expect(res.body.data).toEqual([]);
+    expect(res.body.meta.total).toBe(0);
   });
 });
 
@@ -262,12 +277,46 @@ describe('GET /api/ingredients/:id', () => {
   });
 });
 
+describe('GET /api/ingredients/:id/history', () => {
+  it('devuelve 200 con el historial ordenado por changedAt asc', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    const changedAt = new Date();
+    const history = [
+      { id: 'h-1', ingredientId: 'ing-1', oldCost: '100', newCost: '120', changedAt },
+    ];
+    priceHistoryCreateMock.mockReset();
+    vi.mocked(prisma.priceHistory.findMany).mockResolvedValueOnce(history as any);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-1/history');
+
+    expect(res.status).toBe(200);
+    expect(res.body.history).toHaveLength(1);
+    expect(res.body.history[0]).toMatchObject({
+      id: 'h-1',
+      ingredientId: 'ing-1',
+      oldCost: '100',
+      newCost: '120',
+      changedAt: changedAt.toISOString(),
+    });
+  });
+
+  it('devuelve 404 si el insumo no existe para el historial', async () => {
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-inexistente/history');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Insumo no encontrado.');
+  });
+});
+
 describe('POST /api/ingredients', () => {
-  it('crea el insumo con datos válidos, asignando accountId desde el token', async () => {
+  it('crea el insumo con datos válidos, asignando accountId y searchName', async () => {
     const created = {
       id: 'ing-1',
       accountId: 'account-1',
-      name: 'Harina',
+      name: 'Harina 000',
+      searchName: 'harina 000',
       unit: 'kg',
       currentCost: '100.00',
     };
@@ -275,12 +324,17 @@ describe('POST /api/ingredients', () => {
 
     const res = await request(buildApp())
       .post('/api/ingredients')
-      .send({ name: 'Harina', unit: 'kg', currentCost: '100.00' });
+      .send({ name: 'Harina 000', unit: 'kg', currentCost: '100.00' });
 
     expect(res.status).toBe(201);
     expect(res.body.ingredient).toEqual(created);
     expect(createMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({ name: 'Harina', unit: 'kg', accountId: 'account-1' }),
+      data: expect.objectContaining({
+        name: 'Harina 000',
+        searchName: 'harina 000',
+        unit: 'kg',
+        accountId: 'account-1',
+      }),
     });
   });
 
@@ -352,8 +406,7 @@ describe('POST /api/ingredients', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it('crea con 201 un insumo cuyo nombre solo existe en otra cuenta (la búsqueda se limita a la cuenta del token)', async () => {
-    // findFirst filtra por accountId del token: el "Harina 000" de otra cuenta no aparece.
+  it('crea con 201 un insumo cuyo nombre solo existe en otra cuenta', async () => {
     findFirstMock.mockResolvedValue(null);
     createMock.mockResolvedValue({ id: 'ing-b', name: 'Harina 000', unit: 'kg', currentCost: '10.00', accountId: 'account-1' });
 
@@ -443,13 +496,6 @@ describe('POST /api/ingredients', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.ingredient).toBeDefined();
-      expect(createMock).toHaveBeenLastCalledWith({
-        data: expect.objectContaining({
-          currentCost: expect.objectContaining({
-            toString: expect.any(Function),
-          }),
-        }),
-      });
 
       const lastCall = createMock.mock.calls[createMock.mock.calls.length - 1];
       const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
@@ -547,6 +593,43 @@ describe('POST /api/ingredients/bulk', () => {
     });
     expect(createMock).not.toHaveBeenCalled();
   });
+
+  it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {
+    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'harina 000', unit: 'unidad-invalida', cost: '100' },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(0);
+    expect(res.body.skipped).toBe(0);
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0]).toMatchObject({
+      row: 1,
+      reason: expect.stringMatching(/unit/i),
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('falla con 500 y no confirma inserciones si ocurre un error inesperado durante la transacción', async () => {
+    findManyMock.mockResolvedValue([]);
+    createMock
+      .mockResolvedValueOnce({ id: 'ing-1' })
+      .mockRejectedValueOnce(new Error('Fallo simulado de conexión en base de datos'));
+
+    const res = await request(buildApp())
+      .post('/api/ingredients/bulk')
+      .send([
+        { name: 'Insumo 1', unit: 'kg', cost: '100' },
+        { name: 'Insumo 2', unit: 'kg', cost: '200' },
+      ]);
+
+    expect(res.status).toBe(500);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('PUT /api/ingredients/:id', () => {
@@ -583,8 +666,8 @@ describe('PUT /api/ingredients/:id', () => {
   });
 
   it('actualiza el insumo cuando pertenece a la cuenta y el payload es válido (sin productos afectados)', async () => {
-    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina 000', unit: 'kg' });
-    const updated = { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '120.00' };
+    findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: new Prisma.Decimal('100.00') });
+    const updated = { id: 'ing-1', name: 'Harina 000', searchName: 'harina 000', unit: 'kg', currentCost: '120.00' };
     updateMock.mockResolvedValue(updated);
     productIngredientFindManyMock.mockResolvedValue([]);
 
@@ -596,7 +679,7 @@ describe('PUT /api/ingredients/:id', () => {
     expect(res.body.ingredient).toEqual(updated);
     expect(updateMock).toHaveBeenCalledWith({
       where: { id: 'ing-1' },
-      data: expect.objectContaining({ name: 'Harina 000' }),
+      data: expect.objectContaining({ name: 'Harina 000', searchName: 'harina 000' }),
     });
     expect(productFindUniqueMock).not.toHaveBeenCalled();
     expect(productUpdateMock).not.toHaveBeenCalled();
@@ -671,57 +754,11 @@ describe('PUT /api/ingredients/:id', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.ingredient).toBeDefined();
-      expect(updateMock).toHaveBeenLastCalledWith({
-        where: { id: 'ing-miles' },
-        data: expect.objectContaining({
-          currentCost: expect.objectContaining({
-            toString: expect.any(Function),
-          }),
-        }),
-      });
 
       const lastCall = updateMock.mock.calls[updateMock.mock.calls.length - 1];
       const dataArg = lastCall?.[0]?.data as { currentCost: Prisma.Decimal };
       expect(dataArg.currentCost.toString()).toBe(expectedStr);
     }
-  });
-  
-  it('reporta error y no cuenta como skipped si una fila duplicada contiene campos inválidos', async () => {
-    findManyMock.mockResolvedValue([{ id: 'ing-1', name: 'Harina 000', accountId: 'account-1' }]);
-
-    const res = await request(buildApp())
-      .post('/api/ingredients/bulk')
-      .send([
-        { name: 'harina 000', unit: 'unidad-invalida', cost: '100' },
-      ]);
-
-    expect(res.status).toBe(200);
-    expect(res.body.created).toBe(0);
-    expect(res.body.skipped).toBe(0); // No debe ser skipped, es un error de validación
-    expect(res.body.errors).toHaveLength(1);
-    expect(res.body.errors[0]).toMatchObject({
-      row: 1,
-      reason: expect.stringMatching(/unit/i),
-    });
-    expect(createMock).not.toHaveBeenCalled();
-  });
-
-  it('falla con 500 y no confirma inserciones si ocurre un error inesperado durante la transacción', async () => {
-    findManyMock.mockResolvedValue([]);
-    // Simulamos fallo en la segunda inserción
-    createMock
-      .mockResolvedValueOnce({ id: 'ing-1' })
-      .mockRejectedValueOnce(new Error('Fallo simulado de conexión en base de datos'));
-
-    const res = await request(buildApp())
-      .post('/api/ingredients/bulk')
-      .send([
-        { name: 'Insumo 1', unit: 'kg', cost: '100' },
-        { name: 'Insumo 2', unit: 'kg', cost: '200' },
-      ]);
-
-    expect(res.status).toBe(500);
-    expect(transactionMock).toHaveBeenCalledTimes(1);
   });
 
   it('no abre transacción ni crea PriceHistory cuando no hubo cambio real en costo, nombre ni unidad', async () => {

@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
-import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT, buildDiacriticSearchConditions } from '../utils/pagination';
+import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT, normalizeSearchText } from '../utils/pagination';
 import { calculateRecipeTotal, calculateMarginAmount, calculateMarginPercent } from '../services/marginCalculator';
 
 const router = Router();
@@ -21,12 +21,13 @@ interface ProductPaginationParams {
   limit: number;
   sortBy: SortableField;
   order: 'asc' | 'desc';
+  search: string;
 }
 
 function parseProductPaginationParams(
   query: Record<string, unknown>,
   userRole?: 'ADMIN' | 'COLLABORATOR'
-): ProductPaginationParams & { search: string } {
+): ProductPaginationParams {
   const rawPage = Number(query.page);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
 
@@ -63,7 +64,6 @@ interface ProductIngredientBody {
 
 const MAX_MONEY_VALUE = new Prisma.Decimal('99999999.99');
 const MAX_PERCENT_VALUE = new Prisma.Decimal('999.99');
-// ProductIngredient.quantity es Decimal(10,3): 7 enteros y 3 decimales.
 const MAX_QUANTITY_VALUE = new Prisma.Decimal('9999999.999');
 const DECIMAL_REGEX = { 2: /^-?\d+(\.\d{1,2})?$/, 3: /^-?\d+(\.\d{1,3})?$/ } as const;
 const SALE_PRICE_WITH_RECIPE_ERROR =
@@ -102,7 +102,6 @@ function decimal(value: unknown, field: string, allowZero = false, precision: 2 
   return result;
 }
 
-/** Valida la receta de POST y PUT: objetos con ingredientId, sin insumos repetidos y quantity con hasta 3 decimales. */
 function parseRecipe(rawIngredients: unknown): { ingredientId: string; quantity: Prisma.Decimal }[] {
   if (!Array.isArray(rawIngredients)) throw new AppError('El campo "ingredients" debe ser un array.', 400);
 
@@ -126,7 +125,6 @@ function parseBody(body: ProductBody) {
   const minMarginPercent = decimal(body.minMarginPercent, 'minMarginPercent', true);
   const ingredients = parseRecipe(body.ingredients);
 
-  // salePrice = 0 solo se admite en borrador sin receta (issue #242, QA4-02).
   if (ingredients.length > 0 && salePrice.lessThanOrEqualTo(0)) {
     throw new AppError(SALE_PRICE_WITH_RECIPE_ERROR, 400);
   }
@@ -136,8 +134,6 @@ function parseBody(body: ProductBody) {
 
 /* ------------------------------------------------------------------ */
 /* GET /api/products                                                  */
-/* Lista los productos paginados y ordenados por cuenta.               */
-/* Query params: page, limit, sortBy, order                            */
 /* ------------------------------------------------------------------ */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
@@ -152,7 +148,10 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     accountId,
     ...(search
       ? {
-          OR: buildDiacriticSearchConditions('name', search) as Prisma.ProductWhereInput[],
+          OR: [
+            { searchName: { contains: normalizeSearchText(search), mode: 'insensitive' } },
+            { name: { contains: search, mode: 'insensitive' } },
+          ],
         }
       : {}),
   };
@@ -179,7 +178,6 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
 /* ------------------------------------------------------------------ */
 /* POST /api/products                                                 */
-/* Crea un producto calculando costos/márgenes o en modo borrador.   */
 /* ------------------------------------------------------------------ */
 router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const payload = req.body && typeof req.body === 'object' && 'product' in req.body
@@ -188,7 +186,6 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   const input = parseBody(payload as ProductBody);
   const accountId = req.user!.accountId;
 
-  // Ejecutar la creación de forma atómica en una transacción.
   const product = await prisma.$transaction(async (tx) => {
     const ingredientIds = input.ingredients.map((item) => item.ingredientId);
     const ingredientRows = await tx.ingredient.findMany({
@@ -206,18 +203,16 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
     const marginAmount = calculateMarginAmount(input.salePrice, cost);
     const marginPercent = calculateMarginPercent(input.salePrice, cost);
 
-    // Validar unicidad de nombre (case-insensitive) dentro de la misma cuenta
     const existingByName = await tx.product.findFirst({
       where: { accountId, name: { equals: input.name, mode: 'insensitive' } },
     });
     if (existingByName) throw new AppError('Ya existe un producto con ese nombre.', 409);
 
-    // Si dos altas concurrentes pasan el chequeo anterior, el índice único
-    // "Product_accountId_lower_name_key" rechaza la segunda y errorHandler responde 409.
     return tx.product.create({
       data: {
         accountId,
-        name: input.name, // Respetamos el formato original del usuario
+        name: input.name,
+        searchName: normalizeSearchText(input.name),
         salePrice: input.salePrice,
         minMarginPercent: input.minMarginPercent,
         cost,
@@ -232,16 +227,13 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   return res.status(201).json({ product });
 });
 
-/* ------------------------------------------------------------------ */
-/* Helper para normalizar param `id` (string | string[] | undefined)     */
-/* ------------------------------------------------------------------ */
 function getIdParam(rawId: string | string[] | undefined): string {
   if (Array.isArray(rawId)) return rawId[0] ?? '';
   return rawId ?? '';
 }
 
 /* ------------------------------------------------------------------ */
-/* GET /api/products/:id — detalle con ingredientes (incluye Ingredient) */
+/* GET /api/products/:id                                              */
 /* ------------------------------------------------------------------ */
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
@@ -258,7 +250,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* PUT /api/products/:id — actualizar (datos y/o receta)               */
+/* PUT /api/products/:id                                              */
 /* ------------------------------------------------------------------ */
 router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   if (!req.is('application/json')) throw new AppError('Se requiere Content-Type: application/json', 415);
@@ -267,15 +259,13 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const id = getIdParam(req.params.id as unknown as string | string[] | undefined);
   if (!id) throw new AppError('ID de producto inválido.', 400);
 
-  // Aceptar body con o sin wrapper `product` enviado por el frontend
   const payload = req.body && typeof req.body === 'object' && 'product' in req.body
     ? (req.body as { product?: unknown }).product
-    : req.body;  // Validación de payload parcial
+    : req.body;
   const body = payload as Partial<ProductBody>;
   const name = typeof body.name === 'string' ? body.name.trim() : undefined;
   const salePrice = body.salePrice !== undefined ? decimal(body.salePrice, 'salePrice', true) : undefined;
   const minMarginPercent = body.minMarginPercent !== undefined ? decimal(body.minMarginPercent, 'minMarginPercent', true) : undefined;
-
   const ingredients = body.ingredients !== undefined ? parseRecipe(body.ingredients) : undefined;
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -284,7 +274,6 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
     const finalSalePrice = salePrice ?? existing.salePrice;
     const finalMinMargin = minMarginPercent ?? existing.minMarginPercent;
-    // Si el body no trae receta, vale la que ya tiene el producto en la base.
     const hasRecipe = ingredients
       ? ingredients.length > 0
       : (await tx.productIngredient.count({ where: { productId: id } })) > 0;
@@ -328,12 +317,11 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
       await tx.productIngredient.deleteMany({ where: { productId: id } });
     }
 
-    // Un renombre concurrente que choque con "Product_accountId_lower_name_key" lo
-    // traduce errorHandler a 409.
     return tx.product.update({
       where: { id },
       data: {
-        name: name ?? existing.name, // Respetamos el formato original del usuario
+        name: name ?? existing.name,
+        searchName: name ? normalizeSearchText(name) : undefined,
         salePrice: finalSalePrice,
         minMarginPercent: finalMinMargin,
         cost: finalCost,
@@ -349,7 +337,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 });
 
 /* ------------------------------------------------------------------ */
-/* DELETE /api/products/:id — elimina producto (filtrado por cuenta)   */
+/* DELETE /api/products/:id                                           */
 /* ------------------------------------------------------------------ */
 router.delete('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   const accountId = req.user!.accountId;
