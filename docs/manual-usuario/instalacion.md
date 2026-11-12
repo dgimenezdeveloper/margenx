@@ -4,18 +4,21 @@ Esta guía te ayuda a abrir MargenX como una app desde tu navegador para que que
 
 ## Android con Chrome
 
-1. Abre MargenX en Chrome.
-2. Toca el menú de tres puntos en la esquina superior derecha.
+1. Abrí MargenX en Chrome. Si arriba aparece el aviso “Instalar MargenX”, tocá “Instalar” y listo.
 
-   ![Landing de MargenX en Chrome con el botón de menú de tres puntos en la esquina superior derecha](../../frontend/public/guia-instalacion/android-1-chrome-menu.png)
+   ![Landing de MargenX en Chrome con el aviso "Instalar MargenX" y su botón Instalar arriba](../../frontend/public/guia-instalacion/android-1-aviso-instalar.png)
+
+2. Si el aviso no aparece o lo cerraste, tocá el menú de tres puntos en la esquina superior derecha.
+
+   ![Landing de MargenX en Chrome sin el aviso, con el botón de menú de tres puntos en la esquina superior derecha](../../frontend/public/guia-instalacion/android-2-chrome-menu.png)
 
 3. Elegí la opción “Instalar y crear acceso directo” (en otras versiones de Chrome: “Instalar app” o “Agregar a pantalla de inicio”).
 
-   ![Menú de Chrome abierto con la opción "Instalar y crear acceso directo"](../../frontend/public/guia-instalacion/android-2-instalar-app.png)
+   ![Menú de Chrome abierto con la opción "Instalar y crear acceso directo"](../../frontend/public/guia-instalacion/android-3-instalar-app.png)
 
 4. Elegí “Instalar”. No elijas “Crear acceso directo”: abre MargenX dentro de Chrome, no como app.
 
-   ![Opciones de Chrome "Instalar" y "Crear acceso directo" para MargenX](../../frontend/public/guia-instalacion/android-3-confirmar.png)
+   ![Opciones de Chrome "Instalar" y "Crear acceso directo" para MargenX](../../frontend/public/guia-instalacion/android-4-confirmar.png)
 
 5. La app quedará disponible en la pantalla principal como un acceso directo.
 

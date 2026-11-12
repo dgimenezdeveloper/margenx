@@ -22,18 +22,23 @@ const guideSections: GuideSection[] = [
     title: 'Android · Chrome',
     steps: [
       {
-        text: 'Abre MargenX en Chrome y toca el botón de menú en la esquina superior derecha.',
-        image: '/guia-instalacion/android-1-chrome-menu.png',
-        imageAlt: 'Landing de MargenX en Chrome con el botón de menú de tres puntos en la esquina superior derecha',
+        text: 'Abrí MargenX en Chrome. Si arriba aparece el aviso “Instalar MargenX”, tocá “Instalar” y listo.',
+        image: '/guia-instalacion/android-1-aviso-instalar.png',
+        imageAlt: 'Landing de MargenX en Chrome con el aviso “Instalar MargenX” y su botón Instalar arriba',
       },
       {
-        text: 'Selecciona “Instalar y crear acceso directo” (en otras versiones de Chrome: “Instalar app” o “Agregar a pantalla de inicio”).',
-        image: '/guia-instalacion/android-2-instalar-app.png',
+        text: 'Si el aviso no aparece o lo cerraste, tocá el botón de menú (tres puntos) en la esquina superior derecha.',
+        image: '/guia-instalacion/android-2-chrome-menu.png',
+        imageAlt: 'Landing de MargenX en Chrome sin el aviso, con el botón de menú de tres puntos en la esquina superior derecha',
+      },
+      {
+        text: 'Seleccioná “Instalar y crear acceso directo” (en otras versiones de Chrome: “Instalar app” o “Agregar a pantalla de inicio”).',
+        image: '/guia-instalacion/android-3-instalar-app.png',
         imageAlt: 'Menú de Chrome abierto con la opción “Instalar y crear acceso directo”',
       },
       {
         text: 'Elegí “Instalar” (no “Crear acceso directo”, que abre MargenX dentro de Chrome) y accederás desde el ícono en la pantalla principal.',
-        image: '/guia-instalacion/android-3-confirmar.png',
+        image: '/guia-instalacion/android-4-confirmar.png',
         imageAlt: 'Opciones de Chrome “Instalar” y “Crear acceso directo” para MargenX',
       },
     ],
