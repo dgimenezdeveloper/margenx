@@ -4,6 +4,7 @@ import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
+import { formatQuantityWithUnit } from '@/lib/format'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -197,7 +198,7 @@ export function ProductAddIngredientModal({
             {previewNumericQty > 0 && currentSupply && (
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
                 <p className="font-semibold">
-                  Equivalencia: <strong>{previewNumericQty} {recipeUnit} = {previewBaseQty} {currentSupply.unit}</strong>
+                  Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)} = {formatQuantityWithUnit(previewBaseQty, currentSupply.unit)}</strong>
                 </p>
                 <p className="mt-1 font-bold text-indigo-700 dark:text-indigo-300">
                   Subtotal en receta: {money(previewSubtotal)}
@@ -208,7 +209,7 @@ export function ProductAddIngredientModal({
                   </p>
                 ) : precisionLost && (
                   <p className="mt-2 font-bold text-amber-600 dark:text-amber-400">
-                    ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {currentSupply.unit}.
+                    ⚠️ La cantidad es demasiado pequeña y se redondeará a {formatQuantityWithUnit(previewBaseQty, currentSupply.unit)}.
                   </p>
                 )}
               </div>

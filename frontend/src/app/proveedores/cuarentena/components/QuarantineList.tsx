@@ -6,6 +6,7 @@ import { supplierService } from '@/services/supplierService'
 import { ApiError } from '@/services/api'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
 import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
+import { formatPercent } from '@/lib/format'
 
 const money = (val: number) =>
   `$${Number(val).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -129,7 +130,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                 >
                   {isIncrease ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
                   {percent > 0 ? '+' : ''}
-                  {percent.toFixed(1)}%
+                  {formatPercent(percent)}
                 </span>
                 <div className="flex gap-2">
                   <button
@@ -189,7 +190,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                     >
                       {isIncrease ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
                       {percent > 0 ? '+' : ''}
-                      {percent.toFixed(1)}%
+                      {formatPercent(percent)}
                     </span>
                   </td>
                   <td className="px-4 py-3">

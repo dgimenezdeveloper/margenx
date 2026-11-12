@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { formatPercent } from '../../src/lib/format'
 import { test, expect, type Page } from '@playwright/test'
 
 /**
@@ -61,10 +62,10 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     expect(criticalPanFlauta, 'el PUT debe marcar Pan flauta como producto crítico con este costo').toBeTruthy()
     expect(body.affectedProductsCount).toBeGreaterThan(0)
 
-    // Mismo formateo que MarginBadge.tsx (toFixed(1), sin ".0" sobrante) —
+    // Mismo formateo que MarginBadge.tsx (formatPercent de src/lib/format.ts: "36,9 %") —
     // se deriva del valor real devuelto por la API en vez de hardcodear un
     // porcentaje, para no depender de que los costos del seed no cambien.
-    const expectedBadgePercent = Number(criticalPanFlauta.currentMarginPercent).toFixed(1).replace(/\.0$/, '')
+    const expectedBadgePercent = formatPercent(criticalPanFlauta.currentMarginPercent)
 
     // --- Verificación del toast informativo de recálculo ---
     // La cola de toasts (PR #211) muestra primero el de éxito (~3s) antes de
@@ -85,7 +86,7 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     // de ahí la bandera 'i' en vez de comparar contra el texto literal del seed.
     const productCard = page.getByRole('link', { name: new RegExp(PRODUCT_NAME, 'i') })
     await expect(productCard).toBeVisible()
-    await expect(productCard.getByText(`Crítico (${expectedBadgePercent}%)`)).toBeVisible()
+    await expect(productCard.getByText(`Crítico (${expectedBadgePercent})`)).toBeVisible()
 
     // --- Gherkin: la prueba completa debe finalizar en menos de 15 segundos ---
     expect(Date.now() - start).toBeLessThan(15000)

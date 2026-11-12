@@ -33,6 +33,7 @@ import { NumericInput } from '@/components/NumericInput'
 import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
 import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
+import { formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -520,7 +521,7 @@ export default function NewProductPage() {
                     <div className="mt-3 flex flex-col gap-2 rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
                       <div className="flex items-center justify-between">
                         <span>
-                          Equivalencia: <strong>{previewNumericQty} {recipeUnit}</strong> ({previewBaseQty} {selectedSupply.unit})
+                          Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)}</strong> ({formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)})
                         </span>
                         <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
                       </div>
@@ -530,7 +531,7 @@ export default function NewProductPage() {
                         </p>
                       ) : precisionLost && (
                         <p className="font-bold text-amber-600 dark:text-amber-400">
-                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {selectedSupply.unit}.
+                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)}.
                         </p>
                       )}
                     </div>
@@ -577,7 +578,7 @@ export default function NewProductPage() {
                               {item.name}
                             </strong>
                             <p className="text-xs text-gray-400">
-                              Costo base: {money(item.unitCost)} por {item.unit}
+                              Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                             </p>
                             {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
                               <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
@@ -644,7 +645,7 @@ export default function NewProductPage() {
                           <AlertTriangle className="size-3.5" /> Margen Bajo
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
@@ -658,7 +659,7 @@ export default function NewProductPage() {
                           <ShieldCheck className="size-3.5" /> Margen Saludable
                         </span>
                         <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -672,7 +673,7 @@ export default function NewProductPage() {
                           <AlertTriangle className="size-3.5" /> Margen Bajo
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
@@ -769,11 +770,11 @@ export default function NewProductPage() {
                   <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent.toFixed(1)}%)
+                    <AlertTriangle className="size-3" /> Margen Bajo ({formatPercent(marginPercent)})
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({marginPercent.toFixed(1)}%)
+                    <ShieldCheck className="size-3" /> Saludable ({formatPercent(marginPercent)})
                   </span>
                 )}
               </div>

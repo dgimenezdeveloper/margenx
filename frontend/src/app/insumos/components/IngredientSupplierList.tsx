@@ -3,6 +3,7 @@ import { Pencil, Plus, ShieldAlert, Truck } from 'lucide-react'
 
 import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
+import { formatUnit } from '@/lib/format'
 
 /**
  * Lista de proveedores y empaques asociados a un insumo seleccionado.
@@ -94,7 +95,7 @@ export function IngredientSupplierList({
                     Bulto {conn.packageSize} {conn.packageUnit} @ {money(conn.packagePrice)}
                   </span>
                   <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    Equivalente: {money(unitCost)} / {selected.unit}
+                    Equivalente: {money(unitCost)} / {formatUnit(selected.unit)}
                   </span>
                   {conn.isQuarantined && (
                     <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">

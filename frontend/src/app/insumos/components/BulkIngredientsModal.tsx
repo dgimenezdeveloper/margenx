@@ -487,7 +487,7 @@ function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, dis
                 key={row.rowNumber}
                 title={row.name}
                 meta={`Fila ${row.rowNumber} · ${BULK_UNIT_LABELS[row.unit]}`}
-                value={`${row.costFormatted} / ${row.unit}`}
+                value={`${row.costFormatted} / ${BULK_UNIT_LABELS[row.unit]}`}
               />
             ))}
           </RowList>
@@ -501,7 +501,7 @@ function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, dis
                 meta={`Fila ${row.rowNumber} · ${BULK_UNIT_LABELS[row.unit]}`}
                 detail={row.reason}
                 detailTone="text-amber-800 dark:text-amber-300"
-                value={`${row.costFormatted} / ${row.unit}`}
+                value={`${row.costFormatted} / ${BULK_UNIT_LABELS[row.unit]}`}
               />
             ))}
           </RowList>

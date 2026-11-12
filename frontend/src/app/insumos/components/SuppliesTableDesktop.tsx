@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import type { Ingredient } from '@/services/ingredientService'
+import { formatUnit } from '@/lib/format'
 
 /**
  * Vista desktop del catálogo de insumos.
@@ -52,7 +53,7 @@ export function SuppliesTableDesktop({ supplies, onSelect, money }: SuppliesTabl
               </td>
               <td className="px-5 py-4">
                 <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                  {supply.unit}
+                  {formatUnit(supply.unit)}
                 </span>
               </td>
               <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">

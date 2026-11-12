@@ -3,6 +3,7 @@ import type { UseFormSetValue, UseFormRegister, FieldErrors } from 'react-hook-f
 import type { z } from 'zod'
 import { productSchema } from '@/schemas/productSchema'
 import { NumericInput } from '@/components/NumericInput'
+import { formatPercent } from '@/lib/format'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -118,7 +119,7 @@ export function ProductSimulatorPanel({
       >
         {!hasRecipe
           ? 'Proyección: 0.0% (Sin Receta)'
-          : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
+          : `Proyección: Margen ${formatPercent(margin)} ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
       </p>
 
       {isMobile ? (

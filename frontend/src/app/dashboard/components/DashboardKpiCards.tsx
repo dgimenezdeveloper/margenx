@@ -1,5 +1,6 @@
 import { AlertTriangle, Boxes, TrendingUp } from 'lucide-react'
 import type { DashboardMetrics } from '@/services/dashboardService'
+import { formatPercent } from '@/lib/format'
 
 interface DashboardKpiCardsProps {
   metrics: DashboardMetrics | null
@@ -65,9 +66,8 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
           <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
           <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">
             {metrics.averageMarginPercent != null
-              ? Number(metrics.averageMarginPercent).toFixed(1)
-              : '0.0'}
-            %
+              ? formatPercent(metrics.averageMarginPercent)
+              : formatPercent(0)}
           </p>
         </div>
       </div>

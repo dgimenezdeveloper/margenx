@@ -4,6 +4,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { ingredientService, type PriceHistory } from '@/services/ingredientService'
 import { EmptyState } from '@/components/empty-state'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
+import { formatPercent } from '@/lib/format'
 
 interface PriceHistoryModalProps {
   isOpen: boolean
@@ -108,7 +109,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
 
                   const isIncrease = percentChange > 0
                   const isDecrease = percentChange < 0
-                  const formattedPercent = `${isIncrease ? '+' : ''}${percentChange.toFixed(1)}%`
+                  const formattedPercent = formatPercent(percentChange, { signed: true })
 
                   return (
                     <div key={entry.id} className="relative pl-6">

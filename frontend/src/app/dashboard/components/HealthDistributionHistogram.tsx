@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BarChart3, FilterX } from 'lucide-react'
 import type { Product } from '@/services/productService'
+import { formatPercent } from '@/lib/format'
 
 export type HealthBucketKey = 'loss' | 'low' | 'healthy' | 'high'
 
@@ -178,7 +179,7 @@ export function HealthDistributionHistogram({
                       {bucket.count}
                     </span>
                     <span className="block text-[10px] font-semibold text-gray-400 sm:text-xs">
-                      {bucket.percentage.toFixed(0)}%
+                      {formatPercent(bucket.percentage, { decimals: 0 })}
                     </span>
                   </div>
 
