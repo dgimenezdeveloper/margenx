@@ -6,21 +6,33 @@ import { test, expect } from '@playwright/test'
 /** Texto del hero de la landing (`src/app/page.tsx`): si aparece, el usuario vio el pantallazo. */
 const LANDING_HERO = 'Control de costos'
 
+/**
+ * Lo mínimo del navegador que usa el script inyectado. El tsconfig de las E2E no incluye la
+ * librería DOM (mismo patrón que quarantine-queue.spec.ts: `globalThis` con un tipo local).
+ */
+type BrowserGlobals = {
+  __landingShown?: boolean
+  document: { body: { innerText: string } | null }
+  MutationObserver: new (callback: () => void) => {
+    observe: (target: unknown, options: { childList: boolean; subtree: boolean; characterData: boolean }) => void
+  }
+}
+
 test.describe('Pantallas públicas con la sesión iniciada', () => {
   test('Gherkin "Sin pantallazo": al escribir el dominio a mano no ve la landing antes del dashboard', async ({ page }) => {
     // Registra desde el primer instante si la landing llegó a pintarse, aunque sea un cuadro.
     await page.addInitScript((heroText: string) => {
-      const flags = window as unknown as { __landingShown?: boolean }
-      flags.__landingShown = false
-      new MutationObserver(() => {
-        if (document.body?.innerText.includes(heroText)) flags.__landingShown = true
-      }).observe(document, { childList: true, subtree: true, characterData: true })
+      const browser = globalThis as unknown as BrowserGlobals
+      browser.__landingShown = false
+      new browser.MutationObserver(() => {
+        if (browser.document.body?.innerText.includes(heroText)) browser.__landingShown = true
+      }).observe(browser.document, { childList: true, subtree: true, characterData: true })
     }, LANDING_HERO)
 
     await page.goto('/')
     await expect(page).toHaveURL(/\/dashboard/)
 
-    const landingShown = await page.evaluate(() => (window as unknown as { __landingShown?: boolean }).__landingShown)
+    const landingShown = await page.evaluate(() => (globalThis as unknown as BrowserGlobals).__landingShown)
     expect(landingShown, 'la landing no debe mostrarse a un usuario con sesión').toBe(false)
   })
 
