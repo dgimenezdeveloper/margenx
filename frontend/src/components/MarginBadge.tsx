@@ -63,7 +63,8 @@ export function MarginBadge({
   }
 
   const isCritical = Number(marginPercent) < Number(minMarginPercent)
-  const formattedValue = formatPercent(marginPercent)
+  // Sin ceros sobrantes: "60 %", "25,4 %".
+  const formattedValue = formatPercent(marginPercent, { minDecimals: 0 })
 
   if (isCritical) {
     return (

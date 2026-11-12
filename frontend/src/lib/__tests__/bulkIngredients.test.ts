@@ -314,7 +314,7 @@ describe('buildTemplateWorkbook', () => {
     insumos?.addRow(['Manteca La Serenísima', 'kg', 7000.51])
 
     const buffer = await workbook.xlsx.writeBuffer()
-    const batch = batchOf(analyzeIngredientSheet(await readSpreadsheet(new Uint8Array(buffer as ArrayLike<number>).buffer)))
+    const batch = batchOf(analyzeIngredientSheet(await readSpreadsheet(new Uint8Array(buffer as unknown as ArrayLike<number>).buffer)))
     expect(batch.errors).toHaveLength(0)
     expect(batch.valid).toHaveLength(7)
     expect(batch.valid.find((row) => row.name === 'Manteca La Serenísima')?.cost).toBe('7000.51')

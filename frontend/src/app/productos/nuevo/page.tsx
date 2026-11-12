@@ -391,7 +391,7 @@ export default function NewProductPage() {
                 <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
                   <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <p className="leading-tight">
-                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de <strong>{defaultMinMarginPercent}%</strong>. Podés ajustarlo exclusivamente para este producto sin alterar el resto.
+                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo exclusivamente para este producto sin alterar el resto.
                   </p>
                 </div>
               </section>
@@ -422,7 +422,7 @@ export default function NewProductPage() {
                   >
                     <span className="truncate">
                       {selectedSupply
-                        ? `${selectedSupply.name} (${money(selectedSupply.currentCost)}/${selectedSupply.unit})`
+                        ? `${selectedSupply.name} (${money(selectedSupply.currentCost)}/${formatUnit(selectedSupply.unit)})`
                         : 'Buscar insumo...'}
                     </span>
                     <ChevronDown
@@ -476,7 +476,7 @@ export default function NewProductPage() {
                             >
                               <span className="truncate">{supply.name}</span>
                               <span className="ml-2 shrink-0 text-gray-400">
-                                {money(supply.currentCost)}/{supply.unit}
+                                {money(supply.currentCost)}/{formatUnit(supply.unit)}
                               </span>
                             </button>
                           ))
@@ -527,7 +527,7 @@ export default function NewProductPage() {
                       </div>
                       {previewBaseQty <= 0 ? (
                         <p className="font-bold text-rose-600 dark:text-rose-400">
-                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {selectedSupply.unit}).
+                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {formatUnit(selectedSupply.unit)}).
                         </p>
                       ) : precisionLost && (
                         <p className="font-bold text-amber-600 dark:text-amber-400">
@@ -663,7 +663,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({targetMargin}%).
+                        Cumple o supera el objetivo de rentabilidad ({formatPercent(targetMargin, { minDecimals: 0 })}).
                       </p>
                     </div>
                   ) : (
@@ -677,7 +677,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado ({Number(watchedMinMargin) || 0}%).
+                        El margen está por debajo del umbral personalizado ({formatPercent(Number(watchedMinMargin) || 0, { minDecimals: 0 })}).
                       </p>
                     </div>
                   )}
@@ -740,7 +740,7 @@ export default function NewProductPage() {
                           : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
                       }`}
                     >
-                      Sugerir {targetMargin}%
+                      Sugerir {formatPercent(targetMargin, { minDecimals: 0 })}
                     </button>
                   </div>
                 </div>

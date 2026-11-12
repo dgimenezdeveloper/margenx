@@ -33,15 +33,21 @@ export function formatMoney(value: Numeric, options: { decimals?: number } = {})
   return `${sign}$${formatDecimal(Math.abs(num), decimals, decimals)}`
 }
 
-/** "36,9 %". Con `signed: true` antepone "+" a los positivos ("+119,0 %"). */
-export function formatPercent(value: Numeric, options: { decimals?: number; signed?: boolean } = {}): string {
+/**
+ * "36,9 %". Con `signed: true` antepone "+" a los positivos ("+119,0 %"). Para umbrales que
+ * carga el usuario, `minDecimals: 0` evita ceros sobrantes ("30 %", "32,5 %").
+ */
+export function formatPercent(
+  value: Numeric,
+  options: { decimals?: number; minDecimals?: number; signed?: boolean } = {}
+): string {
   const num = toNumber(value)
   if (num === null) return '—'
   const decimals = options.decimals ?? 1
   const sign = options.signed && num > 0 ? '+' : ''
   // Evita "-0,0 %" cuando el valor redondeado es cero.
   const rounded = Number(num.toFixed(decimals))
-  return `${sign}${formatDecimal(rounded === 0 ? 0 : rounded, decimals, decimals)}${NBSP}%`
+  return `${sign}${formatDecimal(rounded === 0 ? 0 : rounded, options.minDecimals ?? decimals, decimals)}${NBSP}%`
 }
 
 /** "0,7" o "1.250": cantidades sin ceros sobrantes, hasta 3 decimales por defecto. */

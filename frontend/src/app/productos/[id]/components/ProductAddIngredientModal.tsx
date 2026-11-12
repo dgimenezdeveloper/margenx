@@ -4,7 +4,7 @@ import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
-import { formatQuantityWithUnit } from '@/lib/format'
+import { formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
 const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
 
@@ -115,7 +115,7 @@ export function ProductAddIngredientModal({
               >
                 <span className="truncate">
                   {currentSupply
-                    ? `${currentSupply.name} (${money(currentSupply.currentCost)}/${currentSupply.unit})`
+                    ? `${currentSupply.name} (${money(currentSupply.currentCost)}/${formatUnit(currentSupply.unit)})`
                     : 'Buscar insumo...'}
                 </span>
                 <ChevronDown className={`size-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -156,7 +156,7 @@ export function ProductAddIngredientModal({
                         }`}
                       >
                         <span className="truncate">{supply.name}</span>
-                        <span className="ml-2 shrink-0 text-gray-400">{money(supply.currentCost)}/{supply.unit}</span>
+                        <span className="ml-2 shrink-0 text-gray-400">{money(supply.currentCost)}/{formatUnit(supply.unit)}</span>
                       </button>
                     ))
                   )}
@@ -205,7 +205,7 @@ export function ProductAddIngredientModal({
                 </p>
                 {previewNumericQty > 0 && previewBaseQty <= 0 ? (
                   <p className="mt-2 font-bold text-rose-600 dark:text-rose-400">
-                    ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {currentSupply.unit}).
+                    ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {formatUnit(currentSupply.unit)}).
                   </p>
                 ) : precisionLost && (
                   <p className="mt-2 font-bold text-amber-600 dark:text-amber-400">

@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { formatPercent } from '../../src/lib/format'
+import { formatPercent } from '../../src/lib/format.js'
 import { test, expect, type Page } from '@playwright/test'
 
 /**
@@ -65,7 +65,7 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     // Mismo formateo que MarginBadge.tsx (formatPercent de src/lib/format.ts: "36,9 %") —
     // se deriva del valor real devuelto por la API en vez de hardcodear un
     // porcentaje, para no depender de que los costos del seed no cambien.
-    const expectedBadgePercent = formatPercent(criticalPanFlauta.currentMarginPercent)
+    const expectedBadgePercent = formatPercent(criticalPanFlauta.currentMarginPercent, { minDecimals: 0 })
 
     // --- Verificación del toast informativo de recálculo ---
     // La cola de toasts (PR #211) muestra primero el de éxito (~3s) antes de

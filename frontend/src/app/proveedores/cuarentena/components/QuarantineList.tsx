@@ -129,8 +129,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                   }`}
                 >
                   {isIncrease ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                  {percent > 0 ? '+' : ''}
-                  {formatPercent(percent)}
+                  {formatPercent(percent, { signed: true })}
                 </span>
                 <div className="flex gap-2">
                   <button
@@ -189,8 +188,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                       }`}
                     >
                       {isIncrease ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                      {percent > 0 ? '+' : ''}
-                      {formatPercent(percent)}
+                      {formatPercent(percent, { signed: true })}
                     </span>
                   </td>
                   <td className="px-4 py-3">

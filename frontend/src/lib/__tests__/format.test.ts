@@ -19,6 +19,11 @@ describe('formatPercent', () => {
     expect(formatPercent('abc')).toBe('—')
   })
 
+  it('sin ceros sobrantes para umbrales del usuario', () => {
+    expect(formatPercent(30, { minDecimals: 0 })).toBe(`30${NBSP}%`)
+    expect(formatPercent(32.5, { minDecimals: 0 })).toBe(`32,5${NBSP}%`)
+  })
+
   it('acepta decimales y texto decimal de la API', () => {
     expect(formatPercent('12.5', { decimals: 0 })).toBe(`13${NBSP}%`)
   })

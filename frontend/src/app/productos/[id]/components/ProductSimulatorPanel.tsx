@@ -84,7 +84,7 @@ export function ProductSimulatorPanel({
                 : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
             }`}
           >
-            Sugerir {targetMargin}%
+            Sugerir {formatPercent(targetMargin, { minDecimals: 0 })}
           </button>
         </div>
       </div>

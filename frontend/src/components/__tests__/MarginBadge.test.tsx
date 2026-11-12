@@ -44,7 +44,7 @@ describe('MarginBadge Component', () => {
     )
 
     expect(screen.getByText(/Crítico/i)).toBeDefined()
-    expect(screen.getByText(/25.4%/)).toBeDefined()
+    expect(screen.getByText(/25,4 %/)).toBeDefined()
   })
 
   it('Estado "Saludable": renderiza semáforo verde cuando el margen cumple o supera el umbral', () => {
@@ -58,7 +58,7 @@ describe('MarginBadge Component', () => {
     )
 
     expect(screen.getByText(/Saludable/i)).toBeDefined()
-    expect(screen.getByText(/60%/)).toBeDefined()
+    expect(screen.getByText(/60 %/)).toBeDefined()
   })
 
   it('Soporta ocultar el valor numérico con showValue=false', () => {
@@ -72,7 +72,7 @@ describe('MarginBadge Component', () => {
     )
 
     expect(screen.getByText('Saludable')).toBeDefined()
-    expect(screen.queryByText(/40%/)).toBeNull()
+    expect(screen.queryByText(/40 %/)).toBeNull()
   })
 
   it('Aplica las clases responsivas según el tamaño (sm / md)', () => {
