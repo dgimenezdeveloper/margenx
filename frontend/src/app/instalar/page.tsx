@@ -3,6 +3,8 @@
 import { ArrowLeft, Check, Monitor, Phone, Smartphone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { PublicSessionLink } from '@/components/public-session-link'
+
 interface GuideStep {
   text: string
   image?: string
@@ -68,12 +70,10 @@ export default function InstallPage() {
           >
             <ArrowLeft className="size-4" /> Volver
           </Link>
-          <Link
-            to="/login"
+          <PublicSessionLink
+            signedOut={{ to: '/login', label: 'Ingresar' }}
             className="rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700"
-          >
-            Ingresar
-          </Link>
+          />
         </div>
 
         <article className="rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:p-8">

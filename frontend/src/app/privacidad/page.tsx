@@ -1,7 +1,8 @@
 'use client'
 
 import { ArrowLeft, Building2, Database, Mail, ShieldCheck, UserRound, Users } from 'lucide-react'
-import { Link } from 'react-router-dom'
+
+import { PublicSessionLink } from '@/components/public-session-link'
 
 const privacyPoints = [
   {
@@ -35,12 +36,11 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-col px-4 pb-10 pt-5 md:max-w-4xl md:px-8 md:pt-8">
         <div className="mb-5 flex items-center justify-between gap-3 md:mb-7">
-          <Link
-            to="/"
+          <PublicSessionLink
+            signedOut={{ to: '/', label: 'Volver a la web' }}
+            icon={<ArrowLeft className="size-4" aria-hidden="true" />}
             className="absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-indigo-600"
-          >
-            <ArrowLeft className="size-4" /> Volver a la web
-          </Link>
+          />
         </div>
 
         <article className="rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:p-8">
