@@ -18,6 +18,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** Las pantallas públicas reconocen la sesión iniciada: `/instalar` y `/privacidad` muestran "Ir al panel" (hacia `/dashboard`) en lugar de "Ingresar" o "Volver a la web", y `/` ya no muestra la landing cerca de 1 s antes de redirigir al dashboard (hallazgo de QA del Sprint 5, `docs/qa/reporte-calidad-sprint5.md` §2.6). Mientras Clerk verifica la sesión no se muestra ninguna de las dos versiones; si tarda más de 1,5 s, se muestra la versión sin sesión. La lógica vive en `frontend/src/hooks/usePublicSession.ts` y `frontend/src/components/public-session-link.tsx` (`#360`).
+- **Frontend:** Los enlaces "Política de privacidad" y "Guía de instalación" del login pasan al pie, debajo del formulario y más chicos, en vez de quitarse (decisión del Tech Lead sobre la propuesta de las pruebas de usabilidad; `#244` los había agregado a propósito) (`#360`).
 - **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
 - **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
 - **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
