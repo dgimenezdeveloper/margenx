@@ -122,11 +122,9 @@ export default function LandingPage() {
     // Mientras Clerk verifica la sesión no se muestra la landing: un usuario con sesión la vería
     // cerca de 1 s antes de llegar al dashboard. Mismo fondo que la landing, sin contenido.
     return (
-      <main
-        role="status"
-        aria-label="Cargando MargenX"
-        className="min-h-screen bg-slate-50 dark:bg-slate-950"
-      />
+      <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div role="status" aria-label="Cargando MargenX" />
+      </main>
     )
   }
 
