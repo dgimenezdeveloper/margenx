@@ -26,11 +26,13 @@ Recomendado para comercios con pocos insumos o para dar de alta materias primas 
 Recomendado para arrancar rápidamente si ya tenés tu lista de precios en Excel o CSV (admite hasta 500 insumos por lote).
 
 1. Entrá a **Insumos** y tocá el botón **Cargar desde planilla** (en el celular se identifica con el ícono de la planilla de cálculo al lado de *Nuevo Insumo*). Si la despensa está vacía, también podés usar el enlace directo en pantalla.
-2. Presioná **Descargar plantilla**. Se descargará un archivo Excel (`.xlsx`) listo para usar con dos hojas: *Insumos* (con ejemplos de panadería y química) e *Instrucciones*.
+2. Presioná **Descargar plantilla**. Se descargará `plantilla-insumos-margenx.xlsx` con dos hojas:
+   - *Insumos*: los títulos con el color de MargenX, la primera fila fija y cinco ejemplos en gris (borralos antes de subirla). La columna **Unidad** tiene una lista desplegable y la columna **Costo** ya tiene formato de pesos (`$ 1.234,56`) y no acepta valores negativos ni en cero, en las 500 filas que admite un lote.
+   - *Instrucciones*: los pasos para completarla, la tabla de unidades con ejemplos y qué pasa al subirla.
 3. Completá tus materias primas respetando las 3 columnas obligatorias:
    - **Nombre:** denominación de la materia prima (ej. *Harina 000 Olavarriense*).
-   - **Unidad:** unidad de medida (`kg`, `l` o `u`).
-   - **Costo:** valor numérico positivo (por kilo, litro o unidad), en formato argentino con hasta dos decimales (ej. `1.234,56`).
+   - **Unidad:** elegila de la lista (`kg`, `l` o `u`).
+   - **Costo:** valor numérico positivo (por kilo, litro o unidad), con hasta dos decimales. Escribilo como lo ves en pantalla (`1.234,56`): no hace falta cambiar el formato de la celda para volver a subir la planilla.
 4. Guardá el archivo como Excel o CSV y subilo tocando en **Elegí tu planilla** (o arrastralo desde tu computadora). La lectura se procesa de forma segura en tu propio dispositivo sin viajar por internet.
 5. Revisá la vista previa organizada en tres pestañas:
    - **Válidas:** filas listas para ser importadas al catálogo.
