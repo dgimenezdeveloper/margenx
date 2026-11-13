@@ -6,6 +6,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Docs:** Documentación técnica del estándar de foco canónico perimetral y directivas de accesibilidad en formularios en `frontend/README.md` (`#361`).
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 - **Frontend:** Aviso en la receta cuando el costo de una línea supera el precio de venta del producto, en `/productos/:id` y `/productos/nuevo` (`#352`).
@@ -18,6 +19,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend / Accesibilidad:** Asociación estricta de elementos `<label htmlFor>` con `id` en los campos de Nombre del Producto, Precio de Venta y Margen Mínimo en la ficha de producto (`/productos/:id` y `/productos/nuevo`), permitiendo a lectores de pantalla anunciar el nombre y propósito de cada campo (`#361`).
+- **Frontend / Accesibilidad:** Homogeneización del estilo de foco perimetral canónico (`CANONICAL_FOCUS_CLASSES`, contraste WCAG AA >= 3:1) en pestañas y botones del modal "Cargar desde planilla" (`BulkIngredientsModal`), unificando la experiencia al tabular con el resto de los modales de la aplicación (`#361`).
 - **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
 - **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
 - **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
