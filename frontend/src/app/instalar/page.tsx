@@ -7,7 +7,7 @@ interface GuideStep {
   text: string
   image?: string
   imageAlt?: string
-  /** Capturas apaisadas (escritorio): se muestran más anchas para que se lean. */
+  /** Capturas apaisadas (escritorio): se muestran más anchas para que se lean, sin pasar el ancho de la tarjeta. */
   imageWide?: boolean
 }
 
@@ -147,7 +147,7 @@ export default function InstallPage() {
                             src={step.image}
                             alt={step.imageAlt ?? ''}
                             loading="lazy"
-                            className={`ml-8 ${step.imageWide ? 'w-56' : 'w-36'} rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700`}
+                            className={`ml-8 ${step.imageWide ? 'w-56' : 'w-36'} max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700`}
                           />
                         )}
                       </li>
