@@ -42,7 +42,7 @@ model Ingredient {
   id           String               @id @default(uuid())
   accountId    String
   name         String
-  unit         String // kg, l, unit
+  unit         String // kg, l, u
   currentCost  Decimal              @db.Decimal(10, 2)
   updatedAt    DateTime             @updatedAt
   searchName   String?

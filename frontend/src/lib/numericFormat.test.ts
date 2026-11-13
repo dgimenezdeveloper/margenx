@@ -31,6 +31,11 @@ describe('numericFormat', () => {
       expect(parseNumeroAR('-1.500.000')).toBe('-1500000');
     });
 
+    it('no confunde un decimal menor a 1 con separador de miles (0.250)', () => {
+      expect(parseNumeroAR('0.250')).toBe('0.250');
+      expect(parseNumeroAR('-0.250')).toBe('-0.250');
+    });
+
     it('múltiples puntos ambiguos o inválidos se descartan como vacíos', () => {
       expect(parseNumeroAR('1.2.3')).toBe('');
       expect(parseNumeroAR('12.34.56')).toBe('');

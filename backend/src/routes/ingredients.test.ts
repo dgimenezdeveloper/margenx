@@ -729,6 +729,47 @@ describe('PUT /api/ingredients/:id', () => {
     });
   });
 
+  it('permite actualizar el costo de un insumo con unidad "u" recalculando recetas (Escenario Gherkin Huevos demo)', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 'ing-huevos-demo',
+      name: 'Huevos (demo)',
+      unit: 'u',
+      currentCost: new Prisma.Decimal('250.00'),
+    });
+    updateMock.mockResolvedValue({
+      id: 'ing-huevos-demo',
+      name: 'Huevos (demo)',
+      unit: 'u',
+      currentCost: new Prisma.Decimal('280.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([{ productId: 'prod-torta-demo' }]);
+    productFindUniqueMock.mockResolvedValue({
+      id: 'prod-torta-demo',
+      name: 'Torta de chocolate — 1 unidad',
+      accountId: 'account-1',
+      salePrice: new Prisma.Decimal('9800.00'),
+      minMarginPercent: new Prisma.Decimal('30.00'),
+      cost: new Prisma.Decimal('5000.00'),
+      marginPercent: new Prisma.Decimal('48.98'),
+      ingredients: [
+        {
+          quantity: new Prisma.Decimal('5'),
+          ingredient: { currentCost: new Prisma.Decimal('280.00') },
+        },
+      ],
+    });
+    productUpdateMock.mockResolvedValue({});
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-huevos-demo')
+      .send({ name: 'Huevos (demo)', unit: 'u', currentCost: '280.00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ingredient.unit).toBe('u');
+    expect(res.body.affectedProductsCount).toBe(1);
+    expect(productUpdateMock).toHaveBeenCalled();
+  });
+
   it('acepta correctamente importes válidos en formato argentino de miles en PUT verificando el valor procesado', async () => {
     const expectedValues: Record<string, string> = {
       '15.000': '15000',
