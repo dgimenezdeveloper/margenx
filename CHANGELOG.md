@@ -18,6 +18,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend / UX:** Corrección de desbordamiento en modales y bottom sheets (`DialogSheet`) en resoluciones móviles de 360 px: se fijaron encabezados y acciones con `shrink-0`, se implementó scroll interno con `flex-1 overflow-y-auto` y se acotó la lista de proveedores en insumos a `max-h-60` para evitar bloqueos visuales (`#355`).
+- **Frontend / UX:** Reacomodamiento en dos filas de la barra de acciones inferior en la ficha de producto (`ProductMobileFooter`) para evitar superposiciones con la navegación (`BottomNav`) y garantizar la visibilidad completa del badge de rentabilidad (`#355`).
 - **DevOps / n8n:** Los mails de resumen, de error de ingesta y de alerta de margen llegan con el remitente "MargenX": `emailSend` 2.1 ignoraba `senderName` y la alerta salía como "alertas". La alerta pasa a enviar HTML y texto plano (`emailFormat: both`), y ninguno lleva el pie de n8n (`appendAttribution: false`). El texto plano de la alerta ya no muestra entidades HTML (`&lt;`) en el nombre del comercio o del insumo, y el destinatario del pie va escapado (`#254`).
 - **DevOps / n8n:** El enlace "Ajustar" y el botón principal del mail de alerta de margen apuntan a `<appBase>/productos` cuando la alerta no trae el ID del producto; antes el `href` salía con el texto literal `${appBase}/productos` y no llevaba a ningún lado. Prueba del nodo en `infra/n8n/tests/alertas-nodos.test.mjs`, que ahora corre en CI, y sección de alertas en `infra/n8n/README.md` (`#329`).
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
