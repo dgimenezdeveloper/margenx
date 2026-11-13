@@ -26,8 +26,6 @@ export interface ProductSimulatorPanelProps {
   setActiveStrategy: (strategy: 'target' | 'custom') => void
 }
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
-
 export function ProductSimulatorPanel({
   cost,
   margin,
@@ -46,8 +44,6 @@ export function ProductSimulatorPanel({
   isMobile,
   setActiveStrategy,
 }: ProductSimulatorPanelProps) {
-  const marginAmount = hasRecipe && cost > 0 ? (Number(watchedSalePrice) || 0) - cost : 0
-
   return (
     <div className={isMobile ? "flex flex-col flex-1 overflow-hidden mt-4" : "space-y-5"}>
       <div className={isMobile ? "flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5" : "space-y-5"}>
@@ -125,29 +121,6 @@ export function ProductSimulatorPanel({
             ? 'Proyección: 0.0% (Sin Receta)'
             : `Proyección: Margen ${margin.toFixed(1)}% ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
         </p>
-
-        {isMobile && (
-          <div className="space-y-2 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500 dark:text-gray-400">Costo Total de Elaboración:</span>
-              <strong className="font-extrabold text-gray-900 dark:text-white">{money(cost)}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500 dark:text-gray-400">Precio de Venta al Público:</span>
-              <strong className="font-extrabold text-gray-900 dark:text-white">{money(Number(watchedSalePrice) || 0)}</strong>
-            </div>
-            <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-              <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
-              <strong
-                className={`font-black ${
-                  marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {money(marginAmount)}
-              </strong>
-            </div>
-          </div>
-        )}
       </div>
 
       {isMobile ? (
