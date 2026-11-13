@@ -78,7 +78,7 @@ describe('pagination utility', () => {
     });
   });
 
-  describe('normalizeSearchText (RV375-B1)', () => {
+  describe('normalizeSearchText', () => {
     it('normaliza a minúsculas y elimina espacios iniciales/finales', () => {
       expect(normalizeSearchText('  HARINA 000  ')).toBe('harina 000');
     });
@@ -89,14 +89,14 @@ describe('pagination utility', () => {
       expect(normalizeSearchText('Almidón')).toBe('almidon');
     });
 
-    it('resuelve nombres con dos tildes (Caso RV375-B1)', () => {
+    it('resuelve nombres con dos tildes', () => {
       expect(normalizeSearchText('Azúcar común')).toBe('azucar comun');
       expect(normalizeSearchText('azúcar común')).toBe('azucar comun');
       expect(normalizeSearchText('Almidón de maíz')).toBe('almidon de maiz');
       expect(normalizeSearchText('Jabón líquido')).toBe('jabon liquido');
     });
 
-    it('descompone la letra ñ en n mediante NFD (Caso RV375-B1)', () => {
+    it('descompone la letra ñ en n mediante NFD', () => {
       expect(normalizeSearchText('Cañoncitos con dulce de leche')).toBe('canoncitos con dulce de leche');
       expect(normalizeSearchText('cañoncitos')).toBe('canoncitos');
       expect(normalizeSearchText('CANONCITOS')).toBe('canoncitos');

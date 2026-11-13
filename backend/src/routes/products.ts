@@ -159,6 +159,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const [data, total] = await Promise.all([
     prisma.product.findMany({
       where,
+      omit: { searchName: true },
       include: { ingredients: { select: { ingredientId: true, quantity: true } } },
       orderBy: { [sortBy]: order },
       skip,
@@ -209,6 +210,7 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
     if (existingByName) throw new AppError('Ya existe un producto con ese nombre.', 409);
 
     return tx.product.create({
+      omit: { searchName: true },
       data: {
         accountId,
         name: input.name,
@@ -242,6 +244,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const product = await prisma.product.findFirst({
     where: { id, accountId },
+    omit: { searchName: true },
     include: { ingredients: { include: { ingredient: true } } },
   });
   if (!product) throw new AppError('Producto no encontrado.', 404);
@@ -319,6 +322,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
     return tx.product.update({
       where: { id },
+      omit: { searchName: true },
       data: {
         name: name ?? existing.name,
         searchName: name ? normalizeSearchText(name) : undefined,

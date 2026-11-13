@@ -38,7 +38,7 @@ vi.mock('../lib/prisma', () => ({
       findFirst: (...args: unknown[]) => productFindFirstMock(...args),
       deleteMany: (...args: unknown[]) => productDeleteManyMock(...args),
     },
-    $transaction: async (fn: any) => {
+    $transaction: async <T>(fn: (tx: unknown) => Promise<T>) => {
       const tx = {
         ingredient: {
           findMany: (...args: unknown[]) => txIngredientFindManyMock(...args),
@@ -158,6 +158,18 @@ describe('schema Prisma y migración', () => {
       );
     }
   });
+
+  it('todos los seeds y rutas de alta/edición completan searchName usando normalizeSearchText', () => {
+    const seedFiles = ['seed.ts', 'seed-demo.ts', 'seed-volumen.ts'];
+    for (const file of seedFiles) {
+      const content = readFileSync(join(__dirname, '../../prisma', file), 'utf8');
+      expect(content, `${file} debe importar normalizeSearchText`).toContain('normalizeSearchText');
+      expect(content, `${file} debe completar searchName`).toContain('searchName:');
+    }
+
+    const volumen = readFileSync(join(__dirname, '../../prisma/seed-volumen.ts'), 'utf8');
+    expect(volumen.match(/searchName:\s*normalizeSearchText\(/g)).toHaveLength(4);
+  });
 });
 
 describe('GET /api/products - paginación', () => {
@@ -226,7 +238,7 @@ describe('GET /api/products - Búsqueda por nombre (search)', () => {
     });
   });
 
-  it('RV375-B1: encuentra productos reales buscando sin tildes ("jabon liquido", "canoncitos", "pan de campo")', async () => {
+  it('encuentra productos reales buscando sin tildes ("jabon liquido", "canoncitos", "pan de campo")', async () => {
     const cases = [
       { search: 'pan de campo', name: 'Pan de Campo', normalized: 'pan de campo' },
       { search: 'jabon liquido', name: 'Jabón líquido (Ariel/Skip/Ace) — 1 L', normalized: 'jabon liquido' },
@@ -361,7 +373,14 @@ describe('POST /api/products', () => {
     expect(res.body.product.marginAmount).toBe('0.00');
     expect(res.body.product.marginPercent).toBe('0.00');
 
-    const createCall = txProductCreateMock.mock.calls[0] as [{ data: any }];
+    const createCall = txProductCreateMock.mock.calls[0] as [{
+      data: {
+        salePrice: Prisma.Decimal;
+        cost: Prisma.Decimal;
+        marginAmount: Prisma.Decimal;
+        marginPercent: Prisma.Decimal;
+      };
+    }];
     const createData = createCall[0].data;
 
     expect(createData.salePrice.toString()).toBe('0');
@@ -765,7 +784,11 @@ describe('GET /api/products/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.product).toEqual(product);
-    expect(productFindFirstMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' }, include: { ingredients: { include: { ingredient: true } } } });
+    expect(productFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'p1', accountId: 'account-1' },
+      omit: { searchName: true },
+      include: { ingredients: { include: { ingredient: true } } },
+    });
   });
 
   it('oculta quantity cost y margin para COLLABORATOR en la respuesta real del endpoint', async () => {

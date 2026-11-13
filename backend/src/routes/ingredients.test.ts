@@ -159,7 +159,7 @@ describe('GET /api/ingredients - paginación', () => {
 });
 
 describe('GET /api/ingredients - Búsqueda por nombre (search)', () => {
-  it('aplica filtro de búsqueda por searchName y name insensitive, y count recibe el mismo where (RV375-I2)', async () => {
+  it('aplica filtro de búsqueda por searchName y name insensitive, y count recibe el mismo where', async () => {
     findManyMock.mockResolvedValue([
       { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', searchName: 'semillas de sesamo la molinera', unit: 'kg', currentCost: '1500.00' },
     ]);
@@ -190,7 +190,7 @@ describe('GET /api/ingredients - Búsqueda por nombre (search)', () => {
     expect(countMock).toHaveBeenCalledWith({ where: expectedWhere });
   });
 
-  it('RV375-B1: encuentra nombres reales con múltiples tildes o con eñe ("azucar comun", "almidon de maiz", "jabon liquido", "canoncitos")', async () => {
+  it('encuentra nombres reales con múltiples tildes o con eñe ("azucar comun", "almidon de maiz", "jabon liquido", "canoncitos")', async () => {
     const testCases = [
       { search: 'azucar comun', expectedName: 'Azúcar común tipo A', normalized: 'azucar comun' },
       { search: 'almidon de maiz', expectedName: 'Almidón de maíz', normalized: 'almidon de maiz' },
@@ -257,6 +257,7 @@ describe('GET /api/ingredients/:id', () => {
     expect(res.body.ingredient).toEqual(ingredient);
     expect(findFirstMock).toHaveBeenCalledWith({
       where: { id: 'ing-1', accountId: 'account-1' },
+      omit: { searchName: true },
       include: {
         suppliers: {
           include: {
@@ -316,7 +317,6 @@ describe('POST /api/ingredients', () => {
       id: 'ing-1',
       accountId: 'account-1',
       name: 'Harina 000',
-      searchName: 'harina 000',
       unit: 'kg',
       currentCost: '100.00',
     };
@@ -329,6 +329,7 @@ describe('POST /api/ingredients', () => {
     expect(res.status).toBe(201);
     expect(res.body.ingredient).toEqual(created);
     expect(createMock).toHaveBeenCalledWith({
+      omit: { searchName: true },
       data: expect.objectContaining({
         name: 'Harina 000',
         searchName: 'harina 000',
@@ -419,6 +420,7 @@ describe('POST /api/ingredients', () => {
       where: { accountId: 'account-1', name: { equals: 'Harina 000', mode: 'insensitive' } },
     });
     expect(createMock).toHaveBeenCalledWith({
+      omit: { searchName: true },
       data: expect.objectContaining({ accountId: 'account-1', name: 'Harina 000' }),
     });
   });
@@ -468,6 +470,7 @@ describe('POST /api/ingredients', () => {
       .send({ name: 'Harina', unit: 'kg', currentCost: '10', accountId: 'account-ajena' });
 
     expect(createMock).toHaveBeenCalledWith({
+      omit: { searchName: true },
       data: expect.objectContaining({ accountId: 'account-1' }),
     });
   });
@@ -667,7 +670,7 @@ describe('PUT /api/ingredients/:id', () => {
 
   it('actualiza el insumo cuando pertenece a la cuenta y el payload es válido (sin productos afectados)', async () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: new Prisma.Decimal('100.00') });
-    const updated = { id: 'ing-1', name: 'Harina 000', searchName: 'harina 000', unit: 'kg', currentCost: '120.00' };
+    const updated = { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: '120.00' };
     updateMock.mockResolvedValue(updated);
     productIngredientFindManyMock.mockResolvedValue([]);
 
@@ -679,6 +682,7 @@ describe('PUT /api/ingredients/:id', () => {
     expect(res.body.ingredient).toEqual(updated);
     expect(updateMock).toHaveBeenCalledWith({
       where: { id: 'ing-1' },
+      omit: { searchName: true },
       data: expect.objectContaining({ name: 'Harina 000', searchName: 'harina 000' }),
     });
     expect(productFindUniqueMock).not.toHaveBeenCalled();

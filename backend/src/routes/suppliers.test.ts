@@ -570,7 +570,7 @@ describe('POST /api/suppliers', () => {
 });
 
 describe('GET /api/suppliers/:id - Paginación de presentaciones', () => {
-  it('RV375-I2: responde 404 en la rama paginada si el proveedor pertenece a otra cuenta', async () => {
+  it('responde 404 en la rama paginada si el proveedor pertenece a otra cuenta', async () => {
     findFirstMock.mockResolvedValue(null);
 
     const res = await request(buildApp()).get('/api/suppliers/sup-ajeno?page=1&limit=20');
@@ -583,7 +583,7 @@ describe('GET /api/suppliers/:id - Paginación de presentaciones', () => {
     expect(supplierIngredientFindManyMock).not.toHaveBeenCalled();
   });
 
-  it('RV375-M2: ordena las presentaciones paginadas alfabéticamente por nombre del insumo', async () => {
+  it('ordena las presentaciones paginadas alfabéticamente por nombre del insumo', async () => {
     findFirstMock.mockResolvedValue({
       id: 's-marjuanc',
       accountId: 'account-1',
@@ -603,7 +603,7 @@ describe('GET /api/suppliers/:id - Paginación de presentaciones', () => {
     );
   });
 
-  it('RV375-M1: permite buscar por coincidencia en searchName normalizado del insumo ("sesamo" -> "sésamo")', async () => {
+  it('permite buscar por coincidencia en searchName normalizado del insumo ("sesamo" -> "sésamo")', async () => {
     findFirstMock.mockResolvedValue({
       id: 's-marjuanc',
       accountId: 'account-1',

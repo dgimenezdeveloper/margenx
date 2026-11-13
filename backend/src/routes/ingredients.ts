@@ -130,6 +130,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const [data, total] = await Promise.all([
     prisma.ingredient.findMany({
       where,
+      omit: { searchName: true },
       include: {
         suppliers: {
           include: {
@@ -166,6 +167,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const ingredient = await prisma.ingredient.findFirst({
     where: { id, accountId },
+    omit: { searchName: true },
     include: {
       suppliers: {
         include: {
@@ -224,6 +226,7 @@ router.post('/', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: 
   }
 
   const ingredient = await prisma.ingredient.create({
+    omit: { searchName: true },
     data: {
       name,
       searchName: normalizeSearchText(name),
@@ -401,6 +404,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const result = await prisma.$transaction(async (tx) => {
     const ingredient = await tx.ingredient.update({
       where: { id },
+      omit: { searchName: true },
       data: { name, searchName: normalizeSearchText(name), unit, currentCost: nextCost },
     });
 

@@ -7,6 +7,7 @@ import {
   calculateRecipeTotal,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { normalizeSearchText } from "../src/utils/pagination";
 
 // Seed de volumen para la cuenta "Demo MargenX": suma cientos de insumos,
 // presentaciones, productos y recetas para probar paginación, rendimiento,
@@ -269,13 +270,13 @@ function buildData(ingredientCount: number, productCount: number, existingNames:
 
     // 5 % borradores sin receta y con precio 0.
     if (roll < 0.05) {
-      products.push({ id: productId, accountId: ACCOUNT_ID, name, salePrice: new Prisma.Decimal(0), minMarginPercent });
+      products.push({ id: productId, accountId: ACCOUNT_ID, name, searchName: normalizeSearchText(name), salePrice: new Prisma.Decimal(0), minMarginPercent });
       return;
     }
 
     const candidates = family.uses.flatMap((base) => ingredientByBase.get(base) ?? []);
     if (candidates.length === 0) {
-      products.push({ id: productId, accountId: ACCOUNT_ID, name, salePrice: new Prisma.Decimal(0), minMarginPercent });
+      products.push({ id: productId, accountId: ACCOUNT_ID, name, searchName: normalizeSearchText(name), salePrice: new Prisma.Decimal(0), minMarginPercent });
       return;
     }
     const chosen = new Map<string, (typeof ingredients)[number]>();
@@ -306,6 +307,7 @@ function buildData(ingredientCount: number, productCount: number, existingNames:
       id: productId,
       accountId: ACCOUNT_ID,
       name,
+      searchName: normalizeSearchText(name),
       salePrice,
       minMarginPercent,
       cost,
@@ -337,6 +339,7 @@ function buildData(ingredientCount: number, productCount: number, existingNames:
       id: item.id,
       accountId: ACCOUNT_ID,
       name: item.name,
+      searchName: normalizeSearchText(item.name),
       unit: item.unit,
       currentCost: unitCost.get(item.id)!,
     })),

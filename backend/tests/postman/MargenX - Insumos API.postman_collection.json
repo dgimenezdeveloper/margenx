@@ -289,11 +289,11 @@
                 "exec": [
                   "pm.test('Status code es 200 OK', function () { pm.response.to.have.status(200); });",
                   "const json = pm.response.json();",
-                  "pm.test('Retorna items coincidentes y meta consistente', function () {",
+                  "pm.test('Encuentra Azúcar común buscando \"azucar comun\" sin tildes', function () {",
                   "    pm.expect(json.data).to.be.an('array');",
                   "    pm.expect(json.meta.total).to.be.at.least(1);",
                   "    const names = json.data.map(i => i.name.toLowerCase());",
-                  "    pm.expect(names.some(n => n.includes('harina'))).to.be.true;",
+                  "    pm.expect(names.some(n => n.includes('azúcar común'))).to.be.true;",
                   "});"
                 ]
               }
@@ -305,11 +305,11 @@
               { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/ingredients?search=harina&page=1&limit=10",
+              "raw": "{{baseUrl}}/ingredients?search=azucar%20comun&page=1&limit=10",
               "host": ["{{baseUrl}}"],
               "path": ["ingredients"],
               "query": [
-                { "key": "search", "value": "harina" },
+                { "key": "search", "value": "azucar comun" },
                 { "key": "page", "value": "1" },
                 { "key": "limit", "value": "10" }
               ]

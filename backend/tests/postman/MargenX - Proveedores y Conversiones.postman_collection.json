@@ -204,11 +204,11 @@
               { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}?search=harina",
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}?search=azucar",
               "host": ["{{baseUrl}}"],
               "path": ["suppliers", "{{supplierId_cuentaA}}"],
               "query": [
-                { "key": "search", "value": "harina" }
+                { "key": "search", "value": "azucar" }
               ]
             }
           },

@@ -388,9 +388,11 @@
                 "exec": [
                   "pm.test('Status code es 200 OK', function () { pm.response.to.have.status(200); });",
                   "const json = pm.response.json();",
-                  "pm.test('Retorna productos y meta consistente', function () {",
+                  "pm.test('Encuentra Cañoncitos buscando \"canoncitos\" sin ñ', function () {",
                   "    pm.expect(json.data).to.be.an('array');",
                   "    pm.expect(json.meta.total).to.be.at.least(1);",
+                  "    const names = json.data.map(p => p.name.toLowerCase());",
+                  "    pm.expect(names.some(n => n.includes('cañoncitos'))).to.be.true;",
                   "});"
                 ]
               }
@@ -402,11 +404,11 @@
               { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/products?search=pan&page=1&limit=5",
+              "raw": "{{baseUrl}}/products?search=canoncitos&page=1&limit=5",
               "host": ["{{baseUrl}}"],
               "path": ["products"],
               "query": [
-                { "key": "search", "value": "pan" },
+                { "key": "search", "value": "canoncitos" },
                 { "key": "page", "value": "1" },
                 { "key": "limit", "value": "5" }
               ]
