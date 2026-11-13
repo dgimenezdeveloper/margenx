@@ -33,6 +33,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **DevOps:** `vitest` y `@vitest/coverage-v8` en 5.1.0 en `backend/` y `frontend/` (antes 2.1 y 4.1). El `npm audit` completo del backend baja de 13 vulnerabilidades (3 críticas, 4 altas, 6 moderadas) a 3 altas, todas de `prisma` → `deepmerge-ts` (en `.github/audit-allowlist.json`); ya no aparecen las de la cadena de Vitest 2 (`vitest`, `vite-node`, `vite`, `esbuild`, `tinypool`, `@vitest/mocker`, `test-exclude`, `glob`, `minimatch`). Adaptaciones: `backend/vitest.config.mts` (antes `.ts`, porque el paquete es CommonJS) vuelve a excluir `dist/`, que el valor por defecto de Vitest 4 en adelante ya no ignora, y `frontend/vitest-env.d.ts` suma los matchers de `@testing-library/jest-dom` a `Matchers<R, T>`, porque Vitest 5 ya no lee `jest.Matchers`. Las suites no cambian (283 pruebas en el backend y 419 en el frontend); la cobertura de líneas del backend pasa de 93,35 % a 91,85 % sin cambios en pruebas ni en código, porque desde Vitest 4 coverage-v8 no cuenta las líneas sin código ejecutable. Vitest 5 requiere Node 22.12 o superior (`.nvmrc`) (`#307`).
 
+### Changed
+
+- **Backend:** `GET /api/dashboard/metrics` ahora calcula los cinco buckets de salud sobre todo el catálogo de la cuenta (`lossCount`, `riskCount`, `targetCount`, `surplusCount`, `draftCount`) evaluando el `minMarginPercent` propio de cada producto, y reemplaza el promedio simple de `marginPercent` por la **mediana** (excluyendo borradores) con `Prisma.Decimal` para resistir precios extremos mal cargados. Documentado en `docs/api.md` y `docs/especificacion-funcional.md` (`#367`).
+
+### Added
+
+- **QA:** Colección Postman `backend/tests/postman/MargenX - Dashboard API.postman_collection.json` y script `run-tests-dashboard.sh` validando `GET /api/dashboard/metrics` (401 sin token, 403 a `COLLABORATOR`, schema completo y consistencia de buckets para `ADMIN`) (`#367`).
+
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 
 ### Added

@@ -6,6 +6,8 @@ import {
   calculateMarginAmount,
   calculateMarginPercent,
   calculateUnitCost,
+  classifyProductHealthBucket,
+  calculateMedianMarginPercent,
   applyIngredientCostChange,
   applyBatchIngredientCostChanges,
 } from './marginCalculator';
@@ -496,5 +498,51 @@ describe('applyBatchIngredientCostChanges', () => {
 
     // Aserción 5: El tiempo total de procesamiento en memoria debe ser sumamente veloz (< 100 ms)
     expect(durationMs).toBeLessThan(100);
+  });
+});
+
+describe('classifyProductHealthBucket', () => {
+  it('clasifica borradores cuando ingredientsCount <= 0 sin importar su margen', () => {
+    expect(classifyProductHealthBucket(D('50.00'), D('30.00'), 0)).toBe('draft');
+    expect(classifyProductHealthBucket(D('-10.00'), D('30.00'), 0)).toBe('draft');
+  });
+
+  it('clasifica en loss cuando el margen es estrictamente negativo', () => {
+    expect(classifyProductHealthBucket(D('-0.01'), D('30.00'), 2)).toBe('loss');
+    expect(classifyProductHealthBucket(D('-29546.15'), D('30.00'), 1)).toBe('loss');
+  });
+
+  it('clasifica en risk usando el minMarginPercent propio del producto', () => {
+    expect(classifyProductHealthBucket(D('0.00'), D('30.00'), 1)).toBe('risk');
+    expect(classifyProductHealthBucket(D('35.00'), D('40.00'), 2)).toBe('risk');
+    expect(classifyProductHealthBucket(D('62.00'), D('65.00'), 3)).toBe('risk');
+  });
+
+  it('clasifica en target entre minMarginPercent y 60% inclusive', () => {
+    expect(classifyProductHealthBucket(D('30.00'), D('30.00'), 1)).toBe('target');
+    expect(classifyProductHealthBucket(D('35.00'), D('30.00'), 2)).toBe('target');
+    expect(classifyProductHealthBucket(D('60.00'), D('30.00'), 2)).toBe('target');
+  });
+
+  it('clasifica en surplus cuando supera 60% y cumple su propio mínimo', () => {
+    expect(classifyProductHealthBucket(D('60.01'), D('30.00'), 2)).toBe('surplus');
+    expect(classifyProductHealthBucket(D('73.21'), D('65.00'), 5)).toBe('surplus');
+  });
+});
+
+describe('calculateMedianMarginPercent', () => {
+  it('retorna 0.00 si no hay productos activos', () => {
+    expect(calculateMedianMarginPercent([]).toFixed(2)).toBe('0.00');
+  });
+
+  it('calcula la mediana exacta con cantidad impar y no muta el arreglo original', () => {
+    const input = [D('55.00'), D('-29546.15'), D('42.50')];
+    expect(calculateMedianMarginPercent(input).toFixed(2)).toBe('42.50');
+    expect(input.map((d) => d.toString())).toEqual(['55', '-29546.15', '42.5']);
+  });
+
+  it('calcula la mediana con cantidad par aplicando redondeo ROUND_HALF_UP a 2 decimales', () => {
+    expect(calculateMedianMarginPercent([D('15.00'), D('25.00'), D('18.00'), D('30.00')]).toFixed(2)).toBe('21.50');
+    expect(calculateMedianMarginPercent([D('10.00'), D('33.33'), D('33.34'), D('60.00')]).toFixed(2)).toBe('33.34');
   });
 });

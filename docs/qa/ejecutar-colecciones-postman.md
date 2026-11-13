@@ -1,6 +1,6 @@
-# Cómo ejecutar las 6 colecciones de Postman
+# Cómo ejecutar las 7 colecciones de Postman
 
-Issue #264. Las 6 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264. Las 7 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -12,6 +12,7 @@ Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar 
 | Webhooks API | `INTERNAL_WEBHOOK_SECRET=<secreto> ./run-tests-webhooks.sh` | El mismo `INTERNAL_WEBHOOK_SECRET` del `.env` del backend |
 | Colaborador RBAC API | `./run-tests-rbac-colaborador.sh <token_colaborador>` | Token de `panaderia-colab` |
 | Alertas de margen (Insumos) | `./run-tests-alertas-margen.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
+| Dashboard API | `./run-tests-dashboard.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 
 ## Generar los tokens de Clerk
 
@@ -32,7 +33,7 @@ echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
 echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
-## Correr las 6 en orden
+## Correr las 7 en orden
 
 ```bash
 cd backend/tests/postman
@@ -42,9 +43,10 @@ cd backend/tests/postman
 INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-webhooks.sh
 ./run-tests-rbac-colaborador.sh "$TOKEN_COLLAB"
 ./run-tests-alertas-margen.sh "$TOKEN_A" "$TOKEN_COLLAB"
+./run-tests-dashboard.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
-Salida esperada: **0 failures** en las 6.
+Salida esperada: **0 failures** en las 7.
 
 ## Reproducibilidad
 
