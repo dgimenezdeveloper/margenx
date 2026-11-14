@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 import SuppliesPageContent from './SuppliesPageContent'
@@ -146,3 +146,41 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
     expect(screen.queryByText('Fallo temporal')).toBeNull()
   })
 })
+
+describe('SuppliesPageContent - tarjeta "Variaciones recientes"', () => {
+  const harina = { id: 'ing-harina', name: 'Harina de trigo 000 Olavarriense', unit: 'kg', currentCost: 736.25 }
+  const enCuarentena = (id: string) => ({
+    id,
+    ingredientId: 'ing-harina',
+    supplierId: `sup-${id}`,
+    packagePrice: 18406.25,
+    packageSize: 25,
+    isDefault: false,
+    isQuarantined: true,
+    ingredient: { id: 'ing-harina', name: 'Harina de trigo 000 Olavarriense', currentCost: 736.25 },
+    supplier: { id: `sup-${id}`, name: 'Distribuidora del Centro' },
+  })
+  const valorDeLaTarjeta = () => within(screen.getByText('Variaciones recientes').parentElement as HTMLElement)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([harina])
+  })
+
+  it('muestra la cantidad real de precios en cuarentena', async () => {
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([enCuarentena('q1'), enCuarentena('q2'), enCuarentena('q3')])
+    render(<SuppliesPageContent />)
+
+    await screen.findByText('Precios en Cuarentena (3)')
+    expect(valorDeLaTarjeta().getByText('3')).toBeInTheDocument()
+  })
+
+  it('muestra 0 si no hay precios en cuarentena', async () => {
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    render(<SuppliesPageContent />)
+
+    await screen.findAllByText('Harina de trigo 000 Olavarriense')
+    expect(valorDeLaTarjeta().getByText('0')).toBeInTheDocument()
+  })
+})
+
