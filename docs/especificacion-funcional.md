@@ -272,6 +272,19 @@ Cuando cambia el costo de un insumo (edición manual, cambio de presentación pr
 - **Indicador visual** · *Disponible*: el semáforo de margen en el panel y en los productos.
 - **Otros canales** · *Propuesta*: notificación dentro de la app, bot de Telegram y notificaciones push de la PWA. Todos deben ser de costo $0.
 
+### Métricas del panel y margen promedio (`/api/dashboard/metrics`) · *Disponible*
+
+El panel principal calcula la salud de **todo el catálogo** de la cuenta en el servidor (sin depender de la paginación de `/api/products`), siempre acotado por `accountId` y exclusivo para el rol `ADMIN`:
+
+- **Distribución en cinco buckets:**
+  - **Borrador (`draftCount`):** productos sin ingredientes en su receta.
+  - **Pérdida (`lossCount`):** con receta y margen `< 0 %`.
+  - **En riesgo (`riskCount`):** con receta, margen `>= 0 %` y menor al `minMarginPercent` **propio** de ese producto.
+  - **En objetivo (`targetCount`):** con receta, margen `>= minMarginPercent` propio y `<= 60 %`.
+  - **Superávit (`surplusCount`):** con receta, margen `>= minMarginPercent` propio y `> 60 %`.
+- **Margen promedio robusto (`averageMarginPercent`):** se adopta la **mediana** del `marginPercent` de los productos activos (excluyendo borradores), calculada con `Prisma.Decimal` (`ROUND_HALF_UP` a 2 decimales).
+  - *Por qué mediana y no promedio simple ni margen ponderado:* un precio mal cargado (por ejemplo, `$13` con costo `$3.854`, equivalente a `-29.546 %`) distorsiona un promedio simple; y como MargenX no registra volumen de ventas (ADR-004 / fuera de alcance POS), un margen ponderado por `salePrice` unitario sigue quedando dominado por una pérdida alta en comercios con pocos productos o precios unitarios bajos (como *Química GyJ*). La mediana mantiene un punto de quiebre del 50 % independientemente del tamaño del catálogo.
+
 ---
 
 ## 7. Compras inteligentes (Smart Purchasing) · *Propuesta*
@@ -357,6 +370,7 @@ Account (CASCADE)
 | Ingesta por correo, filtro de descarte y resumen | Disponible (activación en producción: Planificado) |
 | Cuarentena de precios y bandeja `/proveedores/cuarentena` | Disponible |
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
+| Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes | Propuesta |
 | Receta sin cantidades ni costos para el colaborador | Disponible |

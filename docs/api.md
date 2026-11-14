@@ -437,17 +437,30 @@ Descarta el precio propuesto por anomalía.
 ## 8. Módulo Métricas del Dashboard (`/api/dashboard`)
 
 ### `GET /api/dashboard/metrics`
-Métricas consolidadas de rentabilidad y riesgo para el panel principal.
+Métricas consolidadas de rentabilidad, riesgo y distribución completa del catálogo para el panel principal, calculadas sobre toda la base de la cuenta autenticada.
 - **Roles:** Solo `ADMIN` (`403 Forbidden` a colaboradores).
-- **Reglas:** Excluye productos en borrador ("Sin Receta") del cálculo de márgenes y productos en riesgo.
+- **Reglas:**
+  - Los cinco buckets suman el total de productos de la cuenta (`lossCount + riskCount + targetCount + surplusCount + draftCount`):
+    - `draftCount`: productos sin receta (`0` ingredientes).
+    - `lossCount`: productos con receta y `marginPercent < 0`.
+    - `riskCount`: productos con receta y `0 <= marginPercent < minMarginPercent` (evaluado contra el `minMarginPercent` propio de cada producto).
+    - `targetCount`: productos con receta y `minMarginPercent <= marginPercent <= 60`.
+    - `surplusCount`: productos con receta y `marginPercent >= minMarginPercent` con `marginPercent > 60`.
+  - `criticalProductsCount = lossCount + riskCount` y `healthyProductsCount = targetCount + surplusCount`.
+  - `averageMarginPercent`: **mediana** de `marginPercent` de los productos con receta (excluye borradores), redondeada a 2 decimales con `ROUND_HALF_UP` (robusta frente a precios extremos mal cargados).
 - **Respuesta 200:**
   ```json
   {
     "activeIngredientsCount": 10,
     "criticalProductsCount": 2,
     "healthyProductsCount": 8,
-    "averageMarginPercent": 60.6,
-    "recentCostVariationsCount": 1
+    "averageMarginPercent": 58.25,
+    "recentCostVariationsCount": 1,
+    "lossCount": 0,
+    "riskCount": 2,
+    "targetCount": 4,
+    "surplusCount": 4,
+    "draftCount": 0
   }
   ```
 

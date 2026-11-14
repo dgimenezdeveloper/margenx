@@ -1,6 +1,6 @@
-# Cómo ejecutar las 7 colecciones de Postman
+# Cómo ejecutar las 8 colecciones de Postman
 
-Issue #264. Las 7 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264. Las 8 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -13,6 +13,7 @@ Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar 
 | Colaborador RBAC API | `./run-tests-rbac-colaborador.sh <token_colaborador>` | Token de `panaderia-colab` |
 | Alertas de margen (Insumos) | `./run-tests-alertas-margen.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 | Cuarentena API | `INTERNAL_WEBHOOK_SECRET=<secreto> ./run-tests-cuarentena.sh <token_A>` | Token de `panaderia-admin` y el mismo `INTERNAL_WEBHOOK_SECRET` del `.env` del backend |
+| Dashboard API | `./run-tests-dashboard.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 
 ## Generar los tokens de Clerk
 
@@ -33,7 +34,7 @@ echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
 echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
-## Correr las 7 en orden
+## Correr las 8 en orden
 
 ```bash
 cd backend/tests/postman
@@ -44,9 +45,10 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-webhooks.sh
 ./run-tests-rbac-colaborador.sh "$TOKEN_COLLAB"
 ./run-tests-alertas-margen.sh "$TOKEN_A" "$TOKEN_COLLAB"
 INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-cuarentena.sh "$TOKEN_A"
+./run-tests-dashboard.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
-Salida esperada: **0 failures** en las 7.
+Salida esperada: **0 failures** en las 8.
 
 ## Reproducibilidad
 
