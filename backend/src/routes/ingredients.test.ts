@@ -25,6 +25,7 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
 const productIngredientFindManyMock = vi.fn();
+const productIngredientCountMock = vi.fn();
 const productFindUniqueMock = vi.fn();
 const productUpdateMock = vi.fn();
 const priceHistoryFindManyMock = vi.hoisted(() => vi.fn());
@@ -61,6 +62,7 @@ vi.mock('../lib/prisma', () => ({
     },
     productIngredient: {
       findMany: (...args: unknown[]) => productIngredientFindManyMock(...args),
+      count: (...args: unknown[]) => productIngredientCountMock(...args),
     },
     product: {
       findUnique: (...args: unknown[]) => productFindUniqueMock(...args),
@@ -92,6 +94,7 @@ beforeEach(() => {
   updateMock.mockReset();
   deleteMock.mockReset();
   productIngredientFindManyMock.mockReset();
+  productIngredientCountMock.mockReset();
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
   priceHistoryFindManyMock.mockReset();
@@ -308,6 +311,182 @@ describe('GET /api/ingredients/:id/history', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Insumo no encontrado.');
+  });
+});
+
+describe('GET /api/ingredients/:id/products', () => {
+  const buildUsageRow = (index: number, overrides?: {
+    quantity?: string;
+    marginPercent?: string;
+    minMarginPercent?: string;
+    name?: string;
+  }) => ({
+    quantity: new Prisma.Decimal(overrides?.quantity ?? '0.500'),
+    product: {
+      id: `prod-${index}`,
+      name: overrides?.name ?? `Producto ${index}`,
+      salePrice: new Prisma.Decimal('4000.00'),
+      cost: new Prisma.Decimal('1500.00'),
+      marginAmount: new Prisma.Decimal('2500.00'),
+      marginPercent: new Prisma.Decimal(overrides?.marginPercent ?? '62.50'),
+      minMarginPercent: new Prisma.Decimal(overrides?.minMarginPercent ?? '30.00'),
+      updatedAt: new Date('2026-11-12T10:00:00.000Z'),
+    },
+  });
+
+  it('Gherkin "Dónde se usa": devuelve los 27 productos con nombre, cantidad y estado de margen al pedir limit=50', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    const rows = Array.from({ length: 27 }, (_, i) =>
+      buildUsageRow(i + 1, {
+        quantity: i === 0 ? '0.250' : '1.000',
+        marginPercent: i === 0 ? '-10.00' : i === 1 ? '20.00' : i === 2 ? '45.00' : '70.00',
+        minMarginPercent: '30.00',
+      })
+    );
+    productIngredientFindManyMock.mockResolvedValue(rows);
+    productIngredientCountMock.mockResolvedValue(27);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-1/products?limit=50');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(27);
+    expect(res.body.meta).toEqual({ total: 27, page: 1, limit: 50, totalPages: 1 });
+    expect(res.body.data[0]).toMatchObject({
+      id: 'prod-1',
+      name: 'Producto 1',
+      quantity: '0.25',
+      marginStatus: 'loss',
+    });
+    expect(res.body.data[1].marginStatus).toBe('risk');
+    expect(res.body.data[2].marginStatus).toBe('target');
+    expect(res.body.data[3].marginStatus).toBe('surplus');
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1', accountId: 'account-1' },
+      select: { id: true },
+    });
+    expect(productIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          ingredientId: 'ing-1',
+          product: { accountId: 'account-1' },
+        },
+        orderBy: { product: { name: 'asc' } },
+        skip: 0,
+        take: 50,
+      })
+    );
+  });
+
+  it('pagina de a 20 por defecto cuando hay 27 productos (page 1 -> 20, page 2 -> 7)', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    productIngredientFindManyMock.mockResolvedValue(Array.from({ length: 7 }, (_, i) => buildUsageRow(21 + i)));
+    productIngredientCountMock.mockResolvedValue(27);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-1/products?page=2');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(7);
+    expect(res.body.meta).toEqual({ total: 27, page: 2, limit: 20, totalPages: 2 });
+    expect(productIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 20,
+        take: 20,
+      })
+    );
+  });
+
+  it('devuelve array vacío y totalPages 0 cuando el insumo no se usa en ningún producto', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-sin-uso' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+    productIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-sin-uso/products');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+    });
+  });
+
+  it('Gherkin "Otra cuenta": devuelve 404 si el insumo no existe o pertenece a otra cuenta', async () => {
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-ajeno/products');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Insumo no encontrado.' });
+    expect(productIngredientFindManyMock).not.toHaveBeenCalled();
+    expect(productIngredientCountMock).not.toHaveBeenCalled();
+  });
+
+  it('bloquea a COLLABORATOR con 403 Forbidden sin consultar la base de datos', async () => {
+    const res = await request(buildApp())
+      .get('/api/ingredients/ing-1/products')
+      .set('x-role', 'COLLABORATOR');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
+    expect(findFirstMock).not.toHaveBeenCalled();
+    expect(productIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('filtra por search normalizado (sin tildes) y soporta sortBy/order válidos', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    productIngredientFindManyMock.mockResolvedValue([
+      buildUsageRow(1, { name: 'Cañoncitos con dulce de leche' }),
+    ]);
+    productIngredientCountMock.mockResolvedValue(1);
+
+    const sortCases = [
+      { sortBy: 'quantity', order: 'desc', expected: { quantity: 'desc' } },
+      { sortBy: 'salePrice', order: 'asc', expected: { product: { salePrice: 'asc' } } },
+      { sortBy: 'cost', order: 'desc', expected: { product: { cost: 'desc' } } },
+      { sortBy: 'marginPercent', order: 'asc', expected: { product: { marginPercent: 'asc' } } },
+    ] as const;
+
+    for (const tc of sortCases) {
+      const res = await request(buildApp()).get(
+        `/api/ingredients/ing-1/products?search=cañoncito&sortBy=${tc.sortBy}&order=${tc.order}`
+      );
+
+      expect(res.status).toBe(200);
+      expect(productIngredientFindManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            ingredientId: 'ing-1',
+            product: {
+              accountId: 'account-1',
+              OR: [
+                { searchName: { contains: 'canoncito', mode: 'insensitive' } },
+                { name: { contains: 'cañoncito', mode: 'insensitive' } },
+              ],
+            },
+          },
+          orderBy: tc.expected,
+        })
+      );
+    }
+  });
+
+  it('aplica valores por defecto y límite máximo ante parámetros de paginación inválidos', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    productIngredientFindManyMock.mockResolvedValue([]);
+    productIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get(
+      '/api/ingredients/ing-1/products?page=abc&limit=999&sortBy=campo_raro&order=invalido'
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.meta).toEqual({ total: 0, page: 1, limit: 100, totalPages: 0 });
+    expect(productIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { product: { name: 'asc' } },
+        skip: 0,
+        take: 100,
+      })
+    );
   });
 });
 
