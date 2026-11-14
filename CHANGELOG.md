@@ -18,6 +18,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
+- **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
+- **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
 - **Frontend / UX:** Corrección de desbordamiento en modales y bottom sheets (`DialogSheet`) en resoluciones móviles de 360 px: se fijaron encabezados y acciones con `shrink-0`, se implementó scroll interno con `flex-1 overflow-y-auto` y se acotó la lista de proveedores en insumos a `max-h-60` para evitar bloqueos visuales (`#355`).
 - **Frontend / UX:** Reacomodamiento en dos filas de la barra de acciones inferior en la ficha de producto (`ProductMobileFooter`) para evitar superposiciones con la navegación (`BottomNav`) y garantizar la visibilidad completa del badge de rentabilidad (`#355`).
 - **DevOps / n8n:** Los mails de resumen, de error de ingesta y de alerta de margen llegan con el remitente "MargenX": `emailSend` 2.1 ignoraba `senderName` y la alerta salía como "alertas". La alerta pasa a enviar HTML y texto plano (`emailFormat: both`), y ninguno lleva el pie de n8n (`appendAttribution: false`). El texto plano de la alerta ya no muestra entidades HTML (`&lt;`) en el nombre del comercio o del insumo, y el destinatario del pie va escapado (`#254`).
@@ -25,6 +28,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
 - **Frontend / UX:** Corrección de desbordamiento en modales y bottom sheets (`DialogSheet`) en resoluciones móviles de 360 px: se fijaron encabezados y acciones con `shrink-0` y se implementó scroll interno con `flex-1 overflow-y-auto`, acotando la lista de proveedores en insumos a `max-h-60` para evitar bloqueos visuales (`#355`).
 - **Frontend / UX:** Reacomodamiento en dos filas de la barra de acciones inferior en la ficha de producto (`ProductMobileFooter`) para evitar superposiciones con la navegación (`BottomNav`) y garantizar la visibilidad completa del badge de rentabilidad (`#355`).
+- **Docs:** `docs/process/revision-de-prs.md` §5, punto 6: se quitó un párrafo duplicado y se aclara cómo se mide la cobertura en cada paquete y en el CI (`#307`).
 - **Frontend:** `parseNumeroAR` interpretaba `0.250` como 250 (separador de miles); ahora es 0,25 (`#352`).
 - **Frontend:** `NumericInput` volvía a leer su propio valor como formato argentino: `1,250` kg pasaba a 1250 kg al entrar y salir otra vez del campo. Además mostraba solo 2 decimales (1,125 kg se veía 1,13); las cantidades de receta muestran 3 (`#352`).
 - **Frontend:** Las cantidades de receta se redondean a 3 decimales de la unidad del insumo (límite de la base). El modal y la edición en la lista avisan cuando la cantidad se redondea ("se guarda como 1 gr") o no llega al mínimo (0,001 kg o l), que no se puede agregar; al salir del campo se muestra la cantidad que quedó en la receta (`#352`).
