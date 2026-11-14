@@ -126,7 +126,11 @@ describe('Service worker: precache del shell', () => {
   });
 
   it('el HTML precacheado es la página Sin conexión, no index.html', () => {
-    expect(workbox.globIgnores).toEqual(['index.html']);
+    expect(workbox.globIgnores).toContain('index.html');
+  });
+
+  it('no precachea ExcelJS: se descarga solo al pedir la plantilla de insumos', () => {
+    expect(workbox.globIgnores).toContain('**/exceljs*.js');
   });
 
   it('no precachea las capturas de la guía de instalación ni los placeholders', () => {
