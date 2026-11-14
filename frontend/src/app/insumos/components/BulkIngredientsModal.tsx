@@ -173,7 +173,7 @@ export function BulkIngredientsModal({ isOpen, onClose, existingSupplies, onSucc
             <DialogClose
               disabled={stage.name === 'importing'}
               aria-label="Cerrar carga desde planilla"
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               <X className="size-5" aria-hidden="true" />
             </DialogClose>
@@ -333,7 +333,7 @@ function FilePickStep({ isReading, readingFileName, onFile, onDownloadTemplate }
         aria-busy={isReading}
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed px-4 py-8 text-center transition',
-          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-indigo-600',
+          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-',
           isDragging
             ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
             : 'border-gray-300 bg-gray-50/60 hover:border-indigo-400 hover:bg-indigo-50/40 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-indigo-500',
@@ -550,7 +550,7 @@ function RowItem({ title, meta, value, detail, detailTone }: RowItemProps) {
     <li className="flex items-start justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{title}</p>
-        <p className="mt-0.5 break-words text-xs text-gray-600 dark:text-gray-400">{meta}</p>
+        <p className="mt-0.5 wrap-break-word text-xs text-gray-600 dark:text-gray-400">{meta}</p>
         {detail && <p className={cn('mt-1 text-xs font-medium', detailTone)}>{detail}</p>}
       </div>
       {value && (
@@ -658,7 +658,7 @@ function SecondaryButton({ onClick, disabled, className, children }: ButtonProps
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 text-sm font-bold text-gray-800 transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 md:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 text-sm font-bold text-gray-800 transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
         className
       )}
     >
