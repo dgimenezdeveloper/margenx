@@ -9,6 +9,7 @@ export const FINANCIAL_FIELDS = new Set([
   'marginPercent',
   'minMarginPercent',
   'defaultMinMarginPercent',
+  'marginStatus',
   'currentCost',
   'oldCost',
   'newCost',
