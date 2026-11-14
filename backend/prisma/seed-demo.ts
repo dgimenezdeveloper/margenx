@@ -7,6 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { normalizeSearchText } from "../src/utils/pagination";
 import { type DemoAuthProviderIds, hasIdentityConflict, resolveDemoAuthProviderIds } from "./seed-identity";
 
 // Cuenta de demostración "Demo MargenX": script independiente de seed.ts.
@@ -263,7 +264,12 @@ async function main() {
         });
       }
 
-      const values = { name: ingredient.name, unit: ingredient.unit, currentCost: cost };
+      const values = {
+        name: ingredient.name,
+        searchName: normalizeSearchText(ingredient.name),
+        unit: ingredient.unit,
+        currentCost: cost,
+      };
       await tx.ingredient.upsert({
         where: { id: ingredient.id },
         create: { id: ingredient.id, accountId: ACCOUNT.id, ...values },
@@ -333,6 +339,7 @@ async function main() {
 
       const values = {
         name: product.name,
+        searchName: normalizeSearchText(product.name),
         salePrice,
         minMarginPercent: new Prisma.Decimal(product.minMarginPercent),
         cost,

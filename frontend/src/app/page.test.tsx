@@ -1,9 +1,10 @@
-import { render } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { act, render } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import LandingPage from './page'
 import { useAuth } from '@clerk/clerk-react'
 import { useRouter } from 'next/navigation'
+import { PUBLIC_SESSION_TIMEOUT_MS } from '@/hooks/usePublicSession'
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: vi.fn(),
@@ -42,5 +43,36 @@ describe('LandingPage', () => {
 
     expect(replaceMock).not.toHaveBeenCalled()
     expect(getByText(/Control de costos/i)).toBeInTheDocument()
+  })
+
+  describe('Escenario Gherkin "Sin pantallazo"', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('mientras Clerk verifica la sesión no muestra la landing (el usuario con sesión no la ve antes del dashboard)', () => {
+      const replaceMock = vi.fn()
+      vi.mocked(useRouter).mockReturnValue({ replace: replaceMock } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: false, isSignedIn: undefined } as unknown as ReturnType<typeof useAuth>)
+
+      const { queryByText, getByRole } = render(<LandingPage />)
+
+      expect(queryByText(/Control de costos/i)).not.toBeInTheDocument()
+      expect(getByRole('status')).toHaveAccessibleName(/Cargando MargenX/i)
+      expect(replaceMock).not.toHaveBeenCalled()
+    })
+
+    it('si Clerk no responde a tiempo, el visitante igual ve la landing', () => {
+      vi.useFakeTimers()
+      vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: false, isSignedIn: undefined } as unknown as ReturnType<typeof useAuth>)
+
+      const { getByText } = render(<LandingPage />)
+      act(() => {
+        vi.advanceTimersByTime(PUBLIC_SESSION_TIMEOUT_MS)
+      })
+
+      expect(getByText(/Control de costos/i)).toBeInTheDocument()
+    })
   })
 })

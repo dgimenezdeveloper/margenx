@@ -23,6 +23,10 @@ export interface ProductCostImpact {
 
 export interface CriticalMarginProduct extends ProductCostImpact { }
 
+export type HealthBucket = 'loss' | 'risk' | 'target' | 'surplus' | 'draft';
+
+const SURPLUS_MARGIN_THRESHOLD = new Decimal(60);
+
 function clampDecimal(value: DecimalType, min: DecimalType, max: DecimalType): DecimalType {
   if (value.lessThan(min)) return min;
   if (value.greaterThan(max)) return max;
@@ -108,6 +112,49 @@ export function calculateMarginPercent(salePrice: DecimalType, totalCost: Decima
   if (salePrice.lte(0) || totalCost.isZero()) return roundMoney(ZERO);
   const percent = roundMoney(salePrice.sub(totalCost).div(salePrice).mul(100));
   return clampDecimal(percent, MIN_PERCENT_VALUE, MAX_PERCENT_VALUE);
+}
+
+/**
+ * Clasifica un producto en su bucket de salud financiera usando su propio
+ * `minMarginPercent` (no el umbral global de la cuenta):
+ * - draft: sin ingredientes en su receta
+ * - loss: con receta y marginPercent < 0
+ * - risk: con receta y 0 <= marginPercent < minMarginPercent
+ * - target: con receta y minMarginPercent <= marginPercent <= 60
+ * - surplus: con receta y marginPercent >= minMarginPercent y marginPercent > 60
+ */
+export function classifyProductHealthBucket(
+  marginPercent: DecimalType,
+  minMarginPercent: DecimalType,
+  ingredientsCount: number
+): HealthBucket {
+  if (ingredientsCount <= 0) return 'draft';
+  if (marginPercent.lessThan(ZERO)) return 'loss';
+  if (marginPercent.lessThan(minMarginPercent)) return 'risk';
+  if (marginPercent.lessThanOrEqualTo(SURPLUS_MARGIN_THRESHOLD)) return 'target';
+  return 'surplus';
+}
+
+/**
+ * Calcula la mediana del margen porcentual de los productos activos (no borradores).
+ * Medida robusta frente a precios o costos extremos mal cargados.
+ * Devuelve 0.00 si la lista está vacía.
+ */
+export function calculateMedianMarginPercent(margins: DecimalType[]): DecimalType {
+  if (!Array.isArray(margins) || margins.length === 0) {
+    return roundMoney(ZERO);
+  }
+
+  const sorted = [...margins].sort((a, b) => a.comparedTo(b));
+  const mid = Math.floor(sorted.length / 2);
+  const middle = sorted[mid] ?? ZERO;
+
+  if (sorted.length % 2 === 1) {
+    return roundMoney(middle);
+  }
+
+  const lower = sorted[mid - 1] ?? ZERO;
+  return roundMoney(lower.add(middle).div(2));
 }
 
 export interface IngredientCostChangeResult {
@@ -298,6 +345,8 @@ export default {
   calculateMarginAmount,
   calculateMarginPercent,
   calculateUnitCost,
+  classifyProductHealthBucket,
+  calculateMedianMarginPercent,
   applyIngredientCostChange,
   applyBatchIngredientCostChanges,
 };

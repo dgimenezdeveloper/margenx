@@ -165,11 +165,11 @@ export function PresentationEditDialog({
       <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) requestClose() }}>
         <DialogPortal>
           <DialogBackdrop />
-          <DialogSheet className="max-h-[92dvh] overflow-y-auto">
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" aria-hidden="true" />
+          <DialogSheet>
+            <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" aria-hidden="true" />
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate>
-              <div className="flex items-start justify-between gap-3">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex shrink-0 items-start justify-between gap-3 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
                     <PackageOpen className="size-5" aria-hidden="true" />
@@ -190,7 +190,7 @@ export function PresentationEditDialog({
                 </DialogClose>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
                 <div>
                   <label htmlFor="supplier-code-input" className="block text-xs font-bold text-gray-700 dark:text-gray-300">
                     Código de artículo del proveedor (SKU) <span className="font-normal text-gray-500">(opcional)</span>
@@ -296,16 +296,16 @@ export function PresentationEditDialog({
                     </p>
                   </div>
                 </label>
+
+                {submitError && (
+                  <div role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <p>{submitError}</p>
+                  </div>
+                )}
               </div>
 
-              {submitError && (
-                <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <p>{submitError}</p>
-                </div>
-              )}
-
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 flex shrink-0 gap-3 pt-2">
                 <button
                   type="button"
                   onClick={requestClose}

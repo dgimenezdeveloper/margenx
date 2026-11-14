@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Landing Page — Casos Reales y Reglas de Negocio', () => {
+  // La landing es la pantalla del visitante: con la sesión del proyecto "chromium" la app va directo
+  // al dashboard sin mostrarla (Gherkin "Sin pantallazo", public-pages-session.spec.ts).
+  test.use({ storageState: { cookies: [], origins: [] } })
+
   test('MargenX carga correctamente y expone el título institucional', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveTitle(/MargenX/i)

@@ -159,6 +159,7 @@ erDiagram
         string id PK "uuid"
         string accountId FK "uuid"
         string name "Nombre del insumo (UK con accountId, sin distinguir mayúsculas)"
+        string searchName "Nombre normalizado para búsqueda sin tildes"
         string unit "Unidad base: kg, l, u"
         decimal currentCost "Decimal(10,2) Costo activo de costeo"
         datetime updatedAt
@@ -202,6 +203,7 @@ erDiagram
         string id PK "uuid"
         string accountId FK "uuid"
         string name "Denominación comercial (UK con accountId, sin distinguir mayúsculas)"
+        string searchName "Nombre normalizado para búsqueda sin tildes"
         decimal salePrice "Decimal(10,2) Precio de venta al público"
         decimal minMarginPercent "Decimal(5,2) Umbral de alerta"
         decimal cost "Decimal(10,2) Costo total de receta"
@@ -245,6 +247,7 @@ classDiagram
         +String id
         +String accountId
         +String name
+        +String searchName
         +String unit
         +Decimal currentCost
         +DateTime updatedAt
@@ -289,6 +292,7 @@ classDiagram
         +String id
         +String accountId
         +String name
+        +String searchName
         +Decimal salePrice
         +Decimal minMarginPercent
         +Decimal cost

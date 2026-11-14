@@ -1,10 +1,17 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import fs from 'node:fs'
 import path from 'node:path'
 import { MemoryRouter } from 'react-router-dom'
 import InstallPage from './page'
+
+// La guía usa PublicSessionLink, que lee la sesión con useAuth de Clerk.
+// Estas pruebas cubren el contenido de la guía para un visitante sin sesión;
+// la versión con sesión ("Ir al panel") la cubre public-session-link.test.tsx.
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
+}))
 
 const publicDir = path.resolve(process.cwd(), 'public')
 

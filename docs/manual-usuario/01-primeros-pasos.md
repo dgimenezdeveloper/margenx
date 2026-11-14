@@ -47,7 +47,7 @@ Si guardás la planilla como CSV, conviene que esté separada por punto y coma (
 Pensado para **actualizar periódicamente los costos** de insumos que ya tenés cargados; no crea materias primas nuevas.
 
 1. Asociá previamente cada insumo a su proveedor y cargá el código de artículo (SKU) con el que figura en su catálogo mayorista.
-2. Cuando el proveedor te envíe su lista por correo o WhatsApp, reenviá el archivo a la dirección virtual de tu comercio: `precios-<slug>@margenx.tech`. La encontrás en **Proveedores**, con el botón **Copiar** (ver [Tu dirección para listas de precios](02-proveedores-y-listas.md#tu-dirección-para-listas-de-precios)).
+2. Cuando el proveedor te envíe su lista por correo o WhatsApp, reenviá el archivo a la dirección virtual de tu comercio: `precios-<slug>@margenx.tech`. La encontrás en **Proveedores**, con el botón **Copiar** (ver [Tu dirección para listas de precios](04-proveedores-y-listas.md#tu-dirección-para-listas-de-precios)).
 3. MargenX lee la lista, actualiza los precios de los artículos mapeados y descarta el resto mediante el Filtro Anti-Polución.
 4. Si un costo varía más de un 50 % respecto del valor anterior, queda retenido preventivamente en **Proveedores › Cuarentena** hasta que confirmes si se trata de un aumento legítimo o un error del mayorista.
 

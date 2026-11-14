@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -29,6 +28,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { usePublicSession } from '@/hooks/usePublicSession'
 import { useTheme } from '@/hooks/useTheme'
 
 const benefits = [
@@ -102,20 +102,30 @@ function ThemeToggle() {
 }
 
 export default function LandingPage() {
-  const { isLoaded, isSignedIn } = useAuth()
+  const session = usePublicSession()
   const router = useRouter()
   const [menu, setMenu] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [activePilot, setActivePilot] = useState<'panaderia' | 'quimica'>('panaderia')
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
+    if (session === 'signed-in') {
       router.replace('/dashboard')
     }
-  }, [isLoaded, isSignedIn, router])
+  }, [session, router])
 
-  if (isLoaded && isSignedIn) {
+  if (session === 'signed-in') {
     return null // Evita el parpadeo de la landing antes de redirigir
+  }
+
+  if (session === 'checking') {
+    // Mientras Clerk verifica la sesión no se muestra la landing: un usuario con sesión la vería
+    // cerca de 1 s antes de llegar al dashboard. Mismo fondo que la landing, sin contenido.
+    return (
+      <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div role="status" aria-label="Cargando MargenX" />
+      </main>
+    )
   }
 
   return (

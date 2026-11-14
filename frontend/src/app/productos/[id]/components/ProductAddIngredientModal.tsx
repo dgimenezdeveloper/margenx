@@ -86,8 +86,9 @@ export function ProductAddIngredientModal({
       <DialogPortal>
         <DialogBackdrop />
         <DialogSheet>
-          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
-          <div className="flex items-start justify-between">
+          <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
+
+          <div className="flex shrink-0 items-start justify-between pb-4">
             <div>
               <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Despensa</p>
               <DialogTitle className="mt-1 text-xl">Sumar Insumo a la Receta</DialogTitle>
@@ -103,7 +104,7 @@ export function ProductAddIngredientModal({
             </DialogClose>
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
               Seleccionar Insumo
               <button
@@ -215,7 +216,7 @@ export function ProductAddIngredientModal({
             )}
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex shrink-0 gap-3 pt-2">
             <DialogClose
               className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition cursor-pointer"
             >

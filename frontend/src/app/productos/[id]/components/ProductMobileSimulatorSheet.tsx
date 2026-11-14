@@ -20,8 +20,8 @@ export function ProductMobileSimulatorSheet({
       <DialogPortal>
         <DialogBackdrop className="lg:hidden" />
         <DialogSheet className="lg:hidden">
-          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
+          <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
             <div>
               <DialogTitle className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Simulador de Precio (Costo: {money(simulatorProps.cost)})
@@ -42,9 +42,7 @@ export function ProductMobileSimulatorSheet({
               Ganancia: {!simulatorProps.hasRecipe ? '$0' : money(gain)}
             </span>
           </div>
-          <div className="mt-5">
-            <ProductSimulatorPanel {...simulatorProps} isMobile={true} onCancel={onClose} />
-          </div>
+          <ProductSimulatorPanel {...simulatorProps} isMobile={true} onCancel={onClose} />
         </DialogSheet>
       </DialogPortal>
     </Dialog>
