@@ -162,12 +162,13 @@ Planning):
 
 ## 2. Recorrido por rol y validación en dispositivos reales (issue #255)
 
-**Estado de esta sección: completa, con una reserva.** Los tres roles
+**Estado de esta sección: completa.** Los tres roles
 (Visitante, Admin, Colaborador) y los dos dispositivos (Android, iPhone)
 quedaron recorridos. Resultado: 3 hallazgos reales, todos Importante o
 Menor — ninguno grave. El enlace "Ajustar" del mail quedó confirmado con
-un mail real en Android; en iPhone solo se probó por simulación y la
-prueba con mail real pasa al Sprint 6 (ver §2.5 y §2.9).
+un mail real en Android durante el Sprint 5. En iPhone solo se había
+probado por simulación; la prueba con un mail real se hizo en el Sprint 6
+(issue #365, 12/11/2026) y también quedó confirmada (ver §2.5).
 
 ### 2.1 Objetivo
 
@@ -235,7 +236,7 @@ Entrega 6 fallas que las pruebas automáticas no ven.
 | `/` (landing) — [captura](evidencias/255/visitante-01-landing.png) | Sin fallas. 200, título y contenido correctos, 360px sin cortes. |
 | `/login` — [captura](evidencias/255/visitante-02-login.png) | Sin fallas en el marco propio de la página (volver, logo, enlaces a privacidad/instalación). El widget de `<SignIn/>` de Clerk no se pudo verificar visualmente en el entorno de automatización — ver §2.2. |
 | `/privacidad` — [captura](evidencias/255/visitante-03-privacidad.png) | Sin fallas. |
-| `/instalar` — [captura](evidencias/255/visitante-04-instalar.png) | Con hallazgo menor registrado en la matriz (§2.6). |
+| `/instalar` — [captura](evidencias/255/visitante-04-instalar.png) | Con hallazgo menor registrado en la matriz (§2.6), resuelto en el Sprint 6 (issue #365). |
 | `/dashboard` sin sesión | Redirige a `/login` — verificado por ejecución real de `protected-route.test.tsx` (ver §2.2), no por Playwright en vivo. |
 | `/insumos` sin sesión | Redirige a `/login` — mismo mecanismo y misma verificación que la fila anterior. |
 | `/productos` sin sesión | Redirige a `/login` — ídem. |
@@ -281,21 +282,21 @@ hallazgo nuevo.
 | Instalación — [Android](evidencias/255/android-08-instalacion.png) | "Instalar app" desde el menú de Chrome, ícono correcto | "Agregar a Inicio" desde Compartir, ícono correcto (sin captura de este paso puntual en iPhone) |
 | Modo standalone — [Android](evidencias/255/android-09-standalone-sesion-persistente.png) / [iPhone](evidencias/255/iphone-03-standalone-sesion-persistente.png) | Sin barra de direcciones, nada tapado | Sin barra de Safari, nada tapado por el notch |
 | **Gherkin — sesión tras cerrar la app** | Cerrada del todo y reabierta: entra directo, sin pedir login | Cerrada del todo y reabierta: entra directo, sin pedir login |
-| **Gherkin — enlace "Ajustar" lleva al producto** — [mail](evidencias/255/android-13-mail-alerta-ajustar.jpg) / [resultado](evidencias/255/android-14-ajustar-abre-producto.jpg) | **Confirmado con un mail real.** La alerta "[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central" (Tarta de ricota — 24 cm, 46,82 % contra un mínimo de 60 %, disparada por el aumento de Manteca en bloque mayorista durante este recorrido) llegó por correo. Con la app cerrada, al tocar "Ajustar" en Gmail se abrió la app instalada (sin barra de direcciones) directo en la ficha de Tarta de ricota, sin pedir login | **Pendiente (Sprint 6).** Solo se probó por simulación: el link abre en el navegador predeterminado, nunca en el ícono instalado — las apps "Agregadas a Inicio" en iOS no pueden capturar enlaces del sistema. Con el mismo navegador de la sesión original (ventana corta, sesión reciente) aterrizó directo en el producto sin pedir login; según ADR-0006, en el navegador común rigen el cierre por 30 min de inactividad y el cierre al cerrar el navegador, así que este resultado no generaliza. Falta la prueba con el mail real y su captura |
+| **Gherkin — enlace "Ajustar" lleva al producto** — [mail](evidencias/255/android-13-mail-alerta-ajustar.jpg) / [resultado](evidencias/255/android-14-ajustar-abre-producto.jpg) | **Confirmado con un mail real.** La alerta "[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central" (Tarta de ricota — 24 cm, 46,82 % contra un mínimo de 60 %, disparada por el aumento de Manteca en bloque mayorista durante este recorrido) llegó por correo. Con la app cerrada, al tocar "Ajustar" en Gmail se abrió la app instalada (sin barra de direcciones) directo en la ficha de Tarta de ricota, sin pedir login | **Confirmado con un mail real (Sprint 6, issue #365, 12/11/2026)** — [mail](evidencias/365/iphone-01-mail-alerta-ajustar.png) / [origen](evidencias/365/iphone-02-mail-reenviado-origen.png) / [sin sesión](evidencias/365/iphone-03-ajustar-sin-sesion-login.png) / [con sesión, producto 1](evidencias/365/iphone-04-ajustar-con-sesion-medialunas.png) / [con sesión, producto 2](evidencias/365/iphone-05-ajustar-con-sesion-rosca.png). Alerta real de staging de la cuenta Demo MargenX, enviada el 10/11/2026 a la casilla del admin de la Demo (`demo-admin@margenx.tech`) por el aumento de Manteca El Trébol, con dos productos: "Medialunas rellenas de dulce de leche — docena" y "Rosca de pascua — porción (línea económica)". El Tech Lead la reenvió a la casilla del tester. Abierta en la app Gmail del iPhone, el enlace se abre en Safari, no en la app instalada: las apps "Agregadas a Inicio" en iOS no capturan enlaces del sistema. **Sin sesión en Safari**, pidió login y, al iniciar sesión, volvió directo a la ficha del producto, por la URL de retorno de ADR-0006 §4 (confirmado por reporte directo, sin captura de ese paso puntual). **Con la sesión iniciada**, los dos "Ajustar" abrieron directo la ficha de cada producto, sin pedir login. Las fichas muestran el margen vigente al 12/11 y no el del mail: los costos cambiaron después de la alerta. En el navegador común rigen los cierres de ADR-0006: 30 min de inactividad y cierre del navegador. Por eso cubrimos los dos casos |
 | Scroll en modales largos (regresión PR #195) | No se repitió explícitamente (el bug original fue específico de iOS Safari) | Confirmado sin regresión por reporte directo (fondo congelado con el modal de editar insumo abierto); no se generó una captura de este paso puntual |
 | Offline — aviso en pantalla (falla un fetch con la app ya abierta) — [Android](evidencias/255/android-10-offline-aviso-en-panel.png) | "Error al cargar el panel" + botón Reintentar, en español | Mismo patrón, en español (sin captura de este paso puntual en iPhone) |
 | Offline — página dedicada (abrir la app de cero sin conexión) — [Android](evidencias/255/android-11-offline-pagina-dedicada.png) / [iPhone](evidencias/255/iphone-04-offline-pagina-dedicada.png) | Pantalla "Sin conexión" de MargenX | Misma pantalla (con un aviso nativo de iOS superpuesto — "Para acceder a tus datos, desactivá Modo de vuelo..." — es el sistema operativo, no la app) |
 
 Los escenarios Gherkin de recorrido por rol y de sesión persistente
 quedan confirmados en ambos dispositivos. El del enlace "Ajustar" queda
-confirmado con un mail real en Android y **pendiente en iPhone**, donde
-solo se probó por simulación — ver §2.9.
+confirmado con un mail real en Android (Sprint 5) y en iPhone (Sprint 6,
+issue #365).
 
 ### 2.6 Matriz de defectos (fechada)
 
 | Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Quién lo encontró | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|
-| 2026-11-06 | `/instalar` muestra el placeholder "Captura pendiente" en las secciones Android y Escritorio; solo iPhone tiene las 3 capturas reales cargadas (`frontend/src/app/instalar/page.tsx`, array `guideSections`) | Menor / cosmético | `/instalar` | Entrar a `/instalar` como Visitante (no requiere sesión) y mirar las secciones "Android · Chrome" y "Escritorio · Chrome o Edge" | Recorrido automatizado del rol Visitante | — | Sin issue — es un fallback intencional y prolijo (el propio texto se autodenomina "pendiente"), no un bug; queda anotado para que el equipo decida si lo completa |
+| 2026-11-06 | `/instalar` muestra el placeholder "Captura pendiente" en las secciones Android y Escritorio; solo iPhone tiene las 3 capturas reales cargadas (`frontend/src/app/instalar/page.tsx`, array `guideSections`) | Menor / cosmético | `/instalar` | Entrar a `/instalar` como Visitante (no requiere sesión) y mirar las secciones "Android · Chrome" y "Escritorio · Chrome o Edge" | Recorrido automatizado del rol Visitante | [360 px](evidencias/365/instalar-360px.png) / [escritorio](evidencias/365/instalar-escritorio.png) (después del arreglo) | **Resuelto en el Sprint 6 (issue #365, 12/11/2026).** Android (Chrome, 4 capturas: el aviso "Instalar MargenX" y, si se cerró, el menú) y Escritorio (Edge, 3 capturas) tienen capturas reales, sin barra de estado ni datos personales. Se quitó el recuadro "Captura pendiente". Una prueba de `frontend/src/app/instalar/page.test.tsx` exige una captura con texto alternativo en cada paso |
 | 2026-11-06 | Flash (~1s) de la landing pública al visitar `/` con sesión activa, antes de redirigir a `/dashboard`. `frontend/src/app/page.tsx:117`: el guard `if (isLoaded && isSignedIn) return null` solo evita el parpadeo cuando Clerk ya confirmó la sesión; mientras `isLoaded` sigue en `false` (justo después de una navegación completa, por ejemplo escribir el dominio a mano) no hay ninguna guarda y se renderiza la landing completa | Importante | `/` | Con sesión iniciada (Admin o Colaborador), borrar la barra de direcciones y escribir de nuevo `dev.margenx.tech` | Leandro Herrera — confirmado en Android/Chrome **e** iPhone/Safari | [iPhone, en transición](evidencias/255/iphone-01-landing-flash.png) / [iPhone, resuelto](evidencias/255/iphone-02-dashboard-tras-flash.png) | Abierto — issue de seguimiento del Sprint 6 (no es grave: no pierde datos ni rompe funcionalidad) |
 | 2026-11-06 | "50 % %" — símbolo de porcentaje duplicado en el campo "Margen Mínimo Sugerido" de Perfil. `frontend/src/app/perfil/page.tsx:202-211`: el propio `NumericInput` ya renderiza su `suffixSymbol="%"` (línea 205) y el código agrega otro `<span>%</span>` suelto al lado (línea 211). Los otros 2 usos de `NumericInput` con `%` en el proyecto (`productos/nuevo/page.tsx`, `ProductMasterDataForm.tsx`) no tienen el duplicado | Menor | `/perfil` | Entrar a Perfil como Admin y mirar el campo "Margen Mínimo Sugerido" | Leandro Herrera (Android) | [captura](evidencias/255/android-02-perfil-margen-duplicado.png) (recortada, sin el correo de la cuenta) | Abierto — issue de seguimiento del Sprint 6 |
 | 2026-11-06 | Terminología inconsistente para el mismo estado de margen bajo: las listas y el panel inferior dicen "Crítico" (`MarginBadge.tsx`), el banner grande de la ficha de producto dice "Margen Bajo" (`ProductStatusBanner.tsx`) — mismo cálculo (`margin < objetivo`), dos palabras distintas | Menor | `/productos/:id` | Abrir un producto con margen por debajo del objetivo como Admin y comparar el banner de arriba con el badge del panel inferior | Leandro Herrera (Android) | [captura](evidencias/255/android-05-tarta-ricota-critico-vs-bajo.png) | Abierto — issue de seguimiento del Sprint 6 (el término único se acuerda en la issue) |
@@ -313,8 +314,9 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.7 Lo no cubierto
 
-- **El enlace "Ajustar" con un mail real en iPhone:** no se probó; en
-  Android sí (§2.5). Queda para el Sprint 6 (ver §2.9).
+- **El enlace "Ajustar" con un mail real en iPhone:** en el Sprint 5 no
+  se probó (en Android sí, §2.5). Quedó cubierto en el Sprint 6, issue
+  #365 (ver §2.5).
 - **Widget de login de Clerk (`<SignIn/>`) en el entorno de
   automatización:** no se pudo verificar visualmente con Playwright por
   el bloqueo de red descrito en §2.2. El recorrido real contra
@@ -362,8 +364,9 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.9 Pendiente / próximos pasos
 
-- Probar el enlace "Ajustar" con un mail real en iPhone y completar esa
-  columna de §2.5 con su captura (issue de seguimiento del Sprint 6).
+- **Hecho en el Sprint 6 (issue #365):** probar el enlace "Ajustar" con
+  un mail real en iPhone y completar esa columna de §2.5 con sus
+  capturas.
 - Los tres defectos abiertos de §2.6 pasan a issues de seguimiento del
   Sprint 6: el flash de la landing (cambio acotado a
   `frontend/src/app/page.tsx`, falta la guarda para `!isLoaded`), el
@@ -375,7 +378,7 @@ seguimiento del Sprint 6 (review RV342-I1).
 
 ### 2.10 Definition of Done
 
-- [x] Los tres roles recorridos y los dos dispositivos probados. *(Instalación, standalone y sesión persistente confirmados en ambos. El enlace "Ajustar" con mail real se confirmó en Android; en iPhone queda como issue de seguimiento del Sprint 6 — ver §2.9)*
+- [x] Los tres roles recorridos y los dos dispositivos probados. *(Instalación, standalone y sesión persistente confirmados en ambos. El enlace "Ajustar" con mail real se confirmó en Android; en iPhone se confirmó en el Sprint 6, issue #365 — ver §2.5)*
 - [x] Matriz de defectos publicada (§2.6), con evidencia.
 - [x] Defectos graves convertidos en issues. *(no se encontró ningún defecto grave — nada que convertir)*
 - [x] PR abierto hacia `develop` con CI en verde. *(PR #342)*
