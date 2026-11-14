@@ -77,7 +77,7 @@ export function IngredientSupplierList({
       )}
 
       {selected.supplierConnections && selected.supplierConnections.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-2">
+        <ul className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
           {selected.supplierConnections.map((conn) => {
             const unitCost = conn.packagePrice / conn.packageSize
             return (

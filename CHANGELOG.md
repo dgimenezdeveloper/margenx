@@ -6,12 +6,17 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Backend:** Columna normalizada `searchName` en `Ingredient` y `Product` (migración `20261111180000_add_search_name_to_ingredient_and_product`, backfill de registros existentes e índices por cuenta) y parámetro `search` en `GET /api/ingredients` y `GET /api/products` para búsqueda parcial insensible a mayúsculas y tildes, combinable con `page`, `limit`, `sortBy` y `order` (`#366`).
+- **Backend:** Paginación y búsqueda de presentaciones en `GET /api/suppliers/:id` mediante `page`, `limit` y `search` con metadatos `meta` (`total`, `page`, `limit`, `totalPages`), preservando compatibilidad retroactiva completa cuando no se envían parámetros de paginación (`#366`).
+- **QA:** Enlace "Ajustar" del mail de alerta de margen probado con un mail real en iPhone (Gmail abre Safari): sin sesión pide login y vuelve a la ficha del producto; con sesión abre la ficha directo. Resultado en `docs/qa/reporte-calidad-sprint5.md` §2.5 y capturas en `docs/qa/evidencias/365/` (`#365`).
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 - **Frontend:** Aviso en la receta cuando el costo de una línea supera el precio de venta del producto, en `/productos/:id` y `/productos/nuevo` (`#352`).
 
 ### Changed
 
+- **Frontend:** En la pantalla de Perfil (`/perfil`), se eliminaron los interruptores sin persistencia ("Alerta de Margen Crítico" y "Reporte Semanal en PDF"). La alerta de margen crítico se muestra con badge informativo "Activa" y el reporte semanal con indicador "Próximamente", reflejando el estado real del sistema (`#356`).
+- **Frontend:** La guía `/instalar` muestra capturas reales en las tres secciones. Se sumaron Android (Chrome) y Escritorio (Edge), y se quitó el recuadro "Captura pendiente". En Android, si Chrome muestra el aviso "Instalar MargenX" al abrir la página, alcanza con tocar "Instalar". Si no aparece o se cerró, los pasos siguen el menú actual de Chrome: "Instalar y crear acceso directo" y después "Instalar". Una prueba exige una captura con texto alternativo en cada paso, y `docs/manual-usuario/instalacion.md` muestra las mismas imágenes (`#365`).
 - **DevOps / n8n:** Rediseño del mail de resumen de ingesta. Empieza por "Para revisar", con enlaces directos al entorno de la lista (`margenx.tech` o `dev.margenx.tech`): precios en cuarentena (a la bandeja), códigos sin mapear (a Proveedores; los `NOT_FOUND` ya no se informan como descartes) y productos debajo de su margen mínimo (botón "Ajustar"). Después, el resumen en números, con singular y plural correctos ("1 fila", "1 precio quedó en cuarentena"). El resumen y la alerta de margen comparten la plantilla `infra/n8n/plantillas/mail-margenx.js`, con estilos de MargenX y tabla de productos legible a 360 px; `sincronizar.mjs` la copia a los workflows y las pruebas fallan si se desincroniza. Documentado en `infra/n8n/README.md` (`#254`).
 - **Frontend:** Formato es-AR consistente en toda la app con el helper `frontend/src/lib/format.ts`: porcentajes con coma y espacio (`36,9 %`), cantidades de receta con coma (`0,7 kg`), unidades legibles (`u`/`unit` → `unidad`), costos de la lista de Insumos con centavos (`$7.000,51`) y el campo de costo con coma decimal (`2179,13`) (`#359`).
 - **Frontend:** La plantilla de "Cargar desde planilla" se genera con ExcelJS: encabezado con el color de MargenX y fila fija, lista desplegable de unidades, costo con formato de pesos y validación en las 500 filas, ejemplos en gris y una hoja de instrucciones con marca, tabla de unidades y qué pasa al subirla. Se completa y se vuelve a subir sin tocar el formato (`#359`).
@@ -20,12 +25,17 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** En la pantalla de Perfil (`/perfil`), se corrigió la duplicación del símbolo porcentual (`% %`) en el campo "Margen Mínimo Sugerido", eliminando el span redundante adyacente a `NumericInput` (`#356`).
 - **Backend / Seeds:** Unificación de la unidad de medida de `"unit"` a `"u"` en el insumo "Huevos (demo)" y su presentación mayorista en `seed-demo.ts`, corrigiendo el fallo HTTP 400 al actualizar su costo vía API (`#353`).
 - **Database:** Migración declarativa `20261111120000_unify_ingredient_unit_u` que actualiza a `'u'` todo registro histórico con unidad `'unit'` en `Ingredient` y `SupplierIngredient` (`#353`).
 - **Docs:** Actualización del comentario de modelo en `schema.prisma` (`// kg, l, u`) y del runbook operativo en `docs/runbook-operacion.md` (`#353`).
+- **Frontend / UX:** Corrección de desbordamiento en modales y bottom sheets (`DialogSheet`) en resoluciones móviles de 360 px: se fijaron encabezados y acciones con `shrink-0`, se implementó scroll interno con `flex-1 overflow-y-auto` y se acotó la lista de proveedores en insumos a `max-h-60` para evitar bloqueos visuales (`#355`).
+- **Frontend / UX:** Reacomodamiento en dos filas de la barra de acciones inferior en la ficha de producto (`ProductMobileFooter`) para evitar superposiciones con la navegación (`BottomNav`) y garantizar la visibilidad completa del badge de rentabilidad (`#355`).
 - **DevOps / n8n:** Los mails de resumen, de error de ingesta y de alerta de margen llegan con el remitente "MargenX": `emailSend` 2.1 ignoraba `senderName` y la alerta salía como "alertas". La alerta pasa a enviar HTML y texto plano (`emailFormat: both`), y ninguno lleva el pie de n8n (`appendAttribution: false`). El texto plano de la alerta ya no muestra entidades HTML (`&lt;`) en el nombre del comercio o del insumo, y el destinatario del pie va escapado (`#254`).
 - **DevOps / n8n:** El enlace "Ajustar" y el botón principal del mail de alerta de margen apuntan a `<appBase>/productos` cuando la alerta no trae el ID del producto; antes el `href` salía con el texto literal `${appBase}/productos` y no llevaba a ningún lado. Prueba del nodo en `infra/n8n/tests/alertas-nodos.test.mjs`, que ahora corre en CI, y sección de alertas en `infra/n8n/README.md` (`#329`).
 - **Docs:** Fecha de la versión `[0.6.0]` en este CHANGELOG: 07/11/2026, el día real del release (`#273`).
+- **Frontend / UX:** Corrección de desbordamiento en modales y bottom sheets (`DialogSheet`) en resoluciones móviles de 360 px: se fijaron encabezados y acciones con `shrink-0` y se implementó scroll interno con `flex-1 overflow-y-auto`, acotando la lista de proveedores en insumos a `max-h-60` para evitar bloqueos visuales (`#355`).
+- **Frontend / UX:** Reacomodamiento en dos filas de la barra de acciones inferior en la ficha de producto (`ProductMobileFooter`) para evitar superposiciones con la navegación (`BottomNav`) y garantizar la visibilidad completa del badge de rentabilidad (`#355`).
 - **Docs:** `docs/process/revision-de-prs.md` §5, punto 6: se quitó un párrafo duplicado y se aclara cómo se mide la cobertura en cada paquete y en el CI (`#307`).
 - **Frontend:** `parseNumeroAR` interpretaba `0.250` como 250 (separador de miles); ahora es 0,25 (`#352`).
 - **Frontend:** `NumericInput` volvía a leer su propio valor como formato argentino: `1,250` kg pasaba a 1250 kg al entrar y salir otra vez del campo. Además mostraba solo 2 decimales (1,125 kg se veía 1,13); las cantidades de receta muestran 3 (`#352`).
@@ -34,6 +44,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Security
 
 - **DevOps:** `vitest` y `@vitest/coverage-v8` en 5.1.0 en `backend/` y `frontend/` (antes 2.1 y 4.1). El `npm audit` completo del backend baja de 13 vulnerabilidades (3 críticas, 4 altas, 6 moderadas) a 3 altas, todas de `prisma` → `deepmerge-ts` (en `.github/audit-allowlist.json`); ya no aparecen las de la cadena de Vitest 2 (`vitest`, `vite-node`, `vite`, `esbuild`, `tinypool`, `@vitest/mocker`, `test-exclude`, `glob`, `minimatch`). Adaptaciones: `backend/vitest.config.mts` (antes `.ts`, porque el paquete es CommonJS) vuelve a excluir `dist/`, que el valor por defecto de Vitest 4 en adelante ya no ignora, y `frontend/vitest-env.d.ts` suma los matchers de `@testing-library/jest-dom` a `Matchers<R, T>`, porque Vitest 5 ya no lee `jest.Matchers`. Las suites no cambian (283 pruebas en el backend y 419 en el frontend); la cobertura de líneas del backend pasa de 93,35 % a 91,85 % sin cambios en pruebas ni en código, porque desde Vitest 4 coverage-v8 no cuenta las líneas sin código ejecutable. Vitest 5 requiere Node 22.12 o superior (`.nvmrc`) (`#307`).
+
+### Changed
+
+- **Backend:** `GET /api/dashboard/metrics` ahora calcula los cinco buckets de salud sobre todo el catálogo de la cuenta (`lossCount`, `riskCount`, `targetCount`, `surplusCount`, `draftCount`) evaluando el `minMarginPercent` propio de cada producto, y reemplaza el promedio simple de `marginPercent` por la **mediana** (excluyendo borradores) con `Prisma.Decimal` para resistir precios extremos mal cargados. Documentado en `docs/api.md` y `docs/especificacion-funcional.md` (`#367`).
+
+### Added
+
+- **QA:** Colección Postman `backend/tests/postman/MargenX - Dashboard API.postman_collection.json` y script `run-tests-dashboard.sh` validando `GET /api/dashboard/metrics` (401 sin token, 403 a `COLLABORATOR`, schema completo y consistencia de buckets para `ADMIN`) (`#367`).
 
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 

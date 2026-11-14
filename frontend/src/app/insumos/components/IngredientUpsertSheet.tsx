@@ -77,7 +77,7 @@ export function IngredientUpsertSheet({
       <DialogPortal>
         <DialogBackdrop />
         <DialogSheet>
-          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
+          <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
           {showDeleteConfirm ? (
             <div className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200 py-4">
@@ -106,8 +106,8 @@ export function IngredientUpsertSheet({
               </div>
             </div>
           ) : (
-            <form onSubmit={onSubmit} noValidate>
-              <div className="flex items-start justify-between">
+            <form onSubmit={onSubmit} noValidate className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex shrink-0 items-start justify-between pb-4">
                 <div>
                   <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">
                     {selected ? selected.name : 'Despensa'}
@@ -153,86 +153,88 @@ export function IngredientUpsertSheet({
                 </div>
               </div>
 
-              {selected && (
-                <IngredientSupplierList
-                  selected={selected}
-                  isCollaborator={isCollaborator}
-                  onOpenPackaging={onOpenPackaging}
-                  onEditConnection={onEditConnection}
-                  onMakeDefault={onMakeDefault}
-                  money={money}
-                />
-              )}
-
-              {!selected && (
-                <label className="mt-5 block text-xs font-bold text-gray-600 dark:text-gray-300">
-                  Nombre del insumo
-                  <input
-                    {...register('name')}
-                    placeholder="Ej. Harina 0000"
-                    className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                {selected && (
+                  <IngredientSupplierList
+                    selected={selected}
+                    isCollaborator={isCollaborator}
+                    onOpenPackaging={onOpenPackaging}
+                    onEditConnection={onEditConnection}
+                    onMakeDefault={onMakeDefault}
+                    money={money}
                   />
-                  {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
-                </label>
-              )}
-
-              {!selected && (
-                <div className="mt-4">
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
-                    Unidad de medida
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {ingredientUnits.map((u) => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
-                        className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
-                          selectedUnit === u
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                  {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
-                </div>
-              )}
-
-              <label htmlFor="ingredient-current-cost" className="mt-4 block text-xs font-bold text-gray-600 dark:text-gray-300">
-                Costo unitario ({selected ? selected.unit : selectedUnit})
-                <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
-                  <span className="text-lg font-bold text-gray-400">$</span>
-                  <input
-                    id="ingredient-current-cost"
-                    {...register('currentCost')}
-                    onKeyDown={onNumericKeyDown}
-                    onChange={onDecimalChange}
-                    inputMode="decimal"
-                    type="text"
-                    placeholder="0.00"
-                    aria-invalid={!!errors.currentCost}
-                    aria-describedby={errors.currentCost ? 'ingredient-cost-error' : undefined}
-                    className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
-                  />
-                </div>
-                {errors.currentCost && (
-                  <p id="ingredient-cost-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
-                    {errors.currentCost.message}
-                  </p>
                 )}
-              </label>
 
-              {hasDefaultSupplier && (
-                <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
-                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                  <p>El costo manual puede ser reemplazado por la próxima actualización automática del proveedor.</p>
-                </div>
-              )}
+                {!selected && (
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                    Nombre del insumo
+                    <input
+                      {...register('name')}
+                      placeholder="Ej. Harina 0000"
+                      className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                    />
+                    {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
+                  </label>
+                )}
 
-              <div className="mt-6 flex gap-3">
+                {!selected && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                      Unidad de medida
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {ingredientUnits.map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
+                          className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
+                            selectedUnit === u
+                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                  </div>
+                )}
+
+                <label htmlFor="ingredient-current-cost" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                  Costo unitario ({selected ? selected.unit : selectedUnit})
+                  <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
+                    <span className="text-lg font-bold text-gray-400">$</span>
+                    <input
+                      id="ingredient-current-cost"
+                      {...register('currentCost')}
+                      onKeyDown={onNumericKeyDown}
+                      onChange={onDecimalChange}
+                      inputMode="decimal"
+                      type="text"
+                      placeholder="0.00"
+                      aria-invalid={!!errors.currentCost}
+                      aria-describedby={errors.currentCost ? 'ingredient-cost-error' : undefined}
+                      className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"
+                    />
+                  </div>
+                  {errors.currentCost && (
+                    <p id="ingredient-cost-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.currentCost.message}
+                    </p>
+                  )}
+                </label>
+
+                {hasDefaultSupplier && (
+                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                    <p>El costo manual puede ser reemplazado por la próxima actualización automática del proveedor.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex shrink-0 gap-3 pt-2">
                 <DialogClose
                   className="flex-1 min-h-11 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
                 >

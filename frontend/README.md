@@ -103,6 +103,7 @@ Reglas para un diálogo nuevo:
 2. Un botón solo con ícono (la X de cerrar) lleva `aria-label`.
 3. Si cerrar tiene condiciones (está guardando, hay cambios sin guardar), se resuelven en `onOpenChange`, que recibe `false` tanto con Escape como con clic en el fondo o en `DialogClose`.
 4. Para apilar un diálogo sobre otro, se sube el `z-index` de su `DialogBackdrop` y su `DialogPopup`/`DialogSheet` (por ejemplo, `z-70`; los toasts están en `z-100`).
+5. **Estructura con scroll interno y acciones fijas (`DialogSheet`):** Para evitar desbordes en dispositivos móviles (360 px), `DialogSheet` cuenta con `flex flex-col max-h-[90dvh]`. El encabezado y la botonera inferior deben configurarse con `shrink-0` (fijos), mientras que el contenedor central de formulario/contenido debe llevar `flex-1 overflow-y-auto pr-2 custom-scrollbar` (scroll interno). Si el diálogo utiliza un formulario intermedio `<form>`, este debe incluir `className="flex flex-col flex-1 overflow-hidden"` para que el flexbox mantenga los límites y habilite el scroll interno sin desbordar la ventana. En listas internas extensas (ej. proveedores vinculados a un insumo), aplicar además un límite de altura propio (`max-h-60 overflow-y-auto`).
 
 ```tsx
 <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isDeleting) onClose() }}>

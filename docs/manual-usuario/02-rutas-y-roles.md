@@ -18,7 +18,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |
-| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Configuración de margen y alertas | Consulta de cuenta (sin alertas) |
+| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global y estado de alertas | Consulta de cuenta (sin alertas) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
 <!-- [CAPTURA 360PX SUGERIDA: 02-rutas-bottom-nav-comparativa.webp | Comparativa visual de la barra de navegación inferior móvil: 5 pestañas para ADMIN vs 3 pestañas para COLLABORATOR] -->

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Check, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
+import { Bell, Building2, Check, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -17,35 +17,6 @@ import { NumericInput } from '@/components/NumericInput'
 
 const profileTitle = 'Perfil y Configuración'
 
-function ToggleSwitch({
-  checked,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean
-  onChange: (value: boolean) => void
-  ariaLabel: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-        checked ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </button>
-  )
-}
-
 export default function ProfilePage() {
   const { signOut, getToken } = useAuth()
   const { user, businessName, defaultMinMarginPercent, isLoading, refreshUser } = useCurrentUser()
@@ -56,9 +27,6 @@ export default function ProfilePage() {
   const [marginError, setMarginError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
-
-  const [emailAlerts, setEmailAlerts] = useState(true)
-  const [weeklyReport, setWeeklyReport] = useState(true)
 
   const isCollaborator = user?.role === 'COLLABORATOR'
   const roleLabel = isCollaborator ? 'COLABORADOR' : 'ADMINISTRADOR'
@@ -198,18 +166,16 @@ export default function ProfilePage() {
 
                   <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
                     <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
-                    <div className="flex items-center gap-1">
-                      <NumericInput
-                        value={currentMarginValue}
-                        onChange={setCustomMargin}
-                        suffixSymbol="%"
-                        suffixClassName="font-bold text-sm text-gray-400"
-                        disabled={isSavingGlobalMargin}
-                        containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
-                        className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
-                      />
-                      <span className="font-bold text-sm text-gray-400">%</span>
-                    </div>
+                    <NumericInput
+                      aria-label="Margen Mínimo Sugerido"
+                      value={currentMarginValue}
+                      onChange={setCustomMargin}
+                      suffixSymbol="%"
+                      suffixClassName="font-bold text-sm text-gray-400"
+                      disabled={isSavingGlobalMargin}
+                      containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
+                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                    />
                   </div>
 
                   {marginError && (
@@ -240,26 +206,28 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between gap-4 pt-1">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
-                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando sube un insumo</p>
+                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
                     </div>
-                    <ToggleSwitch
-                      checked={emailAlerts}
-                      onChange={setEmailAlerts}
-                      ariaLabel="Alerta de Margen Crítico"
-                    />
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
+                      <ShieldCheck className="size-3.5" aria-hidden="true" />
+                      Activa
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reporte Semanal en PDF</p>
                       <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
                     </div>
-                    <ToggleSwitch
-                      checked={weeklyReport}
-                      onChange={setWeeklyReport}
-                      ariaLabel="Reporte Semanal en PDF"
-                    />
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 ring-1 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-400">
+                      <Clock className="size-3.5" aria-hidden="true" />
+                      Próximamente
+                    </span>
                   </div>
+
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                    Las alertas por email se envían automáticamente al administrador ante variaciones críticas de costos.
+                  </p>
                 </section>
               </div>
             )}
@@ -304,7 +272,7 @@ export default function ProfilePage() {
             <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
             Sistemas en línea
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} MargenX • v0.2.0</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} MargenX</p>
         </div>
 
         <DesktopFooter />

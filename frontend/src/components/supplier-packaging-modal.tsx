@@ -265,7 +265,7 @@ export function SupplierPackagingModal({
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) requestClose() }}>
         <DialogPortal>
           <DialogBackdrop className="z-70" />
-          <DialogSheet className="z-70 max-h-[90vh] overflow-y-auto">
+          <DialogSheet className="z-70">
             <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
             <div className="flex shrink-0 items-start justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
@@ -294,273 +294,275 @@ export function SupplierPackagingModal({
               </button>
             </div>
 
-            {errorBanner && (
-              <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-                {errorBanner}
-              </div>
-            )}
-
-            <form onSubmit={handleFormSubmit} noValidate className="mt-4 space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label
-                    htmlFor="supplier-select"
-                    className="text-xs font-bold text-gray-700 dark:text-gray-300"
-                  >
-                    Proveedor mayorista
-                  </label>
-                  {!isAddingQuickSupplier && !existingConnection && (
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingQuickSupplier(true)}
-                      className="text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="size-3" /> Nuevo
-                    </button>
-                  )}
-                </div>
-
-                {isAddingQuickSupplier ? (
-                  <div className="flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-2 dark:border-indigo-900/60 dark:bg-indigo-950/30">
-                    <input
-                      type="text"
-                      value={quickSupplierName}
-                      onChange={(e) => setQuickSupplierName(e.target.value)}
-                      placeholder="Nombre del proveedor..."
-                      aria-label="Nombre del nuevo proveedor"
-                      autoFocus
-                      className="min-h-11 h-11 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleQuickCreateSupplier}
-                      disabled={isCreatingSupplier || !quickSupplierName.trim()}
-                      className="min-h-11 h-11 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-                    >
-                      {isCreatingSupplier ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                      ) : (
-                        'Guardar'
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddingQuickSupplier(false)
-                        setQuickSupplierName('')
-                      }}
-                      aria-label="Cancelar alta de proveedor"
-                      className="min-h-11 h-11 rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-                    >
-                      <X className="size-4" />
-                    </button>
+            <form onSubmit={handleFormSubmit} noValidate className="flex flex-col flex-1 overflow-hidden mt-4">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                {errorBanner && (
+                  <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+                    {errorBanner}
                   </div>
-                ) : isLoadingSuppliers ? (
-                  <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 text-xs font-semibold text-gray-400 dark:border-gray-700 dark:bg-gray-800">
-                    <LoaderCircle className="size-4 animate-spin mr-2" /> Cargando proveedores...
-                  </div>
-                ) : suppliers.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-gray-200 p-3.5 text-center dark:border-gray-800">
-                    <p className="text-xs text-gray-500">No tienes proveedores disponibles para este insumo.</p>
-                    {!existingConnection && (
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="supplier-select"
+                      className="text-xs font-bold text-gray-700 dark:text-gray-300"
+                    >
+                      Proveedor mayorista
+                    </label>
+                    {!isAddingQuickSupplier && !existingConnection && (
                       <button
                         type="button"
                         onClick={() => setIsAddingQuickSupplier(true)}
-                        className="mt-2 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 cursor-pointer"
+                        className="text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 cursor-pointer"
                       >
-                        + Agregar nuevo proveedor
+                        <Plus className="size-3" /> Nuevo
                       </button>
                     )}
                   </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      id="supplier-select"
-                      {...register('supplierId')}
-                      disabled={!!existingConnection}
-                      aria-invalid={!!errors.supplierId}
-                      aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
-                      className={`min-h-11 h-12 w-full appearance-none rounded-2xl border bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus-within:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed ${
-                        errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
-                      }`}
-                    >
-                      {suppliers.map((s) => (
-                        <option
-                          key={s.id}
-                          value={s.id}
-                          className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
-                        >
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-                  </div>
-                )}
-                {errors.supplierId && (
-                  <p id="supplier-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
-                    {errors.supplierId.message}
-                  </p>
-                )}
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="package-size-input"
-                    className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Tamaño del bulto
-                  </label>
-                  <NumericInput
-                    id="package-size-input"
-                    value={watchedSize}
-                    onChange={(val) => setValue('packageSize', val, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Ej. 25"
-                    aria-invalid={!!errors.packageSize}
-                    aria-describedby={errors.packageSize ? 'package-size-error' : undefined}
-                    containerClassName={`min-h-11 h-12 w-full rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
-                      errors.packageSize ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
-                    }`}
-                    className="text-sm font-bold text-gray-900 dark:text-white"
-                  />
-                  {errors.packageSize && (
-                    <p id="package-size-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
-                      {errors.packageSize.message}
+                  {isAddingQuickSupplier ? (
+                    <div className="flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-2 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                      <input
+                        type="text"
+                        value={quickSupplierName}
+                        onChange={(e) => setQuickSupplierName(e.target.value)}
+                        placeholder="Nombre del proveedor..."
+                        aria-label="Nombre del nuevo proveedor"
+                        autoFocus
+                        className="min-h-11 h-11 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateSupplier}
+                        disabled={isCreatingSupplier || !quickSupplierName.trim()}
+                        className="min-h-11 h-11 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isCreatingSupplier ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          'Guardar'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingQuickSupplier(false)
+                          setQuickSupplierName('')
+                        }}
+                        aria-label="Cancelar alta de proveedor"
+                        className="min-h-11 h-11 rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ) : isLoadingSuppliers ? (
+                    <div className="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 text-xs font-semibold text-gray-400 dark:border-gray-700 dark:bg-gray-800">
+                      <LoaderCircle className="size-4 animate-spin mr-2" /> Cargando proveedores...
+                    </div>
+                  ) : suppliers.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-gray-200 p-3.5 text-center dark:border-gray-800">
+                      <p className="text-xs text-gray-500">No tienes proveedores disponibles para este insumo.</p>
+                      {!existingConnection && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingQuickSupplier(true)}
+                          className="mt-2 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 cursor-pointer"
+                        >
+                          + Agregar nuevo proveedor
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        id="supplier-select"
+                        {...register('supplierId')}
+                        disabled={!!existingConnection}
+                        aria-invalid={!!errors.supplierId}
+                        aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
+                        className={`min-h-11 h-12 w-full appearance-none rounded-2xl border bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus-within:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed ${
+                          errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        {suppliers.map((s) => (
+                          <option
+                            key={s.id}
+                            value={s.id}
+                            className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+                          >
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+                    </div>
+                  )}
+                  {errors.supplierId && (
+                    <p id="supplier-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.supplierId.message}
                     </p>
                   )}
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="package-unit-display"
-                    className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Unidad base
-                  </label>
-                  <div
-                    id="package-unit-display"
-                    className="flex min-h-11 h-12 items-center justify-between rounded-2xl border border-gray-200 bg-gray-100 px-4 text-xs font-black text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  >
-                    <span>{normalizedBaseUnit.toUpperCase()}</span>
-                    <span className="text-[10px] text-gray-400 font-semibold">
-                      ({unitReadableLabel}s)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="package-price-input"
-                  className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Precio total del bulto ($)
-                </label>
-                <NumericInput
-                  id="package-price-input"
-                  value={watchedPrice}
-                  onChange={(val) => setValue('packagePrice', val, { shouldValidate: true, shouldDirty: true })}
-                  prefixSymbol="$"
-                  prefixClassName="text-base font-bold text-gray-400"
-                  placeholder="0,00"
-                  aria-invalid={!!errors.packagePrice}
-                  aria-describedby={errors.packagePrice ? 'package-price-error' : undefined}
-                  containerClassName={`flex min-h-11 h-12 items-center rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
-                    errors.packagePrice ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                  className="text-sm font-bold text-gray-900 dark:text-white"
-                />
-                {errors.packagePrice && (
-                  <p id="package-price-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
-                    {errors.packagePrice.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/40">
-                <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 mb-1.5">
-                  <Calculator className="size-4" />
-                  <span className="text-xs font-black uppercase tracking-wider">
-                    Calculadora de Equivalencia
-                  </span>
-                </div>
-
-                {calculatedUnitCost !== null ? (
-                  <div className="space-y-2">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                        Costo equivalente por {unitReadableLabel}:
-                      </span>
-                      <span className="text-base font-black text-indigo-950 dark:text-white">
-                        {money(calculatedUnitCost)} / {normalizedBaseUnit}
-                      </span>
-                    </div>
-
-                    {costDifference && (
-                      <div className="flex items-center justify-between border-t border-indigo-200/50 pt-2 text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Costo actual en recetas: {money(ingredient.currentCost)}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            costDifference.isSaving
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                              : costDifference.isEqual
-                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300'
-                          }`}
-                        >
-                          {costDifference.isSaving ? (
-                            <>
-                              <TrendingDown className="size-3" />
-                              Ahorro {formatPercent(Math.abs(costDifference.percent))}
-                            </>
-                          ) : costDifference.isEqual ? (
-                            'Mismo costo'
-                          ) : (
-                            <>
-                              <TrendingUp className="size-3" />
-                              {formatPercent(costDifference.percent, { signed: true })}
-                            </>
-                          )}
-                        </span>
-                      </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="package-size-input"
+                      className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Tamaño del bulto
+                    </label>
+                    <NumericInput
+                      id="package-size-input"
+                      value={watchedSize}
+                      onChange={(val) => setValue('packageSize', val, { shouldValidate: true, shouldDirty: true })}
+                      placeholder="Ej. 25"
+                      aria-invalid={!!errors.packageSize}
+                      aria-describedby={errors.packageSize ? 'package-size-error' : undefined}
+                      containerClassName={`min-h-11 h-12 w-full rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
+                        errors.packageSize ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                      }`}
+                      className="text-sm font-bold text-gray-900 dark:text-white"
+                    />
+                    {errors.packageSize && (
+                      <p id="package-size-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                        {errors.packageSize.message}
+                      </p>
                     )}
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Ingresa el tamaño del bulto y su precio para calcular el costo por{' '}
-                    {unitReadableLabel} automáticamente.
-                  </p>
-                )}
+
+                  <div>
+                    <label
+                      htmlFor="package-unit-display"
+                      className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Unidad base
+                    </label>
+                    <div
+                      id="package-unit-display"
+                      className="flex min-h-11 h-12 items-center justify-between rounded-2xl border border-gray-200 bg-gray-100 px-4 text-xs font-black text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      <span>{normalizedBaseUnit.toUpperCase()}</span>
+                      <span className="text-[10px] text-gray-400 font-semibold">
+                        ({unitReadableLabel}s)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="package-price-input"
+                    className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
+                  >
+                    Precio total del bulto ($)
+                  </label>
+                  <NumericInput
+                    id="package-price-input"
+                    value={watchedPrice}
+                    onChange={(val) => setValue('packagePrice', val, { shouldValidate: true, shouldDirty: true })}
+                    prefixSymbol="$"
+                    prefixClassName="text-base font-bold text-gray-400"
+                    placeholder="0,00"
+                    aria-invalid={!!errors.packagePrice}
+                    aria-describedby={errors.packagePrice ? 'package-price-error' : undefined}
+                    containerClassName={`flex min-h-11 h-12 items-center rounded-2xl border bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20 ${
+                      errors.packagePrice ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                    className="text-sm font-bold text-gray-900 dark:text-white"
+                  />
+                  {errors.packagePrice && (
+                    <p id="package-price-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.packagePrice.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/40">
+                  <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 mb-1.5">
+                    <Calculator className="size-4" />
+                    <span className="text-xs font-black uppercase tracking-wider">
+                      Calculadora de Equivalencia
+                    </span>
+                  </div>
+
+                  {calculatedUnitCost !== null ? (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                          Costo equivalente por {unitReadableLabel}:
+                        </span>
+                        <span className="text-base font-black text-indigo-950 dark:text-white">
+                          {money(calculatedUnitCost)} / {normalizedBaseUnit}
+                        </span>
+                      </div>
+
+                      {costDifference && (
+                        <div className="flex items-center justify-between border-t border-indigo-200/50 pt-2 text-xs">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Costo actual en recetas: {money(ingredient.currentCost)}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                              costDifference.isSaving
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                                : costDifference.isEqual
+                                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300'
+                            }`}
+                          >
+                            {costDifference.isSaving ? (
+                              <>
+                                <TrendingDown className="size-3" />
+                                Ahorro {formatPercent(Math.abs(costDifference.percent))}
+                              </>
+                            ) : costDifference.isEqual ? (
+                              'Mismo costo'
+                            ) : (
+                              <>
+                                <TrendingUp className="size-3" />
+                                {formatPercent(costDifference.percent, { signed: true })}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Ingresa el tamaño del bulto y su precio para calcular el costo por{' '}
+                      {unitReadableLabel} automáticamente.
+                    </p>
+                  )}
+                </div>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3.5 cursor-pointer dark:border-gray-800 dark:bg-gray-800/40">
+                  <input
+                    type="checkbox"
+                    {...register('isDefault')}
+                    className="mt-0.5 size-4 rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
+                  />
+                  <div className="text-xs">
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      Marcar como proveedor predeterminado
+                    </span>
+                    <p className="mt-0.5 text-gray-500 dark:text-gray-400">
+                      {existingConnection?.isDefault && !watchedIsDefault
+                        ? <span className="text-rose-500 font-bold">No puedes quitar el predeterminado. Marca otro proveedor para reemplazarlo.</span>
+                        : watchedIsDefault
+                        ? `Se actualizará el costo unitario de "${ingredient.name}" al valor calculado (${
+                            calculatedUnitCost !== null
+                              ? money(calculatedUnitCost)
+                              : '$0.00'
+                          }) y se recalcularán los productos.`
+                        : 'Registra la presentación sin modificar el costo activo de recetas.'}
+                    </p>
+                  </div>
+                </label>
               </div>
 
-              <label className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3.5 cursor-pointer dark:border-gray-800 dark:bg-gray-800/40">
-                <input
-                  type="checkbox"
-                  {...register('isDefault')}
-                  className="mt-0.5 size-4 rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
-                />
-                <div className="text-xs">
-                  <span className="font-bold text-gray-900 dark:text-white">
-                    Marcar como proveedor predeterminado
-                  </span>
-                  <p className="mt-0.5 text-gray-500 dark:text-gray-400">
-                    {existingConnection?.isDefault && !watchedIsDefault
-                      ? <span className="text-rose-500 font-bold">No puedes quitar el predeterminado. Marca otro proveedor para reemplazarlo.</span>
-                      : watchedIsDefault
-                      ? `Se actualizará el costo unitario de "${ingredient.name}" al valor calculado (${
-                          calculatedUnitCost !== null
-                            ? money(calculatedUnitCost)
-                            : '$0.00'
-                        }) y se recalcularán los productos.`
-                      : 'Registra la presentación sin modificar el costo activo de recetas.'}
-                  </p>
-                </div>
-              </label>
-
-              <div className="mt-6 flex gap-3 pt-2">
+              <div className="mt-6 flex shrink-0 gap-3 pt-2">
                 <button
                   type="button"
                   onClick={requestClose}

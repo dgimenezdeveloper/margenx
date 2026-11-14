@@ -569,6 +569,197 @@ describe('POST /api/suppliers', () => {
   });
 });
 
+describe('GET /api/suppliers/:id - Paginación de presentaciones', () => {
+  it('responde 404 en la rama paginada si el proveedor pertenece a otra cuenta', async () => {
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp()).get('/api/suppliers/sup-ajeno?page=1&limit=20');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Proveedor no encontrado.');
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 'sup-ajeno', accountId: 'account-1' },
+    });
+    expect(supplierIngredientFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it('ordena las presentaciones paginadas alfabéticamente por nombre del insumo', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?page=1&limit=20');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { ingredient: { name: 'asc' } },
+      })
+    );
+  });
+
+  it('permite buscar por coincidencia en searchName normalizado del insumo ("sesamo" -> "sésamo")', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?search=sesamo');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { ingredient: { searchName: { contains: 'sesamo', mode: 'insensitive' } } },
+            { ingredient: { name: { contains: 'sesamo', mode: 'insensitive' } } },
+          ]),
+        }),
+      })
+    );
+  });
+
+  it('pagina las presentaciones del proveedor respetando limit, page y devolviendo meta', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    const mockPresentations = Array.from({ length: 20 }, (_, i) => ({
+      id: `si-${i + 1}`,
+      supplierId: 's-marjuanc',
+      ingredientId: `ing-${i + 1}`,
+      packageSize: new Prisma.Decimal('25'),
+      packagePrice: new Prisma.Decimal('10000'),
+      ingredient: { id: `ing-${i + 1}`, name: `Insumo ${i + 1}`, unit: 'kg', currentCost: new Prisma.Decimal('400') },
+    }));
+
+    supplierIngredientFindManyMock.mockResolvedValue(mockPresentations);
+    supplierIngredientCountMock.mockResolvedValue(67);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?page=1&limit=20');
+
+    expect(res.status).toBe(200);
+    expect(res.body.supplier.ingredients).toHaveLength(20);
+    expect(res.body.meta).toEqual({
+      total: 67,
+      page: 1,
+      limit: 20,
+      totalPages: 4,
+    });
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ supplierId: 's-marjuanc' }),
+        skip: 0,
+        take: 20,
+      })
+    );
+  });
+  it('aplica DEFAULT_LIMIT = 20 cuando se solicita paginación sin especificar limit', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?page=1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.meta.limit).toBe(20);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 20,
+        skip: 0,
+      })
+    );
+  });
+
+  it('Escenario Gherkin: un proveedor con 67 presentaciones y limit=20 devuelve 20 y totalPages=4', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    const mock20Items = Array.from({ length: 20 }, (_, i) => ({
+      id: `si-${i + 1}`,
+      supplierId: 's-marjuanc',
+      ingredientId: `ing-${i + 1}`,
+      packageSize: new Prisma.Decimal('25'),
+      packagePrice: new Prisma.Decimal('10000'),
+      ingredient: { id: `ing-${i + 1}`, name: `Insumo ${i + 1}`, unit: 'kg', currentCost: new Prisma.Decimal('400') },
+    }));
+
+    supplierIngredientFindManyMock.mockResolvedValue(mock20Items);
+    supplierIngredientCountMock.mockResolvedValue(67);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?page=1&limit=20');
+
+    expect(res.status).toBe(200);
+    expect(res.body.supplier.ingredients).toHaveLength(20);
+    expect(res.body.meta).toEqual({
+      total: 67,
+      page: 1,
+      limit: 20,
+      totalPages: 4,
+    });
+  });
+
+  it('permite filtrar presentaciones por search (código o descripción)', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-marjuanc',
+      accountId: 'account-1',
+      name: 'Distribuidora MarJuanC',
+    });
+
+    supplierIngredientFindManyMock.mockResolvedValue([]);
+    supplierIngredientCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/suppliers/s-marjuanc?search=HAR188');
+
+    expect(res.status).toBe(200);
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          supplierId: 's-marjuanc',
+          OR: expect.arrayContaining([
+            { supplierCode: { contains: 'HAR188', mode: 'insensitive' } },
+            { rawDescription: { contains: 'HAR188', mode: 'insensitive' } },
+          ]),
+        }),
+      })
+    );
+  });
+
+  it('conserva compatibilidad retroactiva: sin query params devuelve todas las presentaciones sin meta', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 's-1',
+      accountId: 'account-1',
+      name: 'Molino Sur',
+      ingredients: [{ id: 'si-1' }],
+    });
+
+    const res = await request(buildApp()).get('/api/suppliers/s-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.supplier).toHaveProperty('ingredients');
+    expect(res.body).not.toHaveProperty('meta');
+  });
+});
+
 describe('GET /api/suppliers/:id', () => {
   it('devuelve 200 con el proveedor y sus presentaciones e insumos asociados', async () => {
     const supplier = {

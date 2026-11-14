@@ -1,4 +1,4 @@
-// src/utils/pagination.ts
+// backend/src/utils/pagination.ts
 
 export const SORTABLE_FIELDS = ['name', 'currentCost', 'updatedAt'] as const;
 export type SortableField = (typeof SORTABLE_FIELDS)[number];
@@ -12,12 +12,9 @@ export interface PaginationParams {
   limit: number;
   sortBy: SortableField;
   order: 'asc' | 'desc';
+  search: string;
 }
 
-/**
- * Parsea y sanitiza los query params de paginación/ordenamiento.
- * Cualquier valor inválido o ausente cae al default correspondiente.
- */
 export function parsePaginationParams(query: Record<string, unknown>): PaginationParams {
   const rawPage = Number(query.page);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
@@ -34,5 +31,20 @@ export function parsePaginationParams(query: Record<string, unknown>): Paginatio
   const rawOrder = typeof query.order === 'string' ? query.order.toLowerCase() : '';
   const order = rawOrder === 'desc' ? 'desc' : 'asc';
 
-  return { page, limit, sortBy, order };
+  const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
+  const search = rawSearch.slice(0, 100);
+
+  return { page, limit, sortBy, order, search };
+}
+
+/**
+ * Normaliza el texto para búsquedas eliminando tildes y diacríticos.
+ * Al usar NFD, la "ñ" se descompone en "n" + "~", y el replace elimina la virgulilla (\u0300-\u036f).
+ */
+export function normalizeSearchText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }

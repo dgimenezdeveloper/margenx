@@ -23,7 +23,7 @@ MargenX implementa un blindaje de doble capa:
 | **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** Redirige forzosamente a `/productos` |
 | **Proveedores (`/proveedores`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** Redirige forzosamente a `/productos` |
 | **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** Redirige forzosamente a `/productos` |
-| **Perfil (`/perfil`)** | Configuración comercial, margen global y alertas n8n | Datos de usuario y comercio; sin umbrales ni automatizaciones |
+| **Perfil (`/perfil`)** | Configuración de margen y estado de alertas n8n | Datos de usuario y comercio; sin umbrales ni alertas |
 
 <!-- [CAPTURA 360PX SUGERIDA: 03-colaborador-productos.webp | Pantalla /productos navegada por un COLLABORATOR mostrando únicamente nombres y precios de venta al público, sin costos ni porcentajes] -->
 
