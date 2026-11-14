@@ -38,7 +38,7 @@ vi.mock('next/navigation', () => ({
 let mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string } = {
   id: 'u-admin',
   role: 'ADMIN',
-  email: 'admin@panaderia.com',
+  email: 'admin.panaderia@seed.example.test',
 }
 
 let mockRefreshUser = vi.fn().mockResolvedValue(undefined)
@@ -79,7 +79,7 @@ vi.mock('@/services/authService', () => ({
 describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin@panaderia.com' }
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
     mockRefreshUser = vi.fn().mockResolvedValue(undefined)
   })
 
@@ -117,7 +117,7 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
   })
 
   it('Blindaje RBAC: el colaborador no visualiza margen global ni alertas automáticas', () => {
-    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'cajero@panaderia.com' }
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
     render(<ProfilePage />)
 
     expect(screen.getByText('Colaborador')).toBeInTheDocument()
