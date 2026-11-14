@@ -82,7 +82,7 @@ Actualiza el margen objetivo global por defecto para la cuenta comercial.
 
 ### `GET /api/ingredients`
 Lista paginada de insumos de la cuenta.
-- **Query Params:** `page` (default 1), `limit` (default 20, max 100), `sortBy` (`name`, `currentCost`, `updatedAt`), `order` (`asc`, `desc`).
+- **Query Params:** `page` (default 1), `limit` (default 20, max 100), `sortBy` (`name`, `currentCost`, `updatedAt`), `order` (`asc`, `desc`), `search` (opcional, hasta 100 caracteres; búsqueda parcial insensible a mayúsculas y tildes).
 - **Sanitización RBAC:** Para `COLLABORATOR`, se purga `currentCost` y la lista de `suppliers`. `sortBy=currentCost` se fuerza a `name`.
 - **Respuesta 200:**
   ```json
@@ -204,7 +204,7 @@ Baja de insumo con protección referencial de recetas.
 
 ### `GET /api/products`
 Catálogo general paginado de productos terminados.
-- **Query Params:** `page`, `limit`, `sortBy`, `order`.
+- **Query Params:** `page` (default 1), `limit` (default 20, max 100), `sortBy` (`name`, `salePrice`, `cost`, `marginPercent`, `updatedAt`; para `COLLABORATOR` solo `name`, `salePrice` o `updatedAt`), `order` (`asc`, `desc`), `search` (opcional, hasta 100 caracteres; búsqueda parcial insensible a mayúsculas y tildes).
 - **Sanitización RBAC:** Si el usuario es `COLLABORATOR`, se purgan recursivamente `cost`, `marginAmount`, `marginPercent`, `minMarginPercent` y `quantity` de la receta. Solo se retorna el nombre y `salePrice`.
 - **Respuesta 200 (ADMIN):**
   ```json
@@ -293,26 +293,46 @@ Alta de proveedor mayorista.
 - **Respuesta 201 Created** | `409 Conflict` si el nombre ya existe en la cuenta.
 
 ### `GET /api/suppliers/:id`
-Ficha técnica del proveedor con todas sus presentaciones e insumos mapeados.
-- **Respuesta 200:**
+Ficha técnica del proveedor con sus presentaciones e insumos mapeados. Soporta paginación opcional de presentaciones.
+- **Query Params (opcionales):** `page` (default 1), `limit` (default 20, max 100), `search` (opcional, filtra presentaciones por coincidencia parcial en nombre de insumo, código SKU o descripción de lista mayorista).
+- **Compatibilidad retroactiva:** Si no se envían parámetros de paginación (`page`, `limit`, `search`), devuelve el objeto del proveedor con la totalidad de sus presentaciones sin el bloque `meta`.
+- **Respuesta 200 (Con paginación):**
   ```json
   {
     "supplier": {
       "id": "uuid",
+      "accountId": "uuid",
       "name": "Distribuidora MarJuanC Alimentos",
+      "contactPhone": "+54 11 3758-0195",
+      "email": null,
+      "address": "Grito de Asencio 3632",
+      "isActive": true,
       "ingredients": [
         {
           "id": "uuid",
+          "supplierId": "uuid",
+          "ingredientId": "uuid",
           "supplierCode": "HAR188",
           "rawDescription": "HARINA SARITA 000 X 25 KG",
           "packageSize": "25.000",
-          "packageUnit": "kg",
           "packagePrice": "18406.25",
+          "packageUnit": "kg",
           "isDefault": true,
           "isQuarantined": false,
-          "ingredient": { "id": "uuid", "name": "Harina de trigo 000 Olavarriense", "unit": "kg", "currentCost": "736.25" }
+          "ingredient": {
+            "id": "uuid",
+            "name": "Harina de trigo 000 Olavarriense",
+            "unit": "kg",
+            "currentCost": "736.25"
+          }
         }
       ]
+    },
+    "meta": {
+      "total": 67,
+      "page": 1,
+      "limit": 20,
+      "totalPages": 4
     }
   }
   ```

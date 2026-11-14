@@ -144,6 +144,77 @@
           "response": []
         },
         {
+          "name": "GET Detalle de proveedor paginado con meta (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Estructura paginada contiene supplier y meta', function () {",
+                  "    pm.expect(json.supplier).to.be.an('object');",
+                  "    pm.expect(json.supplier.ingredients).to.be.an('array');",
+                  "    pm.expect(json.meta).to.have.all.keys(['total', 'page', 'limit', 'totalPages']);",
+                  "    pm.expect(json.meta.limit).to.eql(20);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Detalle de proveedor con búsqueda de presentaciones (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Responde estructura paginada', function () {",
+                  "    pm.expect(json.meta).to.exist;",
+                  "    pm.expect(json.supplier.ingredients).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId_cuentaA}}?search=azucar",
+              "host": ["{{baseUrl}}"],
+              "path": ["suppliers", "{{supplierId_cuentaA}}"],
+              "query": [
+                { "key": "search", "value": "azucar" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "POST Crear segundo proveedor válido - Distribuidora Dos (201)",
           "event": [
             {

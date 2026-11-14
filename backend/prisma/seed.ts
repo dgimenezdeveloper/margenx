@@ -7,6 +7,7 @@ import {
   calculateMarginPercent,
   calculateUnitCost,
 } from "../src/services/marginCalculator";
+import { normalizeSearchText } from "../src/utils/pagination";
 import { hasIdentityConflict, resolveSeedUser } from "./seed-identity";
 
 // Issue #30 / Issue #90 — referencia QA confirmada.
@@ -705,6 +706,7 @@ async function main() {
 
         const values = {
           name: ingredient.name,
+          searchName: normalizeSearchText(ingredient.name),
           unit: ingredient.unit,
           currentCost: effectiveCost,
         };
@@ -823,6 +825,7 @@ async function main() {
 
         const values = {
           name: product.name,
+          searchName: normalizeSearchText(product.name),
           salePrice,
           minMarginPercent: new Prisma.Decimal(product.minMarginPercent),
           cost,

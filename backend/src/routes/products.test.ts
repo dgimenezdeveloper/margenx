@@ -38,7 +38,7 @@ vi.mock('../lib/prisma', () => ({
       findFirst: (...args: unknown[]) => productFindFirstMock(...args),
       deleteMany: (...args: unknown[]) => productDeleteManyMock(...args),
     },
-    $transaction: async (fn: any) => {
+    $transaction: async <T>(fn: (tx: unknown) => Promise<T>) => {
       const tx = {
         ingredient: {
           findMany: (...args: unknown[]) => txIngredientFindManyMock(...args),
@@ -90,6 +90,7 @@ beforeEach(() => {
 /** Forma de los datos que el router pasa a `product.update({ data })`. */
 interface ProductUpdateData {
   name?: Prisma.Decimal | string;
+  searchName?: string;
   salePrice: Prisma.Decimal;
   minMarginPercent: Prisma.Decimal;
   cost: Prisma.Decimal;
@@ -157,6 +158,18 @@ describe('schema Prisma y migración', () => {
       );
     }
   });
+
+  it('todos los seeds y rutas de alta/edición completan searchName usando normalizeSearchText', () => {
+    const seedFiles = ['seed.ts', 'seed-demo.ts', 'seed-volumen.ts'];
+    for (const file of seedFiles) {
+      const content = readFileSync(join(__dirname, '../../prisma', file), 'utf8');
+      expect(content, `${file} debe importar normalizeSearchText`).toContain('normalizeSearchText');
+      expect(content, `${file} debe completar searchName`).toContain('searchName:');
+    }
+
+    const volumen = readFileSync(join(__dirname, '../../prisma/seed-volumen.ts'), 'utf8');
+    expect(volumen.match(/searchName:\s*normalizeSearchText\(/g)).toHaveLength(4);
+  });
 });
 
 describe('GET /api/products - paginación', () => {
@@ -177,6 +190,141 @@ describe('GET /api/products - paginación', () => {
         take: 2,
       })
     );
+  });
+});
+
+describe('GET /api/products - Búsqueda por nombre (search)', () => {
+  it('aplica la condición OR con variantes diacríticas cuando se envía search', async () => {
+    productFindManyMock.mockResolvedValue([
+      {
+        id: 'p-1',
+        name: 'Medialunas de manteca',
+        salePrice: new Prisma.Decimal('13500.00'),
+        cost: new Prisma.Decimal('3616.25'),
+        marginAmount: new Prisma.Decimal('9883.75'),
+        marginPercent: new Prisma.Decimal('73.21'),
+        minMarginPercent: new Prisma.Decimal('65.00'),
+        ingredients: [],
+      },
+    ]);
+    productCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp()).get('/api/products?search=medialuna');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].name).toBe('Medialunas de manteca');
+    expect(res.body.meta.total).toBe(1);
+
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+          OR: [
+            { searchName: { contains: 'medialuna', mode: 'insensitive' } },
+            { name: { contains: 'medialuna', mode: 'insensitive' } },
+          ],
+        }),
+      })
+    );
+    expect(productCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        accountId: 'account-1',
+        OR: [
+          { searchName: { contains: 'medialuna', mode: 'insensitive' } },
+          { name: { contains: 'medialuna', mode: 'insensitive' } },
+        ],
+      }),
+    });
+  });
+
+  it('encuentra productos reales buscando sin tildes ("jabon liquido", "canoncitos", "pan de campo")', async () => {
+    const cases = [
+      { search: 'pan de campo', name: 'Pan de Campo', normalized: 'pan de campo' },
+      { search: 'jabon liquido', name: 'Jabón líquido (Ariel/Skip/Ace) — 1 L', normalized: 'jabon liquido' },
+      { search: 'canoncitos', name: 'Cañoncitos con dulce de leche', normalized: 'canoncitos' },
+    ];
+
+    for (const c of cases) {
+      productFindManyMock.mockResolvedValueOnce([
+        { id: 'p-c', name: c.name, searchName: c.normalized, salePrice: new Prisma.Decimal('1000') },
+      ]);
+      productCountMock.mockResolvedValueOnce(1);
+
+      const res = await request(buildApp()).get(`/api/products?search=${encodeURIComponent(c.search)}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data[0].name).toBe(c.name);
+    }
+  });
+
+  it('combina search con page, limit, sortBy y order', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get(
+      '/api/products?search=pan&page=2&limit=5&sortBy=salePrice&order=desc'
+    );
+
+    expect(res.status).toBe(200);
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1',
+          OR: expect.any(Array),
+        }),
+        orderBy: { salePrice: 'desc' },
+        skip: 5,
+        take: 5,
+      })
+    );
+    expect(res.body.meta).toEqual({ total: 0, page: 2, limit: 5, totalPages: 0 });
+  });
+
+  it('Escenario Aislamiento: la búsqueda no filtra productos de otra cuenta', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get('/api/products?search=Detergente');
+
+    expect(res.status).toBe(200);
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: 'account-1', // Aislamiento garantizado por el token
+        }),
+      })
+    );
+  });
+
+  it('Sanitización RBAC: un COLLABORATOR puede buscar pero no recibe costos ni márgenes', async () => {
+    setAuthRole('COLLABORATOR');
+
+    productFindManyMock.mockResolvedValue([
+      {
+        id: 'p-1',
+        name: 'Pan de Campo',
+        salePrice: new Prisma.Decimal('4500.00'),
+        cost: new Prisma.Decimal('1800.00'),
+        marginAmount: new Prisma.Decimal('2700.00'),
+        marginPercent: new Prisma.Decimal('60.00'),
+        minMarginPercent: new Prisma.Decimal('40.00'),
+        ingredients: [{ ingredientId: 'ing-1', quantity: new Prisma.Decimal('1.000') }],
+      },
+    ]);
+    productCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp())
+      .get('/api/products?search=campo')
+      .set('x-role', 'COLLABORATOR');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].name).toBe('Pan de Campo');
+    expect(res.body.data[0].salePrice).toBe('4500');
+    // Campos purgados por sanitizeFinancialData
+    expect(res.body.data[0]).not.toHaveProperty('cost');
+    expect(res.body.data[0]).not.toHaveProperty('marginAmount');
+    expect(res.body.data[0]).not.toHaveProperty('marginPercent');
+    expect(res.body.data[0]).not.toHaveProperty('minMarginPercent');
   });
 });
 
@@ -225,7 +373,14 @@ describe('POST /api/products', () => {
     expect(res.body.product.marginAmount).toBe('0.00');
     expect(res.body.product.marginPercent).toBe('0.00');
 
-    const createCall = txProductCreateMock.mock.calls[0] as [{ data: any }];
+    const createCall = txProductCreateMock.mock.calls[0] as [{
+      data: {
+        salePrice: Prisma.Decimal;
+        cost: Prisma.Decimal;
+        marginAmount: Prisma.Decimal;
+        marginPercent: Prisma.Decimal;
+      };
+    }];
     const createData = createCall[0].data;
 
     expect(createData.salePrice.toString()).toBe('0');
@@ -629,7 +784,11 @@ describe('GET /api/products/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.product).toEqual(product);
-    expect(productFindFirstMock).toHaveBeenCalledWith({ where: { id: 'p1', accountId: 'account-1' }, include: { ingredients: { include: { ingredient: true } } } });
+    expect(productFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 'p1', accountId: 'account-1' },
+      omit: { searchName: true },
+      include: { ingredients: { include: { ingredient: true } } },
+    });
   });
 
   it('oculta quantity cost y margin para COLLABORATOR en la respuesta real del endpoint', async () => {
