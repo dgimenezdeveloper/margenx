@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/format'
 import type { Supplier } from '@/services/supplierService'
 
 const EMPTY = '—'
@@ -13,7 +14,6 @@ function toApiNumber(value: number | string): number | null {
 }
 
 const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 3 })
-const moneyFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 })
 
 /** Tamaño del bulto con su unidad de costeo: "25,5 kg". */
 export function formatPackage(size: number | string, unit: string): string {
@@ -21,10 +21,10 @@ export function formatPackage(size: number | string, unit: string): string {
   return parsed === null ? EMPTY : `${decimalFormat.format(parsed)} ${unit}`
 }
 
-/** Precio del bulto en pesos: "$35.000,5". */
+/** Precio del bulto en pesos, con centavos: "$35.000,50". */
 export function formatPackagePrice(price: number | string): string {
   const parsed = toApiNumber(price)
-  return parsed === null ? EMPTY : `$${moneyFormat.format(parsed)}`
+  return parsed === null ? EMPTY : formatMoney(parsed)
 }
 
 type ContactFields = Partial<Pick<Supplier, 'contactPhone' | 'email' | 'address'>>

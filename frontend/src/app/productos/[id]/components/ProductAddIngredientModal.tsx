@@ -4,9 +4,9 @@ import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
-import { formatQuantityWithUnit, formatUnit } from '@/lib/format'
+import { formatMoney, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export interface ProductAddIngredientModalProps {
   isOpen: boolean

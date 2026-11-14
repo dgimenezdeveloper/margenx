@@ -9,6 +9,7 @@
  * Los costos viajan como texto decimal normalizado ("1234.56") y nunca pasan por aritmética de
  * punto flotante (ADR-004); el backend los convierte a Prisma.Decimal.
  */
+import { formatMoney } from '@/lib/format'
 import { parseNumeroAR } from '@/lib/numericFormat'
 import type { SheetMatrix, SheetRow } from '@/lib/spreadsheet'
 import type { BulkUploadResponse, BulkUploadRowInput } from '@/services/ingredientService'
@@ -88,9 +89,6 @@ export type BatchProblem =
 export type BatchAnalysis =
   | { ok: true; batch: ClassifiedIngredientBatch }
   | { ok: false; problem: BatchProblem }
-
-/** Solo para mostrar: el valor que se envía sigue siendo el texto decimal. */
-const COST_DISPLAY = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export type CostResult = { ok: true; cost: string } | { ok: false; error: string }
 
@@ -215,7 +213,8 @@ function classifyRows(
       name,
       unit,
       cost: cost.cost,
-      costFormatted: `$${COST_DISPLAY.format(Number(cost.cost))}`,
+      // Solo para mostrar: el valor que se envía sigue siendo el texto decimal (`cost`).
+      costFormatted: formatMoney(cost.cost),
     }
     const key = nameKey(name)
 

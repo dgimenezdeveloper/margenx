@@ -29,6 +29,7 @@ import {
 import { PresentationDeleteDialog } from './components/PresentationDeleteDialog'
 import { PresentationEditDialog } from './components/PresentationEditDialog'
 import { SupplierPresentationsList } from './components/SupplierPresentationsList'
+import { formatMoney } from '@/lib/format'
 
 function SupplierDetailSkeleton() {
   return (
@@ -162,7 +163,7 @@ export default function SupplierDetailPage() {
       notify(
         `Presentación de "${presentation.ingredient.name}" establecida como predeterminada`,
         'success',
-        `Costo activo actualizado a $${finalCost.toLocaleString('es-AR')}`
+        `Costo activo actualizado a ${formatMoney(finalCost)}`
       )
     } catch (error: unknown) {
       notify(

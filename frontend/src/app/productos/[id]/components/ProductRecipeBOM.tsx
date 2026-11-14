@@ -2,9 +2,9 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { RecipeItem } from '@/stores/useRecipeStore'
 import { convertToRecipeUnitQty } from '@/lib/recipeConversion'
 import { RecipeQuantityField } from './RecipeQuantityField'
-import { formatUnit } from '@/lib/format'
+import { formatMoney, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export interface ProductRecipeBOMProps {
   isCollaborator: boolean

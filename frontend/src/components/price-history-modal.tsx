@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { ingredientService, type PriceHistory } from '@/services/ingredientService'
 import { EmptyState } from '@/components/empty-state'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
-import { formatPercent } from '@/lib/format'
+import { formatMoney, formatPercent } from '@/lib/format'
 
 interface PriceHistoryModalProps {
   isOpen: boolean
@@ -13,7 +13,7 @@ interface PriceHistoryModalProps {
   ingredientName: string
 }
 
-const money = (val: number) => `$${val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const money = (val: number) => formatMoney(val)
 
 const formatDate = (isoString: string) => {
   const date = new Date(isoString)

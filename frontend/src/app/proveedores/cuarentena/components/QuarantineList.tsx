@@ -6,10 +6,9 @@ import { supplierService } from '@/services/supplierService'
 import { ApiError } from '@/services/api'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
 import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
-import { formatPercent } from '@/lib/format'
+import { formatMoney, formatPercent } from '@/lib/format'
 
-const money = (val: number) =>
-  `$${Number(val).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const money = (val: number) => formatMoney(val)
 
 interface QuarantineListProps {
   items: QuarantinedItem[]

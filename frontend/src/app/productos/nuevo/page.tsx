@@ -33,9 +33,9 @@ import { NumericInput } from '@/components/NumericInput'
 import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
 import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
-import { formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
+import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -649,7 +649,7 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
+                        Venta a pérdida: Estás perdiendo {formatMoney(Math.abs(marginAmount))} por unidad.
                       </p>
                     </div>
                   ) : isHealthy || hasHealthyMargin ? (

@@ -2,10 +2,11 @@ import type { UseFormRegister, UseFormSetValue, FieldErrors } from 'react-hook-f
 import type { z } from 'zod'
 import { productSchema } from '@/schemas/productSchema'
 import { NumericInput } from '@/components/NumericInput'
+import { formatMoney } from '@/lib/format'
 
 type ProductInput = z.input<typeof productSchema>
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export interface ProductMasterDataFormProps {
   isCollaborator: boolean

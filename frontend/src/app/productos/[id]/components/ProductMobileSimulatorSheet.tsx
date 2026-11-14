@@ -1,7 +1,8 @@
 import { ProductSimulatorPanel, type ProductSimulatorPanelProps } from './ProductSimulatorPanel'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 interface ProductMobileSimulatorSheetProps extends Omit<ProductSimulatorPanelProps, 'isMobile' | 'onCancel'> {
   isOpen: boolean
