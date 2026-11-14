@@ -6,6 +6,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **QA:** Pruebas de la bandeja de cuarentena: estado de error con "Reintentar", cierre del aviso con la X y deslizándolo, y conversión de los importes de la API en `supplierService` (`#311`).
 - **Backend:** Columna normalizada `searchName` en `Ingredient` y `Product` (migración `20261111180000_add_search_name_to_ingredient_and_product`, backfill de registros existentes e índices por cuenta) y parámetro `search` en `GET /api/ingredients` y `GET /api/products` para búsqueda parcial insensible a mayúsculas y tildes, combinable con `page`, `limit`, `sortBy` y `order` (`#366`).
 - **Backend:** Paginación y búsqueda de presentaciones en `GET /api/suppliers/:id` mediante `page`, `limit` y `search` con metadatos `meta` (`total`, `page`, `limit`, `totalPages`), preservando compatibilidad retroactiva completa cuando no se envían parámetros de paginación (`#366`).
 - **QA:** Enlace "Ajustar" del mail de alerta de margen probado con un mail real en iPhone (Gmail abre Safari): sin sesión pide login y vuelve a la ficha del producto; con sesión abre la ficha directo. Resultado en `docs/qa/reporte-calidad-sprint5.md` §2.5 y capturas en `docs/qa/evidencias/365/` (`#365`).
@@ -23,6 +24,9 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** El aviso de confirmación de `/proveedores/cuarentena` se puede cerrar con la X o deslizándolo: `ToastAlert` recibe `onClose`, que antes faltaba y dejaba deshabilitados el botón y el gesto (`#311`).
+- **Frontend:** La tarjeta "Variaciones recientes" de `/insumos` muestra la cantidad real de precios en cuarentena en lugar de un 2 fijo (`#311`).
+- **Frontend:** `supplierService` convierte a número los importes que `GET /api/suppliers/quarantine` y `POST /api/suppliers/quarantine/:id/release` envían como texto (`packagePrice`, `packageSize`, `currentPrice`, `proposedPrice`, `variationPercent`, `ingredient.currentCost` y `unitCost`). Los tipos declaraban `number` pero llegaba texto (`#311`).
 - **Frontend:** Las pantallas públicas reconocen la sesión iniciada: `/instalar` y `/privacidad` muestran "Ir al panel" (hacia `/dashboard`) en lugar de "Ingresar" o "Volver a la web", y `/` ya no muestra la landing cerca de 1 s antes de redirigir al dashboard (hallazgo de QA del Sprint 5, `docs/qa/reporte-calidad-sprint5.md` §2.6). Mientras Clerk verifica la sesión no se muestra ninguna de las dos versiones; si tarda más de 1,5 s, se muestra la versión sin sesión. La lógica vive en `frontend/src/hooks/usePublicSession.ts` y `frontend/src/components/public-session-link.tsx` (`#360`).
 - **Frontend:** Los enlaces "Política de privacidad" y "Guía de instalación" del login pasan al pie, debajo del formulario y más chicos, en vez de quitarse (decisión del Tech Lead sobre la propuesta de las pruebas de usabilidad; `#244` los había agregado a propósito) (`#360`).
 - **Frontend:** En la pantalla de Perfil (`/perfil`), se corrigió la duplicación del símbolo porcentual (`% %`) en el campo "Margen Mínimo Sugerido", eliminando el span redundante adyacente a `NumericInput` (`#356`).
