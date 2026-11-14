@@ -55,9 +55,9 @@ la cuenta "Demo MargenX" (`backend/prisma/seed-demo.ts`) en vez de las de
 Panadería Central, para dejar de depender del comercio piloto real en algo
 que cualquiera puede clonar y correr. Los 5 specs (`home`, `smoke`,
 `cascade-recalculation`, `margin-recalculation`, `rbac-security`) **todavía
-aseveran contra los datos de Panadería Central** (`public-pages-session` no
-depende del catálogo) (nombres de insumos,
-productos, montos) — no se reescribieron en esta issue, porque requiere
+aseveran contra los datos de Panadería Central** (nombres de insumos,
+productos, montos); `public-pages-session` no depende del catálogo. Esos 5
+specs no se reescribieron en esta issue, porque requiere
 acceso real a Clerk/CI para verificarlo de punta a punta sin romper el
 pipeline en el intento.
 
