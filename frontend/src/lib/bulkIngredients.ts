@@ -9,11 +9,10 @@
  * Los costos viajan como texto decimal normalizado ("1234.56") y nunca pasan por aritmética de
  * punto flotante (ADR-004); el backend los convierte a Prisma.Decimal.
  */
+import { formatMoney } from '@/lib/format'
 import { parseNumeroAR } from '@/lib/numericFormat'
 import type { SheetMatrix, SheetRow } from '@/lib/spreadsheet'
 import type { BulkUploadResponse, BulkUploadRowInput } from '@/services/ingredientService'
-
-type SheetJS = typeof import('xlsx')
 
 /** Mismo tope que BULK_MAX_ROWS del backend. */
 export const BULK_MAX_ROWS = 500
@@ -90,9 +89,6 @@ export type BatchProblem =
 export type BatchAnalysis =
   | { ok: true; batch: ClassifiedIngredientBatch }
   | { ok: false; problem: BatchProblem }
-
-/** Solo para mostrar: el valor que se envía sigue siendo el texto decimal. */
-const COST_DISPLAY = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export type CostResult = { ok: true; cost: string } | { ok: false; error: string }
 
@@ -217,7 +213,8 @@ function classifyRows(
       name,
       unit,
       cost: cost.cost,
-      costFormatted: `$${COST_DISPLAY.format(Number(cost.cost))}`,
+      // Solo para mostrar: el valor que se envía sigue siendo el texto decimal (`cost`).
+      costFormatted: formatMoney(cost.cost),
     }
     const key = nameKey(name)
 
@@ -311,39 +308,200 @@ const TEMPLATE_EXAMPLES: ReadonlyArray<[string, BulkUnit, number]> = [
   ['Soda', 'l', 2300],
 ]
 
-const TEMPLATE_INSTRUCTIONS: ReadonlyArray<[string]> = [
-  ['Cómo completar la plantilla de insumos de MargenX'],
-  [''],
-  ['1. Una fila por insumo. No cambies los nombres de las columnas de la hoja "Insumos".'],
-  ['2. Nombre: cómo lo reconocés vos (al menos 2 letras). Si ya está en tu despensa, se omite y no cambia su costo.'],
-  ['3. Unidad: kg (kilo), l (litro) o u (unidad). Es la unidad en la que pagás el costo.'],
-  ['4. Costo: lo que te cuesta 1 kg, 1 litro o 1 unidad, mayor a 0 y con hasta 2 decimales (ejemplo: 1.234,56).'],
-  [`5. Hasta ${BULK_MAX_ROWS} insumos por archivo. Borrá las filas de ejemplo antes de subirla.`],
+/** Colores de marca de MargenX (índigo de la app) en ARGB, como los pide Excel. */
+const BRAND = {
+  primary: 'FF4338CA',
+  dark: 'FF1E1B4B',
+  soft: 'FFEEF2FF',
+  muted: 'FF6B7280',
+  white: 'FFFFFFFF',
+} as const
+
+/** Filas con validación y formato listas para completar (además de los ejemplos). */
+const TEMPLATE_INPUT_ROWS = BULK_MAX_ROWS
+const COST_NUMBER_FORMAT = '"$" #,##0.00'
+
+const TEMPLATE_STEPS: ReadonlyArray<string> = [
+  'Una fila por insumo en la hoja "Insumos". No cambies ni muevas los títulos de la primera fila.',
+  'Nombre: cómo lo reconocés vos (al menos 2 letras). Si ya está en tu despensa, se omite y no cambia su costo.',
+  'Unidad: elegila de la lista (kg, l o u). Es la unidad en la que pagás el costo.',
+  'Costo: lo que te cuesta 1 kg, 1 litro o 1 unidad, mayor a 0 y con hasta 2 decimales. Escribilo como lo ves: 1.234,56.',
+  `Hasta ${BULK_MAX_ROWS} insumos por archivo. Borrá las filas de ejemplo antes de subirla.`,
+  'Guardala como .xlsx (o .csv) y subila desde Insumos → Cargar desde planilla. Antes de guardar, MargenX te muestra qué filas entran.',
 ]
 
-/** Recibe SheetJS por parámetro para poder probarla sin el import dinámico. */
-export function buildTemplateWorkbook(XLSX: SheetJS) {
-  const sheet = XLSX.utils.aoa_to_sheet([
-    [BULK_COLUMN_LABELS.name, BULK_COLUMN_LABELS.unit, BULK_COLUMN_LABELS.cost],
-    ...TEMPLATE_EXAMPLES,
-  ])
-  // Costo como número con formato de moneda: Excel en español lo muestra como 1.234,56.
-  TEMPLATE_EXAMPLES.forEach((_, index) => {
-    const cell = sheet[XLSX.utils.encode_cell({ r: index + 1, c: 2 })]
-    if (cell) cell.z = '#,##0.00'
+const TEMPLATE_UNITS: ReadonlyArray<[BulkUnit, string, string]> = [
+  ['kg', 'Kilo', 'Harina, azúcar, fiambre: costo de 1 kg'],
+  ['l', 'Litro', 'Leche, aceite, soda: costo de 1 litro'],
+  ['u', 'Unidad', 'Huevos, panes, envases: costo de 1 unidad'],
+]
+
+type ExcelJSModule = typeof import('exceljs')
+type Workbook = InstanceType<ExcelJSModule['Workbook']>
+
+function todayAR(): string {
+  return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())
+}
+
+function addInsumosSheet(workbook: Workbook) {
+  const sheet = workbook.addWorksheet('Insumos', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+    properties: { tabColor: { argb: BRAND.primary } },
   })
-  sheet['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }]
+  sheet.columns = [
+    { header: BULK_COLUMN_LABELS.name, key: 'name', width: 42 },
+    { header: BULK_COLUMN_LABELS.unit, key: 'unit', width: 12 },
+    { header: BULK_COLUMN_LABELS.cost, key: 'cost', width: 18 },
+  ]
 
-  const instructions = XLSX.utils.aoa_to_sheet([...TEMPLATE_INSTRUCTIONS])
-  instructions['!cols'] = [{ wch: 110 }]
+  const header = sheet.getRow(1)
+  header.height = 24
+  header.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: BRAND.white }, size: 12 }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } }
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  })
+  sheet.getCell('A1').note = 'Cómo reconocés el insumo (al menos 2 letras).'
+  sheet.getCell('B1').note = 'kg (kilo), l (litro) o u (unidad).'
+  sheet.getCell('C1').note = 'Costo de 1 kg, 1 litro o 1 unidad, en pesos. Ejemplo: 1.234,56'
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Insumos')
-  XLSX.utils.book_append_sheet(workbook, instructions, 'Instrucciones')
+  TEMPLATE_EXAMPLES.forEach(([name, unit, cost]) => {
+    const row = sheet.addRow([name, unit, cost])
+    row.font = { italic: true, color: { argb: BRAND.muted } }
+  })
+
+  const lastRow = TEMPLATE_INPUT_ROWS + 1
+  for (let r = 2; r <= lastRow; r++) {
+    sheet.getCell(r, 2).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"kg,l,u"'],
+      showErrorMessage: true,
+      errorTitle: 'Unidad no válida',
+      error: 'Elegí kg, l o u de la lista.',
+    }
+    const costCell = sheet.getCell(r, 3)
+    costCell.numFmt = COST_NUMBER_FORMAT
+    costCell.dataValidation = {
+      type: 'decimal',
+      operator: 'between',
+      allowBlank: true,
+      formulae: [0.01, 99_999_999.99],
+      showErrorMessage: true,
+      errorTitle: 'Costo no válido',
+      error: 'El costo debe ser mayor a 0 y menor a $99.999.999,99.',
+    }
+  }
+  sheet.autoFilter = { from: 'A1', to: 'C1' }
+}
+
+function addInstructionsSheet(workbook: Workbook) {
+  const sheet = workbook.addWorksheet('Instrucciones', {
+    views: [{ showGridLines: false }],
+    properties: { tabColor: { argb: BRAND.dark } },
+  })
+  sheet.columns = [{ width: 4 }, { width: 14 }, { width: 18 }, { width: 70 }]
+
+  sheet.mergeCells('A1:D1')
+  const title = sheet.getCell('A1')
+  title.value = 'MargenX · Plantilla de carga de insumos'
+  title.font = { bold: true, size: 18, color: { argb: BRAND.white } }
+  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } }
+  title.alignment = { vertical: 'middle', indent: 1 }
+  sheet.getRow(1).height = 36
+
+  sheet.mergeCells('A2:D2')
+  const subtitle = sheet.getCell('A2')
+  subtitle.value = `Cargá tu despensa de una sola vez. Plantilla generada el ${todayAR()}.`
+  subtitle.font = { italic: true, color: { argb: BRAND.dark } }
+  subtitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.soft } }
+  subtitle.alignment = { indent: 1 }
+
+  const section = (rowNumber: number, text: string) => {
+    sheet.mergeCells(`A${rowNumber}:D${rowNumber}`)
+    const cell = sheet.getCell(`A${rowNumber}`)
+    cell.value = text
+    cell.font = { bold: true, size: 13, color: { argb: BRAND.primary } }
+    cell.border = { bottom: { style: 'medium', color: { argb: BRAND.primary } } }
+  }
+
+  section(4, 'Cómo completarla')
+  TEMPLATE_STEPS.forEach((step, index) => {
+    const row = sheet.getRow(5 + index)
+    row.getCell(1).value = index + 1
+    row.getCell(1).font = { bold: true, color: { argb: BRAND.primary } }
+    row.getCell(1).alignment = { vertical: 'top', horizontal: 'center' }
+    sheet.mergeCells(5 + index, 2, 5 + index, 4)
+    row.getCell(2).value = step
+    row.getCell(2).alignment = { wrapText: true, vertical: 'top' }
+    row.height = 30
+  })
+
+  const unitsStart = 6 + TEMPLATE_STEPS.length
+  section(unitsStart, 'Unidades que acepta MargenX')
+  const unitsHeader = sheet.getRow(unitsStart + 1)
+  ;['Escribí', 'Significa', 'Ejemplos'].forEach((label, index) => {
+    const cell = unitsHeader.getCell(index + 2)
+    cell.value = label
+    cell.font = { bold: true, color: { argb: BRAND.white } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } }
+  })
+  TEMPLATE_UNITS.forEach(([code, meaning, example], index) => {
+    const row = sheet.getRow(unitsStart + 2 + index)
+    row.getCell(2).value = code
+    row.getCell(2).font = { bold: true }
+    row.getCell(3).value = meaning
+    row.getCell(4).value = example
+    if (index % 2 === 0) {
+      ;[2, 3, 4].forEach((c) => {
+        row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.soft } }
+      })
+    }
+  })
+
+  const notesStart = unitsStart + 3 + TEMPLATE_UNITS.length
+  section(notesStart, 'Qué pasa al subirla')
+  const notes = [
+    'Ves una vista previa con las filas válidas, las repetidas y las que tienen errores (con el número de fila de esta planilla).',
+    'Solo se guardan las válidas. Los insumos que ya existen no cambian su costo: actualizalo desde Insumos o desde el proveedor.',
+    'El archivo no sale de tu dispositivo hasta que confirmás la carga.',
+  ]
+  notes.forEach((note, index) => {
+    const rowNumber = notesStart + 1 + index
+    sheet.mergeCells(rowNumber, 2, rowNumber, 4)
+    const cell = sheet.getCell(rowNumber, 2)
+    cell.value = `• ${note}`
+    cell.alignment = { wrapText: true, vertical: 'top' }
+    sheet.getRow(rowNumber).height = 30
+  })
+}
+
+/** Recibe ExcelJS por parámetro para poder probarla sin el import dinámico. */
+export function buildTemplateWorkbook(ExcelJS: ExcelJSModule): Workbook {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'MargenX'
+  workbook.title = 'Plantilla de carga de insumos'
+  // La hoja de insumos va primera: es la que lee la importación.
+  addInsumosSheet(workbook)
+  addInstructionsSheet(workbook)
   return workbook
 }
 
+export async function buildTemplateBuffer(ExcelJS: ExcelJSModule): Promise<ArrayBuffer> {
+  const data = await buildTemplateWorkbook(ExcelJS).xlsx.writeBuffer()
+  return data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayLike<number>).buffer
+}
+
 export async function downloadTemplateFile(): Promise<void> {
-  const XLSX = await import('xlsx')
-  XLSX.writeFile(buildTemplateWorkbook(XLSX), BULK_TEMPLATE_FILENAME, { compression: true })
+  const ExcelJS = await import('exceljs')
+  const buffer = await buildTemplateBuffer(ExcelJS.default ?? ExcelJS)
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = BULK_TEMPLATE_FILENAME
+  link.click()
+  URL.revokeObjectURL(url)
 }

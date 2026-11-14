@@ -26,6 +26,7 @@ import { ApiError } from '@/services/api'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { formatMoney, formatPercent } from '@/lib/format'
 
 type PackagingFormInput = z.input<typeof supplierPackagingSchema>
 
@@ -37,8 +38,7 @@ interface SupplierPackagingModalProps {
   onSuccess: (newUnitCost?: number, connection?: SupplierIngredient) => void
 }
 
-const money = (val: number) =>
-  `$${val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const money = (val: number) => formatMoney(val)
 
 export function SupplierPackagingModal({
   isOpen,
@@ -514,14 +514,14 @@ export function SupplierPackagingModal({
                             {costDifference.isSaving ? (
                               <>
                                 <TrendingDown className="size-3" />
-                                Ahorro {Math.abs(costDifference.percent).toFixed(1)}%
+                                Ahorro {formatPercent(Math.abs(costDifference.percent))}
                               </>
                             ) : costDifference.isEqual ? (
                               'Mismo costo'
                             ) : (
                               <>
                                 <TrendingUp className="size-3" />
-                                +{costDifference.percent.toFixed(1)}%
+                                {formatPercent(costDifference.percent, { signed: true })}
                               </>
                             )}
                           </span>

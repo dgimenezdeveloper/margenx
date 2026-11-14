@@ -94,7 +94,7 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
     // No debe pintar indicadores en cero
     expect(screen.queryByText(/0 productos en riesgo/i)).toBeNull()
     expect(screen.queryByText(/0 insumos/i)).toBeNull()
-    expect(screen.queryByText(/0\.0%/i)).toBeNull()
+    expect(screen.queryByText(/0,0 %/i)).toBeNull()
   })
 
   it('Escenario Gherkin: Reintento exitoso -> recupera la visualización de métricas reales', async () => {
@@ -133,7 +133,7 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
     await waitFor(() => {
       expect(screen.getByText(/2 Productos en Riesgo/i)).toBeInTheDocument()
       expect(screen.getByText(/10 Insumos/i)).toBeInTheDocument()
-      expect(screen.getByText(/55\.5%/i)).toBeInTheDocument()
+      expect(screen.getByText(/55,5 %/i)).toBeInTheDocument()
       expect(screen.getByText('Pan flauta')).toBeInTheDocument()
     })
 

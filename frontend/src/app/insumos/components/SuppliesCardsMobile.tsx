@@ -1,4 +1,5 @@
 import type { Ingredient } from '@/services/ingredientService'
+import { formatUnit } from '@/lib/format'
 
 /**
  * Vista móvil del catálogo de insumos.
@@ -30,7 +31,7 @@ export function SuppliesCardsMobile({ supplies, onSelect, money }: SuppliesCards
               {supply.name}
             </strong>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Unidad: {supply.unit}
+              Unidad: {formatUnit(supply.unit)}
             </span>
           </div>
           <div className="mt-4 flex w-full items-center justify-between border-t border-gray-50 pt-3 text-xs dark:border-gray-800">

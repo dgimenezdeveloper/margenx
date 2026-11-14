@@ -33,8 +33,9 @@ import { NumericInput } from '@/components/NumericInput'
 import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/ProductRemoveIngredientDialog'
 import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
+import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -390,7 +391,7 @@ export default function NewProductPage() {
                 <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
                   <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <p className="leading-tight">
-                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de <strong>{defaultMinMarginPercent}%</strong>. Podés ajustarlo exclusivamente para este producto sin alterar el resto.
+                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo exclusivamente para este producto sin alterar el resto.
                   </p>
                 </div>
               </section>
@@ -421,7 +422,7 @@ export default function NewProductPage() {
                   >
                     <span className="truncate">
                       {selectedSupply
-                        ? `${selectedSupply.name} (${money(selectedSupply.currentCost)}/${selectedSupply.unit})`
+                        ? `${selectedSupply.name} (${money(selectedSupply.currentCost)}/${formatUnit(selectedSupply.unit)})`
                         : 'Buscar insumo...'}
                     </span>
                     <ChevronDown
@@ -475,7 +476,7 @@ export default function NewProductPage() {
                             >
                               <span className="truncate">{supply.name}</span>
                               <span className="ml-2 shrink-0 text-gray-400">
-                                {money(supply.currentCost)}/{supply.unit}
+                                {money(supply.currentCost)}/{formatUnit(supply.unit)}
                               </span>
                             </button>
                           ))
@@ -520,17 +521,17 @@ export default function NewProductPage() {
                     <div className="mt-3 flex flex-col gap-2 rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
                       <div className="flex items-center justify-between">
                         <span>
-                          Equivalencia: <strong>{previewNumericQty} {recipeUnit}</strong> ({previewBaseQty} {selectedSupply.unit})
+                          Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)}</strong> ({formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)})
                         </span>
                         <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
                       </div>
                       {previewBaseQty <= 0 ? (
                         <p className="font-bold text-rose-600 dark:text-rose-400">
-                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {selectedSupply.unit}).
+                          ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {formatUnit(selectedSupply.unit)}).
                         </p>
                       ) : precisionLost && (
                         <p className="font-bold text-amber-600 dark:text-amber-400">
-                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {selectedSupply.unit}.
+                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)}.
                         </p>
                       )}
                     </div>
@@ -577,7 +578,7 @@ export default function NewProductPage() {
                               {item.name}
                             </strong>
                             <p className="text-xs text-gray-400">
-                              Costo base: {money(item.unitCost)} por {item.unit}
+                              Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                             </p>
                             {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
                               <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
@@ -644,11 +645,11 @@ export default function NewProductPage() {
                           <AlertTriangle className="size-3.5" /> Margen Bajo
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        Venta a pérdida: Estás perdiendo ${Math.abs(marginAmount).toLocaleString('es-AR')} por unidad.
+                        Venta a pérdida: Estás perdiendo {formatMoney(Math.abs(marginAmount))} por unidad.
                       </p>
                     </div>
                   ) : isHealthy || hasHealthyMargin ? (
@@ -658,11 +659,11 @@ export default function NewProductPage() {
                           <ShieldCheck className="size-3.5" /> Margen Saludable
                         </span>
                         <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({targetMargin}%).
+                        Cumple o supera el objetivo de rentabilidad ({formatPercent(targetMargin, { minDecimals: 0 })}).
                       </p>
                     </div>
                   ) : (
@@ -672,11 +673,11 @@ export default function NewProductPage() {
                           <AlertTriangle className="size-3.5" /> Margen Bajo
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {marginPercent.toFixed(1)}%
+                          {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado ({Number(watchedMinMargin) || 0}%).
+                        El margen está por debajo del umbral personalizado ({formatPercent(Number(watchedMinMargin) || 0, { minDecimals: 0 })}).
                       </p>
                     </div>
                   )}
@@ -739,7 +740,7 @@ export default function NewProductPage() {
                           : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
                       }`}
                     >
-                      Sugerir {targetMargin}%
+                      Sugerir {formatPercent(targetMargin, { minDecimals: 0 })}
                     </button>
                   </div>
                 </div>
@@ -769,11 +770,11 @@ export default function NewProductPage() {
                   <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
                 ) : isUnderMargin ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({marginPercent.toFixed(1)}%)
+                    <AlertTriangle className="size-3" /> Margen Bajo ({formatPercent(marginPercent)})
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({marginPercent.toFixed(1)}%)
+                    <ShieldCheck className="size-3" /> Saludable ({formatPercent(marginPercent)})
                   </span>
                 )}
               </div>

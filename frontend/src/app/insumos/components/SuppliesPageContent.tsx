@@ -17,7 +17,8 @@ import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
+import { formatMoney } from '@/lib/format'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -29,7 +30,9 @@ import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
 const MAX_INGREDIENT_COST = 99_999_999.99
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
+/** El costo guardado se muestra con coma decimal y sin separador de miles: "2179,13". */
+const toCostInput = (val: number | string) => String(val).replace('.', ',')
 const sortIngredients = (ingredients: Ingredient[]) =>
   [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
@@ -189,7 +192,7 @@ export default function SuppliesPageContent() {
     setSelected(supply)
     setShowDeleteConfirm(false)
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
-    reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: String(supply.currentCost) })
+    reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: toCostInput(supply.currentCost) })
   }
 
   const handleOpenNew = () => {
@@ -305,7 +308,7 @@ export default function SuppliesPageContent() {
     setSelected(updatedIngredient)
 
     if (newCost !== undefined) {
-      setValue('currentCost', String(newCost), { shouldDirty: false })
+      setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
       notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
     } else {
       notify('Presentación mayorista asociada correctamente al proveedor.', 'success')
@@ -331,7 +334,7 @@ export default function SuppliesPageContent() {
         sortIngredients(current.map((item) => (item.id === selected!.id ? updatedIngredient : item)))
       )
       setSelected(updatedIngredient)
-      setValue('currentCost', String(newCost), { shouldDirty: false })
+      setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
       notify(
         `Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`,
         'success'
@@ -553,9 +556,10 @@ export default function SuppliesPageContent() {
         errors={errors}
         selectedUnit={selectedUnit}
         money={money}
-        onNumericKeyDown={handleNumericKeyDown}
+        onNumericKeyDown={handleDecimalARKeyDown}
         onDecimalChange={(event) => {
-          const clean = sanitizeDecimal(event.target.value)
+          // El campo se escribe en es-AR ("1.234,56") y se guarda tal cual: el schema lo interpreta con parseNumeroAR.
+          const clean = sanitizeDecimalAR(event.target.value)
           setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
         }}
       />

@@ -1,5 +1,6 @@
 // frontend/src/app/productos/[id]/components/ProductStatusBanner.tsx
 import { AlertTriangle, ShieldCheck } from 'lucide-react'
+import { formatPercent } from '@/lib/format'
 
 interface ProductStatusBannerProps {
   isCollaborator: boolean
@@ -54,14 +55,14 @@ export function ProductStatusBanner({
           {isLow ? 'Margen Bajo' : 'Margen Saludable'}
         </span>
         <span className={`text-xs font-semibold ${isLow ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-          Objetivo: {targetMargin}%
+          Objetivo: {formatPercent(targetMargin, { minDecimals: 0 })}
         </span>
       </div>
       <p className={`mt-2 text-5xl font-black tracking-tight ${isLow ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
-        {margin.toFixed(1)}%
+        {formatPercent(margin)}
       </p>
       <p className={`mt-1 text-sm font-semibold ${isLow ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-        {isLow ? `Por debajo del mínimo (${targetMargin}%)` : `Cumple con el umbral personalizado (${targetMargin}%).`}
+        {isLow ? `Por debajo del mínimo (${formatPercent(targetMargin, { minDecimals: 0 })})` : `Cumple con el umbral personalizado (${formatPercent(targetMargin, { minDecimals: 0 })}).`}
       </p>
     </section>
   )

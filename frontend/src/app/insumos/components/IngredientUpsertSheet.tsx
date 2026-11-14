@@ -213,7 +213,7 @@ export function IngredientUpsertSheet({
                       onChange={onDecimalChange}
                       inputMode="decimal"
                       type="text"
-                      placeholder="0.00"
+                      placeholder="0,00"
                       aria-invalid={!!errors.currentCost}
                       aria-describedby={errors.currentCost ? 'ingredient-cost-error' : undefined}
                       className="no-spinners w-full bg-transparent px-2 text-lg font-bold text-gray-900 outline-none dark:text-white dark:placeholder-gray-500"

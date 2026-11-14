@@ -1,7 +1,8 @@
 import { LoaderCircle, Pencil, Save } from 'lucide-react'
 import { MarginBadge } from '@/components/MarginBadge'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 interface ProductMobileFooterProps {
   isCollaborator: boolean

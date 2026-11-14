@@ -70,12 +70,12 @@ describe('QuarantineList', () => {
     // Caso 1: 18.406,25 / 25 = 736,25 actual vs 50.000 / 25 = 2.000,00 propuesto (+171,6%)
     expect(screen.getAllByText('$736,25').length).toBeGreaterThan(0)
     expect(screen.getAllByText('$2.000,00').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('+171.6%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('+171,6 %').length).toBeGreaterThan(0)
 
     // Caso 2: 18.000 / 25 = 720,00 actual vs 40.000 / 25 = 1.600,00 propuesto (+122,2%)
     expect(screen.getAllByText('$720,00').length).toBeGreaterThan(0)
     expect(screen.getAllByText('$1.600,00').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('+122.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('+122,2 %').length).toBeGreaterThan(0)
 
     // Motivos basados en quarantineReason y signo
     expect(screen.getAllByText('Aumento > 50%').length).toBeGreaterThan(0)
