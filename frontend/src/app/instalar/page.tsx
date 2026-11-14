@@ -9,6 +9,8 @@ interface GuideStep {
   text: string
   image?: string
   imageAlt?: string
+  /** Capturas apaisadas (escritorio): se muestran más anchas para que se lean, sin pasar el ancho de la tarjeta. */
+  imageWide?: boolean
 }
 
 interface GuideSection {
@@ -21,9 +23,26 @@ const guideSections: GuideSection[] = [
   {
     title: 'Android · Chrome',
     steps: [
-      { text: 'Abre MargenX en Chrome y toca el botón de menú en la esquina superior derecha.' },
-      { text: 'Selecciona “Instalar app” o “Agregar a pantalla de inicio”.' },
-      { text: 'Confirmá la instalación y accederás desde el acceso directo en la pantalla principal.' },
+      {
+        text: 'Abrí MargenX en Chrome. Si arriba aparece el aviso “Instalar MargenX”, tocá “Instalar” y listo.',
+        image: '/guia-instalacion/android-1-aviso-instalar.png',
+        imageAlt: 'Landing de MargenX en Chrome con el aviso “Instalar MargenX” y su botón Instalar arriba',
+      },
+      {
+        text: 'Si el aviso no aparece o lo cerraste, tocá el botón de menú (tres puntos) en la esquina superior derecha.',
+        image: '/guia-instalacion/android-2-chrome-menu.png',
+        imageAlt: 'Landing de MargenX en Chrome sin el aviso, con el botón de menú de tres puntos en la esquina superior derecha',
+      },
+      {
+        text: 'Seleccioná “Instalar y crear acceso directo” (en otras versiones de Chrome: “Instalar app” o “Agregar a pantalla de inicio”).',
+        image: '/guia-instalacion/android-3-instalar-app.png',
+        imageAlt: 'Menú de Chrome abierto con la opción “Instalar y crear acceso directo”',
+      },
+      {
+        text: 'Elegí “Instalar” (no “Crear acceso directo”, que abre MargenX dentro de Chrome) y accederás desde el ícono en la pantalla principal.',
+        image: '/guia-instalacion/android-4-confirmar.png',
+        imageAlt: 'Opciones de Chrome “Instalar” y “Crear acceso directo” para MargenX',
+      },
     ],
     icon: Smartphone,
   },
@@ -51,9 +70,24 @@ const guideSections: GuideSection[] = [
   {
     title: 'Escritorio · Chrome o Edge',
     steps: [
-      { text: 'Entrá a MargenX desde Chrome o Edge.' },
-      { text: 'Buscá el ícono de instalación en la barra de direcciones o el menú de la pestaña.' },
-      { text: 'Elegí “Instalar” para crear un acceso directo del sistema en tu computadora.' },
+      {
+        text: 'Entrá a MargenX desde Chrome o Edge.',
+        image: '/guia-instalacion/escritorio-1-abrir-margenx.png',
+        imageAlt: 'MargenX abierto en Edge, con margenx.tech en la barra de direcciones',
+        imageWide: true,
+      },
+      {
+        text: 'Buscá el ícono de instalación en la barra de direcciones o el menú de la pestaña.',
+        image: '/guia-instalacion/escritorio-2-icono-instalar.png',
+        imageAlt: 'Ícono de instalación de la app, marcado en la barra de direcciones de Edge',
+        imageWide: true,
+      },
+      {
+        text: 'Elegí “Instalar” para crear un acceso directo del sistema en tu computadora.',
+        image: '/guia-instalacion/escritorio-3-confirmar.png',
+        imageAlt: 'Cuadro “Instalar MargenX” de Edge con los botones Instalar y Ahora no',
+        imageWide: true,
+      },
     ],
     icon: Monitor,
   },
@@ -90,7 +124,6 @@ export default function InstallPage() {
 
           <div className="mt-6 grid gap-4 md:mt-8 md:grid-cols-3">
             {guideSections.map(({ title, steps, icon: Icon }) => {
-              const hasAnyImage = steps.some((step) => step.image)
               return (
                 <section key={title} className="rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/60">
                   <div className="mb-4 flex items-center gap-3">
@@ -99,14 +132,6 @@ export default function InstallPage() {
                     </div>
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white md:text-lg">{title}</h2>
                   </div>
-
-                  {!hasAnyImage && (
-                    <div className="mb-4 rounded-2xl border border-dashed border-gray-300 bg-white p-3 dark:border-gray-600 dark:bg-gray-900/80">
-                      <div className="flex h-36 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-gray-100 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 dark:from-gray-800 dark:to-gray-900 dark:text-gray-500">
-                        <span className="block">Captura pendiente</span>
-                      </div>
-                    </div>
-                  )}
 
                   <ol className="space-y-4">
                     {steps.map((step, idx) => (
@@ -122,7 +147,7 @@ export default function InstallPage() {
                             src={step.image}
                             alt={step.imageAlt ?? ''}
                             loading="lazy"
-                            className="ml-8 w-36 rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700"
+                            className={`ml-8 ${step.imageWide ? 'w-56' : 'w-36'} max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700`}
                           />
                         )}
                       </li>

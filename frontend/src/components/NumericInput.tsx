@@ -113,7 +113,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
     };
 
     return (
-      <div className="w-full">
+      <div>
         <div
           className={cn(
             'flex items-center transition',

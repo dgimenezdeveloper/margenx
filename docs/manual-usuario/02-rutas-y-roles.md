@@ -18,7 +18,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |
-| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Configuración de margen y alertas | Consulta de cuenta (sin alertas) |
+| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global y estado de alertas | Consulta de cuenta (sin alertas) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
 **Pantallas públicas con la sesión iniciada.** Las pantallas públicas reconocen la sesión: `/instalar` y `/privacidad` ofrecen **Ir al panel** en lugar de **Ingresar** o **Volver a la web**. Al abrir `/` con la sesión iniciada (por ejemplo, escribiendo el dominio a mano), la app va directo al dashboard sin mostrar antes la landing. Mientras se verifica la sesión, la pantalla queda con el fondo vacío; si la verificación tarda más de 1,5 s (red lenta o un bloqueador), se muestra la versión sin sesión.

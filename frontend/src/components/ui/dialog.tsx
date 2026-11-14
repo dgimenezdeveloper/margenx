@@ -74,7 +74,7 @@ export const DialogSheet = React.forwardRef<HTMLDivElement, React.ComponentProps
     <BaseDialog.Popup
       ref={ref}
       className={cn(
-        'fixed bottom-0 left-0 z-50 w-full rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 transition-all duration-200 outline-none',
+        'fixed bottom-0 left-0 z-50 w-full rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 transition-all duration-200 outline-none flex flex-col max-h-[90dvh]',
         'data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:translate-y-full data-starting-style:translate-y-full',
         'md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl md:data-ending-style:translate-y-[-50%] md:data-starting-style:translate-y-[-50%] md:data-ending-style:scale-95 md:data-starting-style:scale-95',
         className
