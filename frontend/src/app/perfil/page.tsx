@@ -75,6 +75,7 @@ export default function ProfilePage() {
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
+    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
     void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
@@ -205,7 +206,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between gap-4 pt-1">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
-                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando un insumo cruza tu margen mínimo</p>
+                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
                       <ShieldCheck className="size-3.5" aria-hidden="true" />
@@ -216,7 +217,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reporte Semanal en PDF</p>
-                      <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs (en desarrollo para Sprint 6)</p>
+                      <p className="text-xs text-gray-500">Envío todos los lunes a las 08:00 hs</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 ring-1 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-400">
                       <Clock className="size-3.5" aria-hidden="true" />
