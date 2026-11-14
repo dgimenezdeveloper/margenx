@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { sanitizeDecimal, handleNumericKeyDown } from '../numericInput';
+import { sanitizeDecimal, handleNumericKeyDown, sanitizeDecimalAR, handleDecimalARKeyDown } from '../numericInput';
 
 describe('numericInput utility', () => {
   describe('sanitizeDecimal', () => {
@@ -87,6 +87,61 @@ describe('numericInput utility', () => {
         handleNumericKeyDown(event);
         expect(preventDefault).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('sanitizeDecimalAR (importes en es-AR, #359)', () => {
+    it('conserva el punto de miles y la coma decimal tal como se escriben', () => {
+      expect(sanitizeDecimalAR('1.234,56')).toBe('1.234,56');
+      expect(sanitizeDecimalAR('1.250')).toBe('1.250');
+      expect(sanitizeDecimalAR('2179,13')).toBe('2179,13');
+    });
+
+    it('quita símbolos y espacios, y deja una sola coma', () => {
+      expect(sanitizeDecimalAR('$ 1.234,56')).toBe('1.234,56');
+      expect(sanitizeDecimalAR('1.234,5,6')).toBe('1.234,56');
+      expect(sanitizeDecimalAR('12,3.4')).toBe('12,34');
+    });
+
+    it('maneja cadenas vacías', () => {
+      expect(sanitizeDecimalAR('')).toBe('');
+    });
+  });
+
+  describe('handleDecimalARKeyDown (importes en es-AR, #359)', () => {
+    const keyOn = (key: string, value: string, selectionStart = value.length, selectionEnd = selectionStart) => {
+      const preventDefault = vi.fn();
+      const event = {
+        key,
+        ctrlKey: false,
+        metaKey: false,
+        currentTarget: { value, selectionStart, selectionEnd },
+        preventDefault,
+      } as unknown as React.KeyboardEvent<HTMLInputElement>;
+      handleDecimalARKeyDown(event);
+      return preventDefault;
+    };
+
+    it('permite el punto de miles y después la coma decimal', () => {
+      expect(keyOn('.', '1')).not.toHaveBeenCalled();
+      expect(keyOn('.', '1.234')).not.toHaveBeenCalled();
+      expect(keyOn(',', '1.234')).not.toHaveBeenCalled();
+    });
+
+    it('bloquea la coma o el punto al principio, una segunda coma y un punto después de la coma', () => {
+      expect(keyOn('.', '')).toHaveBeenCalled();
+      expect(keyOn(',', '')).toHaveBeenCalled();
+      expect(keyOn(',', '1.234,5')).toHaveBeenCalled();
+      expect(keyOn('.', '1.234,5')).toHaveBeenCalled();
+    });
+
+    it('permite la coma si reemplaza a la que está seleccionada', () => {
+      expect(keyOn(',', '12,50', 2, 3)).not.toHaveBeenCalled();
+    });
+
+    it('delega el resto de las teclas en handleNumericKeyDown', () => {
+      expect(keyOn('7', '1.234,5')).not.toHaveBeenCalled();
+      expect(keyOn('a', '1.234')).toHaveBeenCalled();
     });
   });
 });

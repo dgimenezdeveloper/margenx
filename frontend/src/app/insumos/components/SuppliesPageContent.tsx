@@ -3,7 +3,7 @@
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -17,7 +17,7 @@ import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { handleNumericKeyDown, sanitizeDecimal } from '@/lib/numericInput'
+import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
 import { formatMoney } from '@/lib/format'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
@@ -31,16 +31,8 @@ import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => formatMoney(val)
-/** El campo de costo se escribe con coma decimal y sin separador de miles: "2179,13". */
+/** El costo guardado se muestra con coma decimal y sin separador de miles: "2179,13". */
 const toCostInput = (val: number | string) => String(val).replace('.', ',')
-/** Igual que handleNumericKeyDown, pero la coma también sirve de decimal. */
-const handleCostKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-  if (event.key === ',' || event.key === '.') {
-    if (/[.,]/.test(event.currentTarget.value) || event.currentTarget.value === '') event.preventDefault()
-    return
-  }
-  handleNumericKeyDown(event)
-}
 const sortIngredients = (ingredients: Ingredient[]) =>
   [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
@@ -564,10 +556,10 @@ export default function SuppliesPageContent() {
         errors={errors}
         selectedUnit={selectedUnit}
         money={money}
-        onNumericKeyDown={handleCostKeyDown}
+        onNumericKeyDown={handleDecimalARKeyDown}
         onDecimalChange={(event) => {
-          // El campo se escribe en es-AR: la coma es el decimal y el punto se toma como coma.
-          const clean = sanitizeDecimal(event.target.value.replace(/,/g, '.')).replace('.', ',')
+          // El campo se escribe en es-AR ("1.234,56") y se guarda tal cual: el schema lo interpreta con parseNumeroAR.
+          const clean = sanitizeDecimalAR(event.target.value)
           setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
         }}
       />

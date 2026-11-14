@@ -11,7 +11,7 @@ export const ingredientSchema = z.object({
   // Acepta lo que escribe el usuario en es-AR ("2.179,13") y el decimal con punto de la API.
   currentCost: z.preprocess(
     (value) => (typeof value === 'string' ? parseNumeroAR(value) || value : value),
-    z.coerce.number()
+    z.coerce.number({ error: 'Escribí el costo con coma decimal, por ejemplo 1.234,56' })
     .positive('El costo debe ser mayor a 0')
     .max(MAX_INGREDIENT_COST, 'El insumo no puede superar $99.999.999,99.')
   ),
