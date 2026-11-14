@@ -14,6 +14,7 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
    Una vez logueado en `/dashboard`, almacena cookies y localStorage en `frontend/playwright/.auth/user.json`.
 4. **Herencia de Sesión:**  
    Los proyectos `chromium`, `firefox` y `webkit` declaran `dependencies: ['setup']` y cargan `storageState: authFile`. Todas las pruebas inician con la sesión activa de quien inicie sesión como `E2E_CLERK_TEST_EMAIL` (hoy, en CI, el administrador de Panadería Central — ver nota de migración a la cuenta Demo más abajo).
+   **Excepción:** `home.spec.ts` prueba la landing del visitante y la abre **sin sesión** (`test.use({ storageState: { cookies: [], origins: [] } })`): con sesión, la app va directo al dashboard sin mostrar la landing. La versión con sesión de las pantallas públicas (`/`, `/instalar`, `/privacidad`) la cubre `public-pages-session.spec.ts`, que detecta con un `MutationObserver` si la landing llegó a pintarse antes del dashboard.
 5. **Seguridad y Git:**  
    La carpeta `playwright/.auth/` y el archivo `.env.test` están estrictamente excluidos en `.gitignore`. Ninguna credencial ni cookie se versiona.
 
@@ -55,7 +56,8 @@ Panadería Central, para dejar de depender del comercio piloto real en algo
 que cualquiera puede clonar y correr. Los 5 specs (`home`, `smoke`,
 `cascade-recalculation`, `margin-recalculation`, `rbac-security`) **todavía
 aseveran contra los datos de Panadería Central** (nombres de insumos,
-productos, montos) — no se reescribieron en esta issue, porque requiere
+productos, montos); `public-pages-session` no depende del catálogo. Esos 5
+specs no se reescribieron en esta issue, porque requiere
 acceso real a Clerk/CI para verificarlo de punta a punta sin romper el
 pipeline en el intento.
 
