@@ -145,6 +145,32 @@ Auditoría cronológica inmutable de variaciones de costos.
   }
   ```
 
+### `GET /api/ingredients/:id/products`
+Lista paginada de productos cuya receta incluye al insumo indicado, con la cantidad utilizada y su estado de margen.
+- **Roles:** Solo `ADMIN` (`403 Forbidden` a colaboradores; `404 Not Found` si el insumo no existe o pertenece a otra cuenta).
+- **Query Params:** `page` (default 1), `limit` (default 20, max 100), `sortBy` (`name`, `quantity`, `salePrice`, `cost`, `marginPercent`; default `name`), `order` (`asc`, `desc`; default `asc`), `search` (opcional, hasta 100 caracteres; búsqueda parcial insensible a mayúsculas y tildes sobre el nombre del producto).
+- **Respuesta 200:**
+  ```json
+  {
+    "data": [
+      {
+        "id": "uuid",
+        "name": "Pan flauta — 1 kg",
+        "quantity": "1.000",
+        "salePrice": "4332.14",
+        "cost": "749.30",
+        "marginAmount": "3582.84",
+        "marginPercent": "82.70",
+        "minMarginPercent": "55.00",
+        "marginStatus": "surplus",
+        "updatedAt": "2026-10-14T12:00:00.000Z"
+      }
+    ],
+    "meta": { "total": 4, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+  ```
+  - `marginStatus` adopta los mismos estados que el tablero (`loss`, `risk`, `target`, `surplus`).
+
 ### `POST /api/ingredients`
 Alta de nuevo insumo en la despensa.
 - **Roles:** Solo `ADMIN`.
