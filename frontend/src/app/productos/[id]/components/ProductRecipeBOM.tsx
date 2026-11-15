@@ -2,8 +2,9 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { RecipeItem } from '@/stores/useRecipeStore'
 import { convertToRecipeUnitQty } from '@/lib/recipeConversion'
 import { RecipeQuantityField } from './RecipeQuantityField'
+import { formatMoney, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export interface ProductRecipeBOMProps {
   isCollaborator: boolean
@@ -56,7 +57,7 @@ export function ProductRecipeBOM({
                   </strong>
                   {!isCollaborator && (
                     <p className="text-xs text-gray-400">
-                      Costo base: {money(item.unitCost)} por {item.unit}
+                      Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                     </p>
                   )}
                   {itemSubtotal > salePrice && salePrice > 0 && !isCollaborator && (

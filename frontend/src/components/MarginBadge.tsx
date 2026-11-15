@@ -1,5 +1,6 @@
 import { AlertTriangle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatPercent } from '@/lib/format'
 
 export interface MarginBadgeProps {
   marginPercent?: number | null
@@ -62,7 +63,8 @@ export function MarginBadge({
   }
 
   const isCritical = Number(marginPercent) < Number(minMarginPercent)
-  const formattedValue = Number(marginPercent).toFixed(1).replace(/\.0$/, '')
+  // Sin ceros sobrantes: "60 %", "25,4 %".
+  const formattedValue = formatPercent(marginPercent, { minDecimals: 0 })
 
   if (isCritical) {
     return (
@@ -80,7 +82,7 @@ export function MarginBadge({
           {showValue && (
             <>
               {' ('}
-              <span>{formattedValue}%</span>
+              <span>{formattedValue}</span>
               {')'}
             </>
           )}
@@ -104,7 +106,7 @@ export function MarginBadge({
         {showValue && (
           <>
             {' ('}
-            <span>{formattedValue}%</span>
+            <span>{formattedValue}</span>
             {')'}
           </>
         )}

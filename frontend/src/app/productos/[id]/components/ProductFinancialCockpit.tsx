@@ -1,6 +1,7 @@
 import { ProductSimulatorPanel, type ProductSimulatorPanelProps } from './ProductSimulatorPanel'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 interface ProductFinancialCockpitProps extends Omit<ProductSimulatorPanelProps, 'isMobile' | 'onCancel'> {
   gain: number
