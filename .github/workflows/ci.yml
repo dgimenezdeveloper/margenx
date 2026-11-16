@@ -112,6 +112,10 @@ jobs:
           node infra/n8n/tests/alertas-nodos.test.mjs
           node infra/n8n/tests/invitacion-nodos.test.mjs
 
+      # Script de sincronización del DevContainer: migra solo la base local (prueba sin base ni Prisma).
+      - name: Probar el script de sincronización del DevContainer
+        run: bash .devcontainer/scripts/sync-dev-env.test.sh
+
   # npm audit sobre dependencias de producción. Falla con cualquier advisory
   # alto o crítico que no esté en .github/audit-allowlist.json.
   dependency-audit:

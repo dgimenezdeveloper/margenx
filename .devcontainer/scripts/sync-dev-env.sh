@@ -16,7 +16,6 @@ set -uo pipefail
 
 MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT" || exit 0
 
 log() { printf '[margenx-env] %s\n' "$*"; }
 warn() { printf '[margenx-env] AVISO: %s\n' "$*" >&2; }
@@ -24,18 +23,6 @@ warn() { printf '[margenx-env] AVISO: %s\n' "$*" >&2; }
 in_devcontainer() {
   [ -n "${MARGENX_DEVCONTAINER:-}" ] || [ -n "${REMOTE_CONTAINERS:-}" ] || [ -n "${CODESPACES:-}" ] || [ -f /.dockerenv ]
 }
-
-if [ -n "${MARGENX_SKIP_SYNC:-}" ]; then
-  exit 0
-fi
-
-if ! in_devcontainer; then
-  # Los hooks también existen en el clon del host: ahí no se instala ni se migra nada.
-  [ "$MODE" = "--hook" ] || warn "Fuera del DevContainer: no se toca nada."
-  exit 0
-fi
-
-FAILED=0
 
 # 1. Hooks de git versionados (idempotente; vive en .git/config del clon).
 configure_hooks() {
@@ -113,6 +100,10 @@ sync_deps() {
   fi
 }
 
+# Prisma prefiere una DATABASE_URL exportada en la terminal a la de backend/.env. Corre sin ella
+# para que generate y migrate deploy usen solo la base local que valida database_url_is_local.
+local_prisma() { (cd backend && env -u DATABASE_URL npx prisma "$@"); }
+
 # 4. Cliente de Prisma: se regenera si cambió el schema o se reinstalaron las dependencias.
 sync_prisma_client() {
   local stamp expected
@@ -121,7 +112,7 @@ sync_prisma_client() {
   [ "$(cat "$stamp" 2>/dev/null)" = "$expected" ] && return 0
   log "backend: generando el cliente de Prisma…"
   local output
-  if output="$(cd backend && npx prisma generate 2>&1)"; then
+  if output="$(local_prisma generate 2>&1)"; then
     echo "$expected" > "$stamp"
   else
     warn "backend: falló prisma generate:"
@@ -162,12 +153,15 @@ sync_migrations() {
     warn "DATABASE_URL de backend/.env no apunta a la base local del DevContainer: no se aplican migraciones."
     return 0
   fi
+  if [ -n "${DATABASE_URL:-}" ]; then
+    warn "Hay una DATABASE_URL exportada en la terminal: se ignora y se migra solo la base local de backend/.env."
+  fi
   if ! wait_for_database; then
     warn "La base local no responde en el puerto 5432: no se aplican migraciones."
     return 1
   fi
   local output
-  if output="$(cd backend && npx prisma migrate deploy 2>&1)"; then
+  if output="$(local_prisma migrate deploy 2>&1)"; then
     if printf '%s' "$output" | grep -q "No pending migrations"; then
       [ "$MODE" = "--hook" ] || log "Base local al día: sin migraciones pendientes."
     else
@@ -180,20 +174,40 @@ sync_migrations() {
   fi
 }
 
-configure_hooks
-if ensure_node; then
-  sync_deps backend || FAILED=1
-  sync_deps frontend || FAILED=1
-  sync_prisma_client || FAILED=1
-  sync_migrations || FAILED=1
-else
-  FAILED=1
-fi
+main() {
+  cd "$ROOT" || exit 0
 
-if [ "$FAILED" -ne 0 ]; then
-  warn "El entorno quedó a medias. Revisá los avisos y volvé a correr: bash .devcontainer/scripts/sync-dev-env.sh"
-fi
+  if [ -n "${MARGENX_SKIP_SYNC:-}" ]; then
+    exit 0
+  fi
 
-# Desde un hook nunca se corta la operación de git.
-[ "$MODE" = "--hook" ] && exit 0
-exit "$FAILED"
+  if ! in_devcontainer; then
+    # Los hooks también existen en el clon del host: ahí no se instala ni se migra nada.
+    [ "$MODE" = "--hook" ] || warn "Fuera del DevContainer: no se toca nada."
+    exit 0
+  fi
+
+  local FAILED=0
+  configure_hooks
+  if ensure_node; then
+    sync_deps backend || FAILED=1
+    sync_deps frontend || FAILED=1
+    sync_prisma_client || FAILED=1
+    sync_migrations || FAILED=1
+  else
+    FAILED=1
+  fi
+
+  if [ "$FAILED" -ne 0 ]; then
+    warn "El entorno quedó a medias. Revisá los avisos y volvé a correr: bash .devcontainer/scripts/sync-dev-env.sh"
+  fi
+
+  # Desde un hook nunca se corta la operación de git.
+  [ "$MODE" = "--hook" ] && exit 0
+  exit "$FAILED"
+}
+
+# Las pruebas (sync-dev-env.test.sh) cargan las funciones sin ejecutar la sincronización.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main
+fi

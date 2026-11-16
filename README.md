@@ -238,7 +238,7 @@ En cada corrida:
 1. **Node:** si la versión del contenedor no coincide con `.nvmrc` (por ejemplo, un contenedor creado antes del paso a Node 22), instala la de `.nvmrc` con nvm y la deja por defecto, sin reconstruir el contenedor. Las terminales que ya estaban abiertas la toman con `hash -r` o abriendo una nueva.
 2. **Dependencias:** `npm ci` en `backend/` y `frontend/` solo si cambió su `package-lock.json` o la versión mayor de Node.
 3. **Prisma:** `prisma generate` si cambió `backend/prisma/schema.prisma`.
-4. **Migraciones:** `prisma migrate deploy` solo si `DATABASE_URL` de `backend/.env` apunta a la base del DevContainer (`localhost:5432/margenx_dev`). Nunca corre el seed ni toca otra base, y no imprime la cadena de conexión.
+4. **Migraciones:** `prisma migrate deploy` solo si `DATABASE_URL` de `backend/.env` apunta a la base del DevContainer (`localhost:5432/margenx_dev`). Nunca corre el seed ni toca otra base, y no imprime la cadena de conexión. Prisma corre sin la `DATABASE_URL` que haya exportada en la terminal (por ejemplo, la de una VPS), así que siempre migra la base local de `backend/.env`. La prueba es `bash .devcontainer/scripts/sync-dev-env.test.sh` (job `n8n Nodes Tests` del CI).
 
 Si reinstaló dependencias mientras tenías `npm run dev` corriendo, avisa que lo reinicies: el servidor anterior queda apuntando a archivos borrados (en el frontend, la app deja de cargar). Si no hay nada que hacer, termina en un par de segundos. Desde un hook nunca corta la operación de git: si algo falla, avisa y se puede repetir a mano con `bash .devcontainer/scripts/sync-dev-env.sh`. Para saltearlo una vez: `MARGENX_SKIP_SYNC=1 git switch <rama>`. Fuera del contenedor (por ejemplo, un `git switch` desde el host) no hace nada.
 
