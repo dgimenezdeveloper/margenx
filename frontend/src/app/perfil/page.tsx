@@ -152,6 +152,9 @@ export default function ProfilePage() {
                   </span>
                 </div>
               </section>
+
+              {/* Equipo junto a la empresa: cuenta y organización a la izquierda, reglas del negocio a la derecha */}
+              {!isCollaborator && !isLoading && <CollaboratorsSection onNotify={notify} />}
             </div>
 
             {!isCollaborator && (
@@ -231,7 +234,6 @@ export default function ProfilePage() {
                   </p>
                 </section>
 
-                <CollaboratorsSection onNotify={notify} />
               </div>
             )}
           </div>

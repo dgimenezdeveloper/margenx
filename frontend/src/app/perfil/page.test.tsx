@@ -41,6 +41,8 @@ let mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string } = {
   email: 'admin.panaderia@seed.example.test',
 }
 
+let mockIsLoading = false
+
 let mockRefreshUser = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@/lib/useCurrentUser', () => ({
@@ -48,7 +50,7 @@ vi.mock('@/lib/useCurrentUser', () => ({
     user: mockUser,
     businessName: 'Panadería Central',
     defaultMinMarginPercent: 30,
-    isLoading: false,
+    isLoading: mockIsLoading,
     refreshUser: mockRefreshUser,
   }),
 }))
@@ -204,6 +206,25 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
   beforeEach(() => {
     collaboratorsSection.onNotify = null
+    mockIsLoading = false
+  })
+
+  it('queda debajo de Empresa / Comercio, en la columna de la cuenta', () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    const empresa = screen.getByText('Empresa / Comercio').closest('section')!
+    const colaboradores = screen.getByRole('region', { name: 'Colaboradores' })
+    expect(empresa.parentElement).toBe(colaboradores.parentElement)
+    expect(empresa.compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('Margen Objetivo Global').compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+
+  it('no se monta mientras el rol todavía se está cargando (evita pedidos 403 de un colaborador)', () => {
+    mockIsLoading = true
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('region', { name: 'Colaboradores' })).not.toBeInTheDocument()
   })
 
   it('el administrador ve la sección y sus avisos usan el toast de Perfil', async () => {
