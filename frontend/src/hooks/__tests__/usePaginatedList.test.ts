@@ -126,4 +126,23 @@ describe('usePaginatedList', () => {
     act(() => result.current.setItems((items) => items.slice(1)))
     expect(result.current.items).toHaveLength(19)
   })
+
+  it('si la página pedida quedó vacía (por ejemplo, tras borrar la última fila) vuelve a la última página con datos', async () => {
+    let total = 21
+    const fetchPage = vi.fn(async (params: PageParams): Promise<PageResult<Insumo>> => {
+      const start = (params.page - 1) * params.limit
+      const items = catalogo.slice(0, total).slice(start, start + params.limit)
+      return { items, meta: { total, page: params.page, limit: params.limit, totalPages: Math.ceil(total / params.limit) } }
+    })
+    const { result } = renderHook(() => usePaginatedList(fetchPage))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => result.current.goToPage(2))
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    total = 20
+    act(() => result.current.reload())
+    await waitFor(() => expect(result.current.page).toBe(1))
+    await waitFor(() => expect(result.current.items).toHaveLength(20))
+  })
 })

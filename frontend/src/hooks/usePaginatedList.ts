@@ -59,6 +59,12 @@ export function usePaginatedList<T>(
       .current({ page, limit, search: term })
       .then((result) => {
         if (!active) return
+        // La página pedida quedó fuera de rango (por ejemplo, al borrar la última fila): se pide la última.
+        if (!append && page > 1 && result.items.length === 0 && result.meta.totalPages > 0) {
+          const lastPage = Math.min(result.meta.totalPages, page - 1)
+          setQuery((q) => ({ ...q, page: lastPage, nonce: q.nonce + 1 }))
+          return
+        }
         setLoaded((prev) => ({
           nonce,
           items: append ? [...prev.items, ...result.items] : result.items,
