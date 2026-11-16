@@ -15,7 +15,10 @@ const byName = (name) => {
 };
 const node = byName('Generar Mail de Invitación');
 const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
-const run = (body) => new AsyncFn('$input', node.parameters.jsCode)({ all: () => [{ json: { body } }] });
+// El nodo Code de n8n corre aislado y no garantiza los globales URL ni URLSearchParams de Node:
+// se ocultan para que la prueba falle si el código depende de ellos (pasó en la verificación en n8n).
+const run = (body) =>
+  new AsyncFn('$input', 'URL', 'URLSearchParams', node.parameters.jsCode)({ all: () => [{ json: { body } }] }, undefined, undefined);
 
 const ENLACE = 'https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=ticket_quimica';
 const invitacion = (extra = {}) => ({
@@ -41,6 +44,28 @@ const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   assert.ok(r.json.emailText.includes(ENLACE));
   assert.ok(r.json.emailText.includes('Química GyJ') && r.json.emailText.includes('vence en 30 días'));
   assert.ok(r.json.emailHtml.includes('<html lang="es">'));
+
+  // 1b Ticket con el formato real de Clerk (JWT con puntos, guiones y guiones bajos) y parámetros extra
+  const jwt = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTIwMDAsImlzcyI6Imh0dHBzIn0.VMqBO_lpsixqF3bulk-fVI_7-1nEjg87gF8ZL3s2bwg';
+  for (const invitationUrl of [
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=${jwt}`,
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=${jwt}&redirect_url=https%3A%2F%2Fdev.margenx.tech%2Flogin`,
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?redirect_url=x&ticket=${jwt}`,
+  ]) {
+    [r] = await run(invitacion({ invitationUrl }));
+    assert.equal(r.json.valid, true, `debería aceptar ${invitationUrl}`);
+    assert.ok(r.json.emailText.includes(invitationUrl));
+  }
+
+  // 1c Enlaces con caracteres que romperían el HTML del mail o el atributo href
+  for (const invitationUrl of [
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=abc"onmouseover=alert(1)`,
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=abc def`,
+    `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=`,
+  ]) {
+    [r] = await run(invitacion({ invitationUrl }));
+    assert.equal(r.json.valid, false, `debería rechazar ${invitationUrl}`);
+  }
 
   // 2 Dominio de producción de Clerk (clerk.margenx.tech) también se acepta
   [r] = await run(invitacion({ invitationUrl: 'https://clerk.margenx.tech/v1/tickets/accept?ticket=t_prod' }));
