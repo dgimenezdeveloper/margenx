@@ -5,6 +5,14 @@ export interface PendingInvitation {
   id: string
   email: string
   createdAt: string
+  /** Enlace para aceptar la invitación, para mandarlo por otro canal si el mail no llega. */
+  url: string | null
+}
+
+/** Respuesta de `POST /api/auth/invitations`: `emailSent` es false si el mail de MargenX no salió. */
+export interface InvitationResult {
+  invitation: PendingInvitation
+  emailSent: boolean
 }
 
 /** Usuario activo de la cuenta (`docs/api.md` §3, `GET /api/auth/users`). */
@@ -17,12 +25,11 @@ export interface AccountMember {
 
 /** Equipo de la cuenta: solo ADMIN. La cuenta y el rol los fija el servidor, nunca el cliente. */
 export const collaboratorService = {
-  async invite(getToken: TokenGetter, email: string): Promise<PendingInvitation> {
-    const response = await fetchApi<{ invitation: PendingInvitation }>('/auth/invitations', getToken, {
+  async invite(getToken: TokenGetter, email: string): Promise<InvitationResult> {
+    return fetchApi<InvitationResult>('/auth/invitations', getToken, {
       method: 'POST',
       body: JSON.stringify({ email }),
     })
-    return response.invitation
   },
 
   async listInvitations(getToken: TokenGetter): Promise<PendingInvitation[]> {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { LoaderCircle, Mail, Send, UserMinus, Users, X } from 'lucide-react'
+import { Link2, LoaderCircle, Mail, Send, UserMinus, Users, X } from 'lucide-react'
 import { ErrorState } from '@/components/error-state'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import {
@@ -58,6 +58,11 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [isInviting, setIsInviting] = useState(false)
 
+  // Invitación creada sin mail (n8n caído o sin configurar): el ADMIN copia el enlace.
+  const [mailNotSentTo, setMailNotSentTo] = useState<string | null>(null)
+  // Enlace a la vista cuando el navegador no deja usar el portapapeles.
+  const [manualCopy, setManualCopy] = useState<PendingInvitation | null>(null)
+
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
@@ -103,16 +108,32 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
     }
 
     setInviteError(null)
+    setMailNotSentTo(null)
     setIsInviting(true)
     try {
-      await collaboratorService.invite(getToken, normalized)
+      const { emailSent } = await collaboratorService.invite(getToken, normalized)
       setEmail('')
-      onNotify(`Invitación enviada a ${normalized}`)
+      if (emailSent) {
+        onNotify(`Invitación enviada a ${normalized}`)
+      } else {
+        setMailNotSentTo(normalized)
+      }
       reloadTeam()
     } catch (error) {
       setInviteError(errorMessage(error, 'No se pudo enviar la invitación. Probá de nuevo.'))
     } finally {
       setIsInviting(false)
+    }
+  }
+
+  const copyInvitationLink = async (invitation: PendingInvitation) => {
+    if (!invitation.url) return
+    try {
+      await navigator.clipboard.writeText(invitation.url)
+      setManualCopy(null)
+      onNotify(`Enlace copiado: mandáselo a ${invitation.email}`)
+    } catch {
+      setManualCopy(invitation)
     }
   }
 
@@ -205,6 +226,21 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
         )}
       </form>
 
+      {mailNotSentTo && (
+        <div
+          role="status"
+          aria-label="Aviso de invitación"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <p className="break-all font-bold">
+            Creamos la invitación para {mailNotSentTo}, pero no pudimos enviar el mail.
+          </p>
+          <p className="mt-1">
+            Tocá <strong>Copiar enlace</strong> en Invitaciones pendientes y mandáselo por WhatsApp o por otro medio.
+          </p>
+        </div>
+      )}
+
       {isLoading ? (
         <div role="status" aria-label="Cargando colaboradores" className="space-y-2">
           <div className="h-12 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
@@ -242,21 +278,48 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
                 {invitations.map((invitation) => (
                   <li
                     key={invitation.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
                   >
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-40">
                       <p className="break-all text-sm font-semibold">{invitation.email}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Enviada el {formatDate(invitation.createdAt)}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Creada el {formatDate(invitation.createdAt)}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAction({ kind: 'revoke', invitation })}
-                      aria-label={`Revocar la invitación de ${invitation.email}`}
-                      className="flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-3 text-xs font-bold text-rose-700 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                      Revocar
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {invitation.url && (
+                        <button
+                          type="button"
+                          onClick={() => void copyInvitationLink(invitation)}
+                          aria-label={`Copiar el enlace de la invitación de ${invitation.email}`}
+                          className="flex min-h-11 cursor-pointer items-center gap-1 rounded-xl px-3 text-xs font-bold text-indigo-700 transition hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+                        >
+                          <Link2 className="size-4" aria-hidden="true" />
+                          Copiar enlace
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction({ kind: 'revoke', invitation })}
+                        aria-label={`Revocar la invitación de ${invitation.email}`}
+                        className="flex min-h-11 cursor-pointer items-center gap-1 rounded-xl px-3 text-xs font-bold text-rose-700 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                      >
+                        <X className="size-4" aria-hidden="true" />
+                        Revocar
+                      </button>
+                    </div>
+                    {manualCopy?.id === invitation.id && invitation.url && (
+                      <div className="w-full pt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Tu navegador no dejó copiarlo. Mantené apretado el enlace o seleccionalo y copialo:
+                        </p>
+                        <input
+                          readOnly
+                          value={invitation.url}
+                          aria-label={`Enlace de la invitación de ${invitation.email}`}
+                          onFocus={(event) => event.currentTarget.select()}
+                          className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

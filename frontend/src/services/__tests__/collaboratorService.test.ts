@@ -15,11 +15,19 @@ describe('collaboratorService: contrato de /api/auth (docs/api.md §3)', () => {
     vi.mocked(fetchApi).mockReset()
   })
 
-  it('invite manda solo el correo, sin cuenta ni rol', async () => {
-    const invitation = { id: 'inv_cajera', email: 'cajera.quimica@seed.example.test', createdAt: '2026-11-16T12:00:00.000Z' }
-    vi.mocked(fetchApi).mockResolvedValueOnce({ invitation })
+  it('invite manda solo el correo, sin cuenta ni rol, y devuelve si salió el mail', async () => {
+    const invitation = {
+      id: 'inv_cajera',
+      email: 'cajera.quimica@seed.example.test',
+      createdAt: '2026-11-16T12:00:00.000Z',
+      url: 'https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=inv_cajera',
+    }
+    vi.mocked(fetchApi).mockResolvedValueOnce({ invitation, emailSent: false })
 
-    await expect(collaboratorService.invite(getToken, 'cajera.quimica@seed.example.test')).resolves.toEqual(invitation)
+    await expect(collaboratorService.invite(getToken, 'cajera.quimica@seed.example.test')).resolves.toEqual({
+      invitation,
+      emailSent: false,
+    })
     expect(fetchApi).toHaveBeenCalledWith('/auth/invitations', getToken, {
       method: 'POST',
       body: JSON.stringify({ email: 'cajera.quimica@seed.example.test' }),

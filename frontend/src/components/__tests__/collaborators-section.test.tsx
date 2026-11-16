@@ -30,7 +30,13 @@ const REPOSITOR = {
   role: 'COLLABORATOR' as const,
   createdAt: '2026-10-02T13:00:00.000Z',
 }
-const INVITACION_CAJERA = { id: 'inv_cajera', email: 'cajera.quimica@seed.example.test', createdAt: '2026-11-16T13:00:00.000Z' }
+const ENLACE_CAJERA = 'https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=inv_cajera'
+const INVITACION_CAJERA = {
+  id: 'inv_cajera',
+  email: 'cajera.quimica@seed.example.test',
+  createdAt: '2026-11-16T13:00:00.000Z',
+  url: ENLACE_CAJERA,
+}
 
 function renderSection() {
   const onNotify = vi.fn()
@@ -52,7 +58,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
 
     const pendientes = await screen.findByRole('list', { name: 'Invitaciones pendientes' })
     expect(within(pendientes).getByText('cajera.quimica@seed.example.test')).toBeInTheDocument()
-    expect(within(pendientes).getByText('Enviada el 16/11/2026')).toBeInTheDocument()
+    expect(within(pendientes).getByText('Creada el 16/11/2026')).toBeInTheDocument()
 
     const activos = screen.getByRole('list', { name: 'Colaboradores activos' })
     expect(within(activos).getByText('colab.quimica@seed.example.test')).toBeInTheDocument()
@@ -83,7 +89,10 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
   })
 
   it('invita por mail, avisa y recarga la lista', async () => {
-    service.invite.mockResolvedValue({ id: 'inv_repartidor', email: 'repartidor.quimica@seed.example.test', createdAt: '2026-11-16T14:00:00.000Z' })
+    service.invite.mockResolvedValue({
+      invitation: { id: 'inv_repartidor', email: 'repartidor.quimica@seed.example.test', createdAt: '2026-11-16T14:00:00.000Z', url: null },
+      emailSent: true,
+    })
     const { user, onNotify } = renderSection()
     await screen.findByText('colab.quimica@seed.example.test')
 
@@ -94,6 +103,53 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     expect(onNotify).toHaveBeenCalledWith('Invitación enviada a repartidor.quimica@seed.example.test')
     expect(screen.getByLabelText('Correo del colaborador')).toHaveValue('')
     await waitFor(() => expect(service.listInvitations).toHaveBeenCalledTimes(2))
+  })
+
+  it('si el mail no salió, avisa que la invitación quedó y que hay que copiar el enlace', async () => {
+    service.invite.mockResolvedValue({
+      invitation: { id: 'inv_repartidor', email: 'repartidor.quimica@seed.example.test', createdAt: '2026-11-16T14:00:00.000Z', url: 'https://x.clerk.accounts.dev/v1/tickets/accept?ticket=t' },
+      emailSent: false,
+    })
+    const { user, onNotify } = renderSection()
+    await screen.findByText('colab.quimica@seed.example.test')
+
+    await user.type(screen.getByLabelText('Correo del colaborador'), 'repartidor.quimica@seed.example.test')
+    await user.click(screen.getByRole('button', { name: 'Invitar' }))
+
+    const aviso = await screen.findByRole('status', { name: 'Aviso de invitación' })
+    expect(aviso).toHaveTextContent('Creamos la invitación para repartidor.quimica@seed.example.test, pero no pudimos enviar el mail.')
+    expect(aviso).toHaveTextContent('Copiar enlace')
+    expect(onNotify).not.toHaveBeenCalled()
+  })
+
+  it('copia el enlace de una invitación pendiente al portapapeles', async () => {
+    const { user, onNotify } = renderSection()
+    await screen.findByText('cajera.quimica@seed.example.test')
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText')
+
+    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+
+    expect(writeText).toHaveBeenCalledWith(ENLACE_CAJERA)
+    expect(onNotify).toHaveBeenCalledWith('Enlace copiado: mandáselo a cajera.quimica@seed.example.test')
+  })
+
+  it('si el navegador no deja copiar, muestra el enlace para copiarlo a mano', async () => {
+    const { user, onNotify } = renderSection()
+    await screen.findByText('cajera.quimica@seed.example.test')
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('NotAllowedError'))
+
+    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+
+    expect(await screen.findByRole('textbox', { name: 'Enlace de la invitación de cajera.quimica@seed.example.test' })).toHaveValue(ENLACE_CAJERA)
+    expect(onNotify).not.toHaveBeenCalled()
+  })
+
+  it('sin enlace no ofrece copiarlo', async () => {
+    service.listInvitations.mockResolvedValue([{ ...INVITACION_CAJERA, url: null }])
+    renderSection()
+    await screen.findByText('cajera.quimica@seed.example.test')
+
+    expect(screen.queryByRole('button', { name: /Copiar el enlace/ })).not.toBeInTheDocument()
   })
 
   it('valida el correo antes de llamar a la API', async () => {
