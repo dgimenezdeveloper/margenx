@@ -23,7 +23,7 @@ vi.mock('@/services/productService', () => ({
 }))
 
 vi.mock('@/services/ingredientService', () => ({
-  ingredientService: { getAll: vi.fn() },
+  ingredientService: { getAll: vi.fn(), list: vi.fn() },
 }))
 
 // Insumo de panadería que se compra por kg
@@ -81,5 +81,47 @@ describe('NewProductPage - edición de cantidades en la lista de receta', () => 
     expect(screen.getByRole('status')).toHaveTextContent('Se guarda como 1 gr (0,001 kg): hasta 3 decimales en kg.')
     expect(campoLevadura()).toHaveValue('1')
     expect(cantidadEnReceta()).toBe(0.001)
+  })
+})
+
+describe('NewProductPage - selector de insumos que busca en la API (#350)', () => {
+  const sesamo = { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', unit: 'kg', currentCost: 5400 } as Ingredient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  it('escribir "sesamo" consulta la API y permite sumar un insumo que no estaba en la lista cargada', async () => {
+    vi.mocked(ingredientService.list).mockResolvedValue({
+      items: [sesamo],
+      meta: { total: 1, page: 1, limit: 100, totalPages: 1 },
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Levadura fresca/ }))
+    await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'sesamo')
+
+    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }))
+    expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
+
+    await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
+    expect(useRecipeStore.getState().items[0]?.ingredientId).toBe('ing-sesamo')
+  })
+
+  it('mientras busca lo indica y, sin coincidencias, avisa que no hay insumos', async () => {
+    let resolver: (value: Awaited<ReturnType<typeof ingredientService.list>>) => void = () => {}
+    vi.mocked(ingredientService.list).mockReturnValue(new Promise((resolve) => { resolver = resolve }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Levadura fresca/ }))
+    await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'azafran')
+
+    expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
+    await vi.waitFor(() => expect(ingredientService.list).toHaveBeenCalled())
+    resolver({ items: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } })
+    expect(await screen.findByText('No se encontraron insumos con ese nombre.')).toBeInTheDocument()
   })
 })
