@@ -51,6 +51,7 @@ vi.mock('@/lib/useCurrentUser', () => ({
 vi.mock('@/services/ingredientService', () => ({
   ingredientService: {
     getAll: vi.fn(),
+    list: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -63,15 +64,22 @@ vi.mock('@/services/supplierService', () => ({
   },
 }))
 
+
+/** Respuesta paginada de GET /ingredients con una sola página. */
+const pagina = <T,>(items: T[]) => ({
+  items,
+  meta: { total: items.length, page: 1, limit: 20, totalPages: items.length === 0 ? 0 : 1 },
+})
+
 describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(ingredientService.getAll).mockResolvedValue([])
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([]))
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
   })
 
   it('Escenario Gherkin: Falla la carga de insumos -> ve ErrorState con Reintentar y no una lista vacía ni KPIs en cero', async () => {
-    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(
+    vi.mocked(ingredientService.list).mockRejectedValueOnce(
       new ApiError('Fallo al consultar /api/ingredients (500)', 500)
     )
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
@@ -91,7 +99,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   })
 
   it('Escenario Gherkin: Reintento exitoso en Insumos -> recupera la lista completa', async () => {
-    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
+    vi.mocked(ingredientService.list).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
 
     render(<SuppliesPageContent />)
@@ -100,9 +108,9 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
     })
 
-    vi.mocked(ingredientService.getAll).mockResolvedValueOnce([
+    vi.mocked(ingredientService.list).mockResolvedValueOnce(pagina([
       { id: 'ing-1', name: 'Harina de trigo 000', unit: 'kg', currentCost: 736.25 },
-    ])
+    ]))
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
 
     const retryBtn = screen.getByRole('button', { name: /reintentar/i })
@@ -116,7 +124,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   })
 
   it('Sin red (fetch lanza TypeError) -> muestra un mensaje en español, no el texto técnico del navegador', async () => {
-    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    vi.mocked(ingredientService.list).mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
     render(<SuppliesPageContent />)
 
@@ -129,7 +137,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   })
 
   it('Mientras se reintenta muestra el estado de carga y no el error anterior', async () => {
-    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
+    vi.mocked(ingredientService.list).mockRejectedValueOnce(new ApiError('Fallo temporal', 500))
 
     render(<SuppliesPageContent />)
 
@@ -138,7 +146,7 @@ describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
     })
 
     // El reintento queda pendiente para observar el estado intermedio.
-    vi.mocked(ingredientService.getAll).mockReturnValueOnce(new Promise(() => {}))
+    vi.mocked(ingredientService.list).mockReturnValueOnce(new Promise(() => {}))
     fireEvent.click(screen.getByRole('button', { name: /reintentar/i }))
 
     expect(await screen.findByText('Cargando insumos...')).toBeInTheDocument()
@@ -164,7 +172,7 @@ describe('SuppliesPageContent - tarjeta "Variaciones recientes"', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(ingredientService.getAll).mockResolvedValue([harina])
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([harina]))
   })
 
   it('muestra la cantidad real de precios en cuarentena', async () => {
@@ -184,3 +192,80 @@ describe('SuppliesPageContent - tarjeta "Variaciones recientes"', () => {
   })
 })
 
+
+describe('SuppliesPageContent - catálogo completo, búsqueda real y aislamiento (#350)', () => {
+  const TOTAL = 218
+  const insumo = (i: number) => ({ id: `ing-${i}`, name: `Aceite de girasol Natura ${i}`, unit: 'l', currentCost: 2150.5 })
+  const sesamo = { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', unit: 'kg', currentCost: 5400 }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    vi.mocked(ingredientService.list).mockImplementation(async (_getToken, params) => {
+      if (params.search) {
+        return { items: [sesamo], meta: { total: 1, page: 1, limit: params.limit, totalPages: 1 } }
+      }
+      const start = (params.page - 1) * params.limit
+      const items = Array.from({ length: Math.min(params.limit, TOTAL - start) }, (_, i) => insumo(start + i))
+      return { items, meta: { total: TOTAL, page: params.page, limit: params.limit, totalPages: Math.ceil(TOTAL / params.limit) } }
+    })
+  })
+
+  it('Escenario: Catálogo completo -> la tarjeta muestra 218 y el paginador llega a la última página', async () => {
+    render(<SuppliesPageContent />)
+
+    const tarjeta = within((await screen.findByText('Insumos activos')).parentElement as HTMLElement)
+    await waitFor(() => expect(tarjeta.getByText('218')).toBeInTheDocument())
+    expect(screen.getByText('Mostrando 1–20 de 218 insumos')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Filas por página'), { target: { value: '100' } })
+    await screen.findByText('Página 1 de 3')
+    fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Página siguiente' }))
+
+    expect(await screen.findByText('Mostrando 201–218 de 218 insumos')).toBeInTheDocument()
+    expect(screen.getAllByText('Aceite de girasol Natura 217').length).toBeGreaterThan(0)
+    expect(ingredientService.list).toHaveBeenLastCalledWith(expect.any(Function), { page: 3, limit: 100, search: '' })
+  })
+
+  it('Escenario: Búsqueda real -> "sesamo" se consulta a la API y encuentra un insumo fuera de la primera página', async () => {
+    render(<SuppliesPageContent />)
+    await screen.findByText('Mostrando 1–20 de 218 insumos')
+
+    fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'sesamo' } })
+
+    expect((await screen.findAllByText('Semillas de sésamo La Molinera')).length).toBeGreaterThan(0)
+    expect(ingredientService.list).toHaveBeenLastCalledWith(expect.any(Function), { page: 1, limit: 20, search: 'sesamo' })
+    // La tarjeta sigue mostrando el catálogo completo, no los resultados de la búsqueda.
+    const tarjeta = within(screen.getByText('Insumos activos').parentElement as HTMLElement)
+    expect(tarjeta.getByText('218')).toBeInTheDocument()
+  })
+
+  it('Escenario: Aislamiento -> la búsqueda no envía la cuenta: la API la toma del usuario autenticado', async () => {
+    render(<SuppliesPageContent />)
+    await screen.findByText('Mostrando 1–20 de 218 insumos')
+
+    fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'sesamo' } })
+    await screen.findAllByText('Semillas de sésamo La Molinera')
+
+    for (const [, params] of vi.mocked(ingredientService.list).mock.calls) {
+      expect(Object.keys(params).sort()).toEqual(['limit', 'page', 'search'])
+    }
+  })
+
+  it('una búsqueda sin resultados muestra el término buscado', async () => {
+    vi.mocked(ingredientService.list).mockImplementation(async (_getToken, params) =>
+      params.search
+        ? { items: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }
+        : { items: [insumo(0)], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } }
+    )
+    render(<SuppliesPageContent />)
+    await screen.findAllByText('Aceite de girasol Natura 0')
+
+    fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'azafran' } })
+
+    expect(await screen.findByText('Insumo no encontrado')).toBeInTheDocument()
+    expect(screen.getByText('No existe ningún insumo con el nombre "azafran".')).toBeInTheDocument()
+    expect(screen.queryByText('Sin insumos en la despensa')).toBeNull()
+  })
+})
