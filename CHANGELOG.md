@@ -14,6 +14,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Acta de cierre del Sprint 5 (`docs/retrospectivas/acta-cierre-sprint-5.md`) con el incremento, las métricas, los hitos por rol, lo que pasa al Sprint 6 y el traspaso; la retrospectiva se completa en el primer Planning del Sprint 6, según el recorte previsto (`#273`).
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 - **Frontend:** Aviso en la receta cuando el costo de una línea supera el precio de venta del producto, en `/productos/:id` y `/productos/nuevo` (`#352`).
+- **Frontend:** Paginador accesible con selector de 20, 50 o 100 filas en `/insumos`, `/productos` y las presentaciones de `/proveedores/:id`, con "Cargar más" en mobile; componente `Pagination` y hook `usePaginatedList` documentados en `frontend/README.md` y en `docs/manual-usuario/` (`#350`).
 
 ### Changed
 
@@ -27,6 +28,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** Con catálogos de más de 20 filas, `/insumos` y `/productos` mostraban solo la primera página: la tarjeta "Insumos activos" contaba 20, el buscador filtraba solo esos 20 y el selector de la receta ofrecía los primeros 20 insumos. Ahora la búsqueda va a la API (sin tildes ni mayúsculas, 300 ms después de dejar de escribir), los contadores leen `meta.total`, el selector de la receta busca en todo el catálogo y la detección de duplicados de la planilla usa el catálogo completo (`#350`).
 - **Frontend:** El aviso de confirmación de `/proveedores/cuarentena` se puede cerrar con la X o deslizándolo: `ToastAlert` recibe `onClose`, que antes faltaba y dejaba deshabilitados el botón y el gesto (`#311`).
 - **Frontend:** La tarjeta "Variaciones recientes" de `/insumos` muestra la cantidad real de precios en cuarentena en lugar de un 2 fijo (`#311`).
 - **Frontend:** `supplierService` convierte a número los importes que `GET /api/suppliers/quarantine` y `POST /api/suppliers/quarantine/:id/release` envían como texto (`packagePrice`, `packageSize`, `currentPrice`, `proposedPrice`, `variationPercent`, `ingredient.currentCost` y `unitCost`). Los tipos declaraban `number` pero llegaba texto (`#311`).
