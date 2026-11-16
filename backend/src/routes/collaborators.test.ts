@@ -41,7 +41,16 @@ vi.mock('../lib/prisma', () => ({
   },
 }));
 
-type TestUser = { id: string; accountId: string; email: string; role: 'ADMIN' | 'COLLABORATOR' };
+const dispatchInvitationEmail = vi.hoisted(() => vi.fn());
+vi.mock('../services/invitationMailDispatcher', () => ({ dispatchInvitationEmail }));
+
+type TestUser = {
+  id: string;
+  accountId: string;
+  email: string;
+  role: 'ADMIN' | 'COLLABORATOR';
+  account?: { businessName: string };
+};
 let currentUser: TestUser;
 vi.mock('../middlewares/auth', () => ({
   authMiddleware: (req: { user?: TestUser }, _res: unknown, next: () => void) => {
@@ -57,6 +66,7 @@ const ADMIN_QUIMICA: TestUser = {
   accountId: QUIMICA_ID,
   email: 'admin.quimica@seed.example.test',
   role: 'ADMIN',
+  account: { businessName: 'Química GyJ' },
 };
 const COLLAB_QUIMICA: TestUser = {
   id: 'u-repositor-quimica',
@@ -65,8 +75,17 @@ const COLLAB_QUIMICA: TestUser = {
   role: 'COLLABORATOR',
 };
 
+const ticketUrl = (id: string) => `https://possible-alpaca-7097.clerk.accounts.dev/v1/tickets/accept?ticket=${id}`;
+
 function invitation(id: string, email: string, accountId: string, createdAt = Date.UTC(2026, 10, 16, 12)) {
-  return { id, emailAddress: email, publicMetadata: { accountId, role: 'COLLABORATOR' }, createdAt, status: 'pending' };
+  return {
+    id,
+    emailAddress: email,
+    publicMetadata: { accountId, role: 'COLLABORATOR' },
+    createdAt,
+    status: 'pending',
+    url: ticketUrl(id),
+  };
 }
 
 function clerkError(status: number, code: string) {
@@ -93,6 +112,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     currentUser = ADMIN_QUIMICA;
     process.env.APP_BASE_URL = 'https://dev.margenx.tech';
     clerk.getInvitationList.mockResolvedValue({ data: [], totalCount: 0 });
+    dispatchInvitationEmail.mockResolvedValue(true);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
@@ -122,7 +142,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
   });
 
   describe('POST /api/auth/invitations', () => {
-    it('crea la invitación con la cuenta del ADMIN autenticado y responde 201', async () => {
+    it('crea la invitación sin el mail de Clerk, manda el mail de MargenX y responde 201', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.createInvitation.mockResolvedValue(
         invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID)
@@ -133,17 +153,62 @@ describe('Rutas de colaboradores (/api/auth)', () => {
         .send({ email: '  Cajera.Quimica@Seed.Example.Test ' });
 
       expect(res.status).toBe(201);
-      expect(res.body.invitation).toEqual({
-        id: 'inv_cajera',
-        email: 'cajera.quimica@seed.example.test',
-        createdAt: '2026-11-16T12:00:00.000Z',
+      expect(res.body).toEqual({
+        invitation: {
+          id: 'inv_cajera',
+          email: 'cajera.quimica@seed.example.test',
+          createdAt: '2026-11-16T12:00:00.000Z',
+          url: ticketUrl('inv_cajera'),
+        },
+        emailSent: true,
       });
       expect(clerk.createInvitation).toHaveBeenCalledWith({
         emailAddress: 'cajera.quimica@seed.example.test',
         publicMetadata: { accountId: QUIMICA_ID, role: 'COLLABORATOR' },
         redirectUrl: 'https://dev.margenx.tech/login',
-        notify: true,
+        notify: false,
       });
+      expect(dispatchInvitationEmail).toHaveBeenCalledWith({
+        email: 'cajera.quimica@seed.example.test',
+        tradeName: 'Química GyJ',
+        inviterEmail: 'admin.quimica@seed.example.test',
+        invitationUrl: ticketUrl('inv_cajera'),
+      });
+    });
+
+    it('si el mail no sale (n8n caído o sin configurar), la invitación queda y responde emailSent false', async () => {
+      db.findUnique.mockResolvedValue(null);
+      clerk.createInvitation.mockResolvedValue(invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID));
+      dispatchInvitationEmail.mockResolvedValue(false);
+
+      const res = await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.emailSent).toBe(false);
+      expect(res.body.invitation.url).toBe(ticketUrl('inv_cajera'));
+      expect(clerk.revokeInvitation).not.toHaveBeenCalled();
+    });
+
+    it('si Clerk no devuelve el enlace, no intenta mandar el mail', async () => {
+      db.findUnique.mockResolvedValue(null);
+      const { url: _url, ...sinEnlace } = invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID);
+      clerk.createInvitation.mockResolvedValue(sinEnlace);
+
+      const res = await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({ invitation: { url: null }, emailSent: false });
+      expect(dispatchInvitationEmail).not.toHaveBeenCalled();
+    });
+
+    it('sin nombre de comercio en la sesión, el mail usa un nombre genérico', async () => {
+      currentUser = { ...ADMIN_QUIMICA, account: undefined };
+      db.findUnique.mockResolvedValue(null);
+      clerk.createInvitation.mockResolvedValue(invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID));
+
+      await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(dispatchInvitationEmail).toHaveBeenCalledWith(expect.objectContaining({ tradeName: 'tu comercio' }));
     });
 
     it('sin APP_BASE_URL válida no manda redirectUrl (Clerk usa su portal)', async () => {
@@ -294,6 +359,12 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.invitations.map((i: { id: string }) => i.id)).toEqual(['inv_cajera', 'inv_repartidor']);
+      expect(res.body.invitations[0]).toEqual({
+        id: 'inv_cajera',
+        email: 'cajera.quimica@seed.example.test',
+        createdAt: '2026-11-16T12:00:00.000Z',
+        url: ticketUrl('inv_cajera'),
+      });
       expect(clerk.getInvitationList).toHaveBeenNthCalledWith(1, { status: 'pending', limit: 500, offset: 0 });
       expect(clerk.getInvitationList).toHaveBeenNthCalledWith(2, { status: 'pending', limit: 500, offset: 500 });
     });

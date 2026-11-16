@@ -7,6 +7,7 @@ import { AppError } from '../middlewares/errorHandler';
 import { prisma } from '../lib/prisma';
 import { getClerkClient } from '../lib/clerk';
 import { parseInvitationMetadata, type InvitationMetadata } from '../services/invitedUserProvisioning';
+import { dispatchInvitationEmail } from '../services/invitationMailDispatcher';
 
 /*
   Equipo de la cuenta: invitar colaboradores por mail, revocar invitaciones y dar de baja
@@ -34,13 +35,19 @@ interface ClerkInvitation {
   emailAddress: string;
   publicMetadata: Record<string, unknown> | null;
   createdAt: number;
+  url?: string;
 }
 
+/**
+ * `url` es el enlace para aceptar la invitación: lo ve solo el ADMIN de la cuenta, para
+ * copiarlo y mandarlo por otro canal si el mail no llega.
+ */
 function toInvitationResponse(invitation: ClerkInvitation) {
   return {
     id: invitation.id,
     email: invitation.emailAddress,
     createdAt: new Date(invitation.createdAt).toISOString(),
+    url: invitation.url ?? null,
   };
 }
 
@@ -96,8 +103,10 @@ function invitationRedirectUrl(): string | undefined {
 
 /*
   POST /api/auth/invitations
-  Invita a un colaborador. Clerk manda el mail; al aceptarlo, el primer inicio de sesión
-  crea el User en la cuenta del ADMIN (services/invitedUserProvisioning.ts).
+  Invita a un colaborador. Clerk crea la invitación sin su mail (notify: false) y MargenX manda
+  el suyo por n8n (services/invitationMailDispatcher.ts). Si el mail no sale, la invitación igual
+  queda y la respuesta lo indica con emailSent: false, para que el ADMIN copie el enlace.
+  Al aceptarla, el primer inicio de sesión crea el User (services/invitedUserProvisioning.ts).
 */
 router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res: Response) => {
   const parsed = invitationBodySchema.safeParse(req.body);
@@ -124,10 +133,19 @@ router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res:
       emailAddress: email,
       publicMetadata: { accountId, role: 'COLLABORATOR' },
       ...(redirectUrl ? { redirectUrl } : {}),
-      notify: true,
+      notify: false,
     });
 
-    res.status(201).json({ invitation: toInvitationResponse(invitation) });
+    const emailSent = invitation.url
+      ? await dispatchInvitationEmail({
+          email,
+          tradeName: req.user!.account?.businessName ?? 'tu comercio',
+          inviterEmail: req.user!.email,
+          invitationUrl: invitation.url,
+        })
+      : false;
+
+    res.status(201).json({ invitation: toInvitationResponse(invitation), emailSent });
   } catch (error) {
     throw toAppError(error);
   }
