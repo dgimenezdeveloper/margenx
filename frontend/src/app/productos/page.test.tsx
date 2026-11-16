@@ -7,6 +7,9 @@ import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
 import ProductsPage from './page'
 
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
+
 const getToken = vi.fn().mockResolvedValue('token')
 const currentUser: { role: 'ADMIN' | 'COLLABORATOR' } = { role: 'ADMIN' }
 
@@ -84,7 +87,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
 
     fireEvent.change(screen.getByLabelText('Buscar productos por nombre'), { target: { value: 'sesamo' } })
 
-    expect((await screen.findAllByText('Pan de hamburguesa con sésamo')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Pan de hamburguesa con sésamo', undefined, BUSQUEDA)).length).toBeGreaterThan(0)
     expect(productService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 20, search: 'sesamo' })
   })
 
@@ -99,7 +102,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
 
     fireEvent.change(screen.getByLabelText('Buscar productos por nombre'), { target: { value: 'chipa' } })
 
-    expect(await screen.findByText('No hay productos que coincidan con la búsqueda "chipa".')).toBeInTheDocument()
+    expect(await screen.findByText('No hay productos que coincidan con la búsqueda "chipa".', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 
   it('sin productos muestra el estado vacío y no el paginador', async () => {

@@ -8,6 +8,9 @@ import { ingredientService, type Ingredient } from '@/services/ingredientService
 import { useRecipeStore } from '@/stores/useRecipeStore'
 import NewProductPage from './page'
 
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
+
 const getToken = vi.fn().mockResolvedValue('token')
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -103,7 +106,7 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     await user.click(await screen.findByRole('button', { name: /Levadura fresca/ }))
     await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'sesamo')
 
-    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }))
+    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
     expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
 
     await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
@@ -122,6 +125,6 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
     await vi.waitFor(() => expect(ingredientService.list).toHaveBeenCalled())
     resolver({ items: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } })
-    expect(await screen.findByText('No se encontraron insumos con ese nombre.')).toBeInTheDocument()
+    expect(await screen.findByText('No se encontraron insumos con ese nombre.', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 })

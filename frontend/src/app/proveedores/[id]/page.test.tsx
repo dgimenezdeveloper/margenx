@@ -8,6 +8,9 @@ import { ApiError } from '@/services/api'
 import { supplierService, type SupplierDetail } from '@/services/supplierService'
 import SupplierDetailPage from './page'
 
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
+
 const getToken = vi.fn().mockResolvedValue('token')
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -331,7 +334,7 @@ describe('SupplierDetailPage - presentaciones paginadas y búsqueda (#350)', () 
     await screen.findByText('Mostrando 1–20 de 67 presentaciones')
 
     fireEvent.change(screen.getByLabelText('Buscar presentaciones por insumo o código'), { target: { value: 'sesamo' } })
-    expect(await screen.findByText('Semillas de sésamo La Molinera')).toBeInTheDocument()
+    expect(await screen.findByText('Semillas de sésamo La Molinera', undefined, BUSQUEDA)).toBeInTheDocument()
     expect(supplierService.getPage).toHaveBeenLastCalledWith(expect.any(Function), 'sup-marjuanc', { page: 1, limit: 20, search: 'sesamo' })
 
     vi.mocked(supplierService.getPage).mockResolvedValueOnce({
@@ -339,6 +342,6 @@ describe('SupplierDetailPage - presentaciones paginadas y búsqueda (#350)', () 
       meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
     })
     fireEvent.change(screen.getByLabelText('Buscar presentaciones por insumo o código'), { target: { value: 'azafran' } })
-    expect(await screen.findByText('No hay presentaciones que coincidan con "azafran".')).toBeInTheDocument()
+    expect(await screen.findByText('No hay presentaciones que coincidan con "azafran".', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 })

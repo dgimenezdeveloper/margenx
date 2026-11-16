@@ -6,6 +6,9 @@ import { ingredientService } from '@/services/ingredientService'
 import { supplierService } from '@/services/supplierService'
 import { ApiError } from '@/services/api'
 
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
+
 const mockGetToken = vi.fn().mockResolvedValue('fake-token')
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -234,7 +237,7 @@ describe('SuppliesPageContent - catálogo completo, búsqueda real y aislamiento
 
     fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'sesamo' } })
 
-    expect((await screen.findAllByText('Semillas de sésamo La Molinera')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Semillas de sésamo La Molinera', undefined, BUSQUEDA)).length).toBeGreaterThan(0)
     expect(ingredientService.list).toHaveBeenLastCalledWith(expect.any(Function), { page: 1, limit: 20, search: 'sesamo' })
     // La tarjeta sigue mostrando el catálogo completo, no los resultados de la búsqueda.
     const tarjeta = within(screen.getByText('Insumos activos').parentElement as HTMLElement)
@@ -246,7 +249,7 @@ describe('SuppliesPageContent - catálogo completo, búsqueda real y aislamiento
     await screen.findByText('Mostrando 1–20 de 218 insumos')
 
     fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'sesamo' } })
-    await screen.findAllByText('Semillas de sésamo La Molinera')
+    await screen.findAllByText('Semillas de sésamo La Molinera', undefined, BUSQUEDA)
 
     for (const [, params] of vi.mocked(ingredientService.list).mock.calls) {
       expect(Object.keys(params).sort()).toEqual(['limit', 'page', 'search'])
@@ -264,7 +267,7 @@ describe('SuppliesPageContent - catálogo completo, búsqueda real y aislamiento
 
     fireEvent.change(screen.getByLabelText('Buscar insumos por nombre'), { target: { value: 'azafran' } })
 
-    expect(await screen.findByText('Insumo no encontrado')).toBeInTheDocument()
+    expect(await screen.findByText('Insumo no encontrado', undefined, BUSQUEDA)).toBeInTheDocument()
     expect(screen.getByText('No existe ningún insumo con el nombre "azafran".')).toBeInTheDocument()
     expect(screen.queryByText('Sin insumos en la despensa')).toBeNull()
   })

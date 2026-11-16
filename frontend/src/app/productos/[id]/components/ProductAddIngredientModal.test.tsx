@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { ProductAddIngredientModal } from './ProductAddIngredientModal'
 
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
+
 const getToken = vi.fn().mockResolvedValue('token')
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -37,7 +40,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
 
     await user.click(screen.getByText(/Harina de trigo 000 Olavarriense/))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'sesamo')
-    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }))
+    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
 
     expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
     expect(screen.getByText(/Semillas de sésamo La Molinera \(/)).toBeInTheDocument()
@@ -60,6 +63,6 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'azafran')
 
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
-    expect(await screen.findByText('No se encontraron insumos.')).toBeInTheDocument()
+    expect(await screen.findByText('No se encontraron insumos.', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 })
