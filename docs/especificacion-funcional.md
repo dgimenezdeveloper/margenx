@@ -309,11 +309,13 @@ MargenX tiene dos roles por cuenta, gestionados con Clerk (ADR-001). El control 
 | Insumos (`/insumos`), proveedores y cuarentena | Accede | **No accede** (la ruta lo redirige; la API de proveedores responde 403) |
 | Métricas del panel | Ve | **No ve** |
 | Altas, ediciones y bajas | Puede | **No puede**: la API rechaza toda mutación |
+| Equipo: invitar colaboradores y darlos de baja (Perfil) | Puede | **No accede** (la sección no se muestra; la API responde 403) |
 
 - Implementación: `backend/src/middlewares/rbac.ts` (`requireRole`, `blockCollaboratorMutations`, `sanitizeFinancialData`) y, en la interfaz, `AdminOnlyRoute` y `useUserRole`.
 - El colaborador **no edita costos**. Este documento reemplaza en ese punto al RF-12 y al RNF-09 de `docs/propuesta-proyecto.md`, que decían que el colaborador podía editar costos y que no veía el precio de venta.
 - **Receta para el colaborador** · *Disponible*: ve qué insumos lleva cada producto, pero no las cantidades, los costos ni los subtotales, y no tiene acciones de edición. La API quita `quantity` de las respuestas para este rol (`FINANCIAL_FIELDS` en `rbac.ts`). En el perfil no ve el margen objetivo global ni la configuración de alertas. Detalle para el usuario: `docs/manual-usuario/03-colaborador.md`.
 - **Vista de precios vigentes para el colaborador** · *Propuesta*: una vista simple con los precios de venta y un indicador de "modificados recientemente", para actualizar la pizarra o la caja.
+- **Invitar y dar de baja colaboradores** · *Disponible*: el ADMIN invita por mail desde Perfil, ve las invitaciones pendientes y los colaboradores activos, y puede revocar o dar de baja con confirmación. El invitado entra siempre como `COLLABORATOR` de la cuenta que lo invitó: la cuenta y el rol los fija el backend, nunca el cliente. Invitar a otro ADMIN y cambiar roles siguen en la Fase 2 (ADR-007). Decisión técnica: ADR-008. Detalle para el usuario: `docs/manual-usuario/05-colaboradores.md`.
 
 ---
 
@@ -375,6 +377,7 @@ Account (CASCADE)
 | Compras inteligentes | Propuesta |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
+| Invitar y dar de baja colaboradores desde Perfil | Disponible |
 
 ## 12. Decisiones pendientes
 

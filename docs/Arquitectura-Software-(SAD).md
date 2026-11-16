@@ -398,6 +398,18 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
   5. Si elige **"Rechazar"**, se descarta el precio propuesto, se limpia el estado de cuarentena y se preserva el costo histórico seguro.
 - Postcondición: La anomalía de precio queda resuelta, protegiendo la rentabilidad de variaciones erróneas o extremas.
 
+**CU-06: Alta y baja de colaboradores por invitación**
+
+- Actor: Administrador.
+- Precondición: la cuenta existe y está activa; el correo invitado no tiene usuario en MargenX ni una invitación pendiente.
+- Flujo:
+  1. El Administrador ingresa el correo en Perfil. El backend crea una invitación en Clerk con la cuenta del usuario autenticado y el rol `COLLABORATOR` en `publicMetadata`; el cliente nunca envía la cuenta ni el rol (ADR-008).
+  2. Clerk envía el mail. El enlace abre `/login` con el ticket de la invitación, y el invitado completa el alta en Clerk.
+  3. En su primera llamada a la API, `authMiddleware` no encuentra fila en `User`, lee `publicMetadata` con la clave secreta y crea el `User` con esa cuenta y ese rol. Si los metadatos no son válidos, el rol no es `COLLABORATOR` o la cuenta no existe o está inactiva, responde 401 sin crear nada.
+  4. Desde ese momento, el colaborador opera con las restricciones de CU-02.
+  5. El Administrador puede revocar una invitación pendiente o dar de baja a un colaborador. La baja borra el usuario en Clerk (cierra sus sesiones e impide que la invitación lo vuelva a dar de alta) y después su fila en `User`.
+- Postcondición: el colaborador queda vinculado a una sola cuenta con rol `COLLABORATOR`, o sin acceso tras la baja.
+
 ---
 
 ## 4. Arquitectura de Despliegue y CI/CD
@@ -757,6 +769,8 @@ Para evitar la obsolescencia documental y garantizar que la arquitectura evoluci
   * **ADR-004:** Adopción del Margen Comercial sobre Precio de Venta (Profit Margin) en lugar del Recargo sobre Costo (Markup).
   * **ADR-005:** Costo vigente desde la presentación predeterminada, retención en cuarentena de precios anómalos y canal de ingesta desatendida.
   * **ADR-006:** Sesión persistente en la app instalada (PWA standalone), regida solo por la duración configurada en Clerk, y URL de retorno tras el login.
+  * **ADR-007:** Modelo RBAC con dos roles fijos (`ADMIN` y `COLLABORATOR`) en lugar de permisos granulares, con sanitización de datos financieros en el backend.
+  * **ADR-008:** Alta de colaboradores por invitación de Clerk: el ADMIN invita por mail, la cuenta y el rol viajan en `publicMetadata` y el `User` se crea en el primer inicio de sesión. La creación de cuentas sigue en Concierge MVP.
 * **Contratos de API Vivos (Living Documentation):** La documentación de endpoints se mantiene sincronizada con el código mediante colecciones de Postman versionadas en `backend/tests/postman/` (formato JSON v2.1) y su posterior exportación a especificación OpenAPI / Swagger.
 * **Registro de Cambios y Versionado Semántico (CHANGELOG):** Se adopta el estándar Keep a Changelog en el archivo raíz `CHANGELOG.md` junto a versionado semántico (SemVer), etiquetando cada cierre de sprint con tags anotados en Git (ej. `v0.1.0`, `v0.4.0`, `v1.0.0`).
 * **README como Fuente Única de Onboarding:** El archivo `README.md` principal garantiza que cualquier desarrollador levante el stack local completo en menos de 10 minutos utilizando Docker DevContainers, documentando variables de entorno (`.env.example`), diagramas y comandos de test.
