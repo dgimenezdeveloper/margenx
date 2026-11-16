@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { SignIn, useAuth, useClerk } from '@clerk/clerk-react'
+import { SignIn, SignUp, useAuth, useClerk } from '@clerk/clerk-react'
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react'
 import { isClerkConfigured } from '@/lib/clerkConfig'
 import { isStandaloneMode } from '@/lib/displayMode'
@@ -19,6 +19,9 @@ export default function LoginPage() {
   const wasLoggedOutRef = useRef(false)
   // Destino tras el login (por ejemplo, el producto del enlace "Ajustar"); se resuelve una vez al montar
   const [returnUrl] = useState(() => resolveReturnUrl(location.search))
+  // El enlace del mail de invitación trae __clerk_ticket, y el ticket lo procesa <SignUp> (ADR-008).
+  // Se resuelve una vez: los pasos siguientes del alta (/login/verify-…) ya no traen el parámetro.
+  const [isInvitation] = useState(() => new URLSearchParams(location.search).has('__clerk_ticket'))
 
   const isE2E = (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
     typeof window !== 'undefined' && Boolean(window.navigator.webdriver)
@@ -103,6 +106,21 @@ export default function LoginPage() {
     }
   }, [toast])
 
+  const clerkAppearance = {
+    variables: isDark
+      ? {
+          colorBackground: '#111827',
+          colorText: '#f9fafb',
+          colorInputBackground: '#1f2937',
+          colorInputText: '#f9fafb',
+          colorPrimary: '#4f46e5',
+          colorTextSecondary: '#9ca3af',
+        }
+      : {
+          colorPrimary: '#4f46e5',
+        },
+  }
+
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-gray-50 px-5 py-10 text-gray-950 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
@@ -124,7 +142,9 @@ export default function LoginPage() {
             alt="MargenX"
             className="mx-auto h-20 w-auto object-contain transition-all duration-150 dark:brightness-0 dark:invert"
           />
-          <h1 className="mt-4 text-base font-medium text-gray-500">Inicia sesión en tu comercio</h1>
+          <h1 className="mt-4 text-base font-medium text-gray-500">
+            {isInvitation ? 'Creá tu acceso a MargenX' : 'Inicia sesión en tu comercio'}
+          </h1>
         </div>
 
         {!isLoaded || isStaleSession ? (
@@ -137,26 +157,23 @@ export default function LoginPage() {
             onKeyDownCapture={authorizeSession}
             onFocusCapture={authorizeSession}
           >
-            <SignIn
-              fallbackRedirectUrl={returnUrl}
-              forceRedirectUrl={returnUrl}
-              routing="path"
-              path="/login"
-              appearance={{
-                variables: isDark
-                  ? {
-                      colorBackground: '#111827',
-                      colorText: '#f9fafb',
-                      colorInputBackground: '#1f2937',
-                      colorInputText: '#f9fafb',
-                      colorPrimary: '#4f46e5',
-                      colorTextSecondary: '#9ca3af',
-                    }
-                  : {
-                      colorPrimary: '#4f46e5',
-                    },
-              }}
-            />
+            {isInvitation ? (
+              <SignUp
+                fallbackRedirectUrl={returnUrl}
+                forceRedirectUrl={returnUrl}
+                routing="path"
+                path="/login"
+                appearance={clerkAppearance}
+              />
+            ) : (
+              <SignIn
+                fallbackRedirectUrl={returnUrl}
+                forceRedirectUrl={returnUrl}
+                routing="path"
+                path="/login"
+                appearance={clerkAppearance}
+              />
+            )}
           </div>
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
