@@ -1,0 +1,263 @@
+{
+  "name": "MargenX - Invitación de Colaborador",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "collaborator-invitation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Invitación Colaborador",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "collaborator-invitation-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "header-not-empty",
+              "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "env-secret-not-empty",
+              "leftValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "secret-match",
+              "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] }}",
+              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-valid-secret",
+      "name": "Validar Secreto Webhook",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Unauthorized: Secreto de webhook inválido o ausente.\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Responder 401 No Autorizado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Arma el mail de invitación de un colaborador con la plantilla compartida de MargenX (ADR-008).\n// <plantilla-mail-margenx>\n// Plantilla compartida de los mails de MargenX (resumen de ingesta y alertas de margen).\n// Fuente única: infra/n8n/plantillas/mail-margenx.js. No editar este bloque en n8n:\n// se copia a los workflows con `node infra/n8n/plantillas/sincronizar.mjs`.\nconst MX_APP = { prod: 'https://margenx.tech', dev: 'https://dev.margenx.tech' };\nconst MX_TONOS = {\n  peligro: { fondo: '#fef2f2', borde: '#ef4444', titulo: '#991b1b', texto: '#7f1d1d', chipFondo: '#450a0a', chipTexto: '#fca5a5', chipBorde: '#7f1d1d' },\n  aviso: { fondo: '#fffbeb', borde: '#f59e0b', titulo: '#92400e', texto: '#78350f', chipFondo: '#451a03', chipTexto: '#fcd34d', chipBorde: '#78350f' },\n  info: { fondo: '#eef2ff', borde: '#4f46e5', titulo: '#3730a3', texto: '#312e81', chipFondo: '#1e1b4b', chipTexto: '#c7d2fe', chipBorde: '#3730a3' },\n  ok: { fondo: '#f0fdf4', borde: '#22c55e', titulo: '#166534', texto: '#14532d', chipFondo: '#052e16', chipTexto: '#86efac', chipBorde: '#14532d' },\n};\nfunction escapeHtml(str) {\n  if (str === null || str === undefined) return '';\n  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\n// Número con separador de miles argentino: 2.500\nfunction mxEntero(n) {\n  return (Number(n) || 0).toLocaleString('es-AR');\n}\n// \"1 fila\" / \"2 filas\": el singular solo para exactamente 1\nfunction mxCantidad(n, singular, plural) {\n  return `${mxEntero(n)} ${Number(n) === 1 ? singular : plural}`;\n}\nfunction mxPorcentaje(n) {\n  return (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';\n}\nfunction mxPesos(n) {\n  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);\n}\nfunction mxBoton(href, etiqueta) {\n  return `<a href=\"${escapeHtml(href)}\" target=\"_blank\" style=\"background-color: #4f46e5; color: #ffffff; padding: 10px 18px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 6px; display: inline-block;\">${escapeHtml(etiqueta)}</a>`;\n}\n// Bloque destacado con título, contenido (HTML ya escapado) y un botón opcional\nfunction mxAviso(tono, titulo, contenidoHtml, boton) {\n  const t = MX_TONOS[tono] || MX_TONOS.info;\n  const accion = boton ? `<p style=\"margin: 12px 0 0 0;\">${mxBoton(boton.href, boton.etiqueta)}</p>` : '';\n  return `<div style=\"background-color: ${t.fondo}; border-left: 4px solid ${t.borde}; padding: 12px 12px; border-radius: 0 8px 8px 0; margin: 0 0 16px 0;\">\n  <p style=\"margin: 0; font-size: 15px; font-weight: 700; color: ${t.titulo};\">${escapeHtml(titulo)}</p>\n  <div style=\"margin: 6px 0 0 0; font-size: 14px; line-height: 1.5; color: ${t.texto};\">${contenidoHtml}</div>${accion}\n</div>`;\n}\n// Tabla de productos bajo su margen mínimo, con el botón \"Ajustar\" de cada uno\nfunction mxTablaProductos(filas) {\n  const cuerpo = filas.map((f) => `<tr style=\"border-bottom: 1px solid #e2e8f0;\">\n  <td style=\"padding: 10px 8px; font-size: 14px; font-weight: 600; color: #0f172a;\">${escapeHtml(f.nombre)}<div style=\"font-size: 12px; font-weight: 400; color: #64748b;\">Nuevo costo: ${escapeHtml(mxPesos(f.costo))}</div></td>\n  <td style=\"padding: 10px 8px; font-size: 13px; text-align: right; white-space: nowrap;\"><span style=\"background-color: #fee2e2; color: #b91c1c; font-weight: 700; padding: 3px 6px; border-radius: 4px; border: 1px solid #fecaca; display: inline-block;\">${escapeHtml(mxPorcentaje(f.margen))}</span><div style=\"font-size: 12px; color: #475569; margin-top: 4px;\">mín. ${escapeHtml(mxPorcentaje(f.minimo))}</div></td>\n  <td style=\"padding: 10px 8px; text-align: right;\"><a href=\"${escapeHtml(f.enlace)}\" target=\"_blank\" style=\"background-color: #4f46e5; color: #ffffff; padding: 6px 10px; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 4px; display: inline-block;\">Ajustar</a></td>\n</tr>`).join('');\n  return `<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse: collapse; border: 1px solid #e2e8f0; width: 100%; background-color: #ffffff;\">\n<thead><tr style=\"background-color: #f1f5f9; text-align: left;\">\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;\">Producto</th>\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; text-align: right;\">Margen</th>\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; text-align: right;\"></th>\n</tr></thead>\n<tbody>${cuerpo}</tbody>\n</table>`;\n}\n// Documento completo: encabezado de marca, etiqueta de estado, contenido y pie\nfunction mxDocumento({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {\n  const t = MX_TONOS[tono] || MX_TONOS.info;\n  return `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>${escapeHtml(titulo)}</title>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #f8fafc; padding: 16px 8px;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;\">\n          <tr>\n            <td style=\"background-color: #0f172a; padding: 18px 16px;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;\">MARGEN<span style=\"color: #6366f1;\">X</span></span>\n                    <span style=\"font-size: 11px; color: #94a3b8; display: block; margin-top: 2px; text-transform: uppercase; letter-spacing: 1px;\">Control de rentabilidad en tiempo real</span>\n                  </td>\n                  <td align=\"right\">\n                    <span style=\"background-color: ${t.chipFondo}; color: ${t.chipTexto}; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; border: 1px solid ${t.chipBorde}; text-transform: uppercase; white-space: nowrap; display: inline-block;\">${escapeHtml(etiqueta)}</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding: 20px 16px; font-size: 14px; line-height: 1.5; color: #334155;\">\n              ${contenidoHtml}\n            </td>\n          </tr>\n          <tr>\n            <td style=\"background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center;\">\n              ${pieHtml ? `<p style=\"margin: 0 0 8px 0; font-size: 12px; color: #64748b;\">${pieHtml}</p>` : ''}\n              <p style=\"margin: 0; font-size: 11px; color: #94a3b8;\">MargenX &bull; Soporte: contacto@margenx.tech</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>`;\n}\n// </plantilla-mail-margenx>\n\nconst EMAIL = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n// Solo enlaces de aceptación de Clerk: instancia de desarrollo (*.clerk.accounts.dev) o dominio de MargenX.\nconst CLERK_HOST = /^(?:[a-z0-9-]+\\.clerk\\.accounts\\.dev|(?:[a-z0-9-]+\\.)*margenx\\.tech)$/;\n\nfunction enlaceDeClerk(valor) {\n  let url;\n  try {\n    url = new URL(String(valor || ''));\n  } catch {\n    return null;\n  }\n  const valido =\n    url.protocol === 'https:' &&\n    CLERK_HOST.test(url.hostname) &&\n    url.pathname === '/v1/tickets/accept' &&\n    Boolean(url.searchParams.get('ticket'));\n  return valido ? url.toString() : null;\n}\n\nconst una = (texto) => String(texto ?? '').replace(/[\\r\\n]+/g, ' ').trim();\n\nconst returnData = [];\nfor (const item of $input.all()) {\n  const data = item.json.body || item.json;\n  const email = una(data.email);\n  const tradeName = una(data.tradeName);\n  const invitationUrl = enlaceDeClerk(data.invitationUrl);\n  const inviter = EMAIL.test(una(data.inviterEmail)) ? una(data.inviterEmail) : '';\n  const dias = Number.isInteger(data.expiresInDays) && data.expiresInDays > 0 ? data.expiresInDays : 30;\n\n  if (!EMAIL.test(email) || !tradeName || !invitationUrl) {\n    returnData.push({ json: { valid: false } });\n    continue;\n  }\n\n  const quien = inviter ? `${inviter} te invitó` : 'Te invitaron';\n  const titulo = `Te invitaron a sumarte a ${tradeName} en MargenX`;\n  const detalle = `${quien} como colaborador de ${tradeName}. Con MargenX vas a poder consultar los productos y sus precios de venta actualizados, desde el celular o la computadora.`;\n  const vence = `La invitación vence en ${dias} días.`;\n  const ignorar = 'Si no esperabas esta invitación, ignorá este mail: sin aceptarla no se crea ninguna cuenta con tu correo.';\n\n  const contenidoHtml = [\n    mxAviso('info', titulo, `<p style=\"margin: 0;\">${escapeHtml(detalle)}</p>`),\n    `<p style=\"margin: 20px 0; text-align: center;\">${mxBoton(invitationUrl, 'Aceptar invitación')}</p>`,\n    `<p style=\"margin: 0 0 8px 0; font-size: 13px; color: #475569;\">${escapeHtml(vence)} Si el botón no funciona, copiá este enlace en el navegador:</p>`,\n    `<p style=\"margin: 0 0 16px 0; font-size: 12px; word-break: break-all;\"><a href=\"${escapeHtml(invitationUrl)}\" target=\"_blank\" style=\"color: #4f46e5;\">${escapeHtml(invitationUrl)}</a></p>`,\n    `<p style=\"margin: 0; font-size: 12px; color: #64748b;\">${escapeHtml(ignorar)}</p>`,\n  ].join('');\n  const emailHtml = mxDocumento({\n    titulo: 'Invitación a MargenX',\n    etiqueta: 'Invitación',\n    tono: 'info',\n    contenidoHtml,\n    pieHtml: `Comercio: <strong>${escapeHtml(tradeName)}</strong> | Destinatario: ${escapeHtml(email)}`,\n  });\n  const emailText = `${titulo}\\n\\n${detalle}\\n\\nAceptá la invitación desde este enlace:\\n${invitationUrl}\\n\\n${vence}\\n${ignorar}\\n\\n---\\nMargenX - Soporte: contacto@margenx.tech`;\n\n  returnData.push({\n    json: {\n      valid: true,\n      email,\n      emailSubject: `${tradeName} te invitó a MargenX`,\n      emailHtml,\n      emailText,\n    },\n  });\n}\n\nreturn returnData;\n"
+      },
+      "name": "Generar Mail de Invitación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "invitacion-valida",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "¿Invitación válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "MargenX <alertas@margenx.tech>",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.emailSubject }}",
+        "emailFormat": "both",
+        "html": "={{ $json.emailHtml }}",
+        "text": "={{ $json.emailText }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Enviar Invitación (Brevo)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1160,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "margenx-brevo-smtp",
+          "name": "Brevo MargenX SMTP Relay"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Mail de invitación enviado.\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Responder 200 Enviado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Datos de invitación inválidos: no se envió el mail.\"\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "name": "Responder 422 Datos Inválidos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1160,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Invitación Colaborador": {
+      "main": [
+        [
+          {
+            "node": "Validar Secreto Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Secreto Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generar Mail de Invitación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401 No Autorizado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Mail de Invitación": {
+      "main": [
+        [
+          {
+            "node": "¿Invitación válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Invitación válida?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Invitación (Brevo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 422 Datos Inválidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Invitación (Brevo)": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

@@ -110,6 +110,7 @@ jobs:
         run: |
           node infra/n8n/tests/ingesta-nodos.test.mjs
           node infra/n8n/tests/alertas-nodos.test.mjs
+          node infra/n8n/tests/invitacion-nodos.test.mjs
 
   # npm audit sobre dependencias de producción. Falla con cualquier advisory
   # alto o crítico que no esté en .github/audit-allowlist.json.
