@@ -60,6 +60,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 - **QA:** Colección Postman `backend/tests/postman/MargenX - Dashboard API.postman_collection.json` y script `run-tests-dashboard.sh` validando `GET /api/dashboard/metrics` (401 sin token, 403 a `COLLABORATOR`, schema completo y consistencia de buckets para `ADMIN`) (`#367`).
 
+### Added
+
+- **Docs / Proceso:** Regla escrita de no incluir co-autoría ni firma de herramientas de IA en commits ni PRs (`CONTRIBUTING.md` §6), con cómo evitarla según la herramienta, incluido el autor de los commits, que el Squash and Merge convierte en `Co-authored-by`. El repositorio trae `.claude/settings.json` con la atribución de Claude Code desactivada, y `/revisar-pr` y `docs/process/revision-de-prs.md` §5 controlan los mensajes, los autores y la descripción del PR (`#314`).
+
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 
 ### Added
