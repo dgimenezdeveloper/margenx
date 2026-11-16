@@ -109,7 +109,7 @@ Escala de severidad: la misma del
 
 | ID | Fecha | Defecto | Severidad | Pantalla | Cómo reproducirlo | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|
-| H1 | 2026-11-16 | En la app instalada en iPhone, la línea de inicio de iOS queda encima de las etiquetas de la BottomNav ("Productos" queda cruzada). Causa probable: el viewport de `frontend/index.html:5` no declara `viewport-fit=cover`, así que `env(safe-area-inset-bottom)` vale 0 y el `pb-[max(.75rem,env(safe-area-inset-bottom))]` de `bottom-nav.tsx:22` queda en 0,75 rem. En Safari no se ve porque la barra del navegador ocupa esa franja | Menor | Toda pantalla con BottomNav, en la app instalada | Instalar la app en un iPhone con Face ID ("Agregar a Inicio"), abrirla desde el ícono y mirar la BottomNav | [app instalada](evidencias/383/iphone-claro-a7-barra-producto-app-instalada.png) / [Safari, sin el problema](evidencias/383/iphone-claro-a7-barra-producto-con-receta.png) | Informado al SM el 16/11/2026. La issue la abre el SM. Al arreglarlo, revisar también `ProductMobileFooter.tsx`, que usa la misma zona segura, y el hueco de §1.4 |
+| H1 | 2026-11-16 | En la app instalada en iPhone, la línea de inicio de iOS queda encima de las etiquetas de la BottomNav ("Productos" queda cruzada). Causa probable: el viewport de `frontend/index.html:5` no declara `viewport-fit=cover`, así que `env(safe-area-inset-bottom)` vale 0 y el `pb-[max(.75rem,env(safe-area-inset-bottom))]` de `bottom-nav.tsx:22` queda en 0,75 rem. En Safari no se ve porque la barra del navegador ocupa esa franja | Menor | Toda pantalla con BottomNav, en la app instalada | Instalar la app en un iPhone con Face ID ("Agregar a Inicio"), abrirla desde el ícono y mirar la BottomNav | [app instalada](evidencias/383/iphone-claro-a7-barra-producto-app-instalada.png) / [Safari, sin el problema](evidencias/383/iphone-claro-a7-barra-producto-con-receta.png) | Informado al SM el 16/11/2026. Issue #406. Al arreglarlo, revisar también `ProductMobileFooter.tsx`, que usa la misma zona segura, y el hueco de §1.4 |
 | H2 | 2026-11-16 | El simulador de precio tiene textos fuera del formato es-AR que dejó #359 (PR #377): "Ganancia: $0" sin decimales (`ProductMobileSimulatorSheet.tsx:43`), mientras la barra del producto muestra "$0,00"; "Proyección: 0.0% (Sin Receta)", con punto decimal y sin espacio antes del `%` (`ProductSimulatorPanel.tsx:122`), mientras con receta dice "Margen 33,6 % Saludable"; y "+5%" / "+10%" sin espacio (`ProductSimulatorPanel.tsx:65` y `:76`), al lado de "Sugerir 30 %" | Menor / cosmético | `/productos/:id`, simulador | Abrir un producto sin receta, tocar "Ajustar" y mirar la cabecera, la proyección y los ajustes rápidos. Los botones "+5%" y "+10%" se ven también con receta | [iPhone, sin receta](evidencias/383/iphone-claro-a6-simulador.png) / [Android, con receta](evidencias/383/android-claro-a6-simulador.png) | Informado al SM el 16/11/2026. La issue la abre el SM |
 
 No se encontraron defectos graves ni importantes.
@@ -151,7 +151,7 @@ No se encontraron defectos graves ni importantes.
   con datos móviles; falta la captura o el video, ver §1.8.)*
 - [ ] Un comentario en #355, #356 y #360 enlaza la evidencia. *(Pendiente:
   se publica con el PR de esta issue.)*
-- [ ] Defectos encontrados en issues propias. *(H1 y H2 se informaron al SM
-  el 16/11/2026, que es quien abre las issues.)*
+- [ ] Defectos encontrados en issues propias. *(H1 tiene la issue #406. H2
+  se informó al SM el 16/11/2026, que decide si abre la suya.)*
 - [x] Reporte de calidad del Sprint 6 en `docs/qa/`, con la tabla de
   resultados por dispositivo y los enlaces a las capturas (este documento).
