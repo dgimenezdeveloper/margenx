@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
@@ -24,6 +24,15 @@ vi.mock('@/lib/useCurrentUser', () => ({
     businessName: 'Panadería Central',
   }),
 }))
+
+// QuarantineList es el real: el aviso se dispara con el flujo de rechazo completo.
+vi.mock('@/services/supplierService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/supplierService')>()
+  return {
+    ...actual,
+    supplierService: { ...actual.supplierService, rejectQuarantine: vi.fn().mockResolvedValue(undefined) },
+  }
+})
 
 vi.mock('@/stores/useQuarantineStore', () => ({
   useQuarantineStore: () => ({ ...storeState, fetchItems, removeItemLocally: vi.fn() }),
@@ -85,5 +94,51 @@ describe('QuarantinePage', () => {
 
     expect(screen.getByText('Bandeja limpia')).toBeInTheDocument()
     expect(tabs().getByRole('link', { name: 'Cuarentena' })).toBeInTheDocument()
+  })
+
+  it('si falla la carga muestra el error, sin contador ni estado vacío, y Reintentar vuelve a pedir la bandeja', () => {
+    storeState.items = []
+    storeState.error = 'No se pudieron cargar los precios en cuarentena.'
+    renderPage()
+
+    expect(screen.getByText('Error al cargar la cuarentena')).toBeInTheDocument()
+    expect(screen.getByText('No se pudieron cargar los precios en cuarentena.')).toBeInTheDocument()
+    expect(screen.queryByText('Bandeja limpia')).not.toBeInTheDocument()
+    expect(tabs().getByRole('link', { name: 'Cuarentena' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(fetchItems).toHaveBeenCalledTimes(2)
+  })
+
+  describe('aviso de confirmación', () => {
+    const rechazarManteca = async () => {
+      renderPage()
+      fireEvent.click(screen.getAllByText('Rechazar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, rechazar/i }))
+      return screen.findByText('Precio rechazado. Se mantiene el costo anterior.')
+    }
+
+    it('se cierra con el botón de cerrar', async () => {
+      await rechazarManteca()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Precio rechazado. Se mantiene el costo anterior.')).not.toBeInTheDocument()
+      })
+    })
+
+    it('se cierra deslizándolo hacia el costado', async () => {
+      const mensaje = await rechazarManteca()
+      const aviso = mensaje.closest('.fixed') as HTMLElement
+
+      fireEvent.touchStart(aviso, { touches: [{ clientX: 40 }] })
+      fireEvent.touchMove(aviso, { touches: [{ clientX: 200 }] })
+      fireEvent.touchEnd(aviso)
+
+      await waitFor(() => {
+        expect(screen.queryByText('Precio rechazado. Se mantiene el costo anterior.')).not.toBeInTheDocument()
+      })
+    })
   })
 })

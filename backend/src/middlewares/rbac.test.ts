@@ -241,7 +241,7 @@ describe('rbac middleware', () => {
     expect(ingredientDeleteRes.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
   });
 
-  it('COLABORADOR: no puede abrir historial de costos ni consultar proveedores', async () => {
+  it('COLABORADOR: no puede abrir historial de costos ni consultar proveedores ni productos de un insumo', async () => {
     ingredientFindFirstMock.mockResolvedValue({ id: 'i1' });
 
     const historyRes = await request(buildApp('/api/ingredients', ingredientsRouter))
@@ -250,6 +250,13 @@ describe('rbac middleware', () => {
 
     expect(historyRes.status).toBe(403);
     expect(historyRes.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
+
+    const productsRes = await request(buildApp('/api/ingredients', ingredientsRouter))
+      .get('/api/ingredients/i1/products')
+      .set('x-role', 'COLLABORATOR');
+
+    expect(productsRes.status).toBe(403);
+    expect(productsRes.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
 
     const suppliersRes = await request(buildApp('/api/suppliers', suppliersRouter))
       .get('/api/suppliers')

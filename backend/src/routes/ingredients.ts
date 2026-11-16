@@ -4,9 +4,18 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { blockCollaboratorMutations, requireRole, sanitizeFinancialData } from '../middlewares/rbac';
-import { parsePaginationParams, normalizeSearchText } from '../utils/pagination';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+  parsePaginationParams,
+  normalizeSearchText,
+} from '../utils/pagination';
 import { parseArgentineDecimal } from '../utils/argentineNumber';
-import { applyIngredientCostChange } from '../services/marginCalculator';
+import {
+  applyIngredientCostChange,
+  classifyProductHealthBucket,
+} from '../services/marginCalculator';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
 
 const router = Router();
@@ -20,6 +29,60 @@ function getIdParam(rawId: string | string[] | undefined): string {
     return rawId[0] ?? '';
   }
   return rawId ?? '';
+}
+
+const PRODUCT_USAGE_SORTABLE_FIELDS = ['name', 'quantity', 'salePrice', 'cost', 'marginPercent'] as const;
+type ProductUsageSortField = (typeof PRODUCT_USAGE_SORTABLE_FIELDS)[number];
+
+interface IngredientProductsPaginationParams {
+  page: number;
+  limit: number;
+  sortBy: ProductUsageSortField;
+  order: 'asc' | 'desc';
+  search: string;
+}
+
+function parseIngredientProductsPaginationParams(
+  query: Record<string, unknown>
+): IngredientProductsPaginationParams {
+  const rawPage = Number(query.page);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : DEFAULT_PAGE;
+
+  const rawLimit = Number(query.limit);
+  const limit =
+    Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
+
+  const rawSortBy = typeof query.sortBy === 'string' ? query.sortBy : '';
+  const sortBy = (PRODUCT_USAGE_SORTABLE_FIELDS as readonly string[]).includes(rawSortBy)
+    ? (rawSortBy as ProductUsageSortField)
+    : 'name';
+
+  const rawOrder = typeof query.order === 'string' ? query.order.toLowerCase() : '';
+  const order = rawOrder === 'desc' ? 'desc' : 'asc';
+
+  const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
+  const search = rawSearch.slice(0, 100);
+
+  return { page, limit, sortBy, order, search };
+}
+
+function buildIngredientProductsOrderBy(
+  sortBy: ProductUsageSortField,
+  order: 'asc' | 'desc'
+): Prisma.ProductIngredientOrderByWithRelationInput {
+  switch (sortBy) {
+    case 'quantity':
+      return { quantity: order };
+    case 'salePrice':
+      return { product: { salePrice: order } };
+    case 'cost':
+      return { product: { cost: order } };
+    case 'marginPercent':
+      return { product: { marginPercent: order } };
+    case 'name':
+    default:
+      return { product: { name: order } };
+  }
 }
 
 const VALID_UNITS = ['kg', 'l', 'u'] as const;
@@ -209,6 +272,101 @@ router.get('/:id/history', requireRole(['ADMIN']), async (req: AuthenticatedRequ
   });
 
   return res.status(200).json({ history });
+});
+
+/* ------------------------------------------------------------------ */
+/* GET /api/ingredients/:id/products                                   */
+/* Lista paginada de productos cuya receta utiliza el insumo.          */
+/* Solo ADMIN; acotado estrictamente por accountId.                    */
+/* ------------------------------------------------------------------ */
+router.get('/:id/products', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
+  const accountId = req.user!.accountId;
+  const id = getIdParam(req.params.id);
+  if (!id) {
+    throw new AppError('Insumo no encontrado.', 404);
+  }
+
+  const ingredient = await prisma.ingredient.findFirst({
+    where: { id, accountId },
+    select: { id: true },
+  });
+
+  if (!ingredient) {
+    throw new AppError('Insumo no encontrado.', 404);
+  }
+
+  const { page, limit, sortBy, order, search } = parseIngredientProductsPaginationParams(
+    req.query as Record<string, unknown>
+  );
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.ProductIngredientWhereInput = {
+    ingredientId: id,
+    product: {
+      accountId,
+      ...(search
+        ? {
+            OR: [
+              { searchName: { contains: normalizeSearchText(search), mode: 'insensitive' } },
+              { name: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.productIngredient.findMany({
+      where,
+      select: {
+        quantity: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            salePrice: true,
+            cost: true,
+            marginAmount: true,
+            marginPercent: true,
+            minMarginPercent: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: buildIngredientProductsOrderBy(sortBy, order),
+      skip,
+      take: limit,
+    }),
+    prisma.productIngredient.count({ where }),
+  ]);
+
+  const data = rows.map((row) => {
+    const marginStatus = classifyProductHealthBucket(
+      new Prisma.Decimal(row.product.marginPercent ?? 0),
+      new Prisma.Decimal(row.product.minMarginPercent ?? 0),
+      1
+    );
+
+    return {
+      id: row.product.id,
+      name: row.product.name,
+      quantity: row.quantity,
+      salePrice: row.product.salePrice,
+      cost: row.product.cost,
+      marginAmount: row.product.marginAmount,
+      marginPercent: row.product.marginPercent,
+      minMarginPercent: row.product.minMarginPercent,
+      marginStatus,
+      updatedAt: row.product.updatedAt,
+    };
+  });
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return res.status(200).json({
+    data,
+    meta: { total, page, limit, totalPages },
+  });
 });
 
 /* ------------------------------------------------------------------ */

@@ -54,6 +54,12 @@ src/
 └── routes.tsx        # Mapa de rutas (react-router-dom) — fuente de verdad de qué existe
 ```
 
+### Formato de números (es-AR)
+
+Todo número que se muestra pasa por `src/lib/format.ts`: `formatMoney` (`$7.000,51`; `{ decimals: 0 }` para pesos enteros), `formatPercent` (`36,9 %`, con espacio duro; `{ signed: true }` para variaciones como `+119,0 %`), `formatQuantity` / `formatQuantityWithUnit` (`0,7 kg`) y `formatUnit` (`u` y el valor heredado `unit` se leen como `unidad`, `l` como `litro`). No uses `toFixed` ni `toLocaleString` sueltos en la UI. La lectura de lo que escribe el usuario (`1.234,56` → `1234.56`) está en `src/lib/numericFormat.ts`.
+
+La plantilla de "Cargar desde planilla" se arma con ExcelJS (`buildTemplateWorkbook` en `src/lib/bulkIngredients.ts`, cargado bajo demanda) porque SheetJS Community no escribe estilos; la lectura de planillas sigue con SheetJS (`src/lib/spreadsheet.ts`). `package.json` fija `uuid` en `^11.1.1` dentro de ExcelJS (`overrides`) por el aviso GHSA-w5hq-g745-h8pq.
+
 `src/routes.tsx` es la referencia real de las rutas (algunas carpetas viejas bajo `app/productos/` que no aparecen ahí, como `detalle/`, son restos sin usar).
 
 Guards de ruta (`src/components/protected-route.tsx`, `admin-only-route.tsx`) aplican el control de acceso en el cliente; el backend repite la misma regla en cada endpoint — ninguno de los dos alcanza solo.

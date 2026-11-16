@@ -4,8 +4,9 @@ import { ChevronRight } from 'lucide-react'
 import { MarginBadge } from '@/components/MarginBadge'
 import type { Product } from '@/services/productService'
 import type { HealthBucketKey } from './HealthDistributionHistogram'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 const getBucketTitle = (key: HealthBucketKey) => {
   switch (key) {

@@ -17,8 +17,8 @@ describe('formatPackage', () => {
 
 describe('formatPackagePrice', () => {
   it('formatea el precio del bulto como peso argentino aunque llegue como texto', () => {
-    expect(formatPackagePrice('35000')).toBe('$35.000')
-    expect(formatPackagePrice('35000.50')).toBe('$35.000,5')
+    expect(formatPackagePrice('35000')).toBe('$35.000,00')
+    expect(formatPackagePrice('35000.50')).toBe('$35.000,50')
     expect(formatPackagePrice(1234.56)).toBe('$1.234,56')
   })
 

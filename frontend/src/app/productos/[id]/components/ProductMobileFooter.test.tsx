@@ -21,11 +21,11 @@ describe('ProductMobileFooter (Mobile 360px)', () => {
     )
 
     expect(screen.getByText('Precio:')).toBeInTheDocument()
-    expect(screen.getByText('$15.000')).toBeInTheDocument()
+    expect(screen.getByText('$15.000,00')).toBeInTheDocument()
     expect(screen.getByText('Ganancia:')).toBeInTheDocument()
-    expect(screen.getByText('$5.000')).toBeInTheDocument()
+    expect(screen.getByText('$5.000,00')).toBeInTheDocument()
     expect(screen.getByText('Costo:')).toBeInTheDocument()
-    expect(screen.getByText('$10.000')).toBeInTheDocument()
+    expect(screen.getByText('$10.000,00')).toBeInTheDocument()
     expect(screen.getByText(/Saludable/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Ajustar/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Guardar/i })).toBeInTheDocument()
@@ -47,7 +47,7 @@ describe('ProductMobileFooter (Mobile 360px)', () => {
     )
 
     expect(screen.getByText('Precio:')).toBeInTheDocument()
-    expect(screen.getByText('$15.000')).toBeInTheDocument()
+    expect(screen.getByText('$15.000,00')).toBeInTheDocument()
     expect(screen.queryByText('Ganancia:')).not.toBeInTheDocument()
     expect(screen.queryByText('Costo:')).not.toBeInTheDocument()
     expect(screen.queryByText(/Saludable/i)).not.toBeInTheDocument()

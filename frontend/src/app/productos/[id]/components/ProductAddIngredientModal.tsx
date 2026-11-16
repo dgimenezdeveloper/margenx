@@ -4,8 +4,9 @@ import type { Ingredient } from '@/services/ingredientService'
 import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
+import { formatMoney, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export interface ProductAddIngredientModalProps {
   isOpen: boolean
@@ -115,7 +116,7 @@ export function ProductAddIngredientModal({
               >
                 <span className="truncate">
                   {currentSupply
-                    ? `${currentSupply.name} (${money(currentSupply.currentCost)}/${currentSupply.unit})`
+                    ? `${currentSupply.name} (${money(currentSupply.currentCost)}/${formatUnit(currentSupply.unit)})`
                     : 'Buscar insumo...'}
                 </span>
                 <ChevronDown className={`size-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -156,7 +157,7 @@ export function ProductAddIngredientModal({
                         }`}
                       >
                         <span className="truncate">{supply.name}</span>
-                        <span className="ml-2 shrink-0 text-gray-400">{money(supply.currentCost)}/{supply.unit}</span>
+                        <span className="ml-2 shrink-0 text-gray-400">{money(supply.currentCost)}/{formatUnit(supply.unit)}</span>
                       </button>
                     ))
                   )}
@@ -198,18 +199,18 @@ export function ProductAddIngredientModal({
             {previewNumericQty > 0 && currentSupply && (
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
                 <p className="font-semibold">
-                  Equivalencia: <strong>{previewNumericQty} {recipeUnit} = {previewBaseQty} {currentSupply.unit}</strong>
+                  Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)} = {formatQuantityWithUnit(previewBaseQty, currentSupply.unit)}</strong>
                 </p>
                 <p className="mt-1 font-bold text-indigo-700 dark:text-indigo-300">
                   Subtotal en receta: {money(previewSubtotal)}
                 </p>
                 {previewNumericQty > 0 && previewBaseQty <= 0 ? (
                   <p className="mt-2 font-bold text-rose-600 dark:text-rose-400">
-                    ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {currentSupply.unit}).
+                    ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {formatUnit(currentSupply.unit)}).
                   </p>
                 ) : precisionLost && (
                   <p className="mt-2 font-bold text-amber-600 dark:text-amber-400">
-                    ⚠️ La cantidad es demasiado pequeña y se redondeará a {previewBaseQty} {currentSupply.unit}.
+                    ⚠️ La cantidad es demasiado pequeña y se redondeará a {formatQuantityWithUnit(previewBaseQty, currentSupply.unit)}.
                   </p>
                 )}
               </div>

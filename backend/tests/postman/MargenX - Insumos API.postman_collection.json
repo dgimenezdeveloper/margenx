@@ -380,6 +380,99 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "GET Productos que usan el insumo creado (200 - vacío)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const schema = {",
+                  "    type: 'object',",
+                  "    required: ['data', 'meta'],",
+                  "    properties: {",
+                  "        data: { type: 'array' },",
+                  "        meta: {",
+                  "            type: 'object',",
+                  "            required: ['total', 'page', 'limit', 'totalPages']",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('Respeta el contrato paginado { data, meta }', function () {",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('Insumo recién creado no tiene productos vinculados', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.empty;",
+                  "    pm.expect(json.meta.total).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}", "products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Productos que usan Harina 000 del seed (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Devuelve productos paginados con nombre, cantidad y estado de margen', function () {",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json.data.length).to.be.at.least(1);",
+                  "    pm.expect(json.meta.total).to.be.at.least(1);",
+                  "    json.data.forEach((p) => {",
+                  "        pm.expect(p).to.include.all.keys('id', 'name', 'quantity', 'salePrice', 'cost', 'marginPercent', 'minMarginPercent', 'marginStatus');",
+                  "        pm.expect(['loss', 'risk', 'target', 'surplus']).to.include(p.marginStatus);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/30b00001-0000-4000-8000-000000000001/products?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "30b00001-0000-4000-8000-000000000001", "products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -524,6 +617,42 @@
               "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
               "host": ["{{baseUrl}}"],
               "path": ["ingredients", "{{ingredientId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Productos que usan insumo ajeno (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 404 Not Found (nunca 403, ni 200)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje es el uniforme de recurso no encontrado', function () {",
+                  "    pm.expect(pm.response.json().error).to.eql('Insumo no encontrado.');",
+                  "});",
+                  "",
+                  "pm.test('No se filtra información de productos ajenos', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('data');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_B}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}", "products"]
             }
           },
           "response": []
