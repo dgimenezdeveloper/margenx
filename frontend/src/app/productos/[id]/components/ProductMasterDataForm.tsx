@@ -3,6 +3,8 @@ import type { z } from 'zod'
 import { productSchema } from '@/schemas/productSchema'
 import { NumericInput } from '@/components/NumericInput'
 import { formatMoney } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { cn } from '@/lib/utils'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -43,15 +45,17 @@ export function ProductMasterDataForm({
       {isCollaborator ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">
+            <span className="block text-xs font-bold text-gray-500 dark:text-gray-400">
               Nombre del producto
-            </label>
-            <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">{productName}</p>
+            </span>
+            <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">
+              {productName}
+            </p>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">
+            <span className="block text-xs font-bold text-gray-500 dark:text-gray-400">
               Precio de Venta al Público
-            </label>
+            </span>
             <p className="mt-1 text-lg font-black text-gray-900 dark:text-white">
               {money(Number(salePrice) || 0)}
             </p>
@@ -60,30 +64,43 @@ export function ProductMasterDataForm({
       ) : (
         <>
           <div>
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+            <label htmlFor="product-name" className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
               Nombre del producto
             </label>
             <input
+              id="product-name"
               {...register('name')}
               placeholder="Ej. Medialunas de manteca — docena / Pan flauta 1kg"
-              className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+              className={cn(
+                'min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800',
+                CANONICAL_FOCUS_CLASSES
+              )}
+              aria-invalid={errors.name ? 'true' : 'false'}
+              aria-describedby={errors.name ? 'product-name-error' : undefined}
             />
             {errors.name && (
-              <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
+              <p id="product-name-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                {errors.name.message}
+              </p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+            <label htmlFor="product-min-margin" className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
               Margen Mínimo Objetivo (%)
             </label>
             <NumericInput
+              id="product-min-margin"
+              aria-label="Margen Mínimo Objetivo (%)"
               value={watchedMinMargin}
               onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
               suffixSymbol="%"
               suffixClassName="font-bold"
               placeholder="30"
-              containerClassName="flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+              containerClassName={cn(
+                'flex min-h-11 h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800',
+                CANONICAL_FOCUS_CLASSES
+              )}
               className="text-right text-sm font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
               error={errors.minMarginPercent?.message}
             />

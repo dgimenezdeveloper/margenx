@@ -37,6 +37,7 @@ import {
 } from '@/lib/bulkIngredients'
 import { readSpreadsheet } from '@/lib/spreadsheet'
 import { cn } from '@/lib/utils'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ApiError } from '@/services/api'
 import { ingredientService, type BulkUploadResponse } from '@/services/ingredientService'
 
@@ -173,7 +174,10 @@ export function BulkIngredientsModal({ isOpen, onClose, existingSupplies, onSucc
             <DialogClose
               disabled={stage.name === 'importing'}
               aria-label="Cerrar carga desde planilla"
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className={cn(
+                'flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+                CANONICAL_FOCUS_CLASSES
+              )}
             >
               <X className="size-5" aria-hidden="true" />
             </DialogClose>
@@ -333,7 +337,7 @@ function FilePickStep({ isReading, readingFileName, onFile, onDownloadTemplate }
         aria-busy={isReading}
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed px-4 py-8 text-center transition',
-          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-',
+          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-indigo-600 dark:has-[input:focus-visible]:outline-indigo-400',
           isDragging
             ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
             : 'border-gray-300 bg-gray-50/60 hover:border-indigo-400 hover:bg-indigo-50/40 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-indigo-500',
@@ -435,7 +439,10 @@ function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, dis
           type="button"
           onClick={onChangeFile}
           disabled={disabled}
-          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-indigo-700 transition hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-indigo-300 dark:hover:bg-gray-700"
+          className={cn(
+            'inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-indigo-300 dark:hover:bg-gray-700',
+            CANONICAL_FOCUS_CLASSES
+          )}
         >
           <RefreshCw className="size-4" aria-hidden="true" />
           Cambiar
@@ -457,7 +464,8 @@ function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, dis
               onClick={() => onTabChange(tab.id)}
               onKeyDown={handleTabKeyDown}
               className={cn(
-                'flex min-h-16 cursor-pointer flex-col items-center justify-center rounded-2xl border px-1 py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
+                'flex min-h-16 cursor-pointer flex-col items-center justify-center rounded-2xl border px-1 py-2 transition',
+                CANONICAL_FOCUS_CLASSES,
                 selected
                   ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600 dark:border-indigo-400 dark:bg-indigo-950/40 dark:ring-indigo-400'
                   : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700'
@@ -478,7 +486,10 @@ function ReviewStep({ fileName, batch, activeTab, onTabChange, onChangeFile, dis
         role="tabpanel"
         aria-labelledby={`${baseId}-tab-${activeTab}`}
         tabIndex={0}
-        className="overflow-hidden rounded-2xl border border-gray-200 bg-white focus-visible:outline-2 focus-visible:outline-indigo-600 dark:border-gray-800 dark:bg-gray-900"
+        className={cn(
+          'overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900',
+          CANONICAL_FOCUS_CLASSES
+        )}
       >
         {activeTab === 'valid' && (
           <RowList empty="Ninguna fila está lista para importar. Revisá las pestañas Repetidas y Con error.">
@@ -642,7 +653,8 @@ function PrimaryButton({ onClick, disabled, className, children }: ButtonProps) 
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600 disabled:shadow-none md:flex-1 dark:disabled:bg-gray-700 dark:disabled:text-gray-300',
+        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600 disabled:shadow-none md:flex-1 dark:disabled:bg-gray-700 dark:disabled:text-gray-300',
+        CANONICAL_FOCUS_CLASSES,
         className
       )}
     >
@@ -658,7 +670,8 @@ function SecondaryButton({ onClick, disabled, className, children }: ButtonProps
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 text-sm font-bold text-gray-800 transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 md:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        CANONICAL_FOCUS_CLASSES,
         className
       )}
     >
