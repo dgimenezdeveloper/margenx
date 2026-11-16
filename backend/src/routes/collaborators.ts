@@ -21,6 +21,7 @@ const CLERK_PAGE_SIZE = 500;
 
 const CLERK_UNAVAILABLE = 'No pudimos comunicarnos con el servicio de cuentas. Probá de nuevo en unos minutos.';
 const INVITATION_NOT_FOUND = 'La invitación no existe o ya no está pendiente.';
+const INVALID_EMAIL = 'Ingresá un correo electrónico válido.';
 
 const invitationBodySchema = z
   .object({
@@ -63,6 +64,10 @@ function toAppError(error: unknown): unknown {
   if (alreadyExists) {
     return new AppError('Ese correo ya tiene una cuenta o una invitación pendiente.', 409);
   }
+  // Clerk valida el correo más estricto que el formulario (por ejemplo, rechaza dominios reservados).
+  if (error.errors.some((detail) => detail.code === 'form_param_format_invalid')) {
+    return new AppError(INVALID_EMAIL, 400);
+  }
   return new AppError(CLERK_UNAVAILABLE, 502);
 }
 
@@ -97,7 +102,7 @@ function invitationRedirectUrl(): string | undefined {
 router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res: Response) => {
   const parsed = invitationBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError('Ingresá un correo electrónico válido.', 400);
+    throw new AppError(INVALID_EMAIL, 400);
   }
   const { email } = parsed.data;
   const accountId = req.user!.accountId;

@@ -238,6 +238,18 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(res.body.error).toBe('Ese correo ya tiene una cuenta o una invitación pendiente.');
     });
 
+    it('responde 400 si Clerk rechaza el formato del correo', async () => {
+      db.findUnique.mockResolvedValue(null);
+      clerk.createInvitation.mockRejectedValue(clerkError(422, 'form_param_format_invalid'));
+
+      const res = await request(app)
+        .post('/api/auth/invitations')
+        .send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Ingresá un correo electrónico válido.');
+    });
+
     it('responde 502 si Clerk falla por otro motivo', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.createInvitation.mockRejectedValue(clerkError(500, 'internal_clerk_error'));
