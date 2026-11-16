@@ -291,7 +291,7 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 
 Con varios proveedores por insumo, la API calcula dónde conviene comprar (`GET /api/purchasing/suggestions`) y permite armar una vista previa de pedido (`POST /api/purchasing/order-preview`):
 
-- **Oportunidades de ahorro:** compara presentaciones de proveedores activos que no estén en cuarentena contra la presentación predeterminada, informando el ahorro por unidad (`$` y `%`) y por bulto de la presentación más barata (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg — 2,22 %, y $500 por bulto de 25 kg). Las presentaciones en cuarentena no compiten y se informan aparte.
+- **Oportunidades de ahorro:** compara presentaciones de proveedores activos que no estén en cuarentena contra la presentación predeterminada, informando el ahorro por unidad (`$` y `%`) y por bulto de la presentación más barata (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg — 2,22 %, y $1.000 por bulto de 50 kg). Las presentaciones en cuarentena no compiten y se informan aparte.
 - **Pedido sugerido (`order-preview`):** agrupa los bultos indicados por proveedor con subtotales, total y ahorro acumulado respecto a comprar todo a la presentación predeterminada, sin persistir órdenes ni afectar el catálogo.
 - **Alcance del ahorro:** MargenX no registra consumo ni stock, por lo que el ahorro se expresa únicamente por unidad, por bulto y por pedido previsualizado (no se estima ahorro mensual).
 

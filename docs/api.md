@@ -612,7 +612,8 @@ Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto
     ]
   }
   ```
-- **Reglas de validación:** `items` entre 1 y 500 elementos, sin repetir `supplierIngredientId` (400 Bad Request). `packages` entero estrictamente mayor a 0 (400 Bad Request).
+- **Reglas de validación:** `items` entre 1 y 500 elementos, sin repetir `supplierIngredientId` (400 Bad Request). `packages` entero entre `1` y `100.000` (400 Bad Request).
+- **Cálculo de ahorro (`savings` / `totalSavings`):** representa el ahorro neto respecto a comprar la misma cantidad total a la presentación predeterminada activa de cada insumo (`baseline - subtotal`). Si se selecciona una presentación más cara que la predeterminada, el valor será negativo (sobrecosto); si el insumo no tiene presentación predeterminada activa, `defaultUnitCost` es `null` y el ahorro de esa línea es `"0.00"`.
 - **Errores de dominio:** si alguna presentación no existe o pertenece a otra cuenta → `404 Not Found`; si el proveedor está inactivo o la presentación está en cuarentena → `422 Unprocessable Entity`.
 - **Respuesta 200:**
   ```json

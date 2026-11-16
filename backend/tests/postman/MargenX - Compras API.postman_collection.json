@@ -340,6 +340,42 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "10 - POST /api/purchasing/order-preview supera tope de bultos (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Informa el límite máximo de 100.000 bultos', function () {",
+              "    pm.expect(pm.response.json().error).to.match(/100\\.000/);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 100001 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
     }
   ]
 }

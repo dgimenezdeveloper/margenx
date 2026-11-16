@@ -197,4 +197,30 @@ describe('POST /api/purchasing/order-preview', () => {
     expect(res.body.error).toMatch(/500/);
     expect(previewPurchasingOrderMock).not.toHaveBeenCalled();
   });
+
+  it('rechaza con 400 cuando packages supera el tope de 100.000 bultos', async () => {
+    const res = await request(buildApp())
+      .post('/api/purchasing/order-preview')
+      .send({ items: [{ supplierIngredientId: 'si-1', packages: 100001 }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/100\.000/);
+    expect(previewPurchasingOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve 422 cuando el servicio rechaza una presentación en cuarentena o de proveedor inactivo', async () => {
+    previewPurchasingOrderMock.mockRejectedValue(
+      new AppError(
+        'La presentación de "Harina 000" está en cuarentena y debe resolverse antes de pedirla.',
+        422
+      )
+    );
+
+    const res = await request(buildApp())
+      .post('/api/purchasing/order-preview')
+      .send({ items: [{ supplierIngredientId: 'si-quar', packages: 1 }] });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/cuarentena/i);
+  });
 });

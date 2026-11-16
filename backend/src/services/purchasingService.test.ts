@@ -291,6 +291,45 @@ describe('purchasingService.getPurchasingSuggestions', () => {
     expect(result.byIngredient[0]?.cheapestPresentation.supplierId).toBe('sup-chico');
   });
 
+  it('empate en unitCost y packagePrice entre dos no predeterminadas: desempata alfabéticamente por proveedor', async () => {
+    ingredientFindManyMock.mockResolvedValue([
+      {
+        id: 'ing-harina',
+        name: 'Harina 000',
+        unit: 'kg',
+        currentCost: D('900.00'),
+        suppliers: [
+          makePresentation({
+            id: 'si-def',
+            supplierId: 'sup-def',
+            supplierName: 'Molino Cañuelas',
+            packageSize: '50.000',
+            packagePrice: '45000.00',
+            isDefault: true,
+          }),
+          makePresentation({
+            id: 'si-zeta',
+            supplierId: 'sup-zeta',
+            supplierName: 'Zeta Distribuidora',
+            packageSize: '25.000',
+            packagePrice: '22000.00',
+          }),
+          makePresentation({
+            id: 'si-alfa',
+            supplierId: 'sup-alfa',
+            supplierName: 'Alfa Mayorista',
+            packageSize: '25.000',
+            packagePrice: '22000.00',
+          }),
+        ],
+      },
+    ]);
+
+    const result = await getPurchasingSuggestions('account-1');
+
+    expect(result.byIngredient[0]?.cheapestPresentation.supplierId).toBe('sup-alfa');
+  });
+
   it('redondeo ROUND_HALF_UP con decimales periódicos (10000 / 3 = 3333.33)', async () => {
     ingredientFindManyMock.mockResolvedValue([
       {
@@ -524,5 +563,100 @@ describe('purchasingService.previewPurchasingOrder', () => {
     expect(result.total).toBe('20000.00');
     expect(result.totalSavings).toBe('0.00');
     expect(result.groups[0]?.items[0]?.defaultUnitCost).toBeNull();
+  });
+
+  it('agrupa múltiples ítems del mismo proveedor sumando subtotal, ahorro y bultos en un único grupo', async () => {
+    const harinaCentro = makePresentation({
+      id: 'si-harina-centro',
+      supplierId: 'sup-centro',
+      supplierName: 'Distribuidora del Centro',
+      ingredientId: 'ing-harina',
+      ingredientName: 'Harina 000',
+      packageSize: '25.000',
+      packagePrice: '22000.00',
+      supplierCode: '5521',
+    });
+    const azucarCentro = makePresentation({
+      id: 'si-azucar-centro',
+      supplierId: 'sup-centro',
+      supplierName: 'Distribuidora del Centro',
+      ingredientId: 'ing-azucar',
+      ingredientName: 'Azúcar común',
+      packageSize: '10.000',
+      packagePrice: '11000.00',
+      supplierCode: 'AZ-10',
+    });
+
+    supplierIngredientFindManyMock
+      .mockResolvedValueOnce([harinaCentro, azucarCentro])
+      .mockResolvedValueOnce([
+        {
+          id: 'si-harina-def',
+          ingredientId: 'ing-harina',
+          packageSize: D('50.000'),
+          packagePrice: D('45000.00'),
+        },
+        {
+          id: 'si-azucar-def',
+          ingredientId: 'ing-azucar',
+          packageSize: D('10.000'),
+          packagePrice: D('11400.00'),
+        },
+      ]);
+
+    const result = await previewPurchasingOrder('account-1', [
+      { supplierIngredientId: 'si-harina-centro', packages: 2 },
+      { supplierIngredientId: 'si-azucar-centro', packages: 3 },
+    ]);
+
+    expect(result.itemsCount).toBe(2);
+    expect(result.totalPackages).toBe(5);
+    expect(result.total).toBe('77000.00');
+    expect(result.totalSavings).toBe('2200.00');
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0]).toMatchObject({
+      supplierId: 'sup-centro',
+      subtotal: '77000.00',
+      savings: '2200.00',
+    });
+    expect(result.groups[0]?.items.map((item) => item.ingredientName)).toEqual([
+      'Azúcar común',
+      'Harina 000',
+    ]);
+  });
+
+  it('informa ahorro negativo (sobrecosto) cuando se elige una presentación más cara que la predeterminada', async () => {
+    const harinaCara = makePresentation({
+      id: 'si-harina-cara',
+      supplierId: 'sup-makro',
+      supplierName: 'Mayorista Makro',
+      ingredientId: 'ing-harina',
+      ingredientName: 'Harina 000',
+      packageSize: '10.000',
+      packagePrice: '9500.00',
+    });
+
+    supplierIngredientFindManyMock
+      .mockResolvedValueOnce([harinaCara])
+      .mockResolvedValueOnce([
+        {
+          id: 'si-harina-def',
+          ingredientId: 'ing-harina',
+          packageSize: D('50.000'),
+          packagePrice: D('45000.00'),
+        },
+      ]);
+
+    const result = await previewPurchasingOrder('account-1', [
+      { supplierIngredientId: 'si-harina-cara', packages: 2 },
+    ]);
+
+    expect(result.total).toBe('19000.00');
+    expect(result.totalSavings).toBe('-1000.00');
+    expect(result.groups[0]).toMatchObject({
+      subtotal: '19000.00',
+      savings: '-1000.00',
+    });
+    expect(result.groups[0]?.items[0]?.savings).toBe('-1000.00');
   });
 });

@@ -35,7 +35,7 @@ echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
 echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
-## Correr las 8 en orden
+## Correr las 9 en orden
 
 ```bash
 cd backend/tests/postman
@@ -63,4 +63,4 @@ Salida esperada: **0 failures** en las 9.
 
 ## Para cada README específico
 
-Insumos (`README.md`), Productos (`README-Productos.md`) y Proveedores (`README-ProveedoresConversiones.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen y Cuarentena no necesitan preparación adicional más allá de los tokens de la tabla de arriba.
+Insumos (`README.md`), Productos (`README-Productos.md`) y Proveedores (`README-ProveedoresConversiones.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen, Cuarentena, Dashboard y Compras no necesitan preparación adicional más allá de los tokens o secretos de la tabla de arriba.
