@@ -1,0 +1,5 @@
+#!/bin/sh
+# Después de git pull o git merge (por ejemplo, traer develop), sincroniza Node, dependencias,
+# cliente de Prisma y migraciones locales (.devcontainer/scripts/sync-dev-env.sh).
+bash "$(git rev-parse --show-toplevel)/.devcontainer/scripts/sync-dev-env.sh" --hook
+exit 0
