@@ -84,7 +84,9 @@ El ADMIN invita a su personal por mail y lo da de baja (ADR-008). Todas estas ru
 **Primer inicio de sesión del invitado.** Al aceptar la invitación, Clerk copia sus metadatos (`{ accountId, role: "COLLABORATOR" }`) a `publicMetadata` del usuario. Cuando ese usuario llama a la API por primera vez y todavía no tiene fila en `User`, `authMiddleware` lee los metadatos con la clave secreta y crea el `User` con esa cuenta y ese rol. Responde `401` sin crear nada si no hay metadatos, si el rol no es `COLLABORATOR`, si la cuenta no existe o está inactiva, o si el correo ya pertenece a otro usuario.
 
 #### `POST /api/auth/invitations`
-Crea una invitación en Clerk, y Clerk manda el mail. El enlace lleva a `<APP_BASE_URL>/login`, que con el ticket de la invitación muestra el alta. Si `APP_BASE_URL` no está definida, Clerk usa su portal. La invitación vence a los 30 días (valor por defecto de Clerk).
+Crea una invitación en Clerk **sin el mail de Clerk** (`notify: false`) y despacha el mail de MargenX a n8n (`N8N_INVITATION_WEBHOOK_URL`, workflow `infra/n8n/workflows/invitacion-colaborador.json`): en español, con la marca de MargenX, enviado por Brevo desde `alertas@margenx.tech`. El enlace de aceptación lleva a `<APP_BASE_URL>/login`, que con el ticket muestra el alta; si `APP_BASE_URL` no está definida, Clerk usa su portal. La invitación vence a los 30 días (valor por defecto de Clerk).
+
+Si el mail no sale (n8n no responde 2xx, no hay `N8N_INVITATION_WEBHOOK_URL`, como en local, o falta `INTERNAL_WEBHOOK_SECRET`), la invitación **igual queda creada** y la respuesta trae `emailSent: false`: el ADMIN copia el enlace (`url`) y lo manda por otro medio. `url` es el enlace de aceptación; lo recibe solo el ADMIN de la cuenta y el backend no lo registra en los logs.
 - **Body:** `{ "email": "cajera.quimica@seed.example.test" }`. Solo se acepta `email` (se recorta y se pasa a minúsculas, hasta 254 caracteres); cualquier otro campo, como `accountId` o `role`, da `400`.
 - **Respuesta 201:**
   ```json
@@ -92,15 +94,18 @@ Crea una invitación en Clerk, y Clerk manda el mail. El enlace lleva a `<APP_BA
     "invitation": {
       "id": "inv_2abc",
       "email": "cajera.quimica@seed.example.test",
-      "createdAt": "2026-11-16T12:00:00.000Z"
-    }
+      "createdAt": "2026-11-16T12:00:00.000Z",
+      "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>"
+    },
+    "emailSent": true
   }
   ```
-- **Errores:** `400` `"Ingresá un correo electrónico válido."` · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` · `409` `"Ese correo ya tiene una cuenta o una invitación pendiente."` (lo informa Clerk) · `502`.
+  `url` es `null` si Clerk no devolvió el enlace; en ese caso no se intenta mandar el mail.
+- **Errores:** `400` `"Ingresá un correo electrónico válido."` (también si Clerk rechaza el formato del correo) · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` · `409` `"Ese correo ya tiene una cuenta o una invitación pendiente."` (lo informa Clerk) · `502`.
 
 #### `GET /api/auth/invitations`
 Invitaciones pendientes de la cuenta, de la más nueva a la más vieja.
-- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@seed.example.test", "createdAt": "2026-11-16T12:00:00.000Z" } ] }`
+- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@seed.example.test", "createdAt": "2026-11-16T12:00:00.000Z", "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>" } ] }` (`url` puede ser `null`).
 - **Errores:** `502`.
 
 #### `DELETE /api/auth/invitations/:id`

@@ -38,11 +38,14 @@ Salida esperada: **0 failures**. La colección no modifica datos: se puede repet
 La pide la estrategia de pruebas de la issue. Usá una casilla de prueba del equipo, nunca la de un comercio real.
 
 1. Entrá como ADMIN de Química GyJ y abrí **Perfil → Colaboradores**.
-2. Invitá a la casilla de prueba. Debe aparecer en **Invitaciones pendientes** y llegar el mail de Clerk.
-3. Abrí el enlace del mail: `/login` muestra **Creá tu acceso a MargenX**. Completá el alta.
-4. Al entrar, el invitado es COLLABORATOR de Química GyJ: ve productos y precios de venta, y no ve costos, márgenes, insumos ni proveedores. En Perfil no aparece la sección Colaboradores.
-5. Como ADMIN, la persona pasa a **Colaboradores activos** y la invitación deja de estar pendiente.
-6. Dale de baja con confirmación. Al intentar entrar de nuevo, no puede (su usuario de Clerk se borró).
-7. Invitá otra vez y revocá la invitación antes de aceptarla: el enlace del mail deja de funcionar.
+2. Invitá a la casilla de prueba. Debe aparecer en **Invitaciones pendientes** y llegar el mail de MargenX: en español, desde `alertas@margenx.tech`, con el asunto "Química GyJ te invitó a MargenX" y el botón **Aceptar invitación**. Anotá si llegó a la bandeja principal o a spam.
+3. Tocá **Copiar enlace** en la invitación y comprobá que el enlace copiado es el mismo que el del mail.
+4. Abrí el enlace del mail: `/login` muestra **Creá tu acceso a MargenX**. Completá el alta.
+5. Al entrar, el invitado es COLLABORATOR de Química GyJ: ve productos y precios de venta, y no ve costos, márgenes, insumos ni proveedores. En Perfil no aparece la sección Colaboradores.
+6. Como ADMIN, la persona pasa a **Colaboradores activos** y la invitación deja de estar pendiente.
+7. Dale de baja con confirmación. Al intentar entrar de nuevo, no puede (su usuario de Clerk se borró).
+8. Invitá otra vez y revocá la invitación antes de aceptarla: el enlace del mail deja de funcionar.
+
+Requisitos en n8n y en la VPS: el workflow `infra/n8n/workflows/invitacion-colaborador.json` publicado y `N8N_INVITATION_WEBHOOK_URL` en el `.env` de los backends (`infra/n8n/README.md`, "Invitación de colaboradores"). Sin eso, la sección avisa que el mail no salió y la invitación se comparte con **Copiar enlace**: también es una prueba válida del alta, pero no del mail.
 
 Requisito en Clerk: el alta por invitación tiene que estar habilitada en la instancia (vale tanto el modo público como el restringido, *Restricted*, que solo admite invitados). `APP_BASE_URL` del backend define a dónde lleva el enlace (`infra/vps/docker-compose.prod.yml`).

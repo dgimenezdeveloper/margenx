@@ -98,6 +98,7 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 | Evento | Dirección y disparador | Payload principal | Destino | Estado |
 | :---- | :---- | :---- | :---- | :---- |
 | `margin.alert.triggered` | Backend → n8n, después de la transacción en la que un producto cruzó su margen mínimo (edición manual del costo, presentación predeterminada o liberación de cuarentena) | `{ accountId, accountSlug, tradeName, ownerEmail, ingredient: { id, name }, affectedProductsCount, criticalProducts, triggeredAt }` | Webhook `margin-alert` de n8n (URL en `N8N_MARGIN_ALERT_WEBHOOK_URL`) | Implementado |
+| `collaborator.invitation.created` | Backend → n8n, al crear una invitación de colaborador (Clerk la crea sin su mail) | `{ email, tradeName, inviterEmail, invitationUrl, expiresInDays }` | Webhook `collaborator-invitation` de n8n (URL en `N8N_INVITATION_WEBHOOK_URL`); responde 200 recién después del envío | Implementado (ADR-008) |
 | `supplier.pricelist.received` | n8n → backend, al recibir una lista mayorista por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` | Implementado (reglas en ADR-005) |
 | `report.weekly.requested` | Cron de n8n los lunes a las 08:00, consultando la API | `{ accountId, ownerEmail, periodStart, periodEnd }` | A definir | Planificado (Sprint 6) |
 | `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | A definir | Propuesta (no planificado) |
@@ -105,9 +106,10 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 ### Tareas resueltas por n8n
 
 1. **Alertas de margen bajo:** al recibir `margin.alert.triggered`, n8n responde inmediatamente con `200 OK` al backend y procesa de forma asíncrona una plantilla HTML responsive con diseño accesible (WCAG AA). Despacha el correo a través del relay SMTP autenticado de Brevo (`smtp-relay.brevo.com:587`, STARTTLS) firmado por `alertas@margenx.tech`.
-2. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
-3. **Reporte PDF semanal** · *Planificado (Sprint 6)*: n8n consultaría la API del backend, generaría un PDF con los márgenes de todos los productos y lo enviaría al Administrador los lunes. El endpoint de consulta todavía no existe.
-4. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
+2. **Invitación de colaboradores:** al recibir `collaborator.invitation.created`, n8n valida que el enlace sea de aceptación de Clerk, arma el mail en español con la plantilla de MargenX y lo envía por Brevo desde `alertas@margenx.tech`. Responde 200 al backend solo después del envío; si falla, el backend informa que el mail no salió y el Administrador copia el enlace desde Perfil (ADR-008).
+3. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
+4. **Reporte PDF semanal** · *Planificado (Sprint 6)*: n8n consultaría la API del backend, generaría un PDF con los márgenes de todos los productos y lo enviaría al Administrador los lunes. El endpoint de consulta todavía no existe.
+5. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
 
 **Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n consume eventos, orquesta notificaciones y envía las listas de precios a la API, que es la única que escribe — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
@@ -404,7 +406,7 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
 - Precondición: la cuenta existe y está activa; el correo invitado no tiene usuario en MargenX ni una invitación pendiente.
 - Flujo:
   1. El Administrador ingresa el correo en Perfil. El backend crea una invitación en Clerk con la cuenta del usuario autenticado y el rol `COLLABORATOR` en `publicMetadata`; el cliente nunca envía la cuenta ni el rol (ADR-008).
-  2. Clerk envía el mail. El enlace abre `/login` con el ticket de la invitación, y el invitado completa el alta en Clerk.
+  2. Clerk crea la invitación sin mandar su mail y devuelve el enlace de aceptación. El backend lo despacha a n8n, que envía el mail de MargenX (evento `collaborator.invitation.created`). Si el mail no sale, la invitación igual queda y el Administrador copia el enlace desde Perfil para mandarlo por otro medio. El enlace abre `/login` con el ticket de la invitación, y el invitado completa el alta en Clerk.
   3. En su primera llamada a la API, `authMiddleware` no encuentra fila en `User`, lee `publicMetadata` con la clave secreta y crea el `User` con esa cuenta y ese rol. Si los metadatos no son válidos, el rol no es `COLLABORATOR` o la cuenta no existe o está inactiva, responde 401 sin crear nada.
   4. Desde ese momento, el colaborador opera con las restricciones de CU-02.
   5. El Administrador puede revocar una invitación pendiente o dar de baja a un colaborador. La baja borra el usuario en Clerk (cierra sus sesiones e impide que la invitación lo vuelva a dar de alta) y después su fila en `User`.

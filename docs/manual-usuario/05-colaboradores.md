@@ -8,9 +8,19 @@ El colaborador no ve esta sección.
 
 1. Entrá a **Perfil** y buscá la sección **Colaboradores**.
 2. Escribí el correo de la persona en **Correo del colaborador** y tocá **Invitar**.
-3. Aparece el aviso "Invitación enviada a …" y la persona figura en **Invitaciones pendientes**, con la fecha de envío.
+3. Aparece el aviso "Invitación enviada a …" y la persona figura en **Invitaciones pendientes**, con la fecha en que la creaste.
 
-A la persona le llega un mail de MargenX. Al abrir el enlace, la app muestra **Creá tu acceso a MargenX**: completa sus datos y, al terminar, entra directo como colaborador de tu comercio. La invitación vence a los 30 días; si vence, invitala de nuevo.
+A la persona le llega un mail de MargenX, en español, con el asunto "<tu comercio> te invitó a MargenX" y el botón **Aceptar invitación**. Al abrirlo, la app muestra **Creá tu acceso a MargenX**: completa sus datos y, al terminar, entra directo como colaborador de tu comercio. La invitación vence a los 30 días; si vence, invitala de nuevo.
+
+Si no le llega, pedile que revise la carpeta de spam o de promociones.
+
+## Mandar el enlace por WhatsApp
+
+Cada invitación pendiente tiene el botón **Copiar enlace**. Copia el enlace de la invitación para que se lo mandes por WhatsApp o por otro medio; sirve igual que el botón del mail. Si tu navegador no deja copiar, el enlace aparece debajo para que lo selecciones y lo copies a mano.
+
+Si la invitación se creó pero el mail no se pudo enviar, la sección lo avisa: "Creamos la invitación para …, pero no pudimos enviar el mail". En ese caso, usá **Copiar enlace**.
+
+El enlace es personal: quien lo tenga puede sumarse como colaborador de tu comercio. Mandalo solo a esa persona; si se lo mandaste a otra por error, revocá la invitación.
 
 Si algo no sale, el mensaje aparece debajo del campo:
 
@@ -19,7 +29,7 @@ Si algo no sale, el mensaje aparece debajo del campo:
 | Ingresá un correo electrónico válido. | El correo está incompleto o mal escrito. |
 | Ese correo ya tiene un usuario en MargenX. | La persona ya usa MargenX, en tu comercio o en otro. |
 | Ya hay una invitación pendiente para ese correo. | Ya la invitaste y todavía no aceptó. |
-| No pudimos comunicarnos con el servicio de cuentas… | Falló el servicio de cuentas. No se envió nada: probá de nuevo en unos minutos. |
+| No pudimos comunicarnos con el servicio de cuentas… | Falló el servicio de cuentas. No se creó la invitación: probá de nuevo en unos minutos. |
 
 <!-- [CAPTURA 360PX SUGERIDA: 05-colaboradores-invitar.webp | Sección Colaboradores en Perfil con el campo de correo, una invitación pendiente y un colaborador activo] -->
 
