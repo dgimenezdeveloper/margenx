@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Prisma } from '@prisma/client';
 
 const getUserMock = vi.fn();
@@ -21,8 +21,11 @@ vi.mock('../lib/prisma', () => ({
 
 import {
   AUTH_USER_SELECT,
+  REJECTED_CACHE_MAX_ENTRIES,
+  REJECTED_CACHE_TTL_MS,
   parseInvitationMetadata,
   provisionInvitedUser,
+  resetRejectedProvisioningCache,
 } from './invitedUserProvisioning';
 
 const QUIMICA_ID = '30d00001-0000-4000-8000-000000000002';
@@ -69,6 +72,7 @@ describe('provisionInvitedUser', () => {
     accountFindUniqueMock.mockReset();
     userCreateMock.mockReset();
     userFindUniqueMock.mockReset();
+    resetRejectedProvisioningCache();
   });
 
   it('crea el User con la cuenta y el rol de la invitación, nunca desde el cliente', async () => {
@@ -168,5 +172,74 @@ describe('provisionInvitedUser', () => {
     userCreateMock.mockRejectedValue(new Error('conexión perdida'));
 
     await expect(provisionInvitedUser('user_x')).rejects.toThrow('conexión perdida');
+  });
+
+  describe('usuarios de Clerk sin invitación válida (ADR-008)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('no vuelve a consultar a Clerk por el mismo usuario hasta que vence el recuerdo', async () => {
+      vi.useFakeTimers();
+      getUserMock.mockResolvedValue(clerkUser({}));
+
+      expect(await provisionInvitedUser('user_registro_publico')).toBeNull();
+      expect(await provisionInvitedUser('user_registro_publico')).toBeNull();
+      expect(getUserMock).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(REJECTED_CACHE_TTL_MS + 1);
+      expect(await provisionInvitedUser('user_registro_publico')).toBeNull();
+      expect(getUserMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      ['metadatos manipulados', () => getUserMock.mockResolvedValue(clerkUser({ accountId: QUIMICA_ID, role: 'ADMIN' }))],
+      [
+        'cuenta inactiva',
+        () => {
+          getUserMock.mockResolvedValue(clerkUser({ accountId: QUIMICA_ID, role: 'COLLABORATOR' }));
+          accountFindUniqueMock.mockResolvedValue({ isActive: false });
+        },
+      ],
+    ])('también recuerda el rechazo por %s', async (_caso, prepare) => {
+      prepare();
+
+      await provisionInvitedUser('user_x');
+      await provisionInvitedUser('user_x');
+      expect(getUserMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('no recuerda los fallos de Clerk: el pedido siguiente vuelve a intentar', async () => {
+      getUserMock.mockRejectedValueOnce(new Error('Clerk no disponible'));
+      getUserMock.mockResolvedValueOnce(clerkUser({ accountId: QUIMICA_ID, role: 'COLLABORATOR' }));
+      accountFindUniqueMock.mockResolvedValue({ isActive: true });
+      userCreateMock.mockResolvedValue(createdUser);
+
+      expect(await provisionInvitedUser('user_repositor_quimica')).toBeNull();
+      expect(await provisionInvitedUser('user_repositor_quimica')).toEqual(createdUser);
+    });
+
+    it('recordar a un usuario no afecta a otro con invitación válida', async () => {
+      getUserMock.mockResolvedValueOnce(clerkUser({}));
+      await provisionInvitedUser('user_registro_publico');
+
+      getUserMock.mockResolvedValueOnce(clerkUser({ accountId: QUIMICA_ID, role: 'COLLABORATOR' }));
+      accountFindUniqueMock.mockResolvedValue({ isActive: true });
+      userCreateMock.mockResolvedValue(createdUser);
+      expect(await provisionInvitedUser('user_repositor_quimica')).toEqual(createdUser);
+    });
+
+    it('tiene un tope de entradas: al llenarse descarta la más vieja', async () => {
+      getUserMock.mockResolvedValue(clerkUser({}));
+      for (let i = 0; i <= REJECTED_CACHE_MAX_ENTRIES; i += 1) {
+        await provisionInvitedUser(`user_${i}`);
+      }
+      expect(getUserMock).toHaveBeenCalledTimes(REJECTED_CACHE_MAX_ENTRIES + 1);
+
+      await provisionInvitedUser(`user_${REJECTED_CACHE_MAX_ENTRIES}`);
+      expect(getUserMock).toHaveBeenCalledTimes(REJECTED_CACHE_MAX_ENTRIES + 1);
+      await provisionInvitedUser('user_0');
+      expect(getUserMock).toHaveBeenCalledTimes(REJECTED_CACHE_MAX_ENTRIES + 2);
+    });
   });
 });

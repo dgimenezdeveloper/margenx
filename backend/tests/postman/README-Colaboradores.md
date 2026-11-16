@@ -48,4 +48,4 @@ La pide la estrategia de pruebas de la issue. Usá una casilla de prueba del equ
 
 Requisitos en n8n y en la VPS: el workflow `infra/n8n/workflows/invitacion-colaborador.json` publicado y `N8N_INVITATION_WEBHOOK_URL` en el `.env` de los backends (`infra/n8n/README.md`, "Invitación de colaboradores"). Sin eso, la sección avisa que el mail no salió y la invitación se comparte con **Copiar enlace**: también es una prueba válida del alta, pero no del mail.
 
-Requisito en Clerk: el alta por invitación tiene que estar habilitada en la instancia (vale tanto el modo público como el restringido, *Restricted*, que solo admite invitados). `APP_BASE_URL` del backend define a dónde lleva el enlace (`infra/vps/docker-compose.prod.yml`).
+Requisito en Clerk: la instancia tiene que estar en modo *Restricted*, que solo admite invitados (ADR-008). `APP_BASE_URL` del backend define a dónde lleva el enlace (`infra/vps/docker-compose.prod.yml`).

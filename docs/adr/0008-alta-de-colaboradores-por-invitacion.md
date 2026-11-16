@@ -47,12 +47,12 @@ Se adopta la **opción 3**.
 * La cuenta y el rol nunca viajan desde el navegador: `publicMetadata` no se puede modificar desde el cliente de Clerk (a diferencia de `unsafeMetadata`).
 
 ### Costos Asumidos
-* El primer inicio de sesión de un invitado suma una llamada a la Backend API de Clerk (`users.getUser`). Solo pasa una vez por usuario.
-* Las invitaciones pendientes se listan desde Clerk y se filtran por `accountId` en el backend, porque la API de Clerk no filtra por metadatos. Con una sola instancia de Clerk por entorno, el listado recorre todas las pendientes de ese entorno (páginas de 500).
+* Un usuario de Clerk sin fila en `User` suma una llamada a la Backend API de Clerk (`users.getUser`) para ver si trae una invitación. Para el invitado pasa una sola vez, porque después ya tiene su fila. Un usuario sin invitación válida (por ejemplo, alguien que se registró solo) recibe 401 y el backend lo recuerda 5 minutos en memoria (hasta 1.000 usuarios por proceso) para no consultar a Clerk en cada pedido. Los fallos de Clerk no se recuerdan. Si se reactiva una cuenta, sus invitados pueden tardar hasta 5 minutos en poder entrar.
+* Las invitaciones pendientes se listan desde Clerk y se filtran por `accountId` en el backend, porque la API de Clerk no filtra por metadatos. Con una sola instancia de Clerk por entorno, el listado recorre todas las pendientes de ese entorno (páginas de 500). Cada vez que un ADMIN abre Perfil, y al revocar, se recorren las pendientes de todas las cuentas, así que la cantidad de llamadas crece con el total de invitaciones del entorno. Con los comercios piloto no es un problema. Si crece la cantidad de comercios, conviene guardar el id de cada invitación con su `accountId` en la base.
 * Si Clerk no responde, invitar, revocar y dar de baja devuelven 502 y no aplican cambios.
 * El mail depende de que el workflow `invitacion-colaborador.json` esté publicado en n8n y de `N8N_INVITATION_WEBHOOK_URL` en cada backend. Sin eso, las invitaciones funcionan solo con "Copiar enlace".
 * El enlace de aceptación es una credencial de alta: quien lo tenga entra como colaborador de esa cuenta hasta que se acepte, se revoque o venza. Por eso solo lo ve el ADMIN y no se registra.
-* La instancia de Clerk tiene que permitir el alta por invitación (modo público o *Restricted*).
+* La instancia de Clerk tiene que estar en modo *Restricted*: solo se registra quien trae una invitación. El modo público también permite el alta por invitación, pero deja que cualquiera cree un usuario de Clerk. Ese usuario recibe 401 y no ve datos, pero cada usuario nuevo suma una consulta a la Backend API de Clerk.
 
 ### Alcance que sigue en Concierge MVP
 La creación de **cuentas** (comercios) y de su primer ADMIN no cambia: la sigue haciendo el equipo, como indica la propuesta §13.1.
