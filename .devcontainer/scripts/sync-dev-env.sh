@@ -81,6 +81,20 @@ ensure_node() {
 
 lock_hash() { sha256sum "$1" | cut -c1-16; }
 
+# npm ci reemplaza node_modules (incluido el caché .vite del frontend): un servidor de desarrollo
+# que ya estaba corriendo queda apuntando a archivos borrados y hay que reiniciarlo.
+warn_running_dev_server() {
+  local pkg="$1" pattern
+  case "$pkg" in
+    frontend) pattern="$ROOT/frontend/node_modules/.bin/vite" ;;
+    backend) pattern="tsx watch src/index.ts" ;;
+    *) return 0 ;;
+  esac
+  if pgrep -f "$pattern" >/dev/null 2>&1; then
+    warn "$pkg: hay un 'npm run dev' corriendo con las dependencias anteriores. Reinicialo (Ctrl+C y npm run dev)."
+  fi
+}
+
 # 3. Dependencias: npm ci solo si cambió el lockfile o la versión mayor de Node.
 sync_deps() {
   local pkg="$1" stamp expected
@@ -92,6 +106,7 @@ sync_deps() {
   log "$pkg: dependencias nuevas o actualizadas, ejecutando npm ci…"
   if (cd "$pkg" && npm ci --no-audit --no-fund --loglevel=error); then
     echo "$expected" > "$stamp"
+    warn_running_dev_server "$pkg"
   else
     warn "$pkg: falló npm ci."
     return 1

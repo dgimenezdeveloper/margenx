@@ -240,7 +240,7 @@ En cada corrida:
 3. **Prisma:** `prisma generate` si cambió `backend/prisma/schema.prisma`.
 4. **Migraciones:** `prisma migrate deploy` solo si `DATABASE_URL` de `backend/.env` apunta a la base del DevContainer (`localhost:5432/margenx_dev`). Nunca corre el seed ni toca otra base, y no imprime la cadena de conexión.
 
-Si no hay nada que hacer, termina en un par de segundos. Desde un hook nunca corta la operación de git: si algo falla, avisa y se puede repetir a mano con `bash .devcontainer/scripts/sync-dev-env.sh`. Para saltearlo una vez: `MARGENX_SKIP_SYNC=1 git switch <rama>`. Fuera del contenedor (por ejemplo, un `git switch` desde el host) no hace nada.
+Si reinstaló dependencias mientras tenías `npm run dev` corriendo, avisa que lo reinicies: el servidor anterior queda apuntando a archivos borrados (en el frontend, la app deja de cargar). Si no hay nada que hacer, termina en un par de segundos. Desde un hook nunca corta la operación de git: si algo falla, avisa y se puede repetir a mano con `bash .devcontainer/scripts/sync-dev-env.sh`. Para saltearlo una vez: `MARGENX_SKIP_SYNC=1 git switch <rama>`. Fuera del contenedor (por ejemplo, un `git switch` desde el host) no hace nada.
 
 **Contenedor creado antes de este cambio:** VS Code o Cursor avisan que cambió la configuración; elegí **Rebuild Container**. Si preferís no reconstruir, ejecutá una vez `bash .devcontainer/scripts/sync-dev-env.sh` desde la terminal del contenedor y los hooks quedan activos.
 
