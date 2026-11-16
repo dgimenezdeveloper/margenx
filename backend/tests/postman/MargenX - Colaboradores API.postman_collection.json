@@ -81,7 +81,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"cajera.quimica@gmail.com\"\n}"
+              "raw": "{\n  \"email\": \"cajera.quimica@seed.example.test\"\n}"
             }
           },
           "event": [
@@ -322,7 +322,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"cajera.quimica@gmail.com\",\n  \"accountId\": \"otra-cuenta\"\n}"
+              "raw": "{\n  \"email\": \"cajera.quimica@seed.example.test\",\n  \"accountId\": \"otra-cuenta\"\n}"
             }
           },
           "event": [
@@ -366,7 +366,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"cajera.quimica@gmail.com\",\n  \"role\": \"ADMIN\"\n}"
+              "raw": "{\n  \"email\": \"cajera.quimica@seed.example.test\",\n  \"role\": \"ADMIN\"\n}"
             }
           },
           "event": [

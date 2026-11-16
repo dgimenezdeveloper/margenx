@@ -16,13 +16,13 @@ describe('collaboratorService: contrato de /api/auth (docs/api.md §3)', () => {
   })
 
   it('invite manda solo el correo, sin cuenta ni rol', async () => {
-    const invitation = { id: 'inv_cajera', email: 'cajera.quimica@gmail.com', createdAt: '2026-11-16T12:00:00.000Z' }
+    const invitation = { id: 'inv_cajera', email: 'cajera.quimica@seed.example.test', createdAt: '2026-11-16T12:00:00.000Z' }
     vi.mocked(fetchApi).mockResolvedValueOnce({ invitation })
 
-    await expect(collaboratorService.invite(getToken, 'cajera.quimica@gmail.com')).resolves.toEqual(invitation)
+    await expect(collaboratorService.invite(getToken, 'cajera.quimica@seed.example.test')).resolves.toEqual(invitation)
     expect(fetchApi).toHaveBeenCalledWith('/auth/invitations', getToken, {
       method: 'POST',
-      body: JSON.stringify({ email: 'cajera.quimica@gmail.com' }),
+      body: JSON.stringify({ email: 'cajera.quimica@seed.example.test' }),
     })
   })
 
@@ -41,7 +41,7 @@ describe('collaboratorService: contrato de /api/auth (docs/api.md §3)', () => {
   })
 
   it('listUsers devuelve los usuarios de la cuenta', async () => {
-    const users = [{ id: 'u1', email: 'gustavo@quimicagyj.com.ar', role: 'ADMIN', createdAt: '2026-08-30T10:00:00.000Z' }]
+    const users = [{ id: 'u1', email: 'admin.quimica@seed.example.test', role: 'ADMIN', createdAt: '2026-08-30T10:00:00.000Z' }]
     vi.mocked(fetchApi).mockResolvedValueOnce({ users })
 
     await expect(collaboratorService.listUsers(getToken)).resolves.toEqual(users)

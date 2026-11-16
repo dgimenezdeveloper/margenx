@@ -116,7 +116,7 @@ describe('authMiddleware', () => {
     const invited = {
       id: 'u-repositor',
       accountId: 'acc-quimica',
-      email: 'repositor.quimica@gmail.com',
+      email: 'colab.quimica@seed.example.test',
       role: 'COLLABORATOR',
       account: { id: 'acc-quimica', businessName: 'Química GyJ', defaultMinMarginPercent: '35.00', slug: 'quimica-gyj' },
     };

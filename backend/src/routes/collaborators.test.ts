@@ -55,13 +55,13 @@ import collaboratorsRouter from './collaborators';
 const ADMIN_QUIMICA: TestUser = {
   id: 'u-admin-quimica',
   accountId: QUIMICA_ID,
-  email: 'gustavo@quimicagyj.com.ar',
+  email: 'admin.quimica@seed.example.test',
   role: 'ADMIN',
 };
 const COLLAB_QUIMICA: TestUser = {
   id: 'u-repositor-quimica',
   accountId: QUIMICA_ID,
-  email: 'repositor.quimica@gmail.com',
+  email: 'colab.quimica@seed.example.test',
   role: 'COLLABORATOR',
 };
 
@@ -110,7 +110,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       ['delete', '/api/auth/users/u-otro'],
     ] as const)('%s %s responde 403', async (method, path) => {
       currentUser = COLLAB_QUIMICA;
-      const res = await request(app)[method](path).send({ email: 'cajera.quimica@gmail.com' });
+      const res = await request(app)[method](path).send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(403);
       expect(res.body.error).toMatch(/Se requiere rol ADMIN/);
@@ -125,21 +125,21 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     it('crea la invitación con la cuenta del ADMIN autenticado y responde 201', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.createInvitation.mockResolvedValue(
-        invitation('inv_cajera', 'cajera.quimica@gmail.com', QUIMICA_ID)
+        invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID)
       );
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: '  Cajera.Quimica@Gmail.com ' });
+        .send({ email: '  Cajera.Quimica@Seed.Example.Test ' });
 
       expect(res.status).toBe(201);
       expect(res.body.invitation).toEqual({
         id: 'inv_cajera',
-        email: 'cajera.quimica@gmail.com',
+        email: 'cajera.quimica@seed.example.test',
         createdAt: '2026-11-16T12:00:00.000Z',
       });
       expect(clerk.createInvitation).toHaveBeenCalledWith({
-        emailAddress: 'cajera.quimica@gmail.com',
+        emailAddress: 'cajera.quimica@seed.example.test',
         publicMetadata: { accountId: QUIMICA_ID, role: 'COLLABORATOR' },
         redirectUrl: 'https://dev.margenx.tech/login',
         notify: true,
@@ -149,9 +149,9 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     it('sin APP_BASE_URL válida no manda redirectUrl (Clerk usa su portal)', async () => {
       process.env.APP_BASE_URL = 'dev.margenx.tech';
       db.findUnique.mockResolvedValue(null);
-      clerk.createInvitation.mockResolvedValue(invitation('inv_1', 'cajera.quimica@gmail.com', QUIMICA_ID));
+      clerk.createInvitation.mockResolvedValue(invitation('inv_1', 'cajera.quimica@seed.example.test', QUIMICA_ID));
 
-      await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@gmail.com' });
+      await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(clerk.createInvitation.mock.calls[0]?.[0]).not.toHaveProperty('redirectUrl');
     });
@@ -159,9 +159,9 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     it('quita la barra final de APP_BASE_URL', async () => {
       process.env.APP_BASE_URL = 'https://margenx.tech/';
       db.findUnique.mockResolvedValue(null);
-      clerk.createInvitation.mockResolvedValue(invitation('inv_1', 'cajera.quimica@gmail.com', QUIMICA_ID));
+      clerk.createInvitation.mockResolvedValue(invitation('inv_1', 'cajera.quimica@seed.example.test', QUIMICA_ID));
 
-      await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@gmail.com' });
+      await request(app).post('/api/auth/invitations').send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(clerk.createInvitation.mock.calls[0]?.[0].redirectUrl).toBe('https://margenx.tech/login');
     });
@@ -179,8 +179,8 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     });
 
     it.each([
-      ['accountId', { email: 'cajera.quimica@gmail.com', accountId: PANADERIA_ID }],
-      ['role', { email: 'cajera.quimica@gmail.com', role: 'ADMIN' }],
+      ['accountId', { email: 'cajera.quimica@seed.example.test', accountId: PANADERIA_ID }],
+      ['role', { email: 'cajera.quimica@seed.example.test', role: 'ADMIN' }],
     ])('responde 400 si el cliente manda %s (la cuenta y el rol los fija el servidor)', async (_campo, body) => {
       const res = await request(app).post('/api/auth/invitations').send(body);
 
@@ -193,12 +193,12 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: 'repositor.quimica@gmail.com' });
+        .send({ email: 'colab.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
       expect(res.body.error).toBe('Ese correo ya tiene un usuario en MargenX.');
       expect(db.findUnique).toHaveBeenCalledWith({
-        where: { email: 'repositor.quimica@gmail.com' },
+        where: { email: 'colab.quimica@seed.example.test' },
         select: { id: true },
       });
       expect(clerk.createInvitation).not.toHaveBeenCalled();
@@ -207,19 +207,19 @@ describe('Rutas de colaboradores (/api/auth)', () => {
     it('responde 409 si ya hay una invitación pendiente para ese correo', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.getInvitationList.mockResolvedValue({
-        data: [invitation('inv_previa', 'cajera.quimica@gmail.com', QUIMICA_ID)],
+        data: [invitation('inv_previa', 'cajera.quimica@seed.example.test', QUIMICA_ID)],
         totalCount: 1,
       });
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: 'cajera.quimica@gmail.com' });
+        .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
       expect(res.body.error).toBe('Ya hay una invitación pendiente para ese correo.');
       expect(clerk.getInvitationList).toHaveBeenCalledWith({
         status: 'pending',
-        query: 'cajera.quimica@gmail.com',
+        query: 'cajera.quimica@seed.example.test',
         limit: 500,
         offset: 0,
       });
@@ -232,7 +232,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: 'cajera.quimica@gmail.com' });
+        .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
       expect(res.body.error).toBe('Ese correo ya tiene una cuenta o una invitación pendiente.');
@@ -244,7 +244,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: 'cajera.quimica@gmail.com' });
+        .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(502);
       expect(res.body.error).toBe(
@@ -257,7 +257,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
       const res = await request(app)
         .post('/api/auth/invitations')
-        .send({ email: 'cajera.quimica@gmail.com' });
+        .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(500);
     });
@@ -266,13 +266,13 @@ describe('Rutas de colaboradores (/api/auth)', () => {
   describe('GET /api/auth/invitations', () => {
     it('devuelve solo las invitaciones pendientes de la cuenta del ADMIN, recorriendo todas las páginas', async () => {
       const firstPage = [
-        invitation('inv_cajera', 'cajera.quimica@gmail.com', QUIMICA_ID),
-        invitation('inv_panaderia', 'mostrador@panaderiacentral.com.ar', PANADERIA_ID),
-        ...Array.from({ length: 498 }, (_, i) => invitation(`inv_otra_${i}`, `otra${i}@ejemplo.com`, PANADERIA_ID)),
+        invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID),
+        invitation('inv_panaderia', 'mostrador.panaderia@seed.example.test', PANADERIA_ID),
+        ...Array.from({ length: 498 }, (_, i) => invitation(`inv_otra_${i}`, `colab${i}.panaderia@seed.example.test`, PANADERIA_ID)),
       ];
       const secondPage = [
-        invitation('inv_repartidor', 'repartidor.quimica@gmail.com', QUIMICA_ID),
-        { ...invitation('inv_sin_meta', 'suelto@ejemplo.com', QUIMICA_ID), publicMetadata: null },
+        invitation('inv_repartidor', 'repartidor.quimica@seed.example.test', QUIMICA_ID),
+        { ...invitation('inv_sin_meta', 'suelto.quimica@seed.example.test', QUIMICA_ID), publicMetadata: null },
       ];
       clerk.getInvitationList
         .mockResolvedValueOnce({ data: firstPage, totalCount: 502 })
@@ -298,7 +298,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
   describe('DELETE /api/auth/invitations/:id', () => {
     it('revoca una invitación pendiente de la propia cuenta', async () => {
       clerk.getInvitationList.mockResolvedValue({
-        data: [invitation('inv_cajera', 'cajera.quimica@gmail.com', QUIMICA_ID)],
+        data: [invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID)],
         totalCount: 1,
       });
       clerk.revokeInvitation.mockResolvedValue({});
@@ -318,7 +318,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
     it('responde 404 si la invitación es de otra cuenta, sin revocarla', async () => {
       clerk.getInvitationList.mockResolvedValue({
-        data: [invitation('inv_panaderia', 'mostrador@panaderiacentral.com.ar', PANADERIA_ID)],
+        data: [invitation('inv_panaderia', 'mostrador.panaderia@seed.example.test', PANADERIA_ID)],
         totalCount: 1,
       });
 
@@ -338,7 +338,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
 
     it('responde 404 si Clerk ya no la encuentra al revocar', async () => {
       clerk.getInvitationList.mockResolvedValue({
-        data: [invitation('inv_cajera', 'cajera.quimica@gmail.com', QUIMICA_ID)],
+        data: [invitation('inv_cajera', 'cajera.quimica@seed.example.test', QUIMICA_ID)],
         totalCount: 1,
       });
       clerk.revokeInvitation.mockRejectedValue(clerkError(404, 'resource_not_found'));

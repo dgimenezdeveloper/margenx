@@ -85,13 +85,13 @@ El ADMIN invita a su personal por mail y lo da de baja (ADR-008). Todas estas ru
 
 #### `POST /api/auth/invitations`
 Crea una invitación en Clerk, y Clerk manda el mail. El enlace lleva a `<APP_BASE_URL>/login`, que con el ticket de la invitación muestra el alta. Si `APP_BASE_URL` no está definida, Clerk usa su portal. La invitación vence a los 30 días (valor por defecto de Clerk).
-- **Body:** `{ "email": "cajera.quimica@gmail.com" }`. Solo se acepta `email` (se recorta y se pasa a minúsculas, hasta 254 caracteres); cualquier otro campo, como `accountId` o `role`, da `400`.
+- **Body:** `{ "email": "cajera.quimica@seed.example.test" }`. Solo se acepta `email` (se recorta y se pasa a minúsculas, hasta 254 caracteres); cualquier otro campo, como `accountId` o `role`, da `400`.
 - **Respuesta 201:**
   ```json
   {
     "invitation": {
       "id": "inv_2abc",
-      "email": "cajera.quimica@gmail.com",
+      "email": "cajera.quimica@seed.example.test",
       "createdAt": "2026-11-16T12:00:00.000Z"
     }
   }
@@ -100,7 +100,7 @@ Crea una invitación en Clerk, y Clerk manda el mail. El enlace lleva a `<APP_BA
 
 #### `GET /api/auth/invitations`
 Invitaciones pendientes de la cuenta, de la más nueva a la más vieja.
-- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@gmail.com", "createdAt": "2026-11-16T12:00:00.000Z" } ] }`
+- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@seed.example.test", "createdAt": "2026-11-16T12:00:00.000Z" } ] }`
 - **Errores:** `502`.
 
 #### `DELETE /api/auth/invitations/:id`
@@ -115,7 +115,7 @@ Usuarios activos de la cuenta, primero los administradores y después por fecha 
   {
     "users": [
       { "id": "uuid", "email": "admin@comercio.example", "role": "ADMIN", "createdAt": "2026-08-30T10:00:00.000Z" },
-      { "id": "uuid", "email": "repositor.quimica@gmail.com", "role": "COLLABORATOR", "createdAt": "2026-10-02T10:00:00.000Z" }
+      { "id": "uuid", "email": "colab.quimica@seed.example.test", "role": "COLLABORATOR", "createdAt": "2026-10-02T10:00:00.000Z" }
     ]
   }
   ```

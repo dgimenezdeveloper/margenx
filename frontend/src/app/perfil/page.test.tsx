@@ -211,8 +211,8 @@ describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
     render(<ProfilePage />)
 
     expect(screen.getByRole('region', { name: 'Colaboradores' })).toBeInTheDocument()
-    act(() => collaboratorsSection.onNotify?.('Invitación enviada a mostrador@panaderiacentral.com.ar'))
-    expect(await screen.findByText('Invitación enviada a mostrador@panaderiacentral.com.ar')).toBeInTheDocument()
+    act(() => collaboratorsSection.onNotify?.('Invitación enviada a mostrador.panaderia@seed.example.test'))
+    expect(await screen.findByText('Invitación enviada a mostrador.panaderia@seed.example.test')).toBeInTheDocument()
   })
 
   it('el colaborador no ve la sección', () => {

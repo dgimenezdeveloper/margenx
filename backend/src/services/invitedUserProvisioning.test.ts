@@ -27,7 +27,7 @@ import {
 
 const QUIMICA_ID = '30d00001-0000-4000-8000-000000000002';
 
-function clerkUser(publicMetadata: unknown, email: string | null = 'Repositor.Quimica@Gmail.com') {
+function clerkUser(publicMetadata: unknown, email: string | null = 'Colab.Quimica@Seed.Example.Test') {
   return {
     id: 'user_repositor_quimica',
     publicMetadata,
@@ -38,7 +38,7 @@ function clerkUser(publicMetadata: unknown, email: string | null = 'Repositor.Qu
 const createdUser = {
   id: 'u-repositor',
   accountId: QUIMICA_ID,
-  email: 'repositor.quimica@gmail.com',
+  email: 'colab.quimica@seed.example.test',
   role: 'COLLABORATOR',
   account: { id: QUIMICA_ID, businessName: 'Química GyJ', defaultMinMarginPercent: '35.00', slug: 'quimica-gyj' },
 };
@@ -84,7 +84,7 @@ describe('provisionInvitedUser', () => {
     expect(userCreateMock).toHaveBeenCalledWith({
       data: {
         accountId: QUIMICA_ID,
-        email: 'repositor.quimica@gmail.com',
+        email: 'colab.quimica@seed.example.test',
         role: 'COLLABORATOR',
         authProviderId: 'user_repositor_quimica',
       },
