@@ -91,6 +91,9 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     vi.clearAllMocks()
     mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
     mockRefreshUser = vi.fn().mockResolvedValue(undefined)
+    // Lo pone en true una prueba del bloque de Colaboradores: se restablece acá para que el
+    // resultado no dependa del orden en que corren las pruebas.
+    mockIsLoading = false
   })
 
   it('Escenario Gherkin "Sin interruptores falsos": el administrador no ve elementos role="switch"', () => {
