@@ -529,3 +529,127 @@ Endpoint de recepción en lote para el orquestador satélite n8n.
     "criticalProductsAlerts": []
   }
   ```
+
+---
+
+## 10. Módulo Compras Sugeridas — Smart Purchasing (`/api/purchasing`)
+
+Todas las rutas de este módulo son exclusivas para `ADMIN` (responden `403 Forbidden` a colaboradores), están acotadas por `accountId` y son de **solo lectura**: las sugerencias no modifican `Ingredient.currentCost` (ADR-005).
+
+### `GET /api/purchasing/suggestions`
+Compara las presentaciones activas y no en cuarentena de cada insumo contra su presentación predeterminada, calculando el ahorro por unidad (`$` y `%`) y por bulto mediante `calculateUnitCost` (`Prisma.Decimal`, `ROUND_HALF_UP`).
+- **Exclusiones:** las presentaciones de proveedores inactivos no participan; las presentaciones en cuarentena no compiten como más baratas y se informan aparte en `quarantinedExcluded`.
+- **Decisión de alcance:** MargenX no registra stock ni consumo, por lo que el ahorro se informa por unidad y por bulto (nunca como ahorro mensual).
+- **Respuesta 200:**
+  ```json
+  {
+    "summary": {
+      "withSavingsCount": 1,
+      "alreadyBestPriceCount": 2,
+      "singleSupplierCount": 7,
+      "withoutEligibleSupplierCount": 0,
+      "withoutActiveDefaultCount": 0,
+      "quarantinedExcludedCount": 0
+    },
+    "byIngredient": [
+      {
+        "ingredientId": "uuid",
+        "ingredientName": "Harina 000",
+        "unit": "kg",
+        "currentCost": "900.00",
+        "defaultPresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierId": "uuid",
+          "supplierName": "Molino Cañuelas",
+          "supplierCode": "MC-990",
+          "rawDescription": null,
+          "packageSize": "50",
+          "packageUnit": "kg",
+          "packagePrice": "45000.00",
+          "unitCost": "900.00"
+        },
+        "cheapestPresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierId": "uuid",
+          "supplierName": "Distribuidora del Centro",
+          "supplierCode": "5521",
+          "rawDescription": null,
+          "packageSize": "25",
+          "packageUnit": "kg",
+          "packagePrice": "22000.00",
+          "unitCost": "880.00"
+        },
+        "savingsPerUnit": "20.00",
+        "savingsPercent": "2.22",
+        "packageSavings": "500.00"
+      }
+    ],
+    "bySupplier": [
+      {
+        "supplierId": "uuid",
+        "supplierName": "Distribuidora del Centro",
+        "contactPhone": null,
+        "email": null,
+        "address": null,
+        "itemsCount": 1,
+        "totalPackageSavings": "500.00",
+        "items": []
+      }
+    ],
+    "alreadyBestPrice": [],
+    "singleSupplier": [],
+    "quarantinedExcluded": []
+  }
+  ```
+
+### `POST /api/purchasing/order-preview`
+Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto a comprar todo a la presentación predeterminada. No persiste nada en base de datos.
+- **Body:**
+  ```json
+  {
+    "items": [
+      { "supplierIngredientId": "uuid", "packages": 2 }
+    ]
+  }
+  ```
+- **Reglas de validación:** `items` entre 1 y 500 elementos, sin repetir `supplierIngredientId` (400 Bad Request). `packages` entero estrictamente mayor a 0 (400 Bad Request).
+- **Errores de dominio:** si alguna presentación no existe o pertenece a otra cuenta → `404 Not Found`; si el proveedor está inactivo o la presentación está en cuarentena → `422 Unprocessable Entity`.
+- **Respuesta 200:**
+  ```json
+  {
+    "groups": [
+      {
+        "supplierId": "uuid",
+        "supplierName": "Distribuidora del Centro",
+        "contactPhone": null,
+        "email": null,
+        "address": null,
+        "subtotal": "44000.00",
+        "savings": "1000.00",
+        "items": [
+          {
+            "supplierIngredientId": "uuid",
+            "ingredientId": "uuid",
+            "ingredientName": "Harina 000",
+            "unit": "kg",
+            "supplierCode": "5521",
+            "rawDescription": null,
+            "packageSize": "25",
+            "packageUnit": "kg",
+            "packagePrice": "22000.00",
+            "unitCost": "880.00",
+            "packages": 2,
+            "totalQuantity": "50",
+            "subtotal": "44000.00",
+            "defaultUnitCost": "900.00",
+            "savings": "1000.00"
+          }
+        ]
+      }
+    ],
+    "total": "44000.00",
+    "totalSavings": "1000.00",
+    "totalPackages": 2,
+    "itemsCount": 1
+  }
+  ```

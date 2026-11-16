@@ -1,6 +1,6 @@
-# Cómo ejecutar las 8 colecciones de Postman
+# Cómo ejecutar las 9 colecciones de Postman
 
-Issue #264. Las 8 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264. Las 9 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -14,6 +14,7 @@ Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar 
 | Alertas de margen (Insumos) | `./run-tests-alertas-margen.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 | Cuarentena API | `INTERNAL_WEBHOOK_SECRET=<secreto> ./run-tests-cuarentena.sh <token_A>` | Token de `panaderia-admin` y el mismo `INTERNAL_WEBHOOK_SECRET` del `.env` del backend |
 | Dashboard API | `./run-tests-dashboard.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
+| Compras API | `./run-tests-compras.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 
 ## Generar los tokens de Clerk
 
@@ -46,9 +47,10 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-webhooks.sh
 ./run-tests-alertas-margen.sh "$TOKEN_A" "$TOKEN_COLLAB"
 INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-cuarentena.sh "$TOKEN_A"
 ./run-tests-dashboard.sh "$TOKEN_A" "$TOKEN_COLLAB"
+./run-tests-compras.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
-Salida esperada: **0 failures** en las 8.
+Salida esperada: **0 failures** en las 9.
 
 ## Reproducibilidad
 
@@ -57,6 +59,7 @@ Salida esperada: **0 failures** en las 8.
 - Productos **no** se autolimpia: no existe `DELETE /api/products/:id`. Los productos de prueba quedan persistidos (prefijo `"Producto QA"` / `"Producto Precio Cero"` / `"Producto Precio Negativo"`); borrarlos a mano desde Prisma Studio si hace falta una base piloto limpia.
 - Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" en su costo activo real post-seed (`736.25`, la presentación mayorista por defecto — ver `docs/qa/seed-data-comercios.md`) al final de la propia colección — no hace falta limpieza aparte, y se puede correr repetidas veces. `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E) fijan su propio costo base (`742.98`) por `beforeEach` antes de cada test, así que no dependen de en qué quede este insumo al terminar la colección.
 - Proveedores, Webhooks y Colaborador RBAC no modifican datos que haga falta restaurar.
+- Compras API es una colección de solo lectura que no requiere restaurar datos ni resembrar la cuenta.
 
 ## Para cada README específico
 

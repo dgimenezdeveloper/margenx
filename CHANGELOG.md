@@ -6,6 +6,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Backend:** Servicio `purchasingService.ts` y endpoints `GET /api/purchasing/suggestions` y `POST /api/purchasing/order-preview` (solo `ADMIN`, acotados por `accountId`, solo lectura con `Prisma.Decimal` y `calculateUnitCost`) excluyendo proveedores inactivos y presentaciones en cuarentena (`#388`).
+- **QA:** Colección Postman `MargenX - Compras API` y script `run-tests-compras.sh` (`#388`).
 - **QA:** Pruebas de la bandeja de cuarentena: estado de error con "Reintentar", cierre del aviso con la X y deslizándolo, y conversión de los importes de la API en `supplierService` (`#311`).
 - **Backend:** Columna normalizada `searchName` en `Ingredient` y `Product` (migración `20261111180000_add_search_name_to_ingredient_and_product`, backfill de registros existentes e índices por cuenta) y parámetro `search` en `GET /api/ingredients` y `GET /api/products` para búsqueda parcial insensible a mayúsculas y tildes, combinable con `page`, `limit`, `sortBy` y `order` (`#366`).
 - **Backend:** Paginación y búsqueda de presentaciones en `GET /api/suppliers/:id` mediante `page`, `limit` y `search` con metadatos `meta` (`total`, `page`, `limit`, `totalPages`), preservando compatibilidad retroactiva completa cuando no se envían parámetros de paginación (`#366`).
