@@ -449,7 +449,7 @@ export default function SuppliesPageContent() {
                 </div>
                 <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
                   <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
-                  <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">2</p>
+                  <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">{quarantineCount}</p>
                 </div>
                 <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
                   <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
