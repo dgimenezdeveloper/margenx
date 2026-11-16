@@ -75,6 +75,12 @@ export interface SupplierPackagingResponse {
   ingredient?: Ingredient
 }
 
+/**
+ * Precio retenido en cuarentena, tal como lo usa la app: todos los importes son números.
+ * La API los envía como texto (ver `QuarantinedItemApi`) y `getQuarantine` los convierte.
+ * `variationPercent` es el valor absoluto de la variación; el sentido (aumento o caída)
+ * se obtiene comparando `currentPrice` con `proposedPrice`.
+ */
 export interface QuarantinedItem {
   id: string
   ingredientId: string
@@ -97,6 +103,57 @@ export interface QuarantineReleaseResponse {
   affectedProductsCount: number
   affectedProducts: unknown[]
   criticalProducts: unknown[]
+}
+
+/** Importe tal como lo serializa la API: Prisma convierte los `Decimal` en texto ("18406.25"). */
+type DecimalText = string
+
+/** Contrato real de `GET /api/suppliers/quarantine` (docs/api.md §7). */
+interface QuarantinedItemApi
+  extends Omit<QuarantinedItem, 'packagePrice' | 'packageSize' | 'currentPrice' | 'proposedPrice' | 'variationPercent' | 'ingredient'> {
+  packagePrice: DecimalText
+  packageSize: DecimalText
+  currentPrice?: DecimalText
+  proposedPrice?: DecimalText
+  variationPercent?: DecimalText
+  ingredient: { id: string; name: string; currentCost: DecimalText }
+}
+
+/** Contrato real de `POST /api/suppliers/quarantine/:id/release` (docs/api.md §7). */
+interface QuarantineReleaseResponseApi extends Omit<QuarantineReleaseResponse, 'supplierIngredient' | 'unitCost'> {
+  supplierIngredient: Omit<SupplierIngredient, 'packagePrice' | 'packageSize'> & {
+    packagePrice: DecimalText
+    packageSize: DecimalText
+  }
+  unitCost: DecimalText
+}
+
+const toNumber = (value: DecimalText | number): number => Number(value)
+const toOptionalNumber = (value: DecimalText | number | null | undefined): number | undefined =>
+  value === undefined || value === null ? undefined : Number(value)
+
+function normalizeQuarantinedItem(item: QuarantinedItemApi): QuarantinedItem {
+  return {
+    ...item,
+    packagePrice: toNumber(item.packagePrice),
+    packageSize: toNumber(item.packageSize),
+    currentPrice: toOptionalNumber(item.currentPrice),
+    proposedPrice: toOptionalNumber(item.proposedPrice),
+    variationPercent: toOptionalNumber(item.variationPercent),
+    ingredient: { ...item.ingredient, currentCost: toNumber(item.ingredient.currentCost) },
+  }
+}
+
+function normalizeQuarantineRelease(response: QuarantineReleaseResponseApi): QuarantineReleaseResponse {
+  return {
+    ...response,
+    supplierIngredient: {
+      ...response.supplierIngredient,
+      packagePrice: toNumber(response.supplierIngredient.packagePrice),
+      packageSize: toNumber(response.supplierIngredient.packageSize),
+    },
+    unitCost: toNumber(response.unitCost),
+  }
 }
 
 export const supplierService = {
@@ -155,14 +212,15 @@ export const supplierService = {
   },
 
   async getQuarantine(getToken: TokenGetter): Promise<QuarantinedItem[]> {
-    const response = await fetchApi<{ quarantined: QuarantinedItem[] }>('/suppliers/quarantine', getToken)
-    return response.quarantined || []
+    const response = await fetchApi<{ quarantined?: QuarantinedItemApi[] }>('/suppliers/quarantine', getToken)
+    return (response.quarantined ?? []).map(normalizeQuarantinedItem)
   },
 
   async releaseQuarantine(getToken: TokenGetter, id: string): Promise<QuarantineReleaseResponse> {
-    return fetchApi<QuarantineReleaseResponse>(`/suppliers/quarantine/${id}/release`, getToken, {
+    const response = await fetchApi<QuarantineReleaseResponseApi>(`/suppliers/quarantine/${id}/release`, getToken, {
       method: 'POST',
     })
+    return normalizeQuarantineRelease(response)
   },
 
   async rejectQuarantine(getToken: TokenGetter, id: string): Promise<void> {

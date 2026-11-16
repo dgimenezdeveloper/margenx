@@ -13,8 +13,9 @@ import { MarginBadge } from '@/components/MarginBadge'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) => `$${Math.round(val).toLocaleString('es-AR')}`
+const money = (val: number) => formatMoney(val)
 
 export default function ProductsPage() {
   const router = useRouter()

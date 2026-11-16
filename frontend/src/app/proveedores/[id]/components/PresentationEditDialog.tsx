@@ -28,9 +28,9 @@ import {
   type SupplierIngredient,
   type SupplierPresentation,
 } from '@/services/supplierService'
+import { formatMoney } from '@/lib/format'
 
-const money = (val: number) =>
-  `$${val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const money = (val: number) => formatMoney(val)
 
 interface PresentationEditDialogProps {
   open: boolean

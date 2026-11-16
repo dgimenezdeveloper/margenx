@@ -45,7 +45,9 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     ],
     // El HTML del shell que se precachea es offline.html: index.html siempre se pide a la red,
     // así cada apertura con conexión carga la versión publicada y nunca un HTML viejo.
-    globIgnores: ['index.html'],
+    // ExcelJS (~930 kB) solo se usa al descargar la plantilla de insumos (import() dinámico en
+    // src/lib/bulkIngredients.ts): se pide a la red en ese momento y no se precachea en cada dispositivo.
+    globIgnores: ['index.html', '**/exceljs*.js'],
     navigateFallback: null,
     directoryIndex: null,
     cleanupOutdatedCaches: true,

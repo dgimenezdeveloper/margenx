@@ -415,6 +415,7 @@ Elimina la presentación comercial de un insumo.
 
 ### `GET /api/suppliers/quarantine`
 Lista los precios retenidos por el filtro anti-pollution en la cuenta del administrador.
+- **Tipos:** los importes (`packageSize`, `packagePrice`, `currentPrice`, `proposedPrice`, `variationPercent` e `ingredient.currentCost`) llegan como texto decimal, porque Prisma serializa así los `Decimal`. `variationPercent` es el valor absoluto de la variación: el sentido (aumento o caída) se obtiene comparando `currentPrice` con `proposedPrice`. El frontend los convierte a número en `supplierService`.
 - **Respuesta 200:**
   ```json
   {

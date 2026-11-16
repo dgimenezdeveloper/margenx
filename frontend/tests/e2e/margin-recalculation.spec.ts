@@ -12,7 +12,8 @@ const INGREDIENT_NAME = 'Harina de trigo 000 Olavarriense'
 const INGREDIENT_BASE_COST = '736.25'
 const INGREDIENT_CRITICAL_COST = '4500'
 const PRODUCT_NAME = 'Pan flauta — 1 kg'
-const PRODUCT_MIN_MARGIN = '55%'
+// Formato es-AR de formatPercent (src/lib/format.ts): "55 %" con espacio duro, que Playwright normaliza a espacio.
+const PRODUCT_MIN_MARGIN = '55\\s?%'
 
 // Insumos exclusivos de "Química GyJ" (segunda cuenta del seed): ninguno debe
 // filtrarse en la sesión de "Panadería Central".
@@ -103,8 +104,8 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       await page.goto('/productos')
       const productCard = getProductItem(page, PRODUCT_NAME)
       await expect(productCard).toBeVisible()
-      // Badge de margen negativo (por debajo del mínimo) visible junto al producto.
-      await expect(productCard.getByText(/^-\d+(\.\d+)?%$/)).toBeVisible()
+      // Badge de margen negativo (por debajo del mínimo) visible junto al producto, en es-AR: "-12,3 %".
+      await expect(productCard.getByText(/^-\d+(,\d+)?\s?%$/)).toBeVisible()
 
       // --- Verificación: el detalle del producto muestra la alerta explícita ---
       await productCard.click()
