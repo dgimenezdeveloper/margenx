@@ -1,24 +1,29 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   CircleCheck,
   CirclePause,
   Mail,
   MapPin,
+  LoaderCircle,
   PackageOpen,
   Phone,
+  Search,
 } from 'lucide-react'
 
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
+import { Pagination } from '@/components/pagination'
 import { ToastAlert, type ToastType } from '@/components/ToastAlert'
 import { ApiError } from '@/services/api'
+import { fetchAllPages, type PageParams } from '@/services/pagination'
 import {
   supplierService,
   type SupplierDetail,
@@ -47,9 +52,8 @@ export default function SupplierDetailPage() {
   const getToken = useTokenGetter()
 
   const [supplier, setSupplier] = useState<SupplierDetail | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [stats, setStats] = useState({ defaultCount: 0, quarantinedCount: 0 })
+  const [statsKey, setStatsKey] = useState(0)
 
   const [editingPresentation, setEditingPresentation] = useState<SupplierPresentation | null>(null)
   const [deletingPresentation, setDeletingPresentation] = useState<SupplierPresentation | null>(null)
@@ -61,53 +65,62 @@ export default function SupplierDetailPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
+  // Presentaciones paginadas y filtradas en la API; la ficha del proveedor llega en la misma respuesta.
+  const fetchPresentations = useCallback(
+    async (params: PageParams) => {
+      const result = await supplierService.getPage(getToken, id ?? '', params)
+      setSupplier(result.supplier)
+      return { items: result.supplier.ingredients ?? [], meta: result.meta }
+    },
+    [getToken, id]
+  )
+  const {
+    items: presentations,
+    meta,
+    catalogTotal,
+    error: loadError,
+    isLoading,
+    isLoadingMore,
+    page,
+    limit,
+    search,
+    appliedSearch,
+    hasMore,
+    setSearch,
+    goToPage,
+    setLimit,
+    loadMore,
+    reload: handleRetry,
+    setItems: setPresentations,
+  } = usePaginatedList(fetchPresentations, { errorMessage: 'No se pudieron cargar los datos del proveedor.' })
+
+  // Los contadores de la ficha cubren todas las presentaciones, no solo la página visible.
   useEffect(() => {
     if (!id) return
     let active = true
-
-    supplierService
-      .getById(getToken, id)
-      .then((data) => {
-        if (active) setSupplier(data)
-      })
-      .catch((error: unknown) => {
+    fetchAllPages(async (params) => {
+      const result = await supplierService.getPage(getToken, id, params)
+      return { items: result.supplier.ingredients ?? [], meta: result.meta }
+    })
+      .then((all) => {
         if (active) {
-          setLoadError(
-            error instanceof ApiError
-              ? error.message
-              : 'No se pudieron cargar los datos del proveedor.'
-          )
+          setStats({
+            defaultCount: all.filter((p) => p.isDefault).length,
+            quarantinedCount: all.filter((p) => p.isQuarantined).length,
+          })
         }
       })
-      .finally(() => {
-        if (active) setIsLoading(false)
-      })
-
+      .catch(() => undefined)
     return () => {
       active = false
     }
-  }, [id, getToken, reloadKey])
+  }, [getToken, id, statsKey])
 
-  const handleRetry = () => {
-    setIsLoading(true)
-    setLoadError(null)
-    setReloadKey((prev) => prev + 1)
-  }
-
-  const presentations = useMemo(() => supplier?.ingredients ?? [], [supplier])
-
-  const stats = useMemo(() => {
-    return {
-      total: presentations.length,
-      defaultCount: presentations.filter((p) => p.isDefault).length,
-      quarantinedCount: presentations.filter((p) => p.isQuarantined).length,
-    }
-  }, [presentations])
+  const refreshStats = () => setStatsKey((prev) => prev + 1)
 
   const handleSavedPresentation = (updated: SupplierIngredient) => {
-    setSupplier((prev) => {
-      if (!prev) return prev
-      const newIngredients = prev.ingredients.map((item) => {
+    setPresentations((prev) =>
+      prev.map((item) => {
         if (item.ingredient.id === updated.ingredientId) {
           return {
             ...item,
@@ -120,19 +133,14 @@ export default function SupplierDetailPage() {
         }
         return item
       })
-      return { ...prev, ingredients: newIngredients }
-    })
+    )
+    refreshStats()
     notify('Presentación actualizada correctamente')
   }
 
   const handleDeletedPresentation = (deleted: SupplierPresentation) => {
-    setSupplier((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        ingredients: prev.ingredients.filter((item) => item.id !== deleted.id),
-      }
-    })
+    handleRetry()
+    refreshStats()
     notify(`Presentación de "${deleted.ingredient.name}" eliminada`)
   }
 
@@ -152,13 +160,10 @@ export default function SupplierDetailPage() {
       const finalCost =
         typeof result.unitCost === 'number' ? result.unitCost : Number(result.unitCost)
 
-      setSupplier((prev) => {
-        if (!prev) return prev
-        const newIngredients = prev.ingredients.map((item) =>
-          item.id === presentation.id ? { ...item, isDefault: true } : item
-        )
-        return { ...prev, ingredients: newIngredients }
-      })
+      setPresentations((prev) =>
+        prev.map((item) => (item.id === presentation.id ? { ...item, isDefault: true } : item))
+      )
+      refreshStats()
 
       notify(
         `Presentación de "${presentation.ingredient.name}" establecida como predeterminada`,
@@ -191,7 +196,7 @@ export default function SupplierDetailPage() {
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar title="Detalle de proveedor" backHref="/proveedores" />
 
-          {isLoading && <SupplierDetailSkeleton />}
+          {isLoading && !supplier && <SupplierDetailSkeleton />}
 
           {!isLoading && loadError && (
             <ErrorState
@@ -201,7 +206,7 @@ export default function SupplierDetailPage() {
             />
           )}
 
-          {!isLoading && !loadError && supplier && (
+          {!loadError && supplier && (
             <>
               {/* Tarjeta de Información del Proveedor */}
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm md:p-6 dark:border-gray-800 dark:bg-gray-900">
@@ -253,7 +258,7 @@ export default function SupplierDetailPage() {
                 <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5 dark:border-gray-800">
                   <div className="rounded-2xl bg-indigo-50/70 p-3 text-center dark:bg-indigo-950/40">
                     <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">Presentaciones</p>
-                    <p className="text-xl font-black text-indigo-950 dark:text-indigo-100">{stats.total}</p>
+                    <p className="text-xl font-black text-indigo-950 dark:text-indigo-100">{catalogTotal ?? meta?.total ?? 0}</p>
                   </div>
                   <div className="rounded-2xl bg-emerald-50/70 p-3 text-center dark:bg-emerald-950/40">
                     <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Predeterminadas</p>
@@ -268,13 +273,38 @@ export default function SupplierDetailPage() {
 
               {/* Lista de Presentaciones o Estado Vacío */}
               <section aria-labelledby="presentations-heading">
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <h2 id="presentations-heading" className="text-lg font-bold tracking-tight">
-                    Presentaciones del proveedor ({presentations.length})
+                    Presentaciones del proveedor ({meta?.total ?? 0})
                   </h2>
+                  {(catalogTotal ?? 0) > 0 && (
+                    <div className="relative w-full md:w-72">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                        <Search className="size-4 text-gray-400" aria-hidden="true" />
+                      </span>
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Buscar por insumo o código..."
+                        aria-label="Buscar presentaciones por insumo o código"
+                        className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {presentations.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-sm font-semibold text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <LoaderCircle className="mr-2 size-5 animate-spin" aria-hidden="true" /> Cargando presentaciones...
+                  </div>
+                ) : presentations.length === 0 && appliedSearch ? (
+                  <EmptyState
+                    icon={<Search className="size-6" />}
+                    title="Presentación no encontrada"
+                    description={`No hay presentaciones que coincidan con "${appliedSearch}".`}
+                  />
+                ) : presentations.length === 0 ? (
                   <EmptyState
                     icon={<PackageOpen className="size-6" />}
                     title="Sin presentaciones cargadas"
@@ -283,12 +313,29 @@ export default function SupplierDetailPage() {
                     onAction={() => navigate('/insumos')}
                   />
                 ) : (
-                  <SupplierPresentationsList
-                    presentations={presentations}
-                    onEdit={(p) => setEditingPresentation(p)}
-                    onDelete={(p) => setDeletingPresentation(p)}
-                    onMakeDefault={handleMakeDefault}
-                  />
+                  <>
+                    <SupplierPresentationsList
+                      presentations={presentations}
+                      onEdit={(p) => setEditingPresentation(p)}
+                      onDelete={(p) => setDeletingPresentation(p)}
+                      onMakeDefault={handleMakeDefault}
+                    />
+                    {meta && (
+                      <Pagination
+                        page={page}
+                        totalPages={meta.totalPages}
+                        total={meta.total}
+                        limit={limit}
+                        shown={presentations.length}
+                        itemLabel="presentaciones"
+                        hasMore={hasMore}
+                        isLoadingMore={isLoadingMore}
+                        onPageChange={goToPage}
+                        onLimitChange={setLimit}
+                        onLoadMore={loadMore}
+                      />
+                    )}
+                  </>
                 )}
               </section>
             </>
