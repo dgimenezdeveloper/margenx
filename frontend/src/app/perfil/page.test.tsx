@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 import ProfilePage from './page'
@@ -73,6 +73,14 @@ vi.mock('@/lib/serviceWorkerCache', () => ({
 vi.mock('@/services/authService', () => ({
   authService: {
     updateGlobalMargin: vi.fn(),
+  },
+}))
+
+const collaboratorsSection = vi.hoisted(() => ({ onNotify: null as null | ((message: string) => void) }))
+vi.mock('@/components/collaborators-section', () => ({
+  CollaboratorsSection: ({ onNotify }: { onNotify: (message: string) => void }) => {
+    collaboratorsSection.onNotify = onNotify
+    return <section aria-label="Colaboradores" />
   },
 }))
 
@@ -190,5 +198,27 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     fireEvent.click(logoutButtons[0])
 
     expect(await screen.findByRole('dialog', { name: '¿Cerrar sesión?' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
+  beforeEach(() => {
+    collaboratorsSection.onNotify = null
+  })
+
+  it('el administrador ve la sección y sus avisos usan el toast de Perfil', async () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    expect(screen.getByRole('region', { name: 'Colaboradores' })).toBeInTheDocument()
+    act(() => collaboratorsSection.onNotify?.('Invitación enviada a mostrador@panaderiacentral.com.ar'))
+    expect(await screen.findByText('Invitación enviada a mostrador@panaderiacentral.com.ar')).toBeInTheDocument()
+  })
+
+  it('el colaborador no ve la sección', () => {
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('region', { name: 'Colaboradores' })).not.toBeInTheDocument()
   })
 })

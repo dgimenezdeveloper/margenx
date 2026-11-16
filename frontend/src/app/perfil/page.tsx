@@ -14,6 +14,7 @@ import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
 import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 import { NumericInput } from '@/components/NumericInput'
+import { CollaboratorsSection } from '@/components/collaborators-section'
 
 const profileTitle = 'Perfil y Configuración'
 
@@ -229,6 +230,8 @@ export default function ProfilePage() {
                     Las alertas por email se envían automáticamente al administrador ante variaciones críticas de costos.
                   </p>
                 </section>
+
+                <CollaboratorsSection onNotify={notify} />
               </div>
             )}
           </div>
