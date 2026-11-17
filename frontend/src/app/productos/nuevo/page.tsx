@@ -35,6 +35,7 @@ import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuant
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
 import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import { cn } from '@/lib/utils'
 import { useIngredientSearch } from '@/hooks/useIngredientSearch'
 
@@ -828,7 +829,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        <footer className="fixed inset-x-0 bottom-[calc(3rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+        <footer className={`fixed inset-x-0 ${ABOVE_BOTTOM_NAV_CLASS} md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95`}>
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
