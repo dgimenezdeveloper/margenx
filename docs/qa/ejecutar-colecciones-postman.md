@@ -48,6 +48,7 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-webhooks.sh
 ./run-tests-alertas-margen.sh "$TOKEN_A" "$TOKEN_COLLAB"
 INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-cuarentena.sh "$TOKEN_A"
 ./run-tests-dashboard.sh "$TOKEN_A" "$TOKEN_COLLAB"
+./run-tests-colaboradores.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ./run-tests-compras.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
@@ -59,9 +60,9 @@ Salida esperada: **0 failures** en las 10.
 - Cuarentena se autolimpia: crea su propio insumo y dos proveedores, y los borra en la carpeta "04 - Cleanup Final".
 - Productos **no** se autolimpia: no existe `DELETE /api/products/:id`. Los productos de prueba quedan persistidos (prefijo `"Producto QA"` / `"Producto Precio Cero"` / `"Producto Precio Negativo"`); borrarlos a mano desde Prisma Studio si hace falta una base piloto limpia.
 - Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" en su costo activo real post-seed (`736.25`, la presentación mayorista por defecto — ver `docs/qa/seed-data-comercios.md`) al final de la propia colección — no hace falta limpieza aparte, y se puede correr repetidas veces. `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E) fijan su propio costo base (`742.98`) por `beforeEach` antes de cada test, así que no dependen de en qué quede este insumo al terminar la colección.
-- Proveedores, Webhooks y Colaborador RBAC no modifican datos que haga falta restaurar.
+- Proveedores, Webhooks, Colaborador RBAC y Colaboradores no modifican datos que haga falta restaurar. Colaboradores no crea invitaciones reales (cada una manda un mail): el alta de punta a punta se prueba en staging, como explica `README-Colaboradores.md`.
 - Compras API es una colección de solo lectura que no requiere restaurar datos ni resembrar la cuenta.
 
 ## Para cada README específico
 
-Insumos (`README.md`), Productos (`README-Productos.md`) y Proveedores (`README-ProveedoresConversiones.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen, Cuarentena, Dashboard y Compras no necesitan preparación adicional más allá de los tokens o secretos de la tabla de arriba.
+Insumos (`README.md`), Productos (`README-Productos.md`), Proveedores (`README-ProveedoresConversiones.md`) y Colaboradores (`README-Colaboradores.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen, Cuarentena, Dashboard y Compras no necesitan preparación adicional más allá de los tokens o secretos de la tabla de arriba.
