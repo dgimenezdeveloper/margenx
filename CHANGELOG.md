@@ -6,6 +6,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** Edición de nombre y unidad de medida en la ficha del insumo (`/insumos`), con validación reactiva de nombre duplicado (`409 Conflict`) adyacente al campo y diálogo modal de advertencia accesible al cambiar la unidad de un insumo presente en recetas activas (`#354`).
+- **Frontend:** Sección "Se usa en" en la ficha del insumo con listado completo de productos vinculados, cantidades utilizadas y enlaces directos a sus fichas técnicas, consumiendo el endpoint paginado `GET /api/ingredients/:id/products` (`#354`).
+- **Frontend:** Ordenamiento del historial de costos con el cambio más reciente primero por defecto y botón interactivo para alternar orden cronológico ascendente y descendente en `PriceHistoryModal` (`#354`).
+- **Frontend:** Formateo en estándar argentino (`2.179,13`) para el campo de costo del insumo en la ficha de edición (`#354`).
+- **QA:** Pruebas unitarias completas de la sección "Se usa en", edición de nombre/unidad, captura de error 409 y conmutación de orden en el historial de costos (`#354`).
 - **QA:** Pruebas de la bandeja de cuarentena: estado de error con "Reintentar", cierre del aviso con la X y deslizándolo, y conversión de los importes de la API en `supplierService` (`#311`).
 - **Backend:** Columna normalizada `searchName` en `Ingredient` y `Product` (migración `20261111180000_add_search_name_to_ingredient_and_product`, backfill de registros existentes e índices por cuenta) y parámetro `search` en `GET /api/ingredients` y `GET /api/products` para búsqueda parcial insensible a mayúsculas y tildes, combinable con `page`, `limit`, `sortBy` y `order` (`#366`).
 - **Backend:** Paginación y búsqueda de presentaciones en `GET /api/suppliers/:id` mediante `page`, `limit` y `search` con metadatos `meta` (`total`, `page`, `limit`, `totalPages`), preservando compatibilidad retroactiva completa cuando no se envían parámetros de paginación (`#366`).
@@ -28,6 +33,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** Corrección de la restricción que impedía editar nombre y unidad en la ficha de insumo (`IngredientUpsertSheet`), permitiendo subsanar errores tipográficos y formatear el costo unitario con separadores de miles es-AR al desenfocar (`#354`).
 - **Frontend:** Con catálogos de más de 20 filas, `/insumos` y `/productos` mostraban solo la primera página: la tarjeta "Insumos activos" contaba 20, el buscador filtraba solo esos 20 y el selector de la receta ofrecía los primeros 20 insumos. Ahora la búsqueda va a la API (sin tildes ni mayúsculas, 300 ms después de dejar de escribir), los contadores leen `meta.total`, el selector de la receta busca en todo el catálogo y la detección de duplicados de la planilla usa el catálogo completo (`#350`).
 - **Frontend:** El aviso de confirmación de `/proveedores/cuarentena` se puede cerrar con la X o deslizándolo: `ToastAlert` recibe `onClose`, que antes faltaba y dejaba deshabilitados el botón y el gesto (`#311`).
 - **Frontend:** La tarjeta "Variaciones recientes" de `/insumos` muestra la cantidad real de precios en cuarentena en lugar de un 2 fijo (`#311`).

@@ -55,6 +55,42 @@ Pensado para **actualizar periódicamente los costos** de insumos que ya tenés 
 
 ---
 
+## Modificar un insumo existente (Nombre, Unidad y Costo)
+
+Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad de medida o actualizar manualmente el costo:
+
+1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha de edición.
+2. Modificá el **Nombre del insumo**. Si ingresás un nombre que ya existe en otro insumo de tu comercio (sin importar mayúsculas o minúsculas), MargenX te avisará directamente debajo del campo impidiendo guardar duplicados.
+3. Para cambiar la **Unidad de medida**, seleccioná la nueva opción (`kg`, `litro`, `unidad`).
+4. **Protección preventiva de recetas:** Si el insumo ya forma parte de recetas de productos, al presionar **Guardar Costo** se abrirá un diálogo de confirmación explicando que las cantidades numéricas guardadas en las recetas no se convertirán automáticamente (se preservará el número cargado). Deberás confirmar la acción y revisar las fichas técnicas afectadas para asegurar que las proporciones continúen siendo correctas.
+5. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
+
+<!-- [CAPTURA 360PX SUGERIDA: 01-modal-edicion-insumo.webp | Ficha de insumo en edición con nombre, unidad, costo es-AR y bloque Se usa en] -->
+
+---
+
+## Sección "Se usa en" (Productos vinculados)
+
+Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se usa en**:
+
+- Muestra la cantidad total de productos cuya receta técnica utiliza esa materia prima.
+- Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y el precio de venta vigente al público.
+- Al tocar cualquier producto de la lista, navegarás directamente hacia su ficha técnica para revisar o ajustar su formulación.
+- Si el insumo no forma parte de ninguna receta, la sección te informará claramente que no está siendo utilizado en productos activos.
+
+---
+
+## Historial de variaciones de costo
+
+Para auditar la evolución de precios de un insumo:
+
+1. Abrí la ficha del insumo y tocá el ícono del reloj (**Historial de precios**) en la esquina superior derecha.
+2. Se desplegará la línea de tiempo con cada variación registrada (costo anterior, costo nuevo, porcentaje de aumento o disminución y fecha exacta).
+3. **Orden cronológico:** La lista muestra por defecto el cambio más reciente en primer lugar.
+4. Con el botón **Más recientes / Más antiguos**, podés alternar el orden de visualización según tu preferencia de análisis.
+
+---
+
 ## Buscar y recorrer el catálogo
 
 Insumos, Productos y la ficha de cada proveedor muestran el catálogo de a 20 filas, aunque tengas cientos cargados.
