@@ -40,4 +40,12 @@ describe('Zona segura de iOS en la app instalada (#406)', () => {
       'pb-[max(1.5rem,env(safe-area-inset-bottom))]'
     )
   })
+
+  it('en horizontal, el contenido no llega hasta la muesca: el body suma la zona segura de los costados', () => {
+    const css = readFrontendFile('src/index.css')
+    const bodyRules = [...css.matchAll(/(?:^|\n)body\s*\{([^}]*)\}/g)].map((match) => match[1]).join('\n')
+
+    expect(bodyRules).toMatch(/padding-left:\s*env\(safe-area-inset-left\)/)
+    expect(bodyRules).toMatch(/padding-right:\s*env\(safe-area-inset-right\)/)
+  })
 })
