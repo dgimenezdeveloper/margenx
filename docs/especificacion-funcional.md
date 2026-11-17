@@ -1,7 +1,7 @@
 # Especificación funcional y diseño de dominio — MargenX
 
 **Documento:** catálogo de insumos, recetas, proveedores, ingesta de listas de precios y roles.
-**Versión:** 2.0 · **Fecha:** 26/10/2026 · **Responsable:** Darío Giménez (Tech Lead)
+**Versión:** 2.1 · **Fecha:** 17/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
 **Reemplaza a:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md` (versión 1.0). Este documento los unifica y los corrige contra el código de `develop` al 26/10/2026.
 
 ## Cómo leer este documento
@@ -137,6 +137,7 @@ Ejemplo: bolsa de 25 kg a $18.406,25 → $736,25 por kg.
 - **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo (restricción `@@unique([supplierId, ingredientId])`).
 - Asociar una presentación a un par que ya existe la actualiza (upsert), no la duplica.
 - Borrar un proveedor borra sus presentaciones; el costo actual de los insumos no cambia.
+- **Quitar una presentación** (`DELETE /api/suppliers/:id/ingredients/:ingredientId`): si es la predeterminada y el insumo tiene otras, la API responde 409 y pide marcar otra como predeterminada primero; si es la única, se borra y el costo actual del insumo no cambia (ADR-005 §1 y §4).
 - Todas las operaciones de proveedores son solo para ADMIN.
 
 ### Ejemplo: un insumo, cuatro proveedores
@@ -168,7 +169,7 @@ Un mayorista manda su catálogo completo (miles de artículos). Si el sistema lo
 
 > La lista de un proveedor **nunca** crea insumos. **Solo** actualiza precios de presentaciones cuyo `supplierCode` ya está vinculado en la cuenta.
 
-### 5.2. Canal de entrada · *Disponible (activación en producción: Planificado)*
+### 5.2. Canal de entrada · *Disponible*
 
 El canal de ingesta desatendida y su filtro de descarte están formalizados en **ADR-005** §3 (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`).
 
@@ -288,14 +289,15 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 
 ---
 
-## 7. Compras inteligentes (Smart Purchasing) · *Propuesta*
+## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API)*
 
-Con varios proveedores por insumo, el sistema puede sugerir dónde comprar:
+Con varios proveedores por insumo, la API calcula dónde conviene comprar (`GET /api/purchasing/suggestions`) y permite armar una vista previa de pedido (`POST /api/purchasing/order-preview`):
 
-- **Oportunidades de ahorro:** para cada insumo, comparar el costo unitario de la presentación predeterminada con el menor costo unitario entre sus presentaciones (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg).
-- **Pedido sugerido:** agrupar los insumos por el proveedor más conveniente, con el ahorro estimado por pedido.
+- **Oportunidades de ahorro:** compara presentaciones de proveedores activos que no estén en cuarentena contra la presentación predeterminada, informando el ahorro por unidad (`$` y `%`) y por bulto de la presentación más barata (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg — 2,22 %, y $1.000 por bulto de 50 kg). Las presentaciones en cuarentena no compiten y se informan aparte.
+- **Pedido sugerido (`order-preview`):** agrupa los bultos indicados por proveedor con subtotales, total y ahorro acumulado respecto a comprar todo a la presentación predeterminada, sin persistir órdenes ni afectar el catálogo.
+- **Alcance del ahorro:** MargenX no registra consumo ni stock, por lo que el ahorro se expresa únicamente por unidad, por bulto y por pedido previsualizado (no se estima ahorro mensual).
 
-La sugerencia **no cambia** el costo vigente: el administrador decide si cambia el proveedor predeterminado (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial.
+La sugerencia **no cambia** el costo vigente: el administrador decide si marca otra presentación como predeterminada (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial (ADR-005).
 
 ---
 
@@ -358,6 +360,8 @@ Account (CASCADE)
 
 ## 11. Estado de implementación
 
+La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fecha y qué queda para la Fase 2 está en la tabla única de alcance del SAD (`docs/Arquitectura-Software-(SAD).md` §1, "Alcance de la cursada y Fase 2"). Esta tabla dice el estado de cada capacidad en `develop`.
+
 | Capacidad | Estado |
 |---|---|
 | Carga manual de insumos (camino A) | Disponible |
@@ -368,14 +372,16 @@ Account (CASCADE)
 | Proveedores y presentaciones desde la ficha del insumo, proveedor predeterminado | Disponible |
 | Vista de proveedores (`/proveedores`): lista con cantidad de insumos y de precios en cuarentena, alta, edición, desactivación y baja con confirmación | Disponible |
 | Detalle de proveedor (`/proveedores/:id`) con sus presentaciones | Disponible |
-| Código de artículo cargado desde la app | Planificado |
+| Código de artículo cargado desde la app | Disponible |
 | Bandeja de códigos no mapeados | Propuesta |
-| Ingesta por correo, filtro de descarte y resumen | Disponible (activación en producción: Planificado) |
+| Ingesta por correo, filtro de descarte y resumen | Disponible |
 | Cuarentena de precios y bandeja `/proveedores/cuarentena` | Disponible |
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
-| Compras inteligentes | Propuesta |
+| Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
+| Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
+| Reporte semanal de márgenes en PDF por correo y descarga desde la app | Planificado |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
@@ -384,5 +390,5 @@ Account (CASCADE)
 
 1. ¿Se permiten varias presentaciones del mismo proveedor para un insumo (por ejemplo, pack chico y bolsa)? Hoy el modelo lo impide.
 2. ¿Rechazar un precio en cuarentena debe avisar al dueño? Hoy no avisa.
-3. ¿Qué pasa al quitar la presentación predeterminada de un insumo? Hoy no existe un endpoint para borrar una presentación.
+3. ~~¿Qué pasa al quitar la presentación predeterminada de un insumo?~~ **Resuelta** por ADR-005 §1 y §4: con otras presentaciones, la API responde 409 y pide elegir otra predeterminada; si es la única, se borra (§4, "Reglas vigentes", y `docs/api.md` §6).
 4. ¿Entra el camino C (starter packs) en el alcance del proyecto?

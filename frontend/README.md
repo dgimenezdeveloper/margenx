@@ -175,6 +175,19 @@ Para verificar su correcto funcionamiento e instalabilidad:
 
 `src/__tests__/pwa.test.ts` (Vitest) valida en cada `npm test` los campos obligatorios del manifest, que cada ícono mida lo que declara en `sizes`, que el maskable y el `apple-touch-icon` sean opacos, que `favicon.ico` sea un ICO real y la regla de `nginx.conf` del manifest.
 
+### Zona segura de iOS (app instalada)
+
+`index.html` declara `viewport-fit=cover`. Con eso, en el iPhone `env(safe-area-inset-bottom)` vale la franja de la línea de inicio, y en horizontal `env(safe-area-inset-left)` y `env(safe-area-inset-right)` valen la franja de la muesca. Sin la directiva, iOS devuelve 0 y en la app instalada la línea de inicio queda sobre la `BottomNav`. En Android y en escritorio valen 0.
+
+Reglas para lo que se fija en pantalla:
+
+1. **Lo fijo abajo suma la zona segura a su relleno inferior.** La `BottomNav` usa `pb-[max(.75rem,env(safe-area-inset-bottom))]` y `DialogSheet`, `pb-[max(1.5rem,env(safe-area-inset-bottom))]`. Un `DialogSheet` con `p-0` pone ese relleno en su pie de botones, como la carga masiva (`BulkIngredientsModal`).
+2. **Una barra fija encima de la `BottomNav` usa `ABOVE_BOTTOM_NAV_CLASS`** de `src/lib/mobile-layout.ts`, como `ProductMobileFooter` y la barra de `/productos/nuevo`. Si cambia el alto de la `BottomNav`, se cambia ahí.
+3. **Una pantalla con barra fija deja lugar al final** con un relleno que suma la zona segura. Por ejemplo, `pb-[calc(13rem+env(safe-area-inset-bottom))]` en la ficha del producto.
+4. **Los costados en horizontal** los resuelve el `body` en `src/index.css`.
+
+Chromium no simula la zona segura: la prueba que manda es en un iPhone con Face ID, con la app abierta desde el ícono. `src/__tests__/ios-safe-area.test.tsx` exige la directiva del viewport, el relleno lateral del `body` y el inferior de `DialogSheet`.
+
 ### Service worker y página Sin conexión
 
 El service worker se genera con `vite-plugin-pwa` desde `pwa.config.ts` y se registra solo en el build de producción (`npm run dev` y los E2E no lo usan). La estrategia completa está en `docs/Arquitectura-Software-(SAD).md` §4, "Estrategia de Caché del Frontend (PWA)". En corto: se precachean JS, CSS, íconos y `public/offline.html`; la API y el HTML de la app siempre van a la red; si una navegación falla por falta de red se muestra **Sin conexión** con el botón **Reintentar**; una versión nueva se avisa con **Actualizar** y no se aplica sola; al cerrar sesión, `clearSessionCaches()` (`src/lib/serviceWorkerCache.ts`) borra toda caché que no sea el precache.
