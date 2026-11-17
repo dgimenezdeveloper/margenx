@@ -6,8 +6,10 @@ suman sus propias secciones más abajo cuando se ejecuten.
 ## 1. Pruebas en iPhone y Android pendientes de los PR #376, #378 y #379 (issue #383)
 
 **Estado de esta sección: completa, con dos hallazgos menores informados al
-SM.** Las partes A y B tienen capturas en todos los casos. La parte C se
-probó en un iPhone con datos móviles, sin captura ni video (ver §1.8).
+SM** (H1 tiene la issue #406; la de H2 la abre el SM). Las partes A y B
+tienen capturas en todos los casos. La parte C se probó en un segundo iPhone
+con la red móvil simulada, porque QA no tenía datos móviles, y sin captura
+ni video. El revisor del PR #405 la aceptó así (ver §1.8 y §1.10).
 
 ### 1.1 Objetivo
 
@@ -21,21 +23,24 @@ iPhone a cargo de QA (acuerdo con el Tech Lead del 13/11/2026).
 
 - **Ambiente:** `dev.margenx.tech`, con #376, #378 y #379 mergeados en
   `develop` (14/11/2026) y #377 (formato es-AR, issue #359) mergeado el
-  15/11/2026. Cuenta Demo Panadería Central, rol Admin.
+  15/11/2026. Cuenta Demo MargenX (`backend/prisma/seed-demo.ts`), rol Admin.
 - **Dispositivos:**
   - iPhone con zona segura inferior (pantalla de 1290×2796), en Safari y en
     la app instalada en la pantalla de inicio. Partes A y B, en modo claro y
     oscuro.
   - Android, en Chrome. Parte A, en modo claro.
-  - Un segundo iPhone con datos móviles, sin Wi-Fi, para la parte C.
+  - Un segundo iPhone para la parte C, con la red móvil simulada: QA no
+    tenía datos móviles.
 - **Fecha:** 16/11/2026. Las pruebas las hizo Leandro Herrera (QA).
 - **Capturas:** en `docs/qa/evidencias/383/`, con el criterio de la issue
   #365:
-  - sin barra de estado, sin foto de perfil, sin correos ni otros datos
-    personales;
+  - sin barra de estado, sin foto de perfil y sin datos personales. El
+    único correo visible es el de la cuenta de demo
+    (`demo-admin@margenx.tech`, de `seed-demo.ts`), en las capturas de B1;
   - reducidas a 720 px de ancho;
-  - en Android queda la barra de direcciones de Chrome, que muestra
-    `dev.margenx.tech`.
+  - las que conservan la barra de direcciones del navegador muestran
+    `dev.margenx.tech`. `android-claro-a4-editar-presentacion.png` no la
+    tiene.
 - **Tanda descartada:** la primera tanda de Android se sacó en producción
   (`margenx.tech`, versión 0.6.0, sin los cambios del Sprint 6). Se descartó
   y se repitió en `dev.margenx.tech`.
@@ -56,7 +61,7 @@ iPhone a cargo de QA (acuerdo con el Tech Lead del 13/11/2026).
 | A7. Barra del producto en la app instalada | ✅ con hallazgo H1 [captura](evidencias/383/iphone-claro-a7-barra-producto-app-instalada.png) | No se probó | No se probó |
 | B1. Perfil: "Margen Mínimo Sugerido" | ✅ [captura](evidencias/383/iphone-claro-b1-perfil-margen.png) | ✅ [captura](evidencias/383/iphone-oscuro-b1-perfil-margen.png) | No aplica |
 | B2. Perfil: "Alertas Automáticas" | ✅ [captura](evidencias/383/iphone-claro-b2-perfil-alertas.png) | ✅ [captura](evidencias/383/iphone-oscuro-b2-perfil-alertas.png) | No aplica |
-| C. Sin pantallazo de la landing, con datos móviles | ✅ en un segundo iPhone, sin captura ni video | — | No se probó |
+| C. Sin pantallazo de la landing, con red móvil | ✅ en un segundo iPhone, con la red móvil simulada, sin captura ni video | — | No se probó |
 
 ### 1.4 Parte A: diálogos y barra del producto (#355, PR #376)
 
@@ -87,20 +92,21 @@ En iPhone, en claro y en oscuro:
 
 ### 1.6 Parte C: sin pantallazo de la landing (#360, PR #379)
 
-- **Resultado:** QA probó en un segundo iPhone con datos móviles y sin
-  Wi-Fi: con la sesión iniciada, al escribir el dominio a mano se pasó al
-  panel sin ver la landing.
+- **Resultado:** QA no tenía datos móviles y probó en un segundo iPhone con
+  la red móvil simulada: con la sesión iniciada, al escribir el dominio a
+  mano se pasó al panel sin ver la landing.
 - **Contexto:** `usePublicSession` espera a Clerk como máximo 1,5 s
   (`PUBLIC_SESSION_TIMEOUT_MS = 1500` en
   `frontend/src/hooks/usePublicSession.ts`). Si Clerk tarda más, se muestra
-  la versión sin sesión. Con esa red móvil, Clerk respondió antes del
+  la versión sin sesión. Con la red simulada, Clerk respondió antes del
   límite.
 - **Respaldo automático:** las pruebas de
   `frontend/src/hooks/__tests__/usePublicSession.test.ts` y
   `frontend/src/app/page.test.tsx` cubren las dos ramas: fondo vacío
   mientras Clerk verifica y landing si Clerk no responde a tiempo.
-- No hace falta ajustar `PUBLIC_SESSION_TIMEOUT_MS` (la issue lo proponía
-  solo si se veía la landing).
+- Con este resultado no hace falta ajustar `PUBLIC_SESSION_TIMEOUT_MS` (la
+  issue lo proponía solo si se veía la landing). Si con datos móviles reales
+  aparece la landing, se revisa ese límite.
 
 ### 1.7 Matriz de defectos (fechada)
 
@@ -116,9 +122,10 @@ No se encontraron defectos graves ni importantes.
 
 ### 1.8 Lo no cubierto
 
-- **Parte C sin captura ni video:** la DoD de la issue pide "captura o
-  video". El resultado lo informó QA después de probar, y no quedó
-  registrado cuántos intentos se hicieron.
+- **Parte C sin datos móviles reales, sin captura ni video:** la DoD de la
+  issue pide datos móviles y "captura o video". QA no tenía datos móviles y
+  simuló la red; no quedó registrado con qué herramienta ni cuántos intentos
+  se hicieron. El revisor del PR #405 lo aceptó así el 17/11/2026.
 - **Deslizamiento horizontal en Perfil:** no quedó registrado como prueba
   aparte. Las capturas de B1 y B2 no muestran nada fuera del ancho.
 - **Android:** solo modo claro y solo Chrome, sin la app instalada. La issue
@@ -147,10 +154,13 @@ No se encontraron defectos graves ni importantes.
   de la barra del producto.
 - [x] Parte B verificada en iPhone, con capturas en claro y oscuro.
 - [ ] Parte C verificada en iPhone con datos móviles, con #379 desplegado en
-  `dev.margenx.tech`, y captura o video. *(Verificada en un segundo iPhone
-  con datos móviles; falta la captura o el video, ver §1.8.)*
-- [ ] Un comentario en #355, #356 y #360 enlaza la evidencia. *(Pendiente:
-  se publica con el PR de esta issue.)*
+  `dev.margenx.tech`, y captura o video. *(Probada en un segundo iPhone con
+  la red móvil simulada, sin datos móviles reales ni captura o video. El
+  revisor del PR #405 la aceptó así, ver §1.8.)*
+- [x] Un comentario en #355, #356 y #360 enlaza la evidencia:
+  [#355](https://github.com/dgimenezdeveloper/margenx/issues/355#issuecomment-6918643279),
+  [#356](https://github.com/dgimenezdeveloper/margenx/issues/356#issuecomment-6918644638)
+  y [#360](https://github.com/dgimenezdeveloper/margenx/issues/360#issuecomment-6918645801).
 - [ ] Defectos encontrados en issues propias. *(H1 tiene la issue #406. H2
   se informó al SM el 16/11/2026, que decide si abre la suya.)*
 - [x] Reporte de calidad del Sprint 6 en `docs/qa/`, con la tabla de
