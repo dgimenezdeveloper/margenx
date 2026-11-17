@@ -1,6 +1,10 @@
+import '@testing-library/jest-dom'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { Dialog, DialogPortal, DialogSheet, DialogTitle } from '@/components/ui/dialog'
 
 // process.cwd() apunta a la raíz del paquete frontend durante la ejecución de Vitest
 const readFrontendFile = (file: string) => fs.readFileSync(path.resolve(process.cwd(), file), 'utf-8')
@@ -18,5 +22,22 @@ describe('Zona segura de iOS en la app instalada (#406)', () => {
     expect(directives).toContain('viewport-fit=cover')
     expect(directives).toContain('width=device-width')
     expect(directives).toContain('initial-scale=1.0')
+  })
+
+  it('los diálogos que salen desde abajo dejan sus botones fuera de la zona segura', () => {
+    render(
+      <Dialog open>
+        <DialogPortal>
+          <DialogSheet>
+            <DialogTitle>Editar presentación</DialogTitle>
+          </DialogSheet>
+        </DialogPortal>
+      </Dialog>
+    )
+
+    // p-6 abajo, o la zona segura si es mayor (la línea de inicio del iPhone)
+    expect(screen.getByRole('dialog', { name: 'Editar presentación' })).toHaveClass(
+      'pb-[max(1.5rem,env(safe-area-inset-bottom))]'
+    )
   })
 })
