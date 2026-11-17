@@ -7,9 +7,11 @@
  * Clases canónicas de foco perimetral accesible (WCAG AA - Criterio 2.4.7 y 1.4.11).
  * Garantiza un contorno nítido de 2px con offset de 2px y ratio de contraste >= 3:1
  * tanto en fondos claros como oscuros.
+ * No lleva `focus:outline-none`: en Tailwind 4 fija `--tw-outline-style: none`, y
+ * `focus-visible:outline-2` toma su estilo de esa variable, así que el contorno no se vería.
  */
 export const CANONICAL_FOCUS_CLASSES =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-400 focus-visible:ring-0 focus:outline-none';
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-400 focus-visible:ring-0';
 
 /**
  * Clases base canónicas para inputs y controles de texto accesibles.

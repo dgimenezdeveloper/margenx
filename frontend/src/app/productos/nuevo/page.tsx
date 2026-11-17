@@ -360,7 +360,7 @@ export default function NewProductPage() {
                       prefixClassName="font-bold"
                       placeholder="0,00"
                       containerClassName={cn(
-                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800',
+                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20',
                         CANONICAL_FOCUS_CLASSES
                       )}
                       className="text-base font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
@@ -384,7 +384,7 @@ export default function NewProductPage() {
                       suffixClassName="font-bold"
                       placeholder="30"
                       containerClassName={cn(
-                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800',
+                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20',
                         CANONICAL_FOCUS_CLASSES
                       )}
                       className="text-right font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
