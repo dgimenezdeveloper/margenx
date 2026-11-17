@@ -1,4 +1,6 @@
 > **Nota (24/10/2026):** las fechas de este documento corresponden al plan inicial. El cronograma vigente (Sprint 3 de una semana, del 03/10 al 10/10, y Sprint 4 del 11/10 al 24/10) figura en `CHANGELOG.md` y en las actas de cierre de cada sprint.
+>
+> **Nota (17/11/2026):** cronograma vigente desde el aviso de la docente del 12/11/2026: Sprint 5 del 25/10 al 07/11; Sprint 6 del 07/11 al 20/11, con la clase de pre-entrega el 21/11; **Sprint 7 del 21/11 al 04/12** (release `v1.0.0` y defensa), con el congelamiento de funcionalidades el **28/11**; **entrega final el 05/12/2026**. Smart Purchasing (RF-15) y el reporte semanal en PDF, previstos aquí para el Sprint 5, se reprogramaron al Sprint 6 y entran en la cursada (confirmado por el equipo el 14/11/2026); hoy están *Planificado*. Swagger / OpenAPI y Lighthouse pasan al Sprint 7. Lo que entra en la cursada y lo que queda para la Fase 2 está en `docs/Arquitectura-Software-(SAD).md` §1, y el estado de cada capacidad en `docs/especificacion-funcional.md` §11.
 
 # Matriz Estratégica de Sprints y Cierre ante PO y Cliente
 
