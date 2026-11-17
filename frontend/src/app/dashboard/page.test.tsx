@@ -264,7 +264,7 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
   it('Escenario Gherkin: Colaborador -> el panel no pide /api/dashboard/metrics ni dibuja datos financieros', async () => {
     mockUser.role = 'COLLABORATOR'
     vi.mocked(productService.getAll).mockResolvedValue(
-      catalogoDemo().map(({ cost: _c, marginPercent: _m, minMarginPercent: _min, ...p }) => p)
+      catalogoDemo().map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))
     )
     render(<DashboardPage />)
 

@@ -167,7 +167,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351)', () => {
   it('el colaborador ve el catálogo paginado por nombre y sin costos', () => {
     render(
       <MonitoredCatalogGrid
-        products={catalogo().map(({ cost: _c, marginPercent: _m, minMarginPercent: _min, ...p }) => p)}
+        products={catalogo().map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))}
         isLoading={false}
         isCollaborator
         selectedBucket={null}
