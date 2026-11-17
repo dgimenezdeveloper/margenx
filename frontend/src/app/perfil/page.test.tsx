@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 import ProfilePage from './page'
@@ -41,6 +41,8 @@ let mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string } = {
   email: 'admin.panaderia@seed.example.test',
 }
 
+let mockIsLoading = false
+
 let mockRefreshUser = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@/lib/useCurrentUser', () => ({
@@ -48,7 +50,7 @@ vi.mock('@/lib/useCurrentUser', () => ({
     user: mockUser,
     businessName: 'Panadería Central',
     defaultMinMarginPercent: 30,
-    isLoading: false,
+    isLoading: mockIsLoading,
     refreshUser: mockRefreshUser,
   }),
 }))
@@ -76,11 +78,22 @@ vi.mock('@/services/authService', () => ({
   },
 }))
 
+const collaboratorsSection = vi.hoisted(() => ({ onNotify: null as null | ((message: string) => void) }))
+vi.mock('@/components/collaborators-section', () => ({
+  CollaboratorsSection: ({ onNotify }: { onNotify: (message: string) => void }) => {
+    collaboratorsSection.onNotify = onNotify
+    return <section aria-label="Colaboradores" />
+  },
+}))
+
 describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
     mockRefreshUser = vi.fn().mockResolvedValue(undefined)
+    // Lo pone en true una prueba del bloque de Colaboradores: se restablece acá para que el
+    // resultado no dependa del orden en que corren las pruebas.
+    mockIsLoading = false
   })
 
   it('Escenario Gherkin "Sin interruptores falsos": el administrador no ve elementos role="switch"', () => {
@@ -190,5 +203,46 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     fireEvent.click(logoutButtons[0])
 
     expect(await screen.findByRole('dialog', { name: '¿Cerrar sesión?' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
+  beforeEach(() => {
+    collaboratorsSection.onNotify = null
+    mockIsLoading = false
+  })
+
+  it('queda debajo de Empresa / Comercio, en la columna de la cuenta', () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    const empresa = screen.getByText('Empresa / Comercio').closest('section')!
+    const colaboradores = screen.getByRole('region', { name: 'Colaboradores' })
+    expect(empresa.parentElement).toBe(colaboradores.parentElement)
+    expect(empresa.compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('Margen Objetivo Global').compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+
+  it('no se monta mientras el rol todavía se está cargando (evita pedidos 403 de un colaborador)', () => {
+    mockIsLoading = true
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('region', { name: 'Colaboradores' })).not.toBeInTheDocument()
+  })
+
+  it('el administrador ve la sección y sus avisos usan el toast de Perfil', async () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    expect(screen.getByRole('region', { name: 'Colaboradores' })).toBeInTheDocument()
+    act(() => collaboratorsSection.onNotify?.('Invitación enviada a mostrador.panaderia@seed.example.test'))
+    expect(await screen.findByText('Invitación enviada a mostrador.panaderia@seed.example.test')).toBeInTheDocument()
+  })
+
+  it('el colaborador no ve la sección', () => {
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('region', { name: 'Colaboradores' })).not.toBeInTheDocument()
   })
 })

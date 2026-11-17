@@ -3,6 +3,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
 import { requireRole } from '../middlewares/rbac';
+import collaboratorsRouter from './collaborators';
 
 const router = Router();
 
@@ -54,5 +55,10 @@ router.patch('/account/margin', authMiddleware, requireRole(['ADMIN']), async (r
     account: updatedAccount,
   });
 });
+
+/*
+  Equipo de la cuenta: /invitations y /users (routes/collaborators.ts, ADR-008).
+*/
+router.use(collaboratorsRouter);
 
 export default router;

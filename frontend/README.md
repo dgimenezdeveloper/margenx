@@ -76,6 +76,15 @@ Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5)
 
 Lo usan `/dashboard`, `/insumos`, `/proveedores` y `/proveedores/cuarentena`. En todas el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
 
+### Paginación y búsqueda de listados
+
+Los listados largos (`/insumos`, `/productos` y las presentaciones de `/proveedores/:id`) piden una página por vez a la API (`page`, `limit` y `search`; contrato en `docs/api.md`) y nunca filtran en memoria:
+
+- `src/services/pagination.ts`: tipos `PageMeta`, `PageParams` y `PageResult`, tamaños `PAGE_SIZE_OPTIONS` (20, 50, 100) y `fetchAllPages`, que recorre todas las páginas de a 100 para los usos que necesitan el catálogo completo (`ingredientService.getAll`, `productService.getAll`, detección de duplicados de la planilla y contadores de la ficha del proveedor). Los servicios exponen `ingredientService.list`, `productService.list` y `supplierService.getPage`.
+- `src/hooks/usePaginatedList.ts`: estado de página, filas por página, búsqueda con espera de 300 ms (`SEARCH_DEBOUNCE_MS`) y "Cargar más". Devuelve `meta` (con `meta.total` para los contadores), `catalogTotal` (total sin búsqueda, para tarjetas como "Insumos activos"), `appliedSearch` y `setItems` para actualizar la página visible tras editar.
+- `src/components/pagination.tsx` (`Pagination`): en escritorio, `nav` con "Mostrando 21–40 de 218 insumos", selector "Filas por página" y botones "Página anterior"/"Página siguiente" de 44 px con `aria-label`; en mobile, "Cargar más" en lugar del paginador. No se muestra si no hay resultados.
+- `src/hooks/useIngredientSearch.ts`: búsqueda en la API para el selector de insumos de la receta (`/productos/nuevo` y el modal de `/productos/:id`), con la misma espera de 300 ms y hasta 100 resultados.
+
 ### Diálogos (`Dialog`)
 
 Toda ventana emergente (modal centrado o bottom sheet) se arma con `src/components/ui/dialog.tsx`, una capa de estilos sobre `@base-ui/react/dialog`. No se escriben modales a mano con `fixed inset-0`. El componente resuelve solo:

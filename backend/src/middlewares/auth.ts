@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '@clerk/backend';
 import { prisma } from '../lib/prisma';
-import { Prisma } from '@prisma/client'; // <-- AGREGAR IMPORTACIÓN
+import { Prisma } from '@prisma/client';
+import { AUTH_USER_SELECT, provisionInvitedUser } from '../services/invitedUserProvisioning';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -12,7 +13,7 @@ export interface AuthenticatedRequest extends Request {
     account?: {
       id: string;
       businessName: string;
-      defaultMinMarginPercent: Prisma.Decimal; // <-- NUEVO CAMPO EN LA INTERFAZ
+      defaultMinMarginPercent: Prisma.Decimal;
       slug: string;
     };
   };
@@ -37,23 +38,13 @@ export async function authMiddleware(
       jwtKey: process.env.CLERK_JWT_KEY,
     });
 
-    const user = await prisma.user.findUnique({
-      where: { authProviderId: payload.sub },
-      select: {
-        id: true,
-        accountId: true,
-        email: true,
-        role: true,
-        account: {
-          select: {
-            id: true,
-            businessName: true,
-            defaultMinMarginPercent: true,
-            slug: true,
-          },
-        },
-      },
-    });
+    // Sin fila en User: puede ser el primer inicio de sesión de un invitado (ADR-008).
+    // La cuenta y el rol salen de los metadatos que escribió el backend, nunca del cliente.
+    const user =
+      (await prisma.user.findUnique({
+        where: { authProviderId: payload.sub },
+        select: AUTH_USER_SELECT,
+      })) ?? (await provisionInvitedUser(payload.sub));
 
     if (!user) {
       return res.status(401).json({ error: 'No autorizado' });

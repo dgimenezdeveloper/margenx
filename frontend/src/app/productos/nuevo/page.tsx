@@ -36,6 +36,7 @@ import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } fro
 import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
+import { useIngredientSearch } from '@/hooks/useIngredientSearch'
 
 const money = (val: number) => formatMoney(val)
 
@@ -77,6 +78,9 @@ export default function NewProductPage() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  // Insumo elegido desde la búsqueda en la API: puede no estar en la lista cargada.
+  const [pickedSupply, setPickedSupply] = useState<Ingredient | null>(null)
+  const { results: remoteResults, isSearching } = useIngredientSearch(getToken, searchQuery)
   const [selectedSupplyId, setSelectedSupplyId] = useState<string>('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
@@ -162,8 +166,11 @@ export default function NewProductPage() {
   }, [getToken, resetStore])
 
   const selectedSupply = useMemo(
-    () => supplies.find((s) => s.id === selectedSupplyId) ?? supplies[0],
-    [supplies, selectedSupplyId]
+    () =>
+      (pickedSupply?.id === selectedSupplyId ? pickedSupply : undefined) ??
+      supplies.find((s) => s.id === selectedSupplyId) ??
+      supplies[0],
+    [pickedSupply, supplies, selectedSupplyId]
   )
 
   const availableUnits = useMemo(
@@ -171,13 +178,11 @@ export default function NewProductPage() {
     [selectedSupply]
   )
 
-  const filteredSupplies = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    if (!q) return supplies
-    return supplies.filter((s) => s.name.toLowerCase().includes(q))
-  }, [supplies, searchQuery])
+  // Con texto, el selector busca en la API (sin tildes ni mayúsculas) y no solo en lo cargado.
+  const filteredSupplies = searchQuery.trim() ? (remoteResults ?? []) : supplies
 
   const handleSelectSupply = (supply: Ingredient) => {
+    setPickedSupply(supply)
     setSelectedSupplyId(supply.id)
     const units = getAvailableRecipeUnits(supply.unit)
     setRecipeUnit(units[0] || supply.unit)
@@ -479,8 +484,8 @@ export default function NewProductPage() {
 
                       <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 p-1 dark:divide-gray-800">
                         {filteredSupplies.length === 0 ? (
-                          <div className="p-4 text-center text-xs font-semibold text-gray-400">
-                            No se encontraron insumos con ese nombre.
+                          <div className="p-4 text-center text-xs font-semibold text-gray-400" aria-live="polite">
+                            {isSearching ? 'Buscando insumos...' : 'No se encontraron insumos con ese nombre.'}
                           </div>
                         ) : (
                           filteredSupplies.map((supply) => (
