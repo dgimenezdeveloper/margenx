@@ -107,7 +107,14 @@ describe('purchasingService.getPurchasingSuggestions', () => {
     const result = await getPurchasingSuggestions('account-1');
 
     expect(ingredientFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { accountId: 'account-1' } })
+      expect.objectContaining({
+        where: { accountId: 'account-1' },
+        select: expect.objectContaining({
+          suppliers: expect.objectContaining({
+            where: { supplier: { accountId: 'account-1' } },
+          }),
+        }),
+      })
     );
     expect(result.summary).toEqual({
       withSavingsCount: 1,
@@ -490,14 +497,70 @@ describe('purchasingService.previewPurchasingOrder', () => {
       subtotal: '50254.70',
       savings: '0.00',
     });
+    expect(supplierIngredientFindManyMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          id: { in: ['si-harina-centro', 'si-manteca-marjuanc'] },
+          supplier: { accountId: 'account-1' },
+          ingredient: { accountId: 'account-1' },
+        },
+      })
+    );
+    expect(supplierIngredientFindManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          ingredientId: { in: ['ing-harina', 'ing-manteca'] },
+          isDefault: true,
+          isQuarantined: false,
+          supplier: { accountId: 'account-1', isActive: true },
+        },
+      })
+    );
   });
 
-  it('rechaza con 404 si alguna presentación no existe o pertenece a otra cuenta', async () => {
-    supplierIngredientFindManyMock.mockResolvedValueOnce([]);
+  it('rechaza con 404 si alguna presentación no existe o pertenece a otra cuenta y filtra por accountId', async () => {
+    supplierIngredientFindManyMock.mockImplementationOnce(
+      async ({
+        where,
+      }: {
+        where?: {
+          id?: { in?: string[] };
+          supplier?: { accountId?: string };
+          ingredient?: { accountId?: string };
+        };
+      }) => {
+        const foreignRow = makePresentation({
+          id: 'si-ajeno',
+          supplierId: 'sup-ajeno',
+          supplierName: 'Proveedor Cuenta B',
+          packageSize: '25.000',
+          packagePrice: '20000.00',
+        });
+        const matchesId = !where?.id?.in || where.id.in.includes(foreignRow.id);
+        const matchesSupplierAccount =
+          !where?.supplier?.accountId || where.supplier.accountId === 'account-2';
+        const matchesIngredientAccount =
+          !where?.ingredient?.accountId || where.ingredient.accountId === 'account-2';
+
+        return matchesId && matchesSupplierAccount && matchesIngredientAccount ? [foreignRow] : [];
+      }
+    );
 
     await expect(
       previewPurchasingOrder('account-1', [{ supplierIngredientId: 'si-ajeno', packages: 1 }])
     ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: { in: ['si-ajeno'] },
+          supplier: { accountId: 'account-1' },
+          ingredient: { accountId: 'account-1' },
+        },
+      })
+    );
   });
 
   it('rechaza con 400 si se repite el mismo supplierIngredientId', async () => {
@@ -563,6 +626,136 @@ describe('purchasingService.previewPurchasingOrder', () => {
     expect(result.total).toBe('20000.00');
     expect(result.totalSavings).toBe('0.00');
     expect(result.groups[0]?.items[0]?.defaultUnitCost).toBeNull();
+  });
+
+  it('si la presentación predeterminada está en cuarentena, informa defaultUnitCost: null y savings: "0.00"', async () => {
+    const harinaAlternativa = makePresentation({
+      id: 'si-harina-centro',
+      supplierId: 'sup-centro',
+      supplierName: 'Distribuidora del Centro',
+      ingredientId: 'ing-harina',
+      ingredientName: 'Harina 000',
+      packageSize: '25.000',
+      packagePrice: '22000.00',
+    });
+    const defaultEnCuarentena = {
+      id: 'si-harina-def',
+      ingredientId: 'ing-harina',
+      packageSize: D('50.000'),
+      packagePrice: D('45000.00'),
+      isDefault: true,
+      isQuarantined: true,
+      supplier: { accountId: 'account-1', isActive: true },
+    };
+
+    supplierIngredientFindManyMock
+      .mockResolvedValueOnce([harinaAlternativa])
+      .mockImplementationOnce(
+        async ({
+          where,
+        }: {
+          where?: {
+            isQuarantined?: boolean;
+            supplier?: { accountId?: string; isActive?: boolean };
+          };
+        }) => {
+          const matchesQuarantine =
+            where?.isQuarantined === undefined ||
+            where.isQuarantined === defaultEnCuarentena.isQuarantined;
+          const matchesActive =
+            where?.supplier?.isActive === undefined ||
+            where.supplier.isActive === defaultEnCuarentena.supplier.isActive;
+          return matchesQuarantine && matchesActive ? [defaultEnCuarentena] : [];
+        }
+      );
+
+    const result = await previewPurchasingOrder('account-1', [
+      { supplierIngredientId: 'si-harina-centro', packages: 2 },
+    ]);
+
+    expect(supplierIngredientFindManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          ingredientId: { in: ['ing-harina'] },
+          isDefault: true,
+          isQuarantined: false,
+          supplier: { accountId: 'account-1', isActive: true },
+        },
+      })
+    );
+    expect(result.total).toBe('44000.00');
+    expect(result.totalSavings).toBe('0.00');
+    expect(result.groups[0]?.savings).toBe('0.00');
+    expect(result.groups[0]?.items[0]).toMatchObject({
+      defaultUnitCost: null,
+      savings: '0.00',
+    });
+  });
+
+  it('si la presentación predeterminada pertenece a un proveedor inactivo, informa defaultUnitCost: null y savings: "0.00"', async () => {
+    const harinaAlternativa = makePresentation({
+      id: 'si-harina-centro',
+      supplierId: 'sup-centro',
+      supplierName: 'Distribuidora del Centro',
+      ingredientId: 'ing-harina',
+      ingredientName: 'Harina 000',
+      packageSize: '25.000',
+      packagePrice: '22000.00',
+    });
+    const defaultProveedorInactivo = {
+      id: 'si-harina-def',
+      ingredientId: 'ing-harina',
+      packageSize: D('50.000'),
+      packagePrice: D('45000.00'),
+      isDefault: true,
+      isQuarantined: false,
+      supplier: { accountId: 'account-1', isActive: false },
+    };
+
+    supplierIngredientFindManyMock
+      .mockResolvedValueOnce([harinaAlternativa])
+      .mockImplementationOnce(
+        async ({
+          where,
+        }: {
+          where?: {
+            isQuarantined?: boolean;
+            supplier?: { accountId?: string; isActive?: boolean };
+          };
+        }) => {
+          const matchesQuarantine =
+            where?.isQuarantined === undefined ||
+            where.isQuarantined === defaultProveedorInactivo.isQuarantined;
+          const matchesActive =
+            where?.supplier?.isActive === undefined ||
+            where.supplier.isActive === defaultProveedorInactivo.supplier.isActive;
+          return matchesQuarantine && matchesActive ? [defaultProveedorInactivo] : [];
+        }
+      );
+
+    const result = await previewPurchasingOrder('account-1', [
+      { supplierIngredientId: 'si-harina-centro', packages: 2 },
+    ]);
+
+    expect(supplierIngredientFindManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          ingredientId: { in: ['ing-harina'] },
+          isDefault: true,
+          isQuarantined: false,
+          supplier: { accountId: 'account-1', isActive: true },
+        },
+      })
+    );
+    expect(result.total).toBe('44000.00');
+    expect(result.totalSavings).toBe('0.00');
+    expect(result.groups[0]?.savings).toBe('0.00');
+    expect(result.groups[0]?.items[0]).toMatchObject({
+      defaultUnitCost: null,
+      savings: '0.00',
+    });
   });
 
   it('agrupa múltiples ítems del mismo proveedor sumando subtotal, ahorro y bultos en un único grupo', async () => {

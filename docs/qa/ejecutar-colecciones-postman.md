@@ -1,6 +1,6 @@
-# Cómo ejecutar las 9 colecciones de Postman
+# Cómo ejecutar las 10 colecciones de Postman
 
-Issue #264. Las 9 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264. Las 10 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -35,7 +35,7 @@ echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
 echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
-## Correr las 9 en orden
+## Correr las 10 en orden
 
 ```bash
 cd backend/tests/postman
@@ -50,7 +50,7 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-cuarentena.sh "$TO
 ./run-tests-compras.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
-Salida esperada: **0 failures** en las 9.
+Salida esperada: **0 failures** en las 10.
 
 ## Reproducibilidad
 
