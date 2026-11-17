@@ -239,7 +239,11 @@ En las líneas agregadas:
 
 - La descripción usa `.github/PULL_REQUEST_TEMPLATE.md` con todas sus secciones; `Closes #N` (o `Refs #N` si es parcial o de release; "Depende de #M" si corresponde); checklist de DoD completo y **veraz** (cada ítem marcado se contrasta con lo que ejecutaste; marcado y falso → **B**, "información falsa en la descripción del PR"); "Pasos para Validar" reproducibles; "Evidencia" real (no se acepta "probado" sin evidencia); IDs `[RV...]` citados si corrige una revisión anterior.
 - Rama: `^[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$` (minúsculas ASCII) y su número es el de la issue (DoD §1).
-- Commits: `git -C /tmp/review-pr<N> log --format='%h %s' origin/develop..HEAD` en formato Conventional Commits `tipo(módulo): descripción` (DoD §1, SAD §7.3), en español, terminando en `(#N)`; sin commits de ruido ("wip", "fix", "asdf"). Sin atribución a herramientas: `git -C /tmp/review-pr<N> log --format=%B origin/develop..HEAD | grep -niE 'co-authored-by: *(claude|copilot|chatgpt|cursor|gemini)|generated with|🤖'` → hallazgo. El merge a `develop` es Squash and Merge (SAD §7.3): el título del PR debe servir como mensaje final.
+- Commits: `git -C /tmp/review-pr<N> log --format='%h %s' origin/develop..HEAD` en formato Conventional Commits `tipo(módulo): descripción` (DoD §1, SAD §7.3), en español, terminando en `(#N)`; sin commits de ruido ("wip", "fix", "asdf"). Sin atribución a herramientas (`CONTRIBUTING.md` §6), en tres lugares; cualquier coincidencia → hallazgo:
+  - Los mensajes: `git -C /tmp/review-pr<N> log --format=%B origin/develop..HEAD | grep -niE 'co-authored-by: *(claude|copilot|chatgpt|cursor|gemini)|claude-session:|generated (with|by)|🤖'`.
+  - Los autores: `git -C /tmp/review-pr<N> log --format='%h %an <%ae>' origin/develop..HEAD | grep -niE 'claude|copilot|cursor|chatgpt|gemini|noreply@anthropic\.com'`. El Squash and Merge convierte a esos autores en líneas `Co-authored-by:` del commit final.
+  - El `title` y el `body` que trajo el paso 1, con el mismo patrón de los mensajes.
+- El merge a `develop` es Squash and Merge (SAD §7.3): el título del PR debe servir como mensaje final.
 
 ### 7.8. Contra la fuente de negocio
 
