@@ -12,6 +12,7 @@ vi.mock('../lib/prisma', () => ({
     },
     user: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -150,6 +151,17 @@ describe('Routes: Auth (/api/auth)', () => {
           defaultMinMarginPercent: true,
         },
       });
+    });
+  });
+
+  describe('Equipo de la cuenta (routes/collaborators.ts)', () => {
+    it('monta GET /api/auth/users bajo el router de autenticación', async () => {
+      vi.mocked(prisma.user.findMany).mockResolvedValueOnce([]);
+
+      const res = await request(app).get('/api/auth/users');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ users: [] });
     });
   });
 });

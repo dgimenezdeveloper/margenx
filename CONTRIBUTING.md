@@ -76,3 +76,8 @@ Para garantizar la estabilidad del historial de versiones y evitar desincronizac
 Se agregó el feature oficial `ghcr.io/devcontainers/features/github-cli:1` a `.devcontainer/devcontainer.json`, para poder gestionar issues y Pull Requests desde la terminal del propio DevContainer sin instalar nada manualmente.
 
 **No verificado en este documento:** instalar el `gh` CLI requiere reconstruir el DevContainer (`Dev Containers: Rebuild Container` en VS Code) para que el feature se aplique; quien lo pruebe primero debe confirmar `gh --version` y dejar la constancia en la issue o en la retro. Autenticarlo además requiere `gh auth login` (o la variable `GH_TOKEN`) por persona — eso no se automatiza desde este cambio.
+
+## 6. Entorno sincronizado del DevContainer
+
+Al cambiar de rama, traer `develop` o abrir VS Code o Cursor, el DevContainer alinea solo la versión de Node con `.nvmrc`, las dependencias, el cliente de Prisma y las migraciones de la base local (`.devcontainer/scripts/sync-dev-env.sh` y hooks en `.githooks/`). Detalle y cómo saltearlo en `README.md`, sección "Entorno sincronizado". Si cambiás `package-lock.json`, `schema.prisma` o agregás una migración, el resto del equipo los recibe aplicados en su próximo `git switch` o `git pull`, sin pasos manuales.
+
