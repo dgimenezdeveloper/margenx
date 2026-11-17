@@ -174,7 +174,7 @@ Módulos principales del sistema:
 > **Comercios Piloto:** Validación con *Panadería Central* (Gastronomía) y *Química GyJ* (Manufactura química).
 
 #### Gestión Ágil y Liderazgo de Equipo
-- **Marco Scrum:** Planificación y facilitación de 7 sprints de 2 semanas (Sprint 0 al 6), standups diarias a las 10:00 hs por Discord y actas de retrospectiva (`docs/retrospectivas/`).
+- **Marco Scrum:** Planificación y facilitación de 8 sprints (Sprint 0 al 7), de 2 semanas salvo el Sprint 3, que duró una, standups diarias a las 10:00 hs por Discord y actas de retrospectiva (`docs/retrospectivas/`).
 - **Tablero Kanban Automatizado con GraphQL:** Implementación del workflow `.github/workflows/auto-move-issues.yml` que sincroniza GitHub Projects v2 según los eventos de Git: `BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE`.
 - **Definition of Done (DoD):** Criterios rigurosos de cierre que exigen aprobación por pares (Peer Review), tipado TypeScript estricto sin `any`, verificación Gherkin, compatibilidad mobile en 360px y aprobación de QA.
 - **Estrategia de Complejidad Progresiva:** Desacoplamiento de insumos y proveedores para permitir productos en borrador "Sin Costear" (`cost = 0, margin = 0`), evitando trabas en el onboarding inicial.
