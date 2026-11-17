@@ -6,9 +6,11 @@ n8n **nunca escribe en la base de datos**: solo lee/escribe a través de la API 
 |---|---|---|
 | `workflows/alertas-margen.json` | Recibe el webhook del backend y envía el correo de margen crítico. | #172, #254 |
 | `workflows/ingesta-listas.json` | Lee la casilla central por IMAP, convierte la planilla adjunta, la despacha al backend y envía el resumen al dueño. | #170, #171, #253, #254 |
+| `workflows/invitacion-colaborador.json` | Recibe el webhook del backend y envía el mail de invitación de un colaborador. | #395 |
 | `plantillas/mail-margenx.js` | Plantilla compartida de los mails (encabezado, avisos, botones, tabla de productos, pie). Fuente única: se copia a los nodos Code. | #254 |
 | `plantillas/sincronizar.mjs` | Copia la plantilla a los workflows (`--check` solo verifica). | #254 |
 | `tests/ingesta-nodos.test.mjs` | Prueba los nodos Code de la ingesta sin necesitar n8n. | #170, #171, #254 |
+| `tests/invitacion-nodos.test.mjs` | Prueba el workflow de invitación: mail válido, enlaces que no son de Clerk, escapes, remitente, control del secreto y respuestas al backend. | #395 |
 | `tests/alertas-nodos.test.mjs` | Prueba el nodo `Generar Plantilla Dinámica` de las alertas: enlaces "Ajustar" y botón principal, con y sin ID de producto, en producción y en staging; remitente y plantilla. | #329, #254 |
 
 ## Ingesta de listas de precios (`ingesta-listas.json`)
@@ -41,7 +43,7 @@ Varios correos en una misma ejecución se procesan por separado: cada fila queda
 4. Importar `workflows/ingesta-listas.json`, reasignar las credenciales de los tres nodos que las usan (el exporte trae ids de ejemplo) y activarlo. El exporte del repositorio queda inactivo, sin ids reales de credenciales ni metadatos de la instancia, y los correos usan `emailFormat: both` (HTML + texto plano), remitente `MargenX <alertas@margenx.tech>` y `appendAttribution: false`: al reexportar desde n8n, restaurarlo antes del commit (`node infra/n8n/tests/ingesta-nodos.test.mjs` lo verifica).
 5. Probar en staging enviando un `.csv` a `precios-dev-<slug-de-prueba>@margenx.tech` y revisar el resumen recibido y que la ejecución no aparezca en producción.
 
-Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs` y `node infra/n8n/tests/alertas-nodos.test.mjs` (CI corre las dos).
+Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/tests/alertas-nodos.test.mjs` y `node infra/n8n/tests/invitacion-nodos.test.mjs` (CI corre las tres).
 
 ## Alertas de margen (`alertas-margen.json`)
 
@@ -49,15 +51,34 @@ El backend llama al webhook `margin-alert` con el secreto `x-margenx-webhook-sec
 
 Para publicar un cambio: importar `workflows/alertas-margen.json` en n8n sobre el workflow existente, reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Despachar Alerta SMTP (Brevo)` y activarlo. Como es la misma instancia, se importa una sola vez para los dos entornos.
 
+## Invitación de colaboradores (`invitacion-colaborador.json`)
+
+El backend crea la invitación en Clerk sin el mail de Clerk y llama al webhook `collaborator-invitation` con el secreto `x-margenx-webhook-secret` y `{ email, tradeName, inviterEmail, invitationUrl, expiresInDays }` (ADR-008).
+
+Flujo: `Webhook Invitación Colaborador` → `Validar Secreto Webhook` (el mismo control que las alertas; sin secreto, 401) → `Generar Mail de Invitación` → `¿Invitación válida?` → `Enviar Invitación (Brevo)` → `Responder 200 Enviado`. Si los datos no sirven, responde 422 sin enviar nada.
+
+- **Solo enlaces de Clerk:** `invitationUrl` tiene que ser `https`, con ruta `/v1/tickets/accept`, parámetro `ticket` y dominio `*.clerk.accounts.dev` (instancia de desarrollo) o `margenx.tech` y sus subdominios (producción). Cualquier otro enlace se rechaza.
+- **El 200 llega después del envío:** si Brevo falla, la ejecución falla y n8n responde 5xx. El backend lo informa como `emailSent: false` y el ADMIN copia el enlace desde Perfil.
+- El asunto es "<Comercio> te invitó a MargenX", sin saltos de línea. El mail menciona quién invita solo si su correo es válido.
+- Remitente `MargenX <alertas@margenx.tech>`, HTML + texto plano y `appendAttribution: false`, igual que las alertas.
+
+**Puesta en marcha (después del merge):**
+
+1. Agregar `N8N_INVITATION_WEBHOOK_URL=https://n8n.margenx.tech/webhook/collaborator-invitation` al `.env` de `/opt/margenx-infra` (lo leen los dos backends; ver `infra/vps/.env.example`) y recrear los backends.
+2. Importar `workflows/invitacion-colaborador.json` como workflow nuevo, reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Enviar Invitación (Brevo)` y activarlo. El exporte del repositorio queda inactivo y sin ids reales: al reexportar, restaurarlo antes del commit (`node infra/n8n/tests/invitacion-nodos.test.mjs` lo verifica).
+3. Probar en staging invitando a una casilla de prueba: el mail tiene que llegar en español, con la marca de MargenX y desde `alertas@margenx.tech`.
+
+**Evidencia antes de la revisión, sin tocar producción** (`docs/process/revision-de-prs.md` §5): importar el workflow como copia inactiva y ejecutarlo a mano con datos fijados en el webhook, y adjuntar al PR el ID de la ejecución y una captura del mail recortada, sin el destinatario.
+
 ## Plantilla compartida de mails (`plantillas/mail-margenx.js`)
 
-El resumen de ingesta (`Generar Resumen al Dueño`) y la alerta de margen (`Generar Plantilla Dinámica`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte.
+El resumen de ingesta (`Generar Resumen al Dueño`), la alerta de margen (`Generar Plantilla Dinámica`) y la invitación de colaboradores (`Generar Mail de Invitación`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte.
 
 Un nodo Code de n8n no puede importar archivos, así que la plantilla se **copia** dentro de cada nodo, entre los marcadores `// <plantilla-mail-margenx>` y `// </plantilla-mail-margenx>`. Para cambiarla:
 
 1. Editar `plantillas/mail-margenx.js` (nunca el bloque dentro de n8n o del JSON).
-2. `node infra/n8n/plantillas/sincronizar.mjs` (reemplaza solo el bloque en los dos workflows, sin reformatear el JSON).
-3. `node infra/n8n/tests/ingesta-nodos.test.mjs` y `node infra/n8n/tests/alertas-nodos.test.mjs`: fallan si algún workflow quedó con otra versión de la plantilla.
-4. Importar los dos workflows en n8n (ver cada sección).
+2. `node infra/n8n/plantillas/sincronizar.mjs` (reemplaza solo el bloque en los tres workflows, sin reformatear el JSON).
+3. `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/tests/alertas-nodos.test.mjs` y `node infra/n8n/tests/invitacion-nodos.test.mjs`: fallan si algún workflow quedó con otra versión de la plantilla.
+4. Importar los tres workflows en n8n (ver cada sección).
 
-**Remitente:** el nodo `emailSend` 2.1 ignora la opción `senderName`, así que el nombre va dentro de `fromEmail`: `MargenX <alertas@margenx.tech>` en los tres nodos de envío. Con `appendAttribution: false` n8n no agrega su pie "This email was sent automatically with n8n". El alias `alertas@margenx.tech` tiene que estar verificado como remitente en Brevo.
+**Remitente:** el nodo `emailSend` 2.1 ignora la opción `senderName`, así que el nombre va dentro de `fromEmail`: `MargenX <alertas@margenx.tech>` en los cuatro nodos de envío. Con `appendAttribution: false` n8n no agrega su pie "This email was sent automatically with n8n". El alias `alertas@margenx.tech` tiene que estar verificado como remitente en Brevo.

@@ -29,6 +29,7 @@ export default defineConfig({
         'src/components/MarginBadge.tsx',
         'src/components/error-state.tsx',
         'src/components/update-prompt.tsx',
+        'src/components/pagination.tsx',
       ],
       exclude: [
         'src/components/ui/**',
