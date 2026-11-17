@@ -3,26 +3,23 @@ import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { MarginBadge } from '@/components/MarginBadge'
 import type { Product } from '@/services/productService'
-import type { HealthBucketKey } from './HealthDistributionHistogram'
 import { formatMoney } from '@/lib/format'
+import { classifyHealthBucket, type ActiveHealthBucket } from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
 
-const getBucketTitle = (key: HealthBucketKey) => {
-  switch (key) {
-    case 'loss': return 'Venta a Pérdida'
-    case 'low': return 'En Riesgo'
-    case 'healthy': return 'En Objetivo'
-    case 'high': return 'Superávit'
-    default: return ''
-  }
+const BUCKET_TITLES: Record<ActiveHealthBucket, string> = {
+  loss: 'Venta a Pérdida',
+  risk: 'En Riesgo',
+  target: 'En Objetivo',
+  surplus: 'Superávit',
 }
 
 interface MonitoredCatalogGridProps {
   products: Product[]
   isLoading: boolean
   isCollaborator: boolean
-  selectedBucket: HealthBucketKey | null
+  selectedBucket: ActiveHealthBucket | null
   onClearFilter: () => void
 }
 
@@ -62,19 +59,8 @@ export function MonitoredCatalogGrid({
   const displayedProducts = useMemo(() => {
     if (!selectedBucket || isCollaborator) return sortedProducts
 
-    return sortedProducts.filter((p) => {
-      if (p.ingredients.length === 0) return false
-      const m = p.marginPercent ?? 0
-      const target = p.minMarginPercent ?? 30
-
-      switch (selectedBucket) {
-        case 'loss': return m < 0
-        case 'low': return m >= 0 && m < target
-        case 'healthy': return m >= target && m <= 60
-        case 'high': return m > 60 && m >= target
-        default: return true
-      }
-    })
+    // Misma regla que el servidor: la grilla muestra los mismos productos que cuenta la columna.
+    return sortedProducts.filter((p) => classifyHealthBucket(p) === selectedBucket)
   }, [sortedProducts, selectedBucket, isCollaborator])
 
   return (
@@ -84,7 +70,7 @@ export function MonitoredCatalogGrid({
           <h2 className="text-lg font-bold tracking-tight md:text-xl">
             {selectedBucket && !isCollaborator ? (
               <span className="truncate block">
-                Productos: {getBucketTitle(selectedBucket)}{' '}
+                Productos: {BUCKET_TITLES[selectedBucket]}{' '}
                 <span className="text-xs font-semibold text-gray-400">
                   ({displayedProducts.length} de {products.length})
                 </span>
