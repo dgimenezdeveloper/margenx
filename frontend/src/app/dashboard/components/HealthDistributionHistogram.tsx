@@ -152,7 +152,7 @@ export function HealthDistributionHistogram({
       </div>
 
       {activeProductsCount === 0 ? (
-        <div className="mt-4 flex h-36 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400 dark:border-gray-800">
+        <div className="mt-4 flex h-36 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
           Aún no hay productos con receta activa para clasificar en el histograma.
         </div>
       ) : (
@@ -181,7 +181,7 @@ export function HealthDistributionHistogram({
                     <span data-testid="bucket-count" className={`block text-base font-black sm:text-xl ${bucket.textClass}`}>
                       {bucket.count}
                     </span>
-                    <span className="block text-[10px] font-semibold text-gray-400 sm:text-xs">
+                    <span className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 sm:text-xs">
                       {formatPercent(bucket.percentage, { decimals: 0 })}
                     </span>
                   </div>
@@ -209,7 +209,7 @@ export function HealthDistributionHistogram({
             })}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] text-gray-400 dark:border-gray-800/80">
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] text-gray-500 dark:border-gray-800/80 dark:text-gray-400">
             <span>
               {draftProductsCount > 0 ? (
                 <>

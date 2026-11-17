@@ -111,4 +111,29 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351)', () =
     expect(screen.getByRole('button', { name: /superávit: 40 productos/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /filtrando: óptimo \(40\)/i })).toBeInTheDocument()
   })
+
+  it('el total del catálogo y los porcentajes no usan gris 400 sobre blanco (contraste menor a 4,5:1)', () => {
+    const { container } = render(
+      <HealthDistributionHistogram metrics={catalogoDemo} isLoading={false} selectedBucket={null} onSelectBucket={vi.fn()} />
+    )
+    const conTextoClaroBajo = Array.from(container.querySelectorAll<HTMLElement>('*')).filter((el) =>
+      el.className.split(/\s+/).includes('text-gray-400')
+    )
+    expect(conTextoClaroBajo.map((el) => el.textContent)).toEqual([])
+  })
+
+  it('el aviso sin productos con receta tampoco usa gris 400 sobre blanco', () => {
+    const { container } = render(
+      <HealthDistributionHistogram
+        metrics={{ ...catalogoDemo, lossCount: 0, riskCount: 0, targetCount: 0, surplusCount: 0 }}
+        isLoading={false}
+        selectedBucket={null}
+        onSelectBucket={vi.fn()}
+      />
+    )
+    const conTextoClaroBajo = Array.from(container.querySelectorAll<HTMLElement>('*')).filter((el) =>
+      el.className.split(/\s+/).includes('text-gray-400')
+    )
+    expect(conTextoClaroBajo.map((el) => el.textContent)).toEqual([])
+  })
 })

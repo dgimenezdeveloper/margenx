@@ -52,4 +52,12 @@ describe('DashboardKpiCards: margen promedio (#351)', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
     expect(screen.getByText('119 Productos en Riesgo')).toBeInTheDocument()
   })
+
+  it('los rótulos de las tarjetas no usan gris 400 sobre blanco (contraste menor a 4,5:1)', () => {
+    const { container } = render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
+    const textoClaroBajo = Array.from(container.querySelectorAll<HTMLElement>('p, span')).filter((el) =>
+      el.className.split(/\s+/).includes('text-gray-400')
+    )
+    expect(textoClaroBajo.map((el) => el.textContent)).toEqual([])
+  })
 })

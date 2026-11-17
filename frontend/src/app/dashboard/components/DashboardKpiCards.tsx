@@ -76,7 +76,7 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
           <Boxes className="size-5" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-400">Insumos Activos</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Insumos Activos</p>
           <p className="text-xl font-black text-gray-900 dark:text-white">
             {metrics.activeIngredientsCount} Insumos
           </p>
@@ -88,7 +88,7 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
           <margin.Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-400">Margen Promedio</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Margen Promedio</p>
           <p data-testid="average-margin" className={`text-xl font-black ${margin.text}`}>
             {formatPercent(metrics.averageMarginPercent)}
           </p>
