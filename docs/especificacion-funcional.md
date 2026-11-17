@@ -286,6 +286,10 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 - **Margen promedio robusto (`averageMarginPercent`):** se adopta la **mediana** del `marginPercent` de los productos activos (excluyendo borradores), calculada con `Prisma.Decimal` (`ROUND_HALF_UP` a 2 decimales).
   - *Por qué mediana y no promedio simple ni margen ponderado:* un precio mal cargado (por ejemplo, `$13` con costo `$3.854`, equivalente a `-29.546 %`) distorsiona un promedio simple; y como MargenX no registra volumen de ventas (ADR-004 / fuera de alcance POS), un margen ponderado por `salePrice` unitario sigue quedando dominado por una pérdida alta en comercios con pocos productos o precios unitarios bajos (como *Química GyJ*). La mediana mantiene un punto de quiebre del 50 % independientemente del tamaño del catálogo.
 
+### Reporte semanal de márgenes · *Disponible (API)*
+
+El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El workflow de envío semanal automático por correo sigue *Planificado*.
+
 ---
 
 ## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API)*
@@ -380,7 +384,8 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
 | Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
-| Reporte semanal de márgenes en PDF por correo y descarga desde la app | Planificado |
+| Reporte semanal de márgenes (API de datos y descarga PDF) | Disponible (API) |
+| Workflow automático semanal de reporte PDF por correo (n8n) | Planificado |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |

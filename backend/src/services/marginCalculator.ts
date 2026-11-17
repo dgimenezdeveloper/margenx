@@ -5,6 +5,9 @@ const Decimal = Prisma.Decimal;
 type DecimalType = Prisma.Decimal;
 
 const ZERO = new Decimal(0);
+const ONE = new Decimal(1);
+const HUNDRED = new Decimal(100);
+const FALLBACK_MARGIN_FACTOR = new Decimal('0.5');
 const MAX_MONEY_VALUE = new Decimal('99999999.99');
 const MIN_MONEY_VALUE = new Decimal('-99999999.99');
 // El campo de margen porcentual en Prisma admite hasta 8 enteros + 2 decimales.
@@ -155,6 +158,95 @@ export function calculateMedianMarginPercent(margins: DecimalType[]): DecimalTyp
 
   const lower = sorted[mid - 1] ?? ZERO;
   return roundMoney(lower.add(middle).div(2));
+}
+
+export interface CatalogProductHealthInput {
+  marginPercent: DecimalType | string | number | null | undefined;
+  minMarginPercent: DecimalType | string | number | null | undefined;
+  ingredientsCount: number;
+}
+
+export interface CatalogHealthSummary {
+  totalProducts: number;
+  criticalProductsCount: number;
+  healthyProductsCount: number;
+  averageMarginPercent: number;
+  lossCount: number;
+  riskCount: number;
+  targetCount: number;
+  surplusCount: number;
+  draftCount: number;
+}
+
+/** Resume la salud del catálogo con las reglas usadas por el dashboard. */
+export function calculateCatalogHealthSummary(
+  productRows: CatalogProductHealthInput[]
+): CatalogHealthSummary {
+  let lossCount = 0;
+  let riskCount = 0;
+  let targetCount = 0;
+  let surplusCount = 0;
+  let draftCount = 0;
+  const activeMargins: DecimalType[] = [];
+
+  for (const product of productRows) {
+    const marginPercent = new Decimal(product.marginPercent ?? 0);
+    const minMarginPercent = new Decimal(product.minMarginPercent ?? 0);
+    const bucket = classifyProductHealthBucket(
+      marginPercent,
+      minMarginPercent,
+      product.ingredientsCount
+    );
+
+    switch (bucket) {
+      case 'draft':
+        draftCount += 1;
+        break;
+      case 'loss':
+        lossCount += 1;
+        activeMargins.push(marginPercent);
+        break;
+      case 'risk':
+        riskCount += 1;
+        activeMargins.push(marginPercent);
+        break;
+      case 'target':
+        targetCount += 1;
+        activeMargins.push(marginPercent);
+        break;
+      case 'surplus':
+        surplusCount += 1;
+        activeMargins.push(marginPercent);
+        break;
+    }
+  }
+
+  return {
+    totalProducts: productRows.length,
+    criticalProductsCount: lossCount + riskCount,
+    healthyProductsCount: targetCount + surplusCount,
+    averageMarginPercent: calculateMedianMarginPercent(activeMargins).toNumber(),
+    lossCount,
+    riskCount,
+    targetCount,
+    surplusCount,
+    draftCount,
+  };
+}
+
+/** Calcula el precio requerido para alcanzar el margen mínimo objetivo. */
+export function calculateSuggestedSalePrice(
+  cost: DecimalType,
+  minMarginPercent: DecimalType
+): DecimalType {
+  if (cost.lte(ZERO)) {
+    return roundMoney(ZERO);
+  }
+
+  const factor = minMarginPercent.lt(HUNDRED)
+    ? ONE.sub(minMarginPercent.div(HUNDRED))
+    : FALLBACK_MARGIN_FACTOR;
+  return clampDecimal(roundMoney(cost.div(factor)), ZERO, MAX_MONEY_VALUE);
 }
 
 export interface IngredientCostChangeResult {
@@ -347,6 +439,8 @@ export default {
   calculateUnitCost,
   classifyProductHealthBucket,
   calculateMedianMarginPercent,
+  calculateCatalogHealthSummary,
+  calculateSuggestedSalePrice,
   applyIngredientCostChange,
   applyBatchIngredientCostChanges,
 };
