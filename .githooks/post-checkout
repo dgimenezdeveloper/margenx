@@ -1,0 +1,8 @@
+#!/bin/sh
+# Al cambiar de rama (git switch / git checkout <rama>), sincroniza Node, dependencias,
+# cliente de Prisma y migraciones locales (.devcontainer/scripts/sync-dev-env.sh).
+# $1: HEAD anterior, $2: HEAD nuevo, $3: 1 si cambió de rama (0 si solo restauró archivos).
+[ "$3" = "1" ] || exit 0
+[ "$1" = "$2" ] && exit 0
+bash "$(git rev-parse --show-toplevel)/.devcontainer/scripts/sync-dev-env.sh" --hook
+exit 0
