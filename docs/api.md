@@ -33,6 +33,7 @@ Esta especificación constituye la fuente única de verdad para el Frontend, las
 - `413 Payload Too Large`: Cuerpo de solicitud superior a la cuota permitida o más de 500 filas en carga masiva.
 - `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar el proveedor predeterminado sin asignar un reemplazo).
 - `500 Internal Server Error`: Excepción no controlada en servidor.
+- `502 Bad Gateway`: Falló un servicio externo del que depende la operación (hoy, la Backend API de Clerk al invitar, revocar o dar de baja). La operación no se aplicó y se puede reintentar.
 
 ---
 
@@ -75,6 +76,61 @@ Actualiza el margen objetivo global por defecto para la cuenta comercial.
     }
   }
   ```
+
+### Equipo de la cuenta: invitaciones y colaboradores
+
+El ADMIN invita a su personal por mail y lo da de baja (ADR-008). Todas estas rutas son **solo `ADMIN`** (`403` a colaboradores con `"Acceso denegado. Se requiere rol ADMIN."`) y operan siempre sobre la cuenta de `req.user`: el cliente nunca manda la cuenta ni el rol. Si la Backend API de Clerk falla, responden `502` con `"No pudimos comunicarnos con el servicio de cuentas. Probá de nuevo en unos minutos."` y no aplican cambios.
+
+**Primer inicio de sesión del invitado.** Al aceptar la invitación, Clerk copia sus metadatos (`{ accountId, role: "COLLABORATOR" }`) a `publicMetadata` del usuario. Cuando ese usuario llama a la API por primera vez y todavía no tiene fila en `User`, `authMiddleware` lee los metadatos con la clave secreta y crea el `User` con esa cuenta y ese rol. Responde `401` sin crear nada si no hay metadatos, si el rol no es `COLLABORATOR`, si la cuenta no existe o está inactiva, o si el correo ya pertenece a otro usuario.
+
+#### `POST /api/auth/invitations`
+Crea una invitación en Clerk **sin el mail de Clerk** (`notify: false`) y despacha el mail de MargenX a n8n (`N8N_INVITATION_WEBHOOK_URL`, workflow `infra/n8n/workflows/invitacion-colaborador.json`): en español, con la marca de MargenX, enviado por Brevo desde `alertas@margenx.tech`. El enlace de aceptación lleva a `<APP_BASE_URL>/login`, que con el ticket muestra el alta; si `APP_BASE_URL` no está definida, Clerk usa su portal. La invitación vence a los 30 días (valor por defecto de Clerk).
+
+Si el mail no sale (n8n no responde 2xx, no hay `N8N_INVITATION_WEBHOOK_URL`, como en local, o falta `INTERNAL_WEBHOOK_SECRET`), la invitación **igual queda creada** y la respuesta trae `emailSent: false`: el ADMIN copia el enlace (`url`) y lo manda por otro medio. `url` es el enlace de aceptación; lo recibe solo el ADMIN de la cuenta y el backend no lo registra en los logs.
+- **Body:** `{ "email": "cajera.quimica@seed.example.test" }`. Solo se acepta `email` (se recorta y se pasa a minúsculas, hasta 254 caracteres); cualquier otro campo, como `accountId` o `role`, da `400`.
+- **Respuesta 201:**
+  ```json
+  {
+    "invitation": {
+      "id": "inv_2abc",
+      "email": "cajera.quimica@seed.example.test",
+      "createdAt": "2026-11-16T12:00:00.000Z",
+      "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>"
+    },
+    "emailSent": true
+  }
+  ```
+  `url` es `null` si Clerk no devolvió el enlace; en ese caso no se intenta mandar el mail.
+- **Errores:** `400` `"Ingresá un correo electrónico válido."` (también si Clerk rechaza el formato del correo) · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` · `409` `"Ese correo ya tiene una cuenta o una invitación pendiente."` (lo informa Clerk) · `502`.
+
+#### `GET /api/auth/invitations`
+Invitaciones pendientes de la cuenta, de la más nueva a la más vieja.
+- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@seed.example.test", "createdAt": "2026-11-16T12:00:00.000Z", "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>" } ] }` (`url` puede ser `null`).
+- **Errores:** `502`.
+
+#### `DELETE /api/auth/invitations/:id`
+Revoca una invitación pendiente: el enlace del mail deja de funcionar.
+- **Respuesta 200:** `{ "message": "Invitación revocada correctamente." }`
+- **Errores:** `404` `"La invitación no existe o ya no está pendiente."` (también si es de otra cuenta) · `502`.
+
+#### `GET /api/auth/users`
+Usuarios activos de la cuenta, primero los administradores y después por fecha de alta. No expone `authProviderId`.
+- **Respuesta 200:**
+  ```json
+  {
+    "users": [
+      { "id": "uuid", "email": "admin@comercio.example", "role": "ADMIN", "createdAt": "2026-08-30T10:00:00.000Z" },
+      { "id": "uuid", "email": "colab.quimica@seed.example.test", "role": "COLLABORATOR", "createdAt": "2026-10-02T10:00:00.000Z" }
+    ]
+  }
+  ```
+
+#### `DELETE /api/auth/users/:id`
+Da de baja a un colaborador: borra su usuario en Clerk (cierra sus sesiones e impide que vuelva a entrar con la invitación) y después su fila en `User`. Si el usuario ya no existía en Clerk, completa la baja en la base.
+- **Respuesta 200:** `{ "message": "Colaborador dado de baja correctamente." }`
+- **Errores:** `404` `"El usuario no existe."` (también si es de otra cuenta) · `422` `"No podés darte de baja a vos mismo."` · `422` `"Solo se pueden dar de baja colaboradores."` · `502` (no borra la fila: se puede reintentar).
+
+Colección de Postman: `backend/tests/postman/MargenX - Colaboradores API.postman_collection.json` (`README-Colaboradores.md`).
 
 ---
 

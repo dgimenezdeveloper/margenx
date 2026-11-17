@@ -1,4 +1,5 @@
 import { fetchApi, type TokenGetter } from './api'
+import { buildPageQuery, fetchAllPages, resolveMeta, type PageMeta, type PageParams, type PageResult } from './pagination'
 
 export interface ProductIngredientInput {
   ingredientId: string
@@ -59,12 +60,7 @@ type RawProduct = Omit<
 interface ProductResponse {
   data?: RawProduct[]
   products?: RawProduct[]
-  meta?: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }
+  meta?: PageMeta
 }
 
 interface SingleProductResponse {
@@ -93,10 +89,14 @@ function normalizeProduct(product: RawProduct): Product {
   }
 }
 
+async function list(getToken: TokenGetter, params: PageParams): Promise<PageResult<Product>> {
+  const response = await fetchApi<ProductResponse>(`/products?${buildPageQuery(params)}`, getToken)
+  const items = (response.data ?? response.products ?? []).map(normalizeProduct)
+  return { items, meta: resolveMeta(response.meta, params, items.length) }
+}
+
 async function getAll(getToken: TokenGetter): Promise<Product[]> {
-  const response = await fetchApi<ProductResponse>('/products', getToken)
-  const list = response.data ?? response.products ?? []
-  return list.map(normalizeProduct)
+  return fetchAllPages((params) => list(getToken, params))
 }
 
 async function getById(id: string, getToken: TokenGetter): Promise<Product>
@@ -155,6 +155,7 @@ async function deleteProduct(arg1: string | TokenGetter, arg2: string | TokenGet
 }
 
 export const productService = {
+  list,
   getAll,
   getById,
   create,

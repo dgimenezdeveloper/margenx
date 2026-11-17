@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/services/api'
 import { supplierService, type SupplierDetail } from '@/services/supplierService'
 import SupplierDetailPage from './page'
+
+/** La búsqueda espera 300 ms antes de ir a la API: margen para entornos cargados. */
+const BUSQUEDA = { timeout: 3000 }
 
 const getToken = vi.fn().mockResolvedValue('token')
 
@@ -24,7 +27,7 @@ vi.mock('@/lib/useCurrentUser', () => ({
 
 vi.mock('@/services/supplierService', () => ({
   supplierService: {
-    getById: vi.fn(),
+    getPage: vi.fn(),
     addPackaging: vi.fn(),
     removePackaging: vi.fn(),
   },
@@ -82,6 +85,12 @@ const mockSupplier: SupplierDetail = {
   ],
 }
 
+/** Respuesta de GET /suppliers/:id con las presentaciones en una sola página. */
+const unaPagina = (supplier: SupplierDetail) => ({
+  supplier,
+  meta: { total: supplier.ingredients.length, page: 1, limit: 20, totalPages: supplier.ingredients.length === 0 ? 0 : 1 },
+})
+
 function renderPage(supplierId = 'sup-marjuanc') {
   return render(
     <MemoryRouter initialEntries={[`/proveedores/${supplierId}`]}>
@@ -95,7 +104,7 @@ function renderPage(supplierId = 'sup-marjuanc') {
 describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(supplierService.getById).mockResolvedValue(mockSupplier)
+    vi.mocked(supplierService.getPage).mockResolvedValue(unaPagina(mockSupplier))
   })
 
   it('Escenario Gherkin "Ver presentaciones": ve las cuatro con insumo, código y precio', async () => {
@@ -259,16 +268,80 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
 
   it('muestra estado de error con botón Reintentar si falla la carga inicial', async () => {
     const user = userEvent.setup()
-    vi.mocked(supplierService.getById).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    vi.mocked(supplierService.getPage).mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
     renderPage()
 
     expect(await screen.findByText('Error al cargar el proveedor')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument()
 
-    vi.mocked(supplierService.getById).mockResolvedValueOnce(mockSupplier)
+    vi.mocked(supplierService.getPage).mockResolvedValueOnce(unaPagina(mockSupplier))
     await user.click(screen.getByRole('button', { name: /reintentar/i }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Distribuidora MarJuanC Alimentos' })).toBeInTheDocument()
+  })
+})
+describe('SupplierDetailPage - presentaciones paginadas y búsqueda (#350)', () => {
+  const TOTAL = 67
+  const presentacion = (i: number) => ({
+    id: `si-${i}`,
+    supplierCode: `ART${String(i).padStart(3, '0')}`,
+    rawDescription: `ARTICULO ${i}`,
+    packageSize: 25,
+    packageUnit: 'kg',
+    packagePrice: 18406.25,
+    isDefault: i % 2 === 0,
+    isQuarantined: i === 66,
+    ingredient: { id: `ing-${i}`, name: `Harina de trigo 000 lote ${i}`, unit: 'kg' },
+  })
+  const semillas = { ...presentacion(60), id: 'si-sesamo', ingredient: { id: 'ing-sesamo', name: 'Semillas de sésamo La Molinera', unit: 'kg' } }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supplierService.getPage).mockImplementation(async (_getToken, _id, params) => {
+      if (params.search) {
+        return { supplier: { ...mockSupplier, ingredients: [semillas] }, meta: { total: 1, page: 1, limit: params.limit, totalPages: 1 } }
+      }
+      const start = (params.page - 1) * params.limit
+      const ingredients = Array.from({ length: Math.min(params.limit, TOTAL - start) }, (_, i) => presentacion(start + i))
+      return {
+        supplier: { ...mockSupplier, ingredients },
+        meta: { total: TOTAL, page: params.page, limit: params.limit, totalPages: Math.ceil(TOTAL / params.limit) },
+      }
+    })
+  })
+
+  it('muestra 20 de 67 presentaciones con paginador y contadores sobre el total', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Presentaciones del proveedor (67)')).toBeInTheDocument()
+    expect(screen.getByText('Mostrando 1–20 de 67 presentaciones')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Presentaciones mayoristas' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(20)
+
+    // Predeterminadas y en cuarentena se cuentan sobre las 67, no sobre la página visible.
+    const predeterminadas = within(screen.getByText('Predeterminadas').parentElement as HTMLElement)
+    await waitFor(() => expect(predeterminadas.getByText('34')).toBeInTheDocument())
+    expect(within(screen.getByText('En cuarentena').parentElement as HTMLElement).getByText('1')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
+    expect(await screen.findByText('Mostrando 21–40 de 67 presentaciones')).toBeInTheDocument()
+    expect(supplierService.getPage).toHaveBeenCalledWith(expect.any(Function), 'sup-marjuanc', { page: 2, limit: 20, search: '' })
+  })
+
+  it('busca presentaciones en la API y avisa si no hay coincidencias', async () => {
+    renderPage()
+    await screen.findByText('Mostrando 1–20 de 67 presentaciones')
+
+    fireEvent.change(screen.getByLabelText('Buscar presentaciones por insumo o código'), { target: { value: 'sesamo' } })
+    expect(await screen.findByText('Semillas de sésamo La Molinera', undefined, BUSQUEDA)).toBeInTheDocument()
+    expect(supplierService.getPage).toHaveBeenLastCalledWith(expect.any(Function), 'sup-marjuanc', { page: 1, limit: 20, search: 'sesamo' })
+
+    vi.mocked(supplierService.getPage).mockResolvedValueOnce({
+      supplier: { ...mockSupplier, ingredients: [] },
+      meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+    })
+    fireEvent.change(screen.getByLabelText('Buscar presentaciones por insumo o código'), { target: { value: 'azafran' } })
+    expect(await screen.findByText('No hay presentaciones que coincidan con "azafran".', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 })

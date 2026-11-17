@@ -2,6 +2,8 @@
 
 Este documento describe la experiencia operativa y los límites de visibilidad para los usuarios con rol **Colaborador** (personal de mostrador, cajeros y encargados de salón).
 
+El colaborador entra por invitación del administrador: cómo invitarlo y darlo de baja está en [Colaboradores](05-colaboradores.md).
+
 ## Propósito y Filosofía de Diseño
 
 En los comercios gastronómicos y de manufactura, el personal de atención al público necesita consultar rápidamente los precios de venta actualizados para cobrar y atender a los clientes, pero **no debe tener acceso a la información financiera confidencial del negocio**: costos de materia prima, márgenes de rentabilidad, fórmulas técnicas ni acuerdos comerciales con distribuidores.
@@ -23,7 +25,7 @@ MargenX implementa un blindaje de doble capa:
 | **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** Redirige forzosamente a `/productos` |
 | **Proveedores (`/proveedores`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** Redirige forzosamente a `/productos` |
 | **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** Redirige forzosamente a `/productos` |
-| **Perfil (`/perfil`)** | Configuración de margen y estado de alertas n8n | Datos de usuario y comercio; sin umbrales ni alertas |
+| **Perfil (`/perfil`)** | Configuración de margen, estado de alertas n8n y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
 
 <!-- [CAPTURA 360PX SUGERIDA: 03-colaborador-productos.webp | Pantalla /productos navegada por un COLLABORATOR mostrando únicamente nombres y precios de venta al público, sin costos ni porcentajes] -->
 

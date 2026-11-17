@@ -1,6 +1,6 @@
 # Cómo ejecutar las 10 colecciones de Postman
 
-Issue #264. Las 10 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264 (la de Colaboradores se sumó en #395 y Compras en #388). Las 10 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -14,6 +14,7 @@ Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar 
 | Alertas de margen (Insumos) | `./run-tests-alertas-margen.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 | Cuarentena API | `INTERNAL_WEBHOOK_SECRET=<secreto> ./run-tests-cuarentena.sh <token_A>` | Token de `panaderia-admin` y el mismo `INTERNAL_WEBHOOK_SECRET` del `.env` del backend |
 | Dashboard API | `./run-tests-dashboard.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
+| Colaboradores API | `./run-tests-colaboradores.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` (misma cuenta) |
 | Compras API | `./run-tests-compras.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 
 ## Generar los tokens de Clerk
