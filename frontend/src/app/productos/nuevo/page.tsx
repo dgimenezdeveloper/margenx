@@ -306,7 +306,7 @@ export default function NewProductPage() {
   const previewSubtotal = selectedSupply ? previewBaseQty * selectedSupply.currentCost : 0
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 pb-44 pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
+    <main className="min-h-screen bg-gray-50 px-4 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
         <ToastAlert
           key={`${toast.type}-${toast.message}`}
