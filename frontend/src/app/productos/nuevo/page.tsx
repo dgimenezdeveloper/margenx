@@ -425,13 +425,14 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
-                  <label htmlFor="new-product-supply-dropdown-btn" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5">
+                  <span id="new-product-supply-label" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5">
                     Seleccionar Insumo de la Despensa
-                  </label>
+                  </span>
 
                   <button
                     id="new-product-supply-dropdown-btn"
-                    aria-label="Seleccionar Insumo de la Despensa"
+                    // El nombre accesible suma la etiqueta y el insumo elegido: con aria-label se perdía cuál está seleccionado.
+                    aria-labelledby="new-product-supply-label new-product-supply-dropdown-btn"
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     disabled={isLoadingSupplies || supplies.length === 0}
