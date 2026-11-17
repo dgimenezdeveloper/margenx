@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/clerk-react'
 import { useState, useMemo } from 'react'
 import { ChevronDown, LoaderCircle, Plus, Search, X } from 'lucide-react'
 import type { Ingredient } from '@/services/ingredientService'
@@ -5,6 +6,7 @@ import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { getAvailableRecipeUnits, convertToBaseQty } from '@/lib/recipeConversion'
 import { formatMoney, formatQuantityWithUnit, formatUnit } from '@/lib/format'
+import { useIngredientSearch } from '@/hooks/useIngredientSearch'
 
 const money = (val: number) => formatMoney(val)
 
@@ -33,13 +35,20 @@ export function ProductAddIngredientModal({
     return unit === 'gr' ? '50' : unit === 'ml' ? '30' : '1'
   })
 
+  const { getToken } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  // Insumo elegido desde la búsqueda en la API: puede no estar en la lista cargada.
+  const [pickedSupply, setPickedSupply] = useState<Ingredient | null>(null)
+  const { results: remoteResults, isSearching } = useIngredientSearch(getToken, searchQuery)
 
   const currentSupply = useMemo(
-    () => availablePantry.find((p) => p.id === selectedSupplyId) || availablePantry[0],
-    [availablePantry, selectedSupplyId]
+    () =>
+      (pickedSupply?.id === selectedSupplyId ? pickedSupply : undefined) ??
+      availablePantry.find((p) => p.id === selectedSupplyId) ??
+      availablePantry[0],
+    [availablePantry, pickedSupply, selectedSupplyId]
   )
 
   const availableUnits = useMemo(
@@ -47,13 +56,11 @@ export function ProductAddIngredientModal({
     [currentSupply]
   )
 
-  const filteredSupplies = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    if (!q) return availablePantry
-    return availablePantry.filter((s) => s.name.toLowerCase().includes(q))
-  }, [availablePantry, searchQuery])
+  // Con texto, el selector busca en la API (sin tildes ni mayúsculas) y no solo en lo cargado.
+  const filteredSupplies = searchQuery.trim() ? (remoteResults ?? []) : availablePantry
 
   const handleSelectSupply = (supply: Ingredient) => {
+    setPickedSupply(supply)
     setSelectedSupplyId(supply.id)
     const units = getAvailableRecipeUnits(supply.unit)
     setRecipeUnit(units[0] || supply.unit)
@@ -145,7 +152,9 @@ export function ProductAddIngredientModal({
                 </div>
                 <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 p-1 dark:divide-gray-800">
                   {filteredSupplies.length === 0 ? (
-                    <div className="p-4 text-center text-xs font-semibold text-gray-400">No se encontraron insumos.</div>
+                    <div className="p-4 text-center text-xs font-semibold text-gray-400" aria-live="polite">
+                      {isSearching ? 'Buscando insumos...' : 'No se encontraron insumos.'}
+                    </div>
                   ) : (
                     filteredSupplies.map((supply) => (
                       <button

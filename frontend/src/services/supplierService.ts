@@ -1,4 +1,5 @@
 import { fetchApi, type TokenGetter } from './api'
+import { buildPageQuery, resolveMeta, type PageMeta, type PageParams } from './pagination'
 import type { Ingredient } from './ingredientService'
 import type { SupplierPayload } from '@/schemas/supplierSchema'
 
@@ -165,6 +166,20 @@ export const supplierService = {
   async getById(getToken: TokenGetter, id: string): Promise<SupplierDetail> {
     const response = await fetchApi<{ supplier: SupplierDetail }>(`/suppliers/${id}`, getToken)
     return response.supplier
+  },
+
+  /** Ficha del proveedor con sus presentaciones paginadas y filtradas en la API. */
+  async getPage(
+    getToken: TokenGetter,
+    id: string,
+    params: PageParams
+  ): Promise<{ supplier: SupplierDetail; meta: PageMeta }> {
+    const response = await fetchApi<{ supplier: SupplierDetail; meta?: PageMeta }>(
+      `/suppliers/${id}?${buildPageQuery(params)}`,
+      getToken
+    )
+    const received = response.supplier.ingredients?.length ?? 0
+    return { supplier: response.supplier, meta: resolveMeta(response.meta, params, received) }
   },
 
   async create(

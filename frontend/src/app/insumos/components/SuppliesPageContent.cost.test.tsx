@@ -27,12 +27,19 @@ vi.mock('@/lib/useCurrentUser', () => ({
 }))
 
 vi.mock('@/services/ingredientService', () => ({
-  ingredientService: { getAll: vi.fn(), create: vi.fn() },
+  ingredientService: { getAll: vi.fn(), list: vi.fn(), create: vi.fn() },
 }))
 
 vi.mock('@/services/supplierService', () => ({
   supplierService: { getQuarantine: vi.fn() },
 }))
+
+
+/** Respuesta paginada de GET /ingredients con una sola página. */
+const pagina = <T,>(items: T[]) => ({
+  items,
+  meta: { total: items.length, page: 1, limit: 20, totalPages: items.length === 0 ? 0 : 1 },
+})
 
 const HARINA: Ingredient = {
   id: 'ing-1',
@@ -66,7 +73,7 @@ async function crearMantecaConCosto(costoTipeado: string) {
 describe('SuppliesPageContent - costo escrito en es-AR (#359, [RV377-B1])', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(ingredientService.getAll).mockResolvedValue([HARINA])
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([HARINA]))
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
     vi.mocked(ingredientService.create).mockImplementation(async (_getToken, input) => ({
       id: 'ing-2',

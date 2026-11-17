@@ -55,6 +55,18 @@ Pensado para **actualizar periódicamente los costos** de insumos que ya tenés 
 
 ---
 
+## Buscar y recorrer el catálogo
+
+Insumos, Productos y la ficha de cada proveedor muestran el catálogo de a 20 filas, aunque tengas cientos cargados.
+
+- **Contador:** la tarjeta "Insumos activos" y el texto "Mostrando 1–20 de 218 insumos" cuentan todo lo cargado, no solo lo que se ve en pantalla.
+- **Buscar:** escribí parte del nombre en el buscador. La búsqueda recorre todo el catálogo, no solo la página visible, e ignora tildes y mayúsculas: "sesamo" encuentra "Semillas de sésamo La Molinera". Los resultados aparecen apenas dejás de escribir.
+- **En la computadora:** debajo de la lista, elegí cuántas filas ver (20, 50 o 100) y pasá de página con las flechas "Página anterior" y "Página siguiente".
+- **En el celular:** al final de la lista, tocá **Cargar más** para sumar las 20 filas siguientes sin perder las que ya veías.
+- **En la receta:** al elegir un insumo para un producto (alta o edición), escribí en "Filtrar por nombre..." y el selector busca en todos tus insumos.
+
+---
+
 ## Cómo escribir importes y cantidades
 
 Para facilitar la carga de datos y evitar errores, MargenX está adaptado al formato numérico de uso común en Argentina:

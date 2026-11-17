@@ -1,4 +1,5 @@
 import { fetchApi, type TokenGetter } from './api'
+import { buildPageQuery, fetchAllPages, resolveMeta, type PageMeta, type PageParams, type PageResult } from './pagination'
 import { type SupplierIngredient } from './supplierService'
 
 export interface Ingredient {
@@ -58,12 +59,7 @@ type RawPriceHistory = Omit<PriceHistory, 'oldCost' | 'newCost'> & { oldCost: nu
 interface IngredientResponse {
   data?: RawIngredient[]
   ingredients?: RawIngredient[]
-  meta?: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }
+  meta?: PageMeta
 }
 
 interface SingleIngredientResponse {
@@ -107,11 +103,19 @@ function normalizeHistory(history: RawPriceHistory): PriceHistory {
   return { ...history, oldCost: Number(history.oldCost), newCost: Number(history.newCost) }
 }
 
+async function list(getToken: TokenGetter, params: PageParams): Promise<PageResult<Ingredient>> {
+  const response = await fetchApi<IngredientResponse>(`/ingredients?${buildPageQuery(params)}`, getToken)
+  const items = (response.data ?? response.ingredients ?? []).map(normalizeIngredient)
+  return { items, meta: resolveMeta(response.meta, params, items.length) }
+}
+
 export const ingredientService = {
+  /** Una página del catálogo, con búsqueda en la API (sin tildes ni mayúsculas). */
+  list,
+
+  /** Catálogo completo: recorre todas las páginas (selector de la receta, detección de duplicados). */
   async getAll(getToken: TokenGetter): Promise<Ingredient[]> {
-    const response = await fetchApi<IngredientResponse>('/ingredients', getToken)
-    const list = response.data ?? response.ingredients ?? []
-    return list.map(normalizeIngredient)
+    return fetchAllPages((params) => list(getToken, params))
   },
 
   async getById(getToken: TokenGetter, id: string): Promise<Ingredient> {

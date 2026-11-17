@@ -2,17 +2,19 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useEffect, type KeyboardEvent } from 'react'
+import { useCallback, type KeyboardEvent } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ChevronRight, LoaderCircle, Package, Plus, Search } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { Pagination } from '@/components/pagination'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { MarginBadge } from '@/components/MarginBadge'
 import { useCurrentUser } from '@/lib/useCurrentUser'
-import { ApiError } from '@/services/api'
-import { productService, type Product } from '@/services/productService'
+import type { PageParams } from '@/services/pagination'
+import { productService } from '@/services/productService'
 import { formatMoney } from '@/lib/format'
 
 const money = (val: number) => formatMoney(val)
@@ -23,42 +25,27 @@ export default function ProductsPage() {
   const { user } = useCurrentUser()
   const isCollaborator = user?.role === 'COLLABORATOR'
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
+  // La API pagina y busca sin tildes ni mayúsculas; los contadores leen meta.total.
+  const fetchProducts = useCallback((params: PageParams) => productService.list(getToken, params), [getToken])
+  const {
+    items: products,
+    meta,
+    error: loadError,
+    isLoading,
+    isLoadingMore,
+    page,
+    limit,
+    search: query,
+    appliedSearch,
+    hasMore,
+    setSearch: setQuery,
+    goToPage,
+    setLimit,
+    loadMore,
+  } = usePaginatedList(fetchProducts, { errorMessage: 'No se pudieron cargar los productos.' })
 
-  useEffect(() => {
-    let active = true
-    productService
-      .getAll(getToken)
-      .then((items) => {
-        if (active) setProducts(items)
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setLoadError(
-            error instanceof ApiError ? error.message : 'No se pudieron cargar los productos.'
-          )
-        }
-      })
-      .finally(() => {
-        if (active) setIsLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const filtered = useMemo(
-    () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
-    [products, query]
-  )
-
-  const isTotalEmpty = !isLoading && products.length === 0
-  const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
+  const isTotalEmpty = !isLoading && meta?.total === 0 && !appliedSearch
+  const isSearchEmpty = !isLoading && meta?.total === 0 && Boolean(appliedSearch)
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, productId: string) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -152,7 +139,7 @@ export default function ProductsPage() {
               <EmptyState
                 icon={<Search className="size-6" />}
                 title="No se encontraron resultados"
-                description={`No hay productos que coincidan con la búsqueda "${query}".`}
+                description={`No hay productos que coincidan con la búsqueda "${appliedSearch}".`}
               />
             )}
 
@@ -160,7 +147,7 @@ export default function ProductsPage() {
               <>
                 {/* VERSIÓN MOBILE */}
                 <div className="grid grid-cols-1 gap-3 md:hidden">
-                  {filtered.map((product) => (
+                  {products.map((product) => (
                     <Link
                       key={product.id}
                       href={`/productos/${product.id}`}
@@ -215,7 +202,7 @@ export default function ProductsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {filtered.map((product) => (
+                      {products.map((product) => (
                         <tr
                           key={product.id}
                           tabIndex={0}
@@ -254,6 +241,22 @@ export default function ProductsPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {meta && (
+                  <Pagination
+                    page={page}
+                    totalPages={meta.totalPages}
+                    total={meta.total}
+                    limit={limit}
+                    shown={products.length}
+                    itemLabel="productos"
+                    hasMore={hasMore}
+                    isLoadingMore={isLoadingMore}
+                    onPageChange={goToPage}
+                    onLimitChange={setLimit}
+                    onLoadMore={loadMore}
+                  />
+                )}
               </>
             )}
           </section>
