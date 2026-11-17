@@ -33,6 +33,7 @@ Esta especificación constituye la fuente única de verdad para el Frontend, las
 - `413 Payload Too Large`: Cuerpo de solicitud superior a la cuota permitida o más de 500 filas en carga masiva.
 - `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar el proveedor predeterminado sin asignar un reemplazo).
 - `500 Internal Server Error`: Excepción no controlada en servidor.
+- `502 Bad Gateway`: Falló un servicio externo del que depende la operación (hoy, la Backend API de Clerk al invitar, revocar o dar de baja). La operación no se aplicó y se puede reintentar.
 
 ---
 
@@ -75,6 +76,61 @@ Actualiza el margen objetivo global por defecto para la cuenta comercial.
     }
   }
   ```
+
+### Equipo de la cuenta: invitaciones y colaboradores
+
+El ADMIN invita a su personal por mail y lo da de baja (ADR-008). Todas estas rutas son **solo `ADMIN`** (`403` a colaboradores con `"Acceso denegado. Se requiere rol ADMIN."`) y operan siempre sobre la cuenta de `req.user`: el cliente nunca manda la cuenta ni el rol. Si la Backend API de Clerk falla, responden `502` con `"No pudimos comunicarnos con el servicio de cuentas. Probá de nuevo en unos minutos."` y no aplican cambios.
+
+**Primer inicio de sesión del invitado.** Al aceptar la invitación, Clerk copia sus metadatos (`{ accountId, role: "COLLABORATOR" }`) a `publicMetadata` del usuario. Cuando ese usuario llama a la API por primera vez y todavía no tiene fila en `User`, `authMiddleware` lee los metadatos con la clave secreta y crea el `User` con esa cuenta y ese rol. Responde `401` sin crear nada si no hay metadatos, si el rol no es `COLLABORATOR`, si la cuenta no existe o está inactiva, o si el correo ya pertenece a otro usuario.
+
+#### `POST /api/auth/invitations`
+Crea una invitación en Clerk **sin el mail de Clerk** (`notify: false`) y despacha el mail de MargenX a n8n (`N8N_INVITATION_WEBHOOK_URL`, workflow `infra/n8n/workflows/invitacion-colaborador.json`): en español, con la marca de MargenX, enviado por Brevo desde `alertas@margenx.tech`. El enlace de aceptación lleva a `<APP_BASE_URL>/login`, que con el ticket muestra el alta; si `APP_BASE_URL` no está definida, Clerk usa su portal. La invitación vence a los 30 días (valor por defecto de Clerk).
+
+Si el mail no sale (n8n no responde 2xx, no hay `N8N_INVITATION_WEBHOOK_URL`, como en local, o falta `INTERNAL_WEBHOOK_SECRET`), la invitación **igual queda creada** y la respuesta trae `emailSent: false`: el ADMIN copia el enlace (`url`) y lo manda por otro medio. `url` es el enlace de aceptación; lo recibe solo el ADMIN de la cuenta y el backend no lo registra en los logs.
+- **Body:** `{ "email": "cajera.quimica@seed.example.test" }`. Solo se acepta `email` (se recorta y se pasa a minúsculas, hasta 254 caracteres); cualquier otro campo, como `accountId` o `role`, da `400`.
+- **Respuesta 201:**
+  ```json
+  {
+    "invitation": {
+      "id": "inv_2abc",
+      "email": "cajera.quimica@seed.example.test",
+      "createdAt": "2026-11-16T12:00:00.000Z",
+      "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>"
+    },
+    "emailSent": true
+  }
+  ```
+  `url` es `null` si Clerk no devolvió el enlace; en ese caso no se intenta mandar el mail.
+- **Errores:** `400` `"Ingresá un correo electrónico válido."` (también si Clerk rechaza el formato del correo) · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` · `409` `"Ese correo ya tiene una cuenta o una invitación pendiente."` (lo informa Clerk) · `502`.
+
+#### `GET /api/auth/invitations`
+Invitaciones pendientes de la cuenta, de la más nueva a la más vieja.
+- **Respuesta 200:** `{ "invitations": [ { "id": "inv_2abc", "email": "cajera.quimica@seed.example.test", "createdAt": "2026-11-16T12:00:00.000Z", "url": "https://<instancia>.clerk.accounts.dev/v1/tickets/accept?ticket=<ticket>" } ] }` (`url` puede ser `null`).
+- **Errores:** `502`.
+
+#### `DELETE /api/auth/invitations/:id`
+Revoca una invitación pendiente: el enlace del mail deja de funcionar.
+- **Respuesta 200:** `{ "message": "Invitación revocada correctamente." }`
+- **Errores:** `404` `"La invitación no existe o ya no está pendiente."` (también si es de otra cuenta) · `502`.
+
+#### `GET /api/auth/users`
+Usuarios activos de la cuenta, primero los administradores y después por fecha de alta. No expone `authProviderId`.
+- **Respuesta 200:**
+  ```json
+  {
+    "users": [
+      { "id": "uuid", "email": "admin@comercio.example", "role": "ADMIN", "createdAt": "2026-08-30T10:00:00.000Z" },
+      { "id": "uuid", "email": "colab.quimica@seed.example.test", "role": "COLLABORATOR", "createdAt": "2026-10-02T10:00:00.000Z" }
+    ]
+  }
+  ```
+
+#### `DELETE /api/auth/users/:id`
+Da de baja a un colaborador: borra su usuario en Clerk (cierra sus sesiones e impide que vuelva a entrar con la invitación) y después su fila en `User`. Si el usuario ya no existía en Clerk, completa la baja en la base.
+- **Respuesta 200:** `{ "message": "Colaborador dado de baja correctamente." }`
+- **Errores:** `404` `"El usuario no existe."` (también si es de otra cuenta) · `422` `"No podés darte de baja a vos mismo."` · `422` `"Solo se pueden dar de baja colaboradores."` · `502` (no borra la fila: se puede reintentar).
+
+Colección de Postman: `backend/tests/postman/MargenX - Colaboradores API.postman_collection.json` (`README-Colaboradores.md`).
 
 ---
 
@@ -527,5 +583,130 @@ Endpoint de recepción en lote para el orquestador satélite n8n.
     "discardedCodes": [{ "code": "SKU-AJENO", "reason": "NOT_FOUND" }],
     "account": { "tradeName": "Panadería Central", "ownerEmail": "admin@panaderia.example" },
     "criticalProductsAlerts": []
+  }
+  ```
+
+---
+
+## 10. Módulo Compras Sugeridas — Smart Purchasing (`/api/purchasing`)
+
+Todas las rutas de este módulo son exclusivas para `ADMIN` (responden `403 Forbidden` a colaboradores), están acotadas por `accountId` y son de **solo lectura**: las sugerencias no modifican `Ingredient.currentCost` (ADR-005).
+
+### `GET /api/purchasing/suggestions`
+Compara las presentaciones activas y no en cuarentena de cada insumo contra su presentación predeterminada, calculando el ahorro por unidad (`$` y `%`) y por bulto mediante `calculateUnitCost` (`Prisma.Decimal`, `ROUND_HALF_UP`).
+- **Exclusiones:** las presentaciones de proveedores inactivos no participan; las presentaciones en cuarentena no compiten como más baratas y se informan aparte en `quarantinedExcluded`.
+- **Decisión de alcance:** MargenX no registra stock ni consumo, por lo que el ahorro se informa por unidad y por bulto (nunca como ahorro mensual).
+- **Respuesta 200:**
+  ```json
+  {
+    "summary": {
+      "withSavingsCount": 1,
+      "alreadyBestPriceCount": 2,
+      "singleSupplierCount": 7,
+      "withoutEligibleSupplierCount": 0,
+      "withoutActiveDefaultCount": 0,
+      "quarantinedExcludedCount": 0
+    },
+    "byIngredient": [
+      {
+        "ingredientId": "uuid",
+        "ingredientName": "Harina 000",
+        "unit": "kg",
+        "currentCost": "900.00",
+        "defaultPresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierId": "uuid",
+          "supplierName": "Molino Cañuelas",
+          "supplierCode": "MC-990",
+          "rawDescription": null,
+          "packageSize": "50",
+          "packageUnit": "kg",
+          "packagePrice": "45000.00",
+          "unitCost": "900.00"
+        },
+        "cheapestPresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierId": "uuid",
+          "supplierName": "Distribuidora del Centro",
+          "supplierCode": "5521",
+          "rawDescription": null,
+          "packageSize": "25",
+          "packageUnit": "kg",
+          "packagePrice": "22000.00",
+          "unitCost": "880.00"
+        },
+        "savingsPerUnit": "20.00",
+        "savingsPercent": "2.22",
+        "packageSavings": "500.00"
+      }
+    ],
+    "bySupplier": [
+      {
+        "supplierId": "uuid",
+        "supplierName": "Distribuidora del Centro",
+        "contactPhone": null,
+        "email": null,
+        "address": null,
+        "itemsCount": 1,
+        "totalPackageSavings": "500.00",
+        "items": []
+      }
+    ],
+    "alreadyBestPrice": [],
+    "singleSupplier": [],
+    "quarantinedExcluded": []
+  }
+  ```
+
+### `POST /api/purchasing/order-preview`
+Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto a comprar todo a la presentación predeterminada. No persiste nada en base de datos.
+- **Body:**
+  ```json
+  {
+    "items": [
+      { "supplierIngredientId": "uuid", "packages": 2 }
+    ]
+  }
+  ```
+- **Reglas de validación:** `items` entre 1 y 500 elementos, sin repetir `supplierIngredientId` (400 Bad Request). `packages` entero entre `1` y `100.000` (400 Bad Request).
+- **Cálculo de ahorro (`savings` / `totalSavings`):** representa el ahorro neto respecto a comprar la misma cantidad total a la presentación predeterminada activa de cada insumo (`baseline - subtotal`). Si se selecciona una presentación más cara que la predeterminada, el valor será negativo (sobrecosto); si el insumo no tiene presentación predeterminada activa, `defaultUnitCost` es `null` y el ahorro de esa línea es `"0.00"`.
+- **Errores de dominio:** si alguna presentación no existe o pertenece a otra cuenta → `404 Not Found`; si el proveedor está inactivo o la presentación está en cuarentena → `422 Unprocessable Entity`.
+- **Respuesta 200:**
+  ```json
+  {
+    "groups": [
+      {
+        "supplierId": "uuid",
+        "supplierName": "Distribuidora del Centro",
+        "contactPhone": null,
+        "email": null,
+        "address": null,
+        "subtotal": "44000.00",
+        "savings": "1000.00",
+        "items": [
+          {
+            "supplierIngredientId": "uuid",
+            "ingredientId": "uuid",
+            "ingredientName": "Harina 000",
+            "unit": "kg",
+            "supplierCode": "5521",
+            "rawDescription": null,
+            "packageSize": "25",
+            "packageUnit": "kg",
+            "packagePrice": "22000.00",
+            "unitCost": "880.00",
+            "packages": 2,
+            "totalQuantity": "50",
+            "subtotal": "44000.00",
+            "defaultUnitCost": "900.00",
+            "savings": "1000.00"
+          }
+        ]
+      }
+    ],
+    "total": "44000.00",
+    "totalSavings": "1000.00",
+    "totalPackages": 2,
+    "itemsCount": 1
   }
   ```

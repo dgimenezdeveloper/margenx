@@ -123,3 +123,7 @@ Quien hace el Squash and Merge revisa el mensaje que propone GitHub y borra cual
 ### 6.3. En la revisión
 
 `/revisar-pr` (`.claude/commands/revisar-pr.md` §7.7) busca estas marcas en los mensajes y en los autores de los commits, y en el título y la descripción del PR. `docs/process/revision-de-prs.md` §5 las incluye en lo que se revisa siempre.
+## 7. Entorno sincronizado del DevContainer
+
+Al cambiar de rama, traer `develop` o abrir VS Code o Cursor, el DevContainer alinea solo la versión de Node con `.nvmrc`, las dependencias, el cliente de Prisma y las migraciones de la base local (`.devcontainer/scripts/sync-dev-env.sh` y hooks en `.githooks/`). Detalle y cómo saltearlo en `README.md`, sección "Entorno sincronizado". Si cambiás `package-lock.json`, `schema.prisma` o agregás una migración, el resto del equipo los recibe aplicados en su próximo `git switch` o `git pull`, sin pasos manuales.
+

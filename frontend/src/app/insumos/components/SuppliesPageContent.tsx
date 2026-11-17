@@ -3,7 +3,7 @@
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { Pagination } from '@/components/pagination'
 import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
 import { PriceHistoryModal } from '@/components/price-history-modal'
@@ -19,6 +20,8 @@ import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
 import { formatMoney } from '@/lib/format'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
+import type { PageParams } from '@/services/pagination'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
@@ -33,8 +36,6 @@ const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => formatMoney(val)
 /** El costo guardado se muestra con coma decimal y sin separador de miles: "2179,13". */
 const toCostInput = (val: number | string) => String(val).replace('.', ',')
-const sortIngredients = (ingredients: Ingredient[]) =>
-  [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
 let toastIdCounter = 0
 
@@ -53,12 +54,29 @@ export default function SuppliesPageContent() {
   // La carga masiva es solo del administrador: mientras el rol no se conoce, no se muestra.
   const canBulkUpload = user?.role === 'ADMIN'
 
-  const [supplies, setSupplies] = useState<Ingredient[]>([])
+  // La API pagina y busca (sin tildes ni mayúsculas); la tarjeta de insumos activos lee meta.total.
+  const fetchSupplies = useCallback((params: PageParams) => ingredientService.list(getToken, params), [getToken])
+  const {
+    items: supplies,
+    meta,
+    catalogTotal,
+    error: loadError,
+    isLoading,
+    isLoadingMore,
+    page,
+    limit,
+    search: query,
+    appliedSearch,
+    hasMore,
+    setSearch: setQuery,
+    goToPage,
+    setLimit,
+    loadMore,
+    reload: reloadSupplies,
+    setItems: setSupplies,
+  } = usePaginatedList(fetchSupplies, { errorMessage: 'No se pudieron cargar los insumos.' })
   const [quarantineCount, setQuarantineCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-  const [query, setQuery] = useState('')
+  const [bulkCatalog, setBulkCatalog] = useState<Ingredient[]>([])
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -71,49 +89,30 @@ export default function SuppliesPageContent() {
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
-  const handleRetry = () => {
-    setIsLoading(true)
-    setLoadError(null)
-    setReloadKey((prev) => prev + 1)
+  const handleRetry = reloadSupplies
+
+  // La detección de duplicados de la planilla necesita el catálogo completo, no solo la página visible.
+  const openBulkModal = () => {
+    ingredientService
+      .getAll(getToken)
+      .then(setBulkCatalog)
+      .catch(() => setBulkCatalog([]))
+      .finally(() => setShowBulkModal(true))
   }
 
-  // Tras la carga masiva se recarga la lista sin reemplazarla por el indicador de carga.
-  const refreshSupplies = () => setReloadKey((prev) => prev + 1)
-  const openBulkModal = () => setShowBulkModal(true)
-
   useEffect(() => {
+    if (isCollaborator) return
     let active = true
-
-    Promise.all([
-      ingredientService.getAll(getToken),
-      !isCollaborator
-        ? supplierService.getQuarantine(getToken).catch(() => [])
-        : Promise.resolve([]),
-    ])
-      .then(([ingredients, quarantined]) => {
-        if (active) {
-          setSupplies(sortIngredients(ingredients ?? []))
-          setQuarantineCount(quarantined.length)
-        }
+    supplierService
+      .getQuarantine(getToken)
+      .then((quarantined) => {
+        if (active) setQuarantineCount(quarantined.length)
       })
-      .catch((error: unknown) => {
-        if (active) {
-          const msg = error instanceof ApiError ? error.message : 'No se pudieron cargar los insumos.'
-          setLoadError(msg)
-          setSupplies([])
-          setQuarantineCount(0)
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false)
-        }
-      })
-
+      .catch(() => undefined)
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator, reloadKey])
+  }, [getToken, isCollaborator])
 
   useEffect(() => {
     if (!currentToast && toastQueue.length > 0) {
@@ -181,12 +180,8 @@ export default function SuppliesPageContent() {
 
   const selectedUnit = useWatch({ control, name: 'unit' })
 
-  const filtered = useMemo(
-    () => supplies.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())),
-    [supplies, query]
-  )
-  const isTotalEmpty = !isLoading && supplies.length === 0
-  const isSearchEmpty = !isLoading && filtered.length === 0 && !isTotalEmpty
+  const isTotalEmpty = !isLoading && meta?.total === 0 && !appliedSearch
+  const isSearchEmpty = !isLoading && meta?.total === 0 && Boolean(appliedSearch)
 
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
@@ -235,9 +230,7 @@ export default function SuppliesPageContent() {
         const response = await ingredientService.update(getToken, selected.id, input)
         const ingredient = response.ingredient
 
-        setSupplies((current) =>
-          sortIngredients(current.map((item) => (item.id === ingredient.id ? ingredient : item)))
-        )
+        setSupplies((current) => current.map((item) => (item.id === ingredient.id ? ingredient : item)))
 
         notify(
           `Costo de ${selected.name} actualizado`,
@@ -260,8 +253,8 @@ export default function SuppliesPageContent() {
           )
         }
       } else {
-        const ingredient = await ingredientService.create(getToken, input)
-        setSupplies((current) => sortIngredients([...current, ingredient]))
+        await ingredientService.create(getToken, input)
+        reloadSupplies()
         notify(`Insumo "${data.name}" creado correctamente`, 'success')
       }
       handleCloseSheet()
@@ -274,7 +267,7 @@ export default function SuppliesPageContent() {
     if (!selected) return
     try {
       await ingredientService.delete(getToken, selected.id)
-      setSupplies((current) => current.filter((item) => item.id !== selected.id))
+      reloadSupplies()
       notify(`Insumo "${selected.name}" eliminado correctamente.`, 'success')
       handleCloseSheet()
     } catch (error: unknown) {
@@ -302,9 +295,7 @@ export default function SuppliesPageContent() {
       currentCost: newCost ?? selected.currentCost,
       supplierConnections: updatedConnections,
     }
-    setSupplies((current) =>
-      sortIngredients(current.map((item) => (item.id === selected.id ? updatedIngredient : item)))
-    )
+    setSupplies((current) => current.map((item) => (item.id === selected.id ? updatedIngredient : item)))
     setSelected(updatedIngredient)
 
     if (newCost !== undefined) {
@@ -330,9 +321,7 @@ export default function SuppliesPageContent() {
         selected!.supplierConnections?.map((item) => ({ ...item, isDefault: item.id === conn.id })) || []
       const updatedIngredient = { ...selected!, currentCost: newCost, supplierConnections: updatedConnections }
 
-      setSupplies((current) =>
-        sortIngredients(current.map((item) => (item.id === selected!.id ? updatedIngredient : item)))
-      )
+      setSupplies((current) => current.map((item) => (item.id === selected!.id ? updatedIngredient : item)))
       setSelected(updatedIngredient)
       setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
       notify(
@@ -445,7 +434,7 @@ export default function SuppliesPageContent() {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
                   <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
-                  <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{supplies.length}</p>
+                  <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{catalogTotal ?? 0}</p>
                 </div>
                 <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
                   <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
@@ -515,13 +504,28 @@ export default function SuppliesPageContent() {
                   <EmptyState
                     icon={<Search className="size-6" />}
                     title="Insumo no encontrado"
-                    description={`No existe ningún insumo con el nombre "${query}".`}
+                    description={`No existe ningún insumo con el nombre "${appliedSearch}".`}
                   />
                 )}
                 {!isLoading && !isTotalEmpty && !isSearchEmpty && (
                   <>
-                    <SuppliesCardsMobile supplies={filtered} onSelect={handleOpenEdit} money={money} />
-                    <SuppliesTableDesktop supplies={filtered} onSelect={handleOpenEdit} money={money} />
+                    <SuppliesCardsMobile supplies={supplies} onSelect={handleOpenEdit} money={money} />
+                    <SuppliesTableDesktop supplies={supplies} onSelect={handleOpenEdit} money={money} />
+                    {meta && (
+                      <Pagination
+                        page={page}
+                        totalPages={meta.totalPages}
+                        total={meta.total}
+                        limit={limit}
+                        shown={supplies.length}
+                        itemLabel="insumos"
+                        hasMore={hasMore}
+                        isLoadingMore={isLoadingMore}
+                        onPageChange={goToPage}
+                        onLimitChange={setLimit}
+                        onLoadMore={loadMore}
+                      />
+                    )}
                   </>
                 )}
               </section>
@@ -592,8 +596,8 @@ export default function SuppliesPageContent() {
         <BulkIngredientsModal
           isOpen={showBulkModal}
           onClose={() => setShowBulkModal(false)}
-          existingSupplies={supplies}
-          onSuccess={refreshSupplies}
+          existingSupplies={bulkCatalog}
+          onSuccess={reloadSupplies}
         />
       )}
     </main>

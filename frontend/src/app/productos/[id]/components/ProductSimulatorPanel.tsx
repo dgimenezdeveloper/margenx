@@ -4,6 +4,8 @@ import type { z } from 'zod'
 import { productSchema } from '@/schemas/productSchema'
 import { NumericInput } from '@/components/NumericInput'
 import { formatPercent } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { cn } from '@/lib/utils'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -46,8 +48,8 @@ export function ProductSimulatorPanel({
   setActiveStrategy,
 }: ProductSimulatorPanelProps) {
   return (
-    <div className={isMobile ? "flex flex-col flex-1 overflow-hidden mt-4" : "space-y-5"}>
-      <div className={isMobile ? "flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5" : "space-y-5"}>
+    <div className={isMobile ? 'flex flex-col flex-1 overflow-hidden mt-4' : 'space-y-5'}>
+      <div className={isMobile ? 'flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5' : 'space-y-5'}>
         <div>
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
             Ajustes Rápidos de Precio
@@ -56,22 +58,26 @@ export function ProductSimulatorPanel({
             <button
               type="button"
               onClick={() => onAdjustPriceFactor(1.05, '5')}
-              className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+              className={cn(
+                'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer',
+                CANONICAL_FOCUS_CLASSES,
                 flashingKey === '5'
                   ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-              }`}
+              )}
             >
               +5%
             </button>
             <button
               type="button"
               onClick={() => onAdjustPriceFactor(1.10, '10')}
-              className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+              className={cn(
+                'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer',
+                CANONICAL_FOCUS_CLASSES,
                 flashingKey === '10'
                   ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-              }`}
+              )}
             >
               +10%
             </button>
@@ -79,11 +85,13 @@ export function ProductSimulatorPanel({
               type="button"
               disabled={!hasRecipe || cost <= 0}
               onClick={() => onApplySuggestedMargin(targetMargin)}
-              className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+              className={cn(
+                'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50',
+                CANONICAL_FOCUS_CLASSES,
                 activeStrategy === 'target'
                   ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                   : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
-              }`}
+              )}
             >
               Sugerir {formatPercent(targetMargin, { minDecimals: 0 })}
             </button>
@@ -91,10 +99,15 @@ export function ProductSimulatorPanel({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <label
+            htmlFor="simulator-sale-price"
+            className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2"
+          >
             Precio de Venta al Público ($)
           </label>
           <NumericInput
+            id="simulator-sale-price"
+            aria-label="Precio de Venta al Público ($)"
             value={watchedSalePrice}
             onChange={(val) => {
               setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
@@ -103,7 +116,10 @@ export function ProductSimulatorPanel({
             prefixSymbol="$"
             prefixClassName="text-lg font-bold"
             placeholder="0,00"
-            containerClassName="flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
+            containerClassName={cn(
+              'flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800',
+              CANONICAL_FOCUS_CLASSES
+            )}
             className="text-lg font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
             error={errors.salePrice?.message}
           />
@@ -129,7 +145,10 @@ export function ProductSimulatorPanel({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer active:scale-95 transition-all"
+            className={cn(
+              'min-h-11 flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer active:scale-95 transition-all',
+              CANONICAL_FOCUS_CLASSES
+            )}
           >
             Cancelar
           </button>
@@ -137,7 +156,10 @@ export function ProductSimulatorPanel({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
+            className={cn(
+              'min-h-11 flex-1 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all',
+              CANONICAL_FOCUS_CLASSES
+            )}
           >
             {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
             Guardar
@@ -148,7 +170,10 @@ export function ProductSimulatorPanel({
           type="button"
           onClick={onSave}
           disabled={isSaving}
-          className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+          className={cn(
+            'hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50',
+            CANONICAL_FOCUS_CLASSES
+          )}
         >
           {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
           {isSaving ? 'Guardando...' : 'Guardar Cambios'}

@@ -111,6 +111,7 @@ Al tocar el nombre de un proveedor en la lista, abrís su ficha técnica detalla
 - **Datos de contacto:** estado activo/inactivo, teléfono, email, dirección física y contadores de presentaciones totales, predeterminadas y retenidas en cuarentena.
 - **Tabla y tarjetas de presentaciones:** cada insumo asociado con su código SKU mayorista, descripción en lista, presentación cerrada, precio de compra facturado y el costo unitario equivalente ($V/S$) liquidado automáticamente.
 - **Marcas visuales:** badge **Predeterminada** si este proveedor define el costo activo de tus recetas, y **En cuarentena** si tiene un precio pendiente de resolución.
+- **Búsqueda y páginas:** las presentaciones se muestran de a 20. Con el buscador "Buscar por insumo o código..." encontrás una por nombre del insumo, código o descripción de la lista, sin importar tildes ni mayúsculas. En la computadora elegís 20, 50 o 100 filas y pasás de página; en el celular tocás **Cargar más**. Los contadores de la ficha cuentan todas las presentaciones del proveedor.
 
 ### Corregir un código o descripción
 

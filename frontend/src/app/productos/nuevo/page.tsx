@@ -34,6 +34,9 @@ import { ProductRemoveIngredientDialog } from '@/app/productos/[id]/components/P
 import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { getAvailableRecipeUnits, convertToBaseQty, convertToRecipeUnitQty } from '@/lib/recipeConversion'
 import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { cn } from '@/lib/utils'
+import { useIngredientSearch } from '@/hooks/useIngredientSearch'
 
 const money = (val: number) => formatMoney(val)
 
@@ -45,17 +48,10 @@ export default function NewProductPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
-
-  // Flag defensivo para silenciar el blocker durante el redirect post-guardado
   const isNavigatingAfterSaveRef = useRef(false)
 
-  // Estado de intercepción para eliminar insumo de la receta
   const [ingredientToDelete, setIngredientToDelete] = useState<{ id: string; name: string } | null>(null)
-
-  // Estado del botón activo en la botonera de ajuste rápido ('target' cuando coincide, 'custom' al desviarse)
   const [activeStrategy, setActiveStrategy] = useState<'target' | 'custom'>('target')
-
-  // Estado y temporizador para el efecto de parpadeo/pulsación táctil (+5%, +10%)
   const [flashingKey, setFlashingKey] = useState<'5' | '10' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -82,6 +78,9 @@ export default function NewProductPage() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  // Insumo elegido desde la búsqueda en la API: puede no estar en la lista cargada.
+  const [pickedSupply, setPickedSupply] = useState<Ingredient | null>(null)
+  const { results: remoteResults, isSearching } = useIngredientSearch(getToken, searchQuery)
   const [selectedSupplyId, setSelectedSupplyId] = useState<string>('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
@@ -117,15 +116,10 @@ export default function NewProductPage() {
     defaultValues: { name: '', salePrice: '', minMarginPercent: '30' },
   })
 
-  // Considera "sucio" si el form tiene cambios o la receta tiene items, silenciado al enviar o redirigir
   const hasUnsavedChanges =
     (isDirty || items.length > 0) && !isSubmitting && !isNavigatingAfterSaveRef.current
 
-  // Bloquea el scroll del body mientras el desplegable de insumos está abierto.
-  // Los diálogos ya bloquean el scroll por su cuenta (componente Dialog).
   useBodyScrollLock(isDropdownOpen)
-
-  // Protección contra pérdida de datos por navegación accidental
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
@@ -172,8 +166,11 @@ export default function NewProductPage() {
   }, [getToken, resetStore])
 
   const selectedSupply = useMemo(
-    () => supplies.find((s) => s.id === selectedSupplyId) ?? supplies[0],
-    [supplies, selectedSupplyId]
+    () =>
+      (pickedSupply?.id === selectedSupplyId ? pickedSupply : undefined) ??
+      supplies.find((s) => s.id === selectedSupplyId) ??
+      supplies[0],
+    [pickedSupply, supplies, selectedSupplyId]
   )
 
   const availableUnits = useMemo(
@@ -181,13 +178,11 @@ export default function NewProductPage() {
     [selectedSupply]
   )
 
-  const filteredSupplies = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    if (!q) return supplies
-    return supplies.filter((s) => s.name.toLowerCase().includes(q))
-  }, [supplies, searchQuery])
+  // Con texto, el selector busca en la API (sin tildes ni mayúsculas) y no solo en lo cargado.
+  const filteredSupplies = searchQuery.trim() ? (remoteResults ?? []) : supplies
 
   const handleSelectSupply = (supply: Ingredient) => {
+    setPickedSupply(supply)
     setSelectedSupplyId(supply.id)
     const units = getAvailableRecipeUnits(supply.unit)
     setRecipeUnit(units[0] || supply.unit)
@@ -201,7 +196,6 @@ export default function NewProductPage() {
     if (!selectedSupply || num <= 0) return
 
     const { baseQty } = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
-    // Por debajo de 0,001 de la unidad base la API rechaza la línea (cantidad mayor a cero, 3 decimales)
     if (baseQty <= 0) return
 
     addIngredient({
@@ -218,7 +212,6 @@ export default function NewProductPage() {
     setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
-  // Ejecución diferida de la eliminación (Confirmación Controlada)
   const confirmRemoveItem = () => {
     if (!ingredientToDelete) return
     removeIngredient(ingredientToDelete.id)
@@ -333,55 +326,75 @@ export default function NewProductPage() {
                   <span className="text-xs text-gray-400 font-medium">Información comercial</span>
                 </div>
 
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                  Nombre del producto
+                <div>
+                  <label htmlFor="new-product-name" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                    Nombre del producto
+                  </label>
                   <input
+                    id="new-product-name"
                     {...register('name')}
                     placeholder="Ej. Medialunas de manteca — docena / Pan flauta 1kg"
-                    className="mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
+                    className={cn(
+                      'mt-2 min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800',
+                      CANONICAL_FOCUS_CLASSES
+                    )}
+                    aria-invalid={errors.name ? 'true' : 'false'}
+                    aria-describedby={errors.name ? 'new-product-name-error' : undefined}
                   />
                   {errors.name && (
-                    <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>
+                    <p id="new-product-name-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.name.message}
+                    </p>
                   )}
-                </label>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      <span>Precio de Venta</span>
-                      <NumericInput
-                        value={watchedSalePrice}
-                        onChange={(val) => {
-                          setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
-                          setActiveStrategy('custom')
-                        }}
-                        prefixSymbol="$"
-                        prefixClassName="font-bold"
-                        placeholder="0,00"
-                        containerClassName="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
-                        className="text-base font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
-                        error={errors.salePrice?.message}
-                      />
+                    <label htmlFor="new-product-sale-price" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                      Precio de Venta
                     </label>
+                    <NumericInput
+                      id="new-product-sale-price"
+                      aria-label="Precio de Venta"
+                      value={watchedSalePrice}
+                      onChange={(val) => {
+                        setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
+                        setActiveStrategy('custom')
+                      }}
+                      prefixSymbol="$"
+                      prefixClassName="font-bold"
+                      placeholder="0,00"
+                      containerClassName={cn(
+                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20',
+                        CANONICAL_FOCUS_CLASSES
+                      )}
+                      className="text-base font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+                      error={errors.salePrice?.message}
+                    />
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Separador decimal con coma (ej: 1.250,50).
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      <span>Margen Mínimo (%)</span>
-                      <NumericInput
-                        value={watchedMinMargin}
-                        onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
-                        suffixSymbol="%"
-                        suffixClassName="font-bold"
-                        placeholder="30"
-                        containerClassName="mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20"
-                        className="text-right font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
-                        error={errors.minMarginPercent?.message}
-                      />
+                    <label htmlFor="new-product-min-margin" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                      Margen Mínimo (%)
                     </label>
+                    <NumericInput
+                      id="new-product-min-margin"
+                      aria-label="Margen Mínimo (%)"
+                      value={watchedMinMargin}
+                      onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
+                      suffixSymbol="%"
+                      suffixClassName="font-bold"
+                      placeholder="30"
+                      containerClassName={cn(
+                        'mt-2 flex min-h-11 h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20',
+                        CANONICAL_FOCUS_CLASSES
+                      )}
+                      className="text-right font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
+                      error={errors.minMarginPercent?.message}
+                    />
                     <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                       Margen personalizado para este producto.
                     </p>
@@ -391,7 +404,9 @@ export default function NewProductPage() {
                 <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
                   <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <p className="leading-tight">
-                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo exclusivamente para este producto sin alterar el resto.
+                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
+                    <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
+                    exclusivamente para este producto sin alterar el resto.
                   </p>
                 </div>
               </section>
@@ -410,15 +425,21 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5">
+                  <span id="new-product-supply-label" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5">
                     Seleccionar Insumo de la Despensa
-                  </label>
+                  </span>
 
                   <button
+                    id="new-product-supply-dropdown-btn"
+                    // El nombre accesible suma la etiqueta y el insumo elegido: con aria-label se perdía cuál está seleccionado.
+                    aria-labelledby="new-product-supply-label new-product-supply-dropdown-btn"
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     disabled={isLoadingSupplies || supplies.length === 0}
-                    className="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer"
+                    className={cn(
+                      'flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer',
+                      CANONICAL_FOCUS_CLASSES
+                    )}
                   >
                     <span className="truncate">
                       {selectedSupply
@@ -442,13 +463,18 @@ export default function NewProductPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Filtrar por nombre..."
+                            aria-label="Filtrar insumos por nombre"
                             autoFocus
-                            className="min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            className={cn(
+                              'min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white',
+                              CANONICAL_FOCUS_CLASSES
+                            )}
                           />
                           {searchQuery && (
                             <button
                               type="button"
                               onClick={() => setSearchQuery('')}
+                              aria-label="Limpiar búsqueda"
                               className="absolute right-2 p-1 text-gray-400 hover:text-gray-600"
                             >
                               <X className="size-4" />
@@ -459,8 +485,8 @@ export default function NewProductPage() {
 
                       <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 p-1 dark:divide-gray-800">
                         {filteredSupplies.length === 0 ? (
-                          <div className="p-4 text-center text-xs font-semibold text-gray-400">
-                            No se encontraron insumos con ese nombre.
+                          <div className="p-4 text-center text-xs font-semibold text-gray-400" aria-live="polite">
+                            {isSearching ? 'Buscando insumos...' : 'No se encontraron insumos con ese nombre.'}
                           </div>
                         ) : (
                           filteredSupplies.map((supply) => (
@@ -468,11 +494,13 @@ export default function NewProductPage() {
                               key={supply.id}
                               type="button"
                               onClick={() => handleSelectSupply(supply)}
-                              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer ${
+                              className={cn(
+                                'flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer',
+                                CANONICAL_FOCUS_CLASSES,
                                 supply.id === selectedSupplyId
                                   ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                                   : 'text-gray-800 dark:text-gray-200'
-                              }`}
+                              )}
                             >
                               <span className="truncate">{supply.name}</span>
                               <span className="ml-2 shrink-0 text-gray-400">
@@ -487,26 +515,36 @@ export default function NewProductPage() {
 
                   <div className="mt-3.5 flex items-center gap-2">
                     <div className="flex-1">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                      <label htmlFor="new-product-recipe-qty" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
                         Cantidad utilizada
                       </label>
                       <NumericInput
+                        id="new-product-recipe-qty"
+                        aria-label="Cantidad utilizada"
                         value={inputQty}
                         onChange={setInputQty}
                         maxDecimals={3}
                         placeholder="100"
-                        containerClassName="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500"
+                        containerClassName={cn(
+                          'min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600 dark:focus-within:border-indigo-500',
+                          CANONICAL_FOCUS_CLASSES
+                        )}
                         className="text-sm font-bold text-gray-900 dark:text-white"
                       />
                     </div>
                     <div className="w-28 sm:w-36">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                      <label htmlFor="new-product-recipe-unit" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
                         Unidad
                       </label>
                       <select
+                        id="new-product-recipe-unit"
+                        aria-label="Unidad de medida de receta"
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
-                        className="min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
+                        className={cn(
+                          'min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500',
+                          CANONICAL_FOCUS_CLASSES
+                        )}
                       >
                         {availableUnits.map((u) => (
                           <option key={u} value={u}>
@@ -521,18 +559,27 @@ export default function NewProductPage() {
                     <div className="mt-3 flex flex-col gap-2 rounded-xl bg-indigo-50/80 p-3 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200">
                       <div className="flex items-center justify-between">
                         <span>
-                          Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)}</strong> ({formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)})
+                          Equivalencia: <strong>{formatQuantityWithUnit(previewNumericQty, recipeUnit)}</strong> (
+                          {formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)})
                         </span>
-                        <span>Subtotal: <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">{money(previewSubtotal)}</strong></span>
+                        <span>
+                          Subtotal:{' '}
+                          <strong className="font-extrabold text-indigo-700 dark:text-indigo-300">
+                            {money(previewSubtotal)}
+                          </strong>
+                        </span>
                       </div>
                       {previewBaseQty <= 0 ? (
                         <p className="font-bold text-rose-600 dark:text-rose-400">
                           ⚠️ La cantidad es menor al mínimo que se puede guardar (0,001 {formatUnit(selectedSupply.unit)}).
                         </p>
-                      ) : precisionLost && (
-                        <p className="font-bold text-amber-600 dark:text-amber-400">
-                          ⚠️ La cantidad es demasiado pequeña y se redondeará a {formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)}.
-                        </p>
+                      ) : (
+                        precisionLost && (
+                          <p className="font-bold text-amber-600 dark:text-amber-400">
+                            ⚠️ La cantidad es demasiado pequeña y se redondeará a{' '}
+                            {formatQuantityWithUnit(previewBaseQty, selectedSupply.unit)}.
+                          </p>
+                        )
                       )}
                     </div>
                   )}
@@ -541,7 +588,10 @@ export default function NewProductPage() {
                     type="button"
                     onClick={handleAddIngredient}
                     disabled={isLoadingSupplies || !selectedSupply || previewBaseQty <= 0}
-                    className="mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                    className={cn(
+                      'mt-3.5 flex min-h-11 h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50',
+                      CANONICAL_FOCUS_CLASSES
+                    )}
                   >
                     {isLoadingSupplies ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -558,66 +608,75 @@ export default function NewProductPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/50 p-2 dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/40">
-                    {items.map((item: { ingredientId: string; quantity: number; unitCost: number; name: string; inputQty?: number; recipeUnit?: string; unit: string }) => {
-                      const itemSubtotal = item.quantity * item.unitCost
-                      const displayQty =
-                        item.inputQty ??
-                        convertToRecipeUnitQty(
-                          item.quantity,
-                          item.recipeUnit ?? item.unit,
-                          item.unit
-                        )
+                    {items.map(
+                      (item: {
+                        ingredientId: string
+                        quantity: number
+                        unitCost: number
+                        name: string
+                        inputQty?: number
+                        recipeUnit?: string
+                        unit: string
+                      }) => {
+                        const itemSubtotal = item.quantity * item.unitCost
+                        const displayQty =
+                          item.inputQty ??
+                          convertToRecipeUnitQty(item.quantity, item.recipeUnit ?? item.unit, item.unit)
 
-                      return (
-                        <div
-                          key={item.ingredientId}
-                          className="flex flex-col gap-2 p-3 transition sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                              {item.name}
-                            </strong>
-                            <p className="text-xs text-gray-400">
-                              Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
-                            </p>
-                            {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
-                              <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                                ⚠️ El costo de esta línea supera el precio de venta.
+                        return (
+                          <div
+                            key={item.ingredientId}
+                            className="flex flex-col gap-2 p-3 transition sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                {item.name}
+                              </strong>
+                              <p className="text-xs text-gray-400">
+                                Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                               </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            <RecipeQuantityField
-                              ingredientName={item.name}
-                              value={displayQty}
-                              recipeUnit={item.recipeUnit ?? item.unit}
-                              baseUnit={item.unit}
-                              onChange={(qty, baseQty) =>
-                                handleUpdateQuantity(item.ingredientId, qty, item.recipeUnit ?? item.unit, baseQty)
-                              }
-                            />
-
-                            <div className="text-right min-w-20">
-                              <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
-                                {money(itemSubtotal)}
-                              </span>
-                              <span className="text-[10px] text-gray-400">subtotal</span>
+                              {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
+                                <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                  ⚠️ El costo de esta línea supera el precio de venta.
+                                </p>
+                              )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
-                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer"
-                              title="Remover insumo"
-                              aria-label={`Eliminar ${item.name}`}
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
+                            <div className="flex items-center justify-between gap-3 sm:justify-end">
+                              <RecipeQuantityField
+                                ingredientName={item.name}
+                                value={displayQty}
+                                recipeUnit={item.recipeUnit ?? item.unit}
+                                baseUnit={item.unit}
+                                onChange={(qty, baseQty) =>
+                                  handleUpdateQuantity(item.ingredientId, qty, item.recipeUnit ?? item.unit, baseQty)
+                                }
+                              />
+
+                              <div className="text-right min-w-20">
+                                <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
+                                  {money(itemSubtotal)}
+                                </span>
+                                <span className="text-[10px] text-gray-400">subtotal</span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setIngredientToDelete({ id: item.ingredientId, name: item.name })}
+                                className={cn(
+                                  'flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50 cursor-pointer',
+                                  CANONICAL_FOCUS_CLASSES
+                                )}
+                                title="Remover insumo"
+                                aria-label={`Eliminar ${item.name}`}
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      }
+                    )}
                   </div>
                 )}
               </section>
@@ -677,7 +736,8 @@ export default function NewProductPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado ({formatPercent(Number(watchedMinMargin) || 0, { minDecimals: 0 })}).
+                        El margen está por debajo del umbral personalizado (
+                        {formatPercent(Number(watchedMinMargin) || 0, { minDecimals: 0 })}).
                       </p>
                     </div>
                   )}
@@ -690,7 +750,9 @@ export default function NewProductPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">Precio de Venta al Público:</span>
-                    <strong className="font-extrabold text-gray-900 dark:text-white">{money(Number(watchedSalePrice) || 0)}</strong>
+                    <strong className="font-extrabold text-gray-900 dark:text-white">
+                      {money(Number(watchedSalePrice) || 0)}
+                    </strong>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
                     <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
@@ -704,29 +766,32 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* BOTONERA DE AJUSTES RÁPIDOS SIEMPRE VISIBLE */}
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.05, '5')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      className={cn(
+                        'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer',
+                        CANONICAL_FOCUS_CLASSES,
                         flashingKey === '5'
                           ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                      }`}
+                      )}
                     >
                       +5%
                     </button>
                     <button
                       type="button"
                       onClick={() => adjustPriceFactor(1.10, '10')}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      className={cn(
+                        'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all duration-150 cursor-pointer',
+                        CANONICAL_FOCUS_CLASSES,
                         flashingKey === '10'
                           ? 'border-indigo-600 bg-indigo-600 text-white scale-95 shadow-inner'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                      }`}
+                      )}
                     >
                       +10%
                     </button>
@@ -734,11 +799,13 @@ export default function NewProductPage() {
                       type="button"
                       disabled={items.length === 0 || totalCost <= 0}
                       onClick={() => applySuggestedMargin(targetMargin)}
-                      className={`min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                      className={cn(
+                        'min-h-11 rounded-xl border py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50',
+                        CANONICAL_FOCUS_CLASSES,
                         activeStrategy === 'target'
                           ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                           : 'border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950'
-                      }`}
+                      )}
                     >
                       Sugerir {formatPercent(targetMargin, { minDecimals: 0 })}
                     </button>
@@ -748,7 +815,10 @@ export default function NewProductPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                  className={cn(
+                    'hidden lg:flex min-h-12 h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50',
+                    CANONICAL_FOCUS_CLASSES
+                  )}
                 >
                   {isSubmitting && <LoaderCircle className="size-4 animate-spin" />}
                   {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
@@ -762,8 +832,19 @@ export default function NewProductPage() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong></span>
-                <span className="text-gray-500 dark:text-gray-400">Ganancia: <strong className={marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{money(marginAmount)}</strong></span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  Precio: <strong className="text-gray-900 dark:text-gray-100">{money(Number(watchedSalePrice) || 0)}</strong>
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  Ganancia:{' '}
+                  <strong
+                    className={
+                      marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                    }
+                  >
+                    {money(marginAmount)}
+                  </strong>
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {items.length === 0 ? (
@@ -783,7 +864,10 @@ export default function NewProductPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+              className={cn(
+                'flex min-h-11 h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50',
+                CANONICAL_FOCUS_CLASSES
+              )}
             >
               {isSubmitting && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
               {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
@@ -793,19 +877,13 @@ export default function NewProductPage() {
       </form>
       <BottomNav />
 
-      {/* Confirmación para quitar un insumo de la receta */}
       <ProductRemoveIngredientDialog
         ingredientName={ingredientToDelete?.name ?? null}
         onClose={() => setIngredientToDelete(null)}
         onConfirm={confirmRemoveItem}
       />
 
-      {/* Diálogo de confirmación para cambios no guardados */}
-      <UnsavedChangesDialog
-        open={showDialog}
-        onConfirm={confirmNavigation}
-        onCancel={cancelNavigation}
-      />
+      <UnsavedChangesDialog open={showDialog} onConfirm={confirmNavigation} onCancel={cancelNavigation} />
     </main>
   )
 }

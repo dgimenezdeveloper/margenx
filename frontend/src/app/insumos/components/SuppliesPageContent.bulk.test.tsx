@@ -29,12 +29,19 @@ vi.mock('@/lib/useCurrentUser', () => ({
 }))
 
 vi.mock('@/services/ingredientService', () => ({
-  ingredientService: { getAll: vi.fn(), bulkUpload: vi.fn() },
+  ingredientService: { getAll: vi.fn(), list: vi.fn(), bulkUpload: vi.fn() },
 }))
 
 vi.mock('@/services/supplierService', () => ({
   supplierService: { getQuarantine: vi.fn() },
 }))
+
+
+/** Respuesta paginada de GET /ingredients con una sola página. */
+const pagina = <T,>(items: T[]) => ({
+  items,
+  meta: { total: items.length, page: 1, limit: 20, totalPages: items.length === 0 ? 0 : 1 },
+})
 
 const HARINA: Ingredient = {
   id: 'ing-1',
@@ -55,6 +62,7 @@ describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => 
   beforeEach(() => {
     vi.clearAllMocks()
     currentUser.role = 'ADMIN'
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([HARINA]))
     vi.mocked(ingredientService.getAll).mockResolvedValue([HARINA])
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
   })
@@ -68,7 +76,7 @@ describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => 
     expect(mobileButton).toBeDefined()
 
     await user.click(mobileButton as HTMLElement)
-    expect(screen.getByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
   })
 
   it.each([
@@ -78,17 +86,39 @@ describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => 
     currentUser.role = role
     renderPage()
 
-    await waitFor(() => expect(ingredientService.getAll).toHaveBeenCalled())
+    await waitFor(() => expect(ingredientService.list).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: /planilla/i })).not.toBeInTheDocument()
   })
 
   it('con la despensa vacía, el administrador ve el atajo para cargarla desde una planilla', async () => {
-    vi.mocked(ingredientService.getAll).mockResolvedValue([])
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([]))
     const user = userEvent.setup()
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: 'Cargala desde una planilla' }))
 
-    expect(screen.getByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
+  })
+
+  it('la detección de duplicados recibe el catálogo completo, no solo la página visible (#350)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const [desktopButton] = await screen.findAllByRole('button', { name: 'Cargar desde planilla' })
+    await user.click(desktopButton as HTMLElement)
+
+    await screen.findByRole('dialog', { name: 'Cargar insumos desde una planilla' })
+    expect(ingredientService.getAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('si no se puede leer el catálogo completo, igual abre el diálogo', async () => {
+    vi.mocked(ingredientService.getAll).mockRejectedValueOnce(new Error('network'))
+    const user = userEvent.setup()
+    renderPage()
+
+    const [desktopButton] = await screen.findAllByRole('button', { name: 'Cargar desde planilla' })
+    await user.click(desktopButton as HTMLElement)
+
+    expect(await screen.findByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
   })
 })

@@ -17,6 +17,9 @@ vi.mock('@clerk/clerk-react', () => ({
   SignIn: ({ forceRedirectUrl }: { forceRedirectUrl: string }) => (
     <div data-testid="sign-in" data-redirect={forceRedirectUrl} />
   ),
+  SignUp: ({ forceRedirectUrl, path }: { forceRedirectUrl: string; path: string }) => (
+    <div data-testid="sign-up" data-redirect={forceRedirectUrl} data-path={path} />
+  ),
 }))
 vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ isDark: false, toggleTheme: vi.fn() }) }))
 vi.mock('@/lib/clerkConfig', () => ({ isClerkConfigured: true, publishableKey: 'pk_test_123' }))
@@ -111,5 +114,44 @@ describe('LoginPage: enlaces públicos al pie', () => {
     expect(signIn.compareDocumentPosition(privacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(signIn.compareDocumentPosition(install) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('contentinfo')).toContainElement(privacy)
+  })
+})
+
+describe('LoginPage: enlace de invitación de un colaborador (#395)', () => {
+  beforeEach(() => {
+    vi.spyOn(window.navigator, 'webdriver', 'get').mockReturnValue(false)
+    clearBrowserSession()
+    clerk.isSignedIn = false
+    displayMode.standalone = false
+  })
+  afterEach(() => {
+    clearBrowserSession()
+    vi.restoreAllMocks()
+  })
+
+  it('con __clerk_ticket muestra el alta de Clerk, que procesa la invitación', () => {
+    renderAt('/login?__clerk_ticket=ticket_quimica&__clerk_status=sign_up')
+
+    const signUp = screen.getByTestId('sign-up')
+    expect(signUp).toHaveAttribute('data-path', '/login')
+    expect(signUp).toHaveAttribute('data-redirect', '/dashboard')
+    expect(screen.queryByTestId('sign-in')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Creá tu acceso a MargenX' })).toBeInTheDocument()
+  })
+
+  it('sigue en el alta aunque Clerk avance a un paso sin el ticket en la URL', async () => {
+    const router = renderAt('/login?__clerk_ticket=ticket_quimica')
+
+    await router.navigate('/login/verify-email-address')
+
+    await waitFor(() => expect(screen.getByTestId('sign-up')).toBeInTheDocument())
+  })
+
+  it('sin ticket, el login sigue igual', () => {
+    renderAt('/login')
+
+    expect(screen.getByTestId('sign-in')).toBeInTheDocument()
+    expect(screen.queryByTestId('sign-up')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inicia sesión en tu comercio' })).toBeInTheDocument()
   })
 })

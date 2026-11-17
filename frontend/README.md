@@ -76,6 +76,15 @@ Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5)
 
 Lo usan `/dashboard`, `/insumos`, `/proveedores` y `/proveedores/cuarentena`. En todas el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
 
+### Paginación y búsqueda de listados
+
+Los listados largos (`/insumos`, `/productos` y las presentaciones de `/proveedores/:id`) piden una página por vez a la API (`page`, `limit` y `search`; contrato en `docs/api.md`) y nunca filtran en memoria:
+
+- `src/services/pagination.ts`: tipos `PageMeta`, `PageParams` y `PageResult`, tamaños `PAGE_SIZE_OPTIONS` (20, 50, 100) y `fetchAllPages`, que recorre todas las páginas de a 100 para los usos que necesitan el catálogo completo (`ingredientService.getAll`, `productService.getAll`, detección de duplicados de la planilla y contadores de la ficha del proveedor). Los servicios exponen `ingredientService.list`, `productService.list` y `supplierService.getPage`.
+- `src/hooks/usePaginatedList.ts`: estado de página, filas por página, búsqueda con espera de 300 ms (`SEARCH_DEBOUNCE_MS`) y "Cargar más". Devuelve `meta` (con `meta.total` para los contadores), `catalogTotal` (total sin búsqueda, para tarjetas como "Insumos activos"), `appliedSearch` y `setItems` para actualizar la página visible tras editar.
+- `src/components/pagination.tsx` (`Pagination`): en escritorio, `nav` con "Mostrando 21–40 de 218 insumos", selector "Filas por página" y botones "Página anterior"/"Página siguiente" de 44 px con `aria-label`; en mobile, "Cargar más" en lugar del paginador. No se muestra si no hay resultados.
+- `src/hooks/useIngredientSearch.ts`: búsqueda en la API para el selector de insumos de la receta (`/productos/nuevo` y el modal de `/productos/:id`), con la misma espera de 300 ms y hasta 100 resultados.
+
 ### Diálogos (`Dialog`)
 
 Toda ventana emergente (modal centrado o bottom sheet) se arma con `src/components/ui/dialog.tsx`, una capa de estilos sobre `@base-ui/react/dialog`. No se escriben modales a mano con `fixed inset-0`. El componente resuelve solo:
@@ -124,7 +133,8 @@ Pruebas: `src/components/ui/__tests__/dialog.test.tsx` (foco atrapado, Escape, c
 ### Accesibilidad de Tablas y Formularios (WCAG 2.1 AA)
 
 - **Navegación con Teclado en Tablas (`UX-06`):** Las filas interactivas de las tablas de datos (`SuppliesTableDesktop` y `ProductsPage`) implementan `tabIndex={0}`, `role="button"` y handlers accesibles para responder a `Enter` y `Espacio` (con `event.preventDefault()` en barra espaciadora para neutralizar el scroll nativo de ventana). Cuentan con anillos de foco visibles perimetrales en color índigo con la sintaxis canónica de Tailwind (`focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-indigo-600`).
-- **Campos con Nombre Accesible (`UX-13`):** Todos los inputs de búsqueda de la aplicación incluyen `aria-label` explícito (`"Buscar insumos por nombre"` y `"Buscar productos por nombre"`). Los campos de formularios conectan sus etiquetas con `htmlFor` e `id` explícitos (ej. `id="ingredient-current-cost"` en `IngredientUpsertSheet`).
+- **Campos con Nombre Accesible (`UX-13` / `#361`):** Todos los inputs de búsqueda incluyen `aria-label` explícito (`"Buscar insumos por nombre"` y `"Buscar productos por nombre"`). Todos los formularios asocian obligatoriamente sus etiquetas mediante `<label htmlFor="...">` con `id` explícitos en los inputs, garantizando que la propiedad `input.labels` nunca quede vacía y los lectores de pantalla anuncien el campo. En la ficha de producto (`ProductMasterDataForm` y `/productos/nuevo`) se asocian `product-name`, `product-sale-price` y `product-min-margin`.
+- **Anillo de Foco Canónico y Uniformidad en Modales (`#361`):** Los controles interactivos, pestañas y botones del modal de carga por planilla (`BulkIngredientsModal`), la ficha y el alta de producto y el simulador de precio consumen la constante centralizada `CANONICAL_FOCUS_CLASSES` (`src/lib/accessibility.ts`): contorno visible de 2 px con separación exterior (`outline-offset-2`), color `indigo-600` (claro) / `indigo-400` (oscuro) con contraste $\ge 3:1$ y sin anillos superpuestos (`focus-visible:ring-0`). La constante no lleva `focus:outline-none`: en Tailwind 4 esa clase deja el contorno invisible al tabular, y una prueba (`src/lib/__tests__/accessibility.test.ts`) lo impide.
 - **Mensajes de Validación y Foco (`UX-14` / Bug 1):** En formularios y modales (ej. `SupplierPackagingModal`), cada error detectado por Zod/React Hook Form se renderiza adyacente a su control con `id={`${field}-error`}`, `role="alert"` y atributos `aria-invalid` y `aria-describedby`. Al intentar guardar datos inválidos, el foco del cursor se desplaza automáticamente al primer campo observado sin romper el ciclo de renderizado.
 
 ## Pruebas

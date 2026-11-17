@@ -98,6 +98,7 @@ The application is structured into five core operational modules:
    code .
    ```
 4. Press `F1` and select **"Dev Containers: Reopen in Container"**. All services, Node dependencies, and database containers will initialize automatically.
+5. Copy `backend/.env.example` to `backend/.env` (and `frontend/.env.example` to `frontend/.env`) with your keys. From then on the environment keeps itself in sync: every time VS Code or Cursor attaches to the container, and on every branch switch or `git pull`, `.devcontainer/scripts/sync-dev-env.sh` aligns Node with `.nvmrc`, runs `npm ci` only when a lockfile changed, regenerates the Prisma client and applies pending migrations to the **local** database (never the seed). Details in "Entorno sincronizado" below.
 
 #### Option B: Manual Local Setup
 ```bash
@@ -173,7 +174,7 @@ Módulos principales del sistema:
 > **Comercios Piloto:** Validación con *Panadería Central* (Gastronomía) y *Química GyJ* (Manufactura química).
 
 #### Gestión Ágil y Liderazgo de Equipo
-- **Marco Scrum:** Planificación y facilitación de 7 sprints de 2 semanas (Sprint 0 al 6), standups diarias a las 10:00 hs por Discord y actas de retrospectiva (`docs/retrospectivas/`).
+- **Marco Scrum:** Planificación y facilitación de 8 sprints (Sprint 0 al 7), de 2 semanas salvo el Sprint 3, que duró una, standups diarias a las 10:00 hs por Discord y actas de retrospectiva (`docs/retrospectivas/`).
 - **Tablero Kanban Automatizado con GraphQL:** Implementación del workflow `.github/workflows/auto-move-issues.yml` que sincroniza GitHub Projects v2 según los eventos de Git: `BACKLOG → TO DO → IN PROGRESS → IN REVIEW → QA APPROVED → DONE`.
 - **Definition of Done (DoD):** Criterios rigurosos de cierre que exigen aprobación por pares (Peer Review), tipado TypeScript estricto sin `any`, verificación Gherkin, compatibilidad mobile en 360px y aprobación de QA.
 - **Estrategia de Complejidad Progresiva:** Desacoplamiento de insumos y proveedores para permitir productos en borrador "Sin Costear" (`cost = 0, margin = 0`), evitando trabas en el onboarding inicial.
@@ -222,7 +223,26 @@ Módulos principales del sistema:
    cd margenx
    code .
    ```
-4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configurará automáticamente Node.js 22 LTS y PostgreSQL 16. Si ya tenías el contenedor creado con Node 20, ejecutá **"Dev Containers: Rebuild Container"** para tomar la imagen nueva.
+4. Presionar `F1` y seleccionar **"Dev Containers: Reopen in Container"**. El entorno configura Node.js 22 LTS y PostgreSQL 16.
+5. Copiar `backend/.env.example` a `backend/.env` (y `frontend/.env.example` a `frontend/.env`) con tus claves.
+
+##### Entorno sincronizado
+
+El script `.devcontainer/scripts/sync-dev-env.sh` deja el contenedor alineado con la rama en la que estás. Corre solo:
+
+- al crear el contenedor y **cada vez que VS Code o Cursor se conectan** (`postCreateCommand` y `postAttachCommand` de `.devcontainer/devcontainer.json`);
+- **al cambiar de rama** (`git switch`, `git checkout <rama>`) y **después de `git pull` o `git merge`**, por los hooks versionados de `.githooks/` (el script activa `core.hooksPath` la primera vez).
+
+En cada corrida:
+
+1. **Node:** si la versión del contenedor no coincide con `.nvmrc` (por ejemplo, un contenedor creado antes del paso a Node 22), instala la de `.nvmrc` con nvm y la deja por defecto, sin reconstruir el contenedor. Las terminales que ya estaban abiertas la toman con `hash -r` o abriendo una nueva.
+2. **Dependencias:** `npm ci` en `backend/` y `frontend/` solo si cambió su `package-lock.json` o la versión mayor de Node.
+3. **Prisma:** `prisma generate` si cambió `backend/prisma/schema.prisma`.
+4. **Migraciones:** `prisma migrate deploy` solo si `DATABASE_URL` de `backend/.env` apunta a la base del DevContainer (`localhost:5432/margenx_dev`). Nunca corre el seed ni toca otra base, y no imprime la cadena de conexión. Prisma corre sin la `DATABASE_URL` que haya exportada en la terminal (por ejemplo, la de una VPS), así que siempre migra la base local de `backend/.env`. La prueba es `bash .devcontainer/scripts/sync-dev-env.test.sh` (job `n8n Nodes Tests` del CI).
+
+Si reinstaló dependencias mientras tenías `npm run dev` corriendo, avisa que lo reinicies: el servidor anterior queda apuntando a archivos borrados (en el frontend, la app deja de cargar). Si no hay nada que hacer, termina en un par de segundos. Desde un hook nunca corta la operación de git: si algo falla, avisa y se puede repetir a mano con `bash .devcontainer/scripts/sync-dev-env.sh`. Para saltearlo una vez: `MARGENX_SKIP_SYNC=1 git switch <rama>`. Fuera del contenedor (por ejemplo, un `git switch` desde el host) no hace nada.
+
+**Contenedor creado antes de este cambio:** VS Code o Cursor avisan que cambió la configuración; elegí **Rebuild Container**. Si preferís no reconstruir, ejecutá una vez `bash .devcontainer/scripts/sync-dev-env.sh` desde la terminal del contenedor y los hooks quedan activos.
 
 #### Opción B: Ejecución Manual
 Requiere Node.js 22 LTS. La versión está fijada en `.nvmrc` (con nvm: `nvm use`); es la misma que usan el CI y las imágenes Docker.
