@@ -128,3 +128,27 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     expect(await screen.findByText('No se encontraron insumos con ese nombre.', undefined, BUSQUEDA)).toBeInTheDocument()
   })
 })
+
+describe('NewProductPage - barra de abajo en mobile y zona segura de iOS (#406)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  it('la barra de guardado queda apoyada sobre la BottomNav, a la misma altura que en la ficha del producto', async () => {
+    renderPage()
+    const botones = await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    const barra = botones.map((boton) => boton.closest('footer')).find(Boolean)
+
+    // La BottomNav mide 3.125rem más su relleno inferior, que incluye la zona segura
+    expect(barra).toHaveClass('bottom-[calc(3.125rem+max(0.75rem,env(safe-area-inset-bottom)))]')
+  })
+
+  it('el final del formulario deja lugar a la barra de guardado, la BottomNav y la zona segura de iOS', async () => {
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    // Barra de guardado (90 px) + BottomNav (50 px + max(12 px, zona segura)) entran en 11rem + zona segura
+    expect(screen.getByRole('main')).toHaveClass('pb-[calc(11rem+env(safe-area-inset-bottom))]')
+  })
+})

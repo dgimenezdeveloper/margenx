@@ -1,6 +1,7 @@
 import { LoaderCircle, Pencil, Save } from 'lucide-react'
 import { MarginBadge } from '@/components/MarginBadge'
 import { formatMoney } from '@/lib/format'
+import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 
 const money = (val: number) => formatMoney(val)
 
@@ -28,7 +29,7 @@ export function ProductMobileFooter({
   onOpenSimulator,
 }: ProductMobileFooterProps) {
   return (
-    <footer className="fixed inset-x-0 bottom-[calc(3.125rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95">
+    <footer className={`fixed inset-x-0 ${ABOVE_BOTTOM_NAV_CLASS} md:bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur lg:hidden dark:border-gray-800 dark:bg-gray-900/95`}>
       <div className="mx-auto flex max-w-md flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs">

@@ -35,6 +35,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend / PWA:** En la app instalada en iPhone, la línea de inicio de iOS ya no tapa las etiquetas de la `BottomNav`: `index.html` declara `viewport-fit=cover` y `env(safe-area-inset-bottom)` deja de valer 0. Además, la barra de `/productos/nuevo` queda apoyada sobre la `BottomNav` como la de la ficha (antes se superponía 2 px), el final de las dos pantallas deja lugar a la zona segura, los diálogos que salen desde abajo dejan sus botones fuera de ella y, en horizontal, el contenido no queda bajo la muesca (`#406`).
 - **Frontend:** Con catálogos de más de 20 filas, `/insumos` y `/productos` mostraban solo la primera página: la tarjeta "Insumos activos" contaba 20, el buscador filtraba solo esos 20 y el selector de la receta ofrecía los primeros 20 insumos. Ahora la búsqueda va a la API (sin tildes ni mayúsculas, 300 ms después de dejar de escribir), los contadores leen `meta.total`, el selector de la receta busca en todo el catálogo y la detección de duplicados de la planilla usa el catálogo completo (`#350`).
 - **Frontend:** El aviso de confirmación de `/proveedores/cuarentena` se puede cerrar con la X o deslizándolo: `ToastAlert` recibe `onClose`, que antes faltaba y dejaba deshabilitados el botón y el gesto (`#311`).
 - **Frontend:** La tarjeta "Variaciones recientes" de `/insumos` muestra la cantidad real de precios en cuarentena en lugar de un 2 fijo (`#311`).
