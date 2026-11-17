@@ -1,0 +1,381 @@
+{
+  "info": {
+    "name": "MargenX - Compras API",
+    "description": "Pruebas de contrato, RBAC y precisión Decimal para Smart Purchasing: GET /api/purchasing/suggestions y POST /api/purchasing/order-preview.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "b7c4d2a1-9f8e-4c6b-8a1d-3e5f7a9c2b10"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "adminToken", "value": "<jwt-admin>" },
+    { "key": "collaboratorToken", "value": "<jwt-colaborador>" },
+    { "key": "harinaMolineraId", "value": "" },
+    { "key": "harinaIngredientId", "value": "30b00001-0000-4000-8000-000000000001" }
+  ],
+  "item": [
+    {
+      "name": "01 - GET /api/purchasing/suggestions sin token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Mensaje uniforme de autenticación', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('No autorizado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/suggestions",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "suggestions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "02 - GET /api/purchasing/suggestions como COLLABORATOR (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 Forbidden', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test('Mensaje RBAC de rol ADMIN requerido', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('Acceso denegado. Se requiere rol ADMIN.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{collaboratorToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/suggestions",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "suggestions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - GET /api/purchasing/suggestions como ADMIN (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('Contiene estructura completa de sugerencias y resumen', function () {",
+              "    pm.expect(body).to.have.all.keys([",
+              "        'summary',",
+              "        'byIngredient',",
+              "        'bySupplier',",
+              "        'alreadyBestPrice',",
+              "        'singleSupplier',",
+              "        'quarantinedExcluded'",
+              "    ]);",
+              "    pm.expect(body.summary).to.include.all.keys([",
+              "        'withSavingsCount',",
+              "        'alreadyBestPriceCount',",
+              "        'singleSupplierCount',",
+              "        'withoutEligibleSupplierCount',",
+              "        'withoutActiveDefaultCount',",
+              "        'quarantinedExcludedCount'",
+              "    ]);",
+              "});",
+              "const harinaItem = body.byIngredient.find(i => i.ingredientId === pm.collectionVariables.get('harinaIngredientId'));",
+              "pm.test('Harina 000 del seed muestra ahorro con Distribuidora Mayorista Molinera', function () {",
+              "    pm.expect(harinaItem).to.exist;",
+              "    pm.expect(harinaItem.defaultPresentation.unitCost).to.eql('736.25');",
+              "    pm.expect(harinaItem.cheapestPresentation.unitCost).to.eql('720.00');",
+              "    pm.expect(harinaItem.savingsPerUnit).to.eql('16.25');",
+              "    pm.expect(harinaItem.savingsPercent).to.eql('2.21');",
+              "    pm.expect(harinaItem.packageSavings).to.eql('406.25');",
+              "});",
+              "pm.collectionVariables.set('harinaMolineraId', harinaItem.cheapestPresentation.supplierIngredientId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/suggestions",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "suggestions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "04 - GET /api/ingredients/:id confirma que el costo vigente no cambió (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('El costo vigente de Harina 000 sigue en 736.25', function () {",
+              "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('736.25');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/ingredients/{{harinaIngredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["ingredients", "{{harinaIngredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - POST /api/purchasing/order-preview sin token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 2 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "06 - POST /api/purchasing/order-preview como COLLABORATOR (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 Forbidden', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{collaboratorToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 2 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "07 - POST /api/purchasing/order-preview con bultos inválidos (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Error uniforme de validación', function () {",
+              "    pm.expect(pm.response.json().error).to.be.a('string').that.is.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 0 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "08 - POST /api/purchasing/order-preview con presentación inexistente (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404 Not Found', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('No expone si pertenece a otra cuenta', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('Una o más presentaciones solicitadas no existen.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"00000000-0000-4000-8000-000000000000\", \"packages\": 1 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "09 - POST /api/purchasing/order-preview pedido válido (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('Calcula subtotal, total y ahorro exactos para 2 bultos de Harina Molinera', function () {",
+              "    pm.expect(body.groups).to.have.lengthOf(1);",
+              "    pm.expect(body.totalPackages).to.eql(2);",
+              "    pm.expect(body.itemsCount).to.eql(1);",
+              "    pm.expect(body.total).to.eql('36000.00');",
+              "    pm.expect(body.totalSavings).to.eql('812.50');",
+              "    pm.expect(body.groups[0].subtotal).to.eql('36000.00');",
+              "    pm.expect(body.groups[0].savings).to.eql('812.50');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 2 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10 - POST /api/purchasing/order-preview supera tope de bultos (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Informa el límite máximo de 100.000 bultos', function () {",
+              "    pm.expect(pm.response.json().error).to.match(/100\\.000/);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [{ \"supplierIngredientId\": \"{{harinaMolineraId}}\", \"packages\": 100001 }]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/order-preview",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

@@ -288,14 +288,15 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 
 ---
 
-## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Planificado*
+## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API)*
 
-Con varios proveedores por insumo, el sistema puede sugerir dónde comprar:
+Con varios proveedores por insumo, la API calcula dónde conviene comprar (`GET /api/purchasing/suggestions`) y permite armar una vista previa de pedido (`POST /api/purchasing/order-preview`):
 
-- **Oportunidades de ahorro:** para cada insumo, comparar el costo unitario de la presentación predeterminada con el menor costo unitario entre sus presentaciones (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg).
-- **Pedido sugerido:** agrupar los insumos por el proveedor más conveniente, con el ahorro estimado por pedido.
+- **Oportunidades de ahorro:** compara presentaciones de proveedores activos que no estén en cuarentena contra la presentación predeterminada, informando el ahorro por unidad (`$` y `%`) y por bulto de la presentación más barata (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg — 2,22 %, y $1.000 por bulto de 50 kg). Las presentaciones en cuarentena no compiten y se informan aparte.
+- **Pedido sugerido (`order-preview`):** agrupa los bultos indicados por proveedor con subtotales, total y ahorro acumulado respecto a comprar todo a la presentación predeterminada, sin persistir órdenes ni afectar el catálogo.
+- **Alcance del ahorro:** MargenX no registra consumo ni stock, por lo que el ahorro se expresa únicamente por unidad, por bulto y por pedido previsualizado (no se estima ahorro mensual).
 
-La sugerencia **no cambia** el costo vigente: el administrador decide si cambia el proveedor predeterminado (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial.
+La sugerencia **no cambia** el costo vigente: el administrador decide si marca otra presentación como predeterminada (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial (ADR-005).
 
 ---
 
@@ -377,7 +378,8 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
-| Compras inteligentes (Smart Purchasing, RF-15) | Planificado |
+| Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
+| Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
 | Reporte semanal de márgenes en PDF por correo y descarga desde la app | Planificado |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
