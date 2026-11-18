@@ -94,8 +94,8 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
         await expect(page.getByText(INGREDIENT_NAME, { exact: true })).toBeVisible()
       }
 
-      // Con el costo base del insumo, el margen debe estar saludable.
-      await expect(page.getByText(/Margen saludable/i)).toBeVisible()
+      // Con el costo base del insumo, el margen cumple o supera el objetivo ("En objetivo" o "Superávit").
+      await expect(page.getByText(/^(En objetivo|Superávit)$/i).first()).toBeVisible()
 
       // --- Acción: editar el costo del insumo a un valor crítico desde /insumos ---
       await setIngredientCost(page, INGREDIENT_CRITICAL_COST)
@@ -104,12 +104,16 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       await page.goto('/productos')
       const productCard = getProductItem(page, PRODUCT_NAME)
       await expect(productCard).toBeVisible()
-      // Badge de margen negativo (por debajo del mínimo) visible junto al producto, en es-AR: "-12,3 %".
+      // Badge con estado "Pérdida" y porcentaje negativo en es-AR: "-12,3 %".
+      await expect(productCard.getByText(/^(Pérdida|En riesgo)$/i)).toBeVisible()
       await expect(productCard.getByText(/^-\d+(,\d+)?\s?%$/)).toBeVisible()
 
-      // --- Verificación: el detalle del producto muestra la alerta explícita ---
+      // --- Verificación: el detalle del producto muestra el estado unificado y la alerta explícita ---
       await productCard.click()
-      await expect(page.getByText(new RegExp(`Por debajo del (margen )?mínimo \\(${PRODUCT_MIN_MARGIN}\\)`, 'i'))).toBeVisible()
+      await expect(page.getByText(/^(Pérdida|En riesgo)$/i).first()).toBeVisible()
+      await expect(
+        page.getByText(new RegExp(`Venta a pérdida|Por debajo del (margen )?mínimo \\(${PRODUCT_MIN_MARGIN}\\)`, 'i'))
+      ).toBeVisible()
     } finally {
       // Deja el insumo en su costo original del seed para que la corrida sea
       // repetible, corra o no corra bien el resto del test.
