@@ -436,3 +436,35 @@ describe('formatArgentinaIsoDate', () => {
     expect(formatArgentinaIsoDate(new Date('2026-11-18T01:00:00.000Z'))).toBe('2026-11-17');
   });
 });
+
+describe('buildWeeklyMarginReport - aislamiento por cuenta (#390)', () => {
+  it('cada consulta del reporte se acota a la cuenta pedida', async () => {
+    await buildWeeklyMarginReport(BASE_ACCOUNT.id, { from: FROM, to: TO });
+
+    // Productos: costos, márgenes, buckets y mediana
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { accountId: BASE_ACCOUNT.id } })
+    );
+    // Insumos: costos sin actualizar
+    expect(ingredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { accountId: BASE_ACCOUNT.id } })
+    );
+    // Cambios de costo de la semana
+    expect(priceHistoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ ingredient: { accountId: BASE_ACCOUNT.id } }),
+      })
+    );
+    // Precios retenidos en cuarentena
+    expect(supplierIngredientFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          ingredient: { accountId: BASE_ACCOUNT.id },
+          isQuarantined: true,
+        }),
+      })
+    );
+    // Oportunidades de ahorro
+    expect(getPurchasingSuggestionsMock).toHaveBeenCalledWith(BASE_ACCOUNT.id);
+  });
+});
