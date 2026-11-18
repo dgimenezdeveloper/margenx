@@ -4,6 +4,8 @@ import '@testing-library/jest-dom'
 import ProfilePage from './page'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
+import { reportService } from '@/services/reportService'
+import { saveBlobAsFile } from '@/lib/downloadFile'
 
 const mockGetToken = vi.fn().mockResolvedValue('fake-token')
 const mockSignOut = vi.fn()
@@ -78,6 +80,12 @@ vi.mock('@/services/authService', () => ({
   },
 }))
 
+vi.mock('@/services/reportService', () => ({
+  reportService: { downloadWeeklyPdf: vi.fn() },
+}))
+
+vi.mock('@/lib/downloadFile', () => ({ saveBlobAsFile: vi.fn() }))
+
 const collaboratorsSection = vi.hoisted(() => ({ onNotify: null as null | ((message: string) => void) }))
 vi.mock('@/components/collaborators-section', () => ({
   CollaboratorsSection: ({ onNotify }: { onNotify: (message: string) => void }) => {
@@ -107,9 +115,10 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(screen.getByText('Alerta de Margen Crítico')).toBeInTheDocument()
     expect(screen.getByText('Activa')).toBeInTheDocument()
 
-    // El reporte semanal en PDF se visualiza como "Próximamente"
+    // El reporte semanal en PDF ya está activo (#392); dejó de ser "Próximamente"
     expect(screen.getByText('Reporte Semanal en PDF')).toBeInTheDocument()
-    expect(screen.getByText('Próximamente')).toBeInTheDocument()
+    expect(screen.getByText('Activo · lunes 08:00')).toBeInTheDocument()
+    expect(screen.queryByText('Próximamente')).toBeNull()
   })
 
   it('Escenario Gherkin "Porcentaje": el símbolo % aparece una sola vez en Margen Mínimo Sugerido', () => {
@@ -244,5 +253,40 @@ describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
     render(<ProfilePage />)
 
     expect(screen.queryByRole('region', { name: 'Colaboradores' })).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage (/perfil): reporte semanal en PDF (#392)', () => {
+  beforeEach(() => {
+    vi.mocked(reportService.downloadWeeklyPdf).mockReset()
+    vi.mocked(saveBlobAsFile).mockReset()
+    mockIsLoading = false
+  })
+
+  it('el administrador ve el reporte activo y descarga el último desde el enlace', async () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    const pdf = new Blob(['%PDF-1.4'], { type: 'application/pdf' })
+    vi.mocked(reportService.downloadWeeklyPdf).mockResolvedValue({ blob: pdf, fileName: 'margenx-reporte-2026-11-16.pdf' })
+    render(<ProfilePage />)
+
+    expect(screen.getByText('Activo · lunes 08:00')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar el último reporte' }))
+
+    await waitFor(() => expect(saveBlobAsFile).toHaveBeenCalledWith(pdf, 'margenx-reporte-2026-11-16.pdf'))
+  })
+
+  it('no monta la descarga mientras el rol se está cargando', () => {
+    mockIsLoading = true
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('button', { name: 'Descargar el último reporte' })).toBeNull()
+  })
+
+  it('Escenario Gherkin: Colaborador -> no ve el reporte ni su descarga', () => {
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    expect(screen.queryByText('Reporte Semanal en PDF')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Descargar el último reporte' })).toBeNull()
   })
 })
