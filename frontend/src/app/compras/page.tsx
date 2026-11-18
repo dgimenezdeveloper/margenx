@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { NumericInput } from '@/components/NumericInput'
-import { formatMoney, formatPercent } from '@/lib/format'
+import { formatMoney, formatPercent, formatQuantityWithUnit } from '@/lib/format'
 import { formatPackage } from '@/lib/supplierDisplay'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
@@ -293,7 +293,7 @@ export default function PurchasesPage() {
             <EmptyState
               icon={<ShoppingCart className="size-6" />}
               title="No hay comparativas de compra disponibles"
-              description="Para comparar precios y optimizar tus compras, cargá presentaciones de más de un proveedor para tus insumos."
+              description="Cargá al menos dos proveedores para un mismo insumo y acá vas a ver a quién conviene comprarle y cuánto ahorrás."
               actionLabel="Ir a Proveedores"
               onAction={() => navigate('/proveedores')}
             />
@@ -369,8 +369,8 @@ export default function PurchasesPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Lista de Grupos por Proveedor */}
+                <div className={cn('space-y-6', orderPreview && 'print:hidden')}>
+                  {/* Lista de Grupos por Proveedor (no se imprime cuando ya hay un pedido calculado) */}
                   {suggestions?.bySupplier.map((group) => (
                     <section
                       key={group.supplierId}
@@ -397,60 +397,55 @@ export default function PurchasesPage() {
                         </div>
                       </div>
 
-                      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {/* Table-to-Cards: una sola estructura, tarjetas apiladas en mobile y tabla desde md (DoD §5). */}
+                      <table className="block w-full text-left text-sm md:table">
+                        <caption className="sr-only">Insumos que conviene comprarle a {group.supplierName}</caption>
+                        <thead className="hidden border-b border-gray-100 text-xs text-gray-500 md:table-header-group dark:border-gray-800 dark:text-gray-400">
+                          <tr>
+                            <th scope="col" className="py-2 pr-3 font-bold">Insumo</th>
+                            <th scope="col" className="py-2 pr-3 font-bold">Bulto</th>
+                            <th scope="col" className="py-2 pr-3 font-bold">Costo unitario</th>
+                            <th scope="col" className="py-2 pr-3 text-right font-bold">Ahorro</th>
+                            <th scope="col" className="py-2 pr-3 text-right font-bold">Bultos</th>
+                            <th scope="col" className="py-2 text-right font-bold"><span className="sr-only">Acción</span></th>
+                          </tr>
+                        </thead>
+                        <tbody className="block divide-y divide-gray-100 md:table-row-group dark:divide-gray-800">
                         {group.items.map((item) => (
-                          <article
+                          <tr
                             key={item.supplierIngredientId}
-                            className="py-3.5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                            className="flex flex-col gap-2 py-3.5 md:table-row md:py-0"
                           >
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                            <td className="block min-w-0 md:table-cell md:py-3 md:pr-3 md:align-middle">
+                              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
                                 {item.ingredientName}
-                              </h4>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                <span>Bulto: {formatPackage(item.packageSize, item.packageUnit)} @ {formatMoney(item.packagePrice)}</span>
-                                {item.supplierCode && (
-                                  <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[11px] dark:bg-gray-800">
-                                    SKU: {item.supplierCode}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs mt-1 text-indigo-900 dark:text-indigo-200">
-                                Sugerido: <strong>{formatMoney(item.unitCost)}/{item.unit}</strong> vs actual <strong>{formatMoney(item.defaultUnitCost)}/{item.unit}</strong> ({item.defaultSupplierName})
                               </p>
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-4 md:justify-end shrink-0">
-                              <div className="text-right">
+                              {item.supplierCode && (
+                                <span className="mt-0.5 inline-block font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                  SKU: {item.supplierCode}
+                                </span>
+                              )}
+                            </td>
+                            <td className="block text-xs text-gray-500 md:table-cell md:py-3 md:pr-3 md:align-middle dark:text-gray-400">
+                              <span className="md:hidden">Bulto: </span>{formatPackage(item.packageSize, item.packageUnit)} @ {formatMoney(item.packagePrice)}
+                            </td>
+                            <td className="block text-xs text-indigo-900 md:table-cell md:py-3 md:pr-3 md:align-middle dark:text-indigo-200">
+                              Sugerido: <strong>{formatMoney(item.unitCost)}/{item.unit}</strong> vs actual <strong>{formatMoney(item.defaultUnitCost)}/{item.unit}</strong> ({item.defaultSupplierName})
+                            </td>
+                            <td className="block md:table-cell md:py-3 md:pr-3 md:text-right md:align-middle">
                                 <span className="block text-xs font-bold text-emerald-700 dark:text-emerald-400">
                                   -{formatMoney(item.savingsPerUnit)}/{item.unit} ({formatPercent(item.savingsPercent)})
                                 </span>
-                                <span className="text-[11px] text-gray-400">
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                   Ahorro bulto: {formatMoney(item.packageSavings)}
                                 </span>
-                              </div>
+                            </td>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDefaultCandidate({
-                                    item,
-                                    supplierId: group.supplierId,
-                                    supplierName: group.supplierName,
-                                  })
-                                }
-                                className={cn(
-                                  'min-h-11 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer',
-                                  CANONICAL_FOCUS_CLASSES
-                                )}
-                              >
-                                Hacer predeterminada
-                              </button>
-
-                              <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+                            <td className="flex flex-wrap items-center justify-between gap-3 md:table-cell md:py-3 md:pr-3 md:text-right md:align-middle">
+                              <div className="inline-flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
                                 <label
                                   htmlFor={`qty-${item.supplierIngredientId}`}
-                                  className="text-[11px] font-bold text-gray-500 dark:text-gray-400"
+                                  className="text-[11px] font-bold text-gray-500 md:sr-only dark:text-gray-400"
                                 >
                                   Bultos:
                                 </label>
@@ -464,10 +459,30 @@ export default function PurchasesPage() {
                                   maxDecimals={0}
                                 />
                               </div>
-                            </div>
-                          </article>
+                            </td>
+
+                            <td className="block md:table-cell md:py-3 md:text-right md:align-middle">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDefaultCandidate({
+                                    item,
+                                    supplierId: group.supplierId,
+                                    supplierName: group.supplierName,
+                                  })
+                                }
+                                className={cn(
+                                  'min-h-11 w-full md:w-auto whitespace-nowrap rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer',
+                                  CANONICAL_FOCUS_CLASSES
+                                )}
+                              >
+                                Hacer predeterminada
+                              </button>
+                            </td>
+                          </tr>
                         ))}
-                      </div>
+                        </tbody>
+                      </table>
                     </section>
                   ))}
 
@@ -585,7 +600,7 @@ export default function PurchasesPage() {
                           {group.items.map((line) => (
                             <li key={line.supplierIngredientId} className="flex justify-between items-baseline">
                               <span>
-                                • <strong>{line.ingredientName}</strong> {line.supplierCode ? `[${line.supplierCode}]` : ''}: {line.packages} bulto(s) ({line.totalQuantity} {line.unit})
+                                • <strong>{line.ingredientName}</strong> {line.supplierCode ? `[${line.supplierCode}]` : ''}: {line.packages} bulto(s) ({formatQuantityWithUnit(line.totalQuantity, line.unit)})
                               </span>
                               <span className="font-semibold">{formatMoney(line.subtotal)}</span>
                             </li>
