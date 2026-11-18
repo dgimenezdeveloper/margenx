@@ -275,6 +275,17 @@ describe('ProfilePage (/perfil): reporte semanal en PDF (#392)', () => {
     await waitFor(() => expect(saveBlobAsFile).toHaveBeenCalledWith(pdf, 'margenx-reporte-2026-11-16.pdf'))
   })
 
+  it('a 360 px el badge baja debajo del texto en vez de partir el título en tres líneas', () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    const fila = screen.getByText('Activo · lunes 08:00').parentElement!
+    expect(fila.className).toMatch(/flex-wrap/)
+    const texto = screen.getByText('Reporte Semanal en PDF').parentElement!
+    expect(texto.className).toMatch(/basis-48/)
+    expect(screen.getByText('Reporte Semanal en PDF').className).toMatch(/whitespace-nowrap/)
+  })
+
   it('no monta la descarga mientras el rol se está cargando', () => {
     mockIsLoading = true
     render(<ProfilePage />)

@@ -220,9 +220,10 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">Reporte Semanal en PDF</p>
+                    {/* En pantallas angostas el badge baja debajo del texto: no entra al lado sin partir el título. */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                      <div className="min-w-0 flex-1 basis-48">
+                        <p className="whitespace-nowrap text-sm font-semibold">Reporte Semanal en PDF</p>
                         <p className="text-xs text-gray-500">Te llega por email con el PDF de los últimos 7 días</p>
                       </div>
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
