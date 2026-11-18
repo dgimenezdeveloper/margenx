@@ -5,10 +5,10 @@ interface RoleFlags {
 
 /**
  * Qué enlaces del menú ve cada rol (docs/manual-usuario/02-rutas-y-roles.md).
- * Proveedores exige el rol ADMIN confirmado: no aparece mientras el rol se está cargando.
+ * Proveedores y Compras exigen el rol ADMIN confirmado: no aparecen mientras el rol se está cargando.
  */
 export function isNavLinkVisible(href: string, role: RoleFlags): boolean {
-  if (href === '/proveedores') return role.isAdmin
+  if (href === '/proveedores' || href === '/compras') return role.isAdmin
   if (href === '/insumos') return !role.isCollaborator
   return true
 }

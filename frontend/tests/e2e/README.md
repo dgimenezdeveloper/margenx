@@ -34,6 +34,10 @@ Antes de cada caso lee el estado del insumo con `GET /api/ingredients/:id` y al 
 
 ---
 
+### 1.3. Compras Sugeridas (issue #389)
+
+`purchasing-suggestions.spec.ts` corre con la sesión de `ADMIN` (proyecto `chromium`) sobre el seed real: la Harina de trigo 000 Olavarriense tiene la presentación predeterminada en Distribuidora MarJuanC Alimentos y una más barata por kg en Distribuidora Mayorista Molinera, así que en `/compras` aparece bajo Molinera. `TC-COMPRAS-01` recorre la pantalla a 360 px (tarjetas, pestaña **Compras** activa y sin scroll horizontal) y en escritorio (tabla con encabezados y enlace en la barra superior). `TC-COMPRAS-02` carga 2 bultos de la harina y comprueba el subtotal del proveedor, el total y el ahorro del pedido. Es de solo lectura: no toca **Hacer predeterminada** (cambiaría el costo vigente que usan `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts`) y `POST /api/purchasing/order-preview` no guarda nada. Las capturas quedan en `test-results/evidencia-360px/compras-*.png`. El acceso denegado al colaborador lo cubre `TC-RBAC-07` en `rbac-security.spec.ts`.
+
 ## 2. Requisitos Previos
 
 ### Variables de Entorno Locales (Obligatorio para correr en local)

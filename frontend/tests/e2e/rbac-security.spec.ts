@@ -235,3 +235,16 @@ test.describe('TC-RBAC-06: Bandeja de cuarentena y dirección de ingesta (issue 
     await expect(page.getByRole('button', { name: 'Copiar dirección' })).toHaveCount(0)
   })
 })
+
+test.describe('TC-RBAC-07: Intercepción de ruta administrativa /compras (issue #389)', () => {
+  test('forzar la navegación a /compras redirige a /productos y el menú no ofrece el enlace', async ({ page }) => {
+    await page.goto('/compras')
+
+    await expect(page).toHaveURL(/\/productos$/)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de compras sugeridas.
+    await expect(page.getByRole('heading', { name: /compras sugeridas/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Compras" al colaborador.
+    await expect(page.getByRole('link', { name: 'Compras' })).toHaveCount(0)
+    await expect(page.getByTestId('bottom-nav-compras')).toHaveCount(0)
+  })
+})

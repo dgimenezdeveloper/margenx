@@ -13,6 +13,12 @@ describe('isNavLinkVisible', () => {
     expect(isNavLinkVisible('/proveedores', unknownRole)).toBe(false)
   })
 
+  it('muestra Compras solo al administrador', () => {
+    expect(isNavLinkVisible('/compras', admin)).toBe(true)
+    expect(isNavLinkVisible('/compras', collaborator)).toBe(false)
+    expect(isNavLinkVisible('/compras', unknownRole)).toBe(false)
+  })
+
   it('mantiene la regla vigente de Insumos: se oculta al colaborador', () => {
     expect(isNavLinkVisible('/insumos', admin)).toBe(true)
     expect(isNavLinkVisible('/insumos', collaborator)).toBe(false)
@@ -30,11 +36,13 @@ describe('isNavLinkActive', () => {
     expect(isNavLinkActive('/proveedores', '/proveedores')).toBe(true)
     expect(isNavLinkActive('/proveedores/cuarentena', '/proveedores')).toBe(true)
     expect(isNavLinkActive('/productos/abc-123', '/productos')).toBe(true)
+    expect(isNavLinkActive('/compras', '/compras')).toBe(true)
   })
 
   it('no confunde rutas que solo comparten el comienzo', () => {
     expect(isNavLinkActive('/productosx', '/productos')).toBe(false)
     expect(isNavLinkActive('/proveedores', '/insumos')).toBe(false)
+    expect(isNavLinkActive('/compras-antiguas', '/compras')).toBe(false)
     expect(isNavLinkActive(null, '/dashboard')).toBe(false)
   })
 })
