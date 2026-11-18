@@ -12,9 +12,10 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { productService, type Product } from '@/services/productService'
 import { dashboardService, type DashboardMetrics } from '@/services/dashboardService'
 import { ApiError } from '@/services/api'
+import type { ActiveHealthBucket } from '@/lib/healthBucket'
 
 import { DashboardKpiCards } from './components/DashboardKpiCards'
-import { HealthDistributionHistogram, type HealthBucketKey } from './components/HealthDistributionHistogram'
+import { HealthDistributionHistogram } from './components/HealthDistributionHistogram'
 import { MonitoredCatalogGrid } from './components/MonitoredCatalogGrid'
 
 export default function DashboardPage() {
@@ -30,7 +31,7 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [retryTrigger, setRetryTrigger] = useState(0)
 
-  const [selectedBucket, setSelectedBucket] = useState<HealthBucketKey | null>(null)
+  const [selectedBucket, setSelectedBucket] = useState<ActiveHealthBucket | null>(null)
 
   useEffect(() => {
     // BLOQUEO RBAC: No disparamos ninguna petición hasta saber con certeza el rol del usuario
@@ -153,8 +154,8 @@ export default function DashboardPage() {
                 <>
                   <DashboardKpiCards metrics={metrics} isLoading={isLoadingMetrics} />
                   <HealthDistributionHistogram
-                    products={products}
-                    isLoading={isLoadingProducts}
+                    metrics={metrics}
+                    isLoading={isLoadingMetrics}
                     selectedBucket={selectedBucket}
                     onSelectBucket={setSelectedBucket}
                   />

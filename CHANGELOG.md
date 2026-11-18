@@ -29,6 +29,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Docs:** Reporte de la Entrega 6 (`docs/entregables/entrega-pps-sprint-5.md`) con el template de 7 puntos, documentación técnica y manual breve; hashes verificados contra el rango `v0.5.0...v0.6.0` y horas confirmadas por el equipo (`#273`).
 - **Frontend:** Aviso en la receta cuando el costo de una línea supera el precio de venta del producto, en `/productos/:id` y `/productos/nuevo` (`#352`).
 - **Frontend:** Paginador accesible con selector de 20, 50 o 100 filas en `/insumos`, `/productos` y las presentaciones de `/proveedores/:id`, con "Cargar más" en mobile; componente `Pagination` y hook `usePaginatedList` documentados en `frontend/README.md` y en `docs/manual-usuario/` (`#350`).
+- **QA:** Colección Postman `backend/tests/postman/MargenX - Dashboard API.postman_collection.json` y script `run-tests-dashboard.sh` validando `GET /api/dashboard/metrics` (401 sin token, 403 a `COLLABORATOR`, schema completo y consistencia de buckets para `ADMIN`) (`#367`).
+- **Docs / Proceso:** Regla escrita de no incluir co-autoría ni firma de herramientas de IA en commits ni PRs (`CONTRIBUTING.md` §6), con cómo evitarla según la herramienta, incluido el autor de los commits, que el Squash and Merge convierte en `Co-authored-by`. El repositorio trae `.claude/settings.json` con la atribución de Claude Code desactivada, y `/revisar-pr` y `docs/process/revision-de-prs.md` §5 controlan los mensajes, los autores y la descripción del PR (`#314`).
 
 ### Changed
 
@@ -39,6 +41,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** La plantilla de "Cargar desde planilla" se genera con ExcelJS: encabezado con el color de MargenX y fila fija, lista desplegable de unidades, costo con formato de pesos y validación en las 500 filas, ejemplos en gris y una hoja de instrucciones con marca, tabla de unidades y qué pasa al subirla. Se completa y se vuelve a subir sin tocar el formato. ExcelJS se descarga solo al pedir la plantilla: no entra en el precache del service worker (`#359`).
 - **Frontend:** La cantidad de una línea de receta se carga en la unidad que prefiera el usuario dentro de la misma magnitud (g o kg; ml o l) y se edita directamente en la lista. La base sigue guardando la cantidad en la unidad del insumo, y las líneas guardadas con menos de 1 kg o 1 l se muestran en gr o ml. La conversión vive en `frontend/src/lib/recipeConversion.ts`, compartida por el modal y las dos pantallas de producto (`#352`).
 - **Frontend:** Agregar o quitar un insumo de la receta en `/productos/:id` ya no guarda al instante: todo se guarda con "Guardar Cambios", y salir con cambios sin guardar pide confirmación. Si el guardado falla (por ejemplo, con un 400), el borrador se conserva para corregirlo (`#352`).
+- **Backend:** `GET /api/dashboard/metrics` ahora calcula los cinco buckets de salud sobre todo el catálogo de la cuenta (`lossCount`, `riskCount`, `targetCount`, `surplusCount`, `draftCount`) evaluando el `minMarginPercent` propio de cada producto, y reemplaza el promedio simple de `marginPercent` por la **mediana** (excluyendo borradores) con `Prisma.Decimal` para resistir precios extremos mal cargados. Documentado en `docs/api.md` y `docs/especificacion-funcional.md` (`#367`).
 
 ### Fixed
 
@@ -67,22 +70,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 - **Frontend:** `parseNumeroAR` interpretaba `0.250` como 250 (separador de miles); ahora es 0,25 (`#352`).
 - **Frontend:** `NumericInput` volvía a leer su propio valor como formato argentino: `1,250` kg pasaba a 1250 kg al entrar y salir otra vez del campo. Además mostraba solo 2 decimales (1,125 kg se veía 1,13); las cantidades de receta muestran 3 (`#352`).
 - **Frontend:** Las cantidades de receta se redondean a 3 decimales de la unidad del insumo (límite de la base). El modal y la edición en la lista avisan cuando la cantidad se redondea ("se guarda como 1 gr") o no llega al mínimo (0,001 kg o l), que no se puede agregar; al salir del campo se muestra la cantidad que quedó en la receta (`#352`).
+- **Frontend:** El panel mostraba números que no coincidían entre sí con catálogos grandes: las tarjetas contaban toda la base, pero el histograma y "Ver catálogo completo" contaban los productos de la grilla, y el histograma decía "En Objetivo 30 %–60 %" aunque cada producto usa su propio margen mínimo. Ahora el histograma dibuja los cinco buckets de `GET /api/dashboard/metrics` (#367), las columnas más los borradores suman el total del catálogo, los rótulos dicen "Bajo su mínimo" y "Su mínimo a 60 %", y la grilla muestra todo el catálogo de a 20 con el paginador compartido ("Cargar más" en mobile). Al tocar una columna, la grilla filtra todo el catálogo con `classifyHealthBucket` (`src/lib/healthBucket.ts`), la misma regla que el servidor. El margen promedio se pinta según su signo (antes, un valor negativo se veía en verde) y aclara que es la mediana de los productos con receta. El total del catálogo, los porcentajes de las columnas y los rótulos de las tarjetas pasan de gris 400 (2,5:1 sobre blanco) a gris 500 en modo claro para cumplir el contraste WCAG AA. Manual en `docs/manual-usuario/06-panel.md`; excepción a la paginación en la API documentada en `frontend/README.md` (`#351`).
 
 ### Security
 
 - **DevOps:** `vitest` y `@vitest/coverage-v8` en 5.1.0 en `backend/` y `frontend/` (antes 2.1 y 4.1). El `npm audit` completo del backend baja de 13 vulnerabilidades (3 críticas, 4 altas, 6 moderadas) a 3 altas, todas de `prisma` → `deepmerge-ts` (en `.github/audit-allowlist.json`); ya no aparecen las de la cadena de Vitest 2 (`vitest`, `vite-node`, `vite`, `esbuild`, `tinypool`, `@vitest/mocker`, `test-exclude`, `glob`, `minimatch`). Adaptaciones: `backend/vitest.config.mts` (antes `.ts`, porque el paquete es CommonJS) vuelve a excluir `dist/`, que el valor por defecto de Vitest 4 en adelante ya no ignora, y `frontend/vitest-env.d.ts` suma los matchers de `@testing-library/jest-dom` a `Matchers<R, T>`, porque Vitest 5 ya no lee `jest.Matchers`. Las suites no cambian (283 pruebas en el backend y 419 en el frontend); la cobertura de líneas del backend pasa de 93,35 % a 91,85 % sin cambios en pruebas ni en código, porque desde Vitest 4 coverage-v8 no cuenta las líneas sin código ejecutable. Vitest 5 requiere Node 22.12 o superior (`.nvmrc`) (`#307`).
-
-### Changed
-
-- **Backend:** `GET /api/dashboard/metrics` ahora calcula los cinco buckets de salud sobre todo el catálogo de la cuenta (`lossCount`, `riskCount`, `targetCount`, `surplusCount`, `draftCount`) evaluando el `minMarginPercent` propio de cada producto, y reemplaza el promedio simple de `marginPercent` por la **mediana** (excluyendo borradores) con `Prisma.Decimal` para resistir precios extremos mal cargados. Documentado en `docs/api.md` y `docs/especificacion-funcional.md` (`#367`).
-
-### Added
-
-- **QA:** Colección Postman `backend/tests/postman/MargenX - Dashboard API.postman_collection.json` y script `run-tests-dashboard.sh` validando `GET /api/dashboard/metrics` (401 sin token, 403 a `COLLABORATOR`, schema completo y consistencia de buckets para `ADMIN`) (`#367`).
-
-### Added
-
-- **Docs / Proceso:** Regla escrita de no incluir co-autoría ni firma de herramientas de IA en commits ni PRs (`CONTRIBUTING.md` §6), con cómo evitarla según la herramienta, incluido el autor de los commits, que el Squash and Merge convierte en `Co-authored-by`. El repositorio trae `.claude/settings.json` con la atribución de Claude Code desactivada, y `/revisar-pr` y `docs/process/revision-de-prs.md` §5 controlan los mensajes, los autores y la descripción del PR (`#314`).
 
 ## [0.6.0] - 2026-11-07 (Sprint 5: Proveedores, PWA instalable y operación en producción)
 

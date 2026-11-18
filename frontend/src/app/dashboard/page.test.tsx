@@ -5,6 +5,7 @@ import DashboardPage from './page'
 import { dashboardService } from '@/services/dashboardService'
 import { productService } from '@/services/productService'
 import { ApiError } from '@/services/api'
+import type { Product } from '@/services/productService'
 
 const mockGetToken = vi.fn().mockResolvedValue('fake-token')
 
@@ -38,7 +39,11 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-const mockUser = { id: 'u1', role: 'ADMIN', email: 'admin@panaderia.com' }
+const mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string } = {
+  id: 'u1',
+  role: 'ADMIN',
+  email: 'admin@panaderia.com',
+}
 
 vi.mock('@/lib/useCurrentUser', () => ({
   useCurrentUser: () => ({
@@ -63,12 +68,18 @@ vi.mock('@/services/productService', () => ({
 describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUser.role = 'ADMIN'
     vi.mocked(dashboardService.getMetrics).mockResolvedValue({
       activeIngredientsCount: 0,
       criticalProductsCount: 0,
       healthyProductsCount: 0,
       averageMarginPercent: 0,
       recentCostVariationsCount: 0,
+      lossCount: 0,
+      riskCount: 0,
+      targetCount: 0,
+      surplusCount: 0,
+      draftCount: 0,
     })
     vi.mocked(productService.getAll).mockResolvedValue([])
   })
@@ -114,6 +125,11 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
       healthyProductsCount: 8,
       averageMarginPercent: 55.5,
       recentCostVariationsCount: 1,
+      lossCount: 0,
+      riskCount: 2,
+      targetCount: 6,
+      surplusCount: 2,
+      draftCount: 0,
     })
     vi.mocked(productService.getAll).mockResolvedValueOnce([
       {
@@ -175,5 +191,89 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
     })
     expect(screen.queryByText('Fallo del servidor')).toBeNull()
     expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
+  })
+})
+
+/** 339 productos (cuenta Demo del recorrido del 10/11): 289 con receta y 50 en borrador. */
+function catalogoDemo(): Product[] {
+  return Array.from({ length: 339 }, (_, i) => ({
+    id: `prod-${i + 1}`,
+    name: `Medialuna de manteca ${String(i + 1).padStart(3, '0')}`,
+    salePrice: 900,
+    cost: 540,
+    minMarginPercent: 35,
+    marginPercent: 40,
+    ingredients: i < 289 ? [{ ingredientId: 'harina-000', quantity: 0.05 }] : [],
+  }))
+}
+
+describe('DashboardPage sobre todo el catálogo (#351)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser.role = 'ADMIN'
+    vi.mocked(productService.getAll).mockResolvedValue(catalogoDemo())
+    vi.mocked(dashboardService.getMetrics).mockResolvedValue({
+      activeIngredientsCount: 218,
+      criticalProductsCount: 119,
+      healthyProductsCount: 170,
+      averageMarginPercent: 38.5,
+      recentCostVariationsCount: 7,
+      lossCount: 12,
+      riskCount: 107,
+      targetCount: 130,
+      surplusCount: 40,
+      draftCount: 50,
+    })
+  })
+
+  it('Escenario Gherkin: Números coherentes -> columnas + borradores = 339 = "Ver catálogo completo (339)"', async () => {
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/339 productos en total/i)).toBeInTheDocument()
+    })
+    const columnas = screen
+      .getAllByTestId('bucket-count')
+      .reduce((sum, el) => sum + Number(el.textContent), 0)
+    expect(columnas + 50).toBe(339)
+    expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
+    expect(screen.getByText('119 Productos en Riesgo')).toBeInTheDocument()
+  })
+
+  it('Escenario Gherkin: Precio mal cargado -> un margen promedio negativo se muestra en rojo', async () => {
+    vi.mocked(dashboardService.getMetrics).mockResolvedValueOnce({
+      activeIngredientsCount: 3,
+      criticalProductsCount: 2,
+      healthyProductsCount: 1,
+      averageMarginPercent: -18.2,
+      recentCostVariationsCount: 0,
+      lossCount: 2,
+      riskCount: 0,
+      targetCount: 1,
+      surplusCount: 0,
+      draftCount: 0,
+    })
+    render(<DashboardPage />)
+
+    const valor = await screen.findByTestId('average-margin')
+    expect(valor).toHaveTextContent('-18,2 %')
+    expect(valor.className).toMatch(/text-rose-700/)
+    expect(valor.className).not.toMatch(/emerald/)
+  })
+
+  it('Escenario Gherkin: Colaborador -> el panel no pide /api/dashboard/metrics ni dibuja datos financieros', async () => {
+    mockUser.role = 'COLLABORATOR'
+    vi.mocked(productService.getAll).mockResolvedValue(
+      catalogoDemo().map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))
+    )
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
+    })
+    expect(dashboardService.getMetrics).not.toHaveBeenCalled()
+    expect(screen.queryByText(/distribución de salud financiera/i)).toBeNull()
+    expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
+    expect(screen.queryByText(/margen promedio/i)).toBeNull()
   })
 })

@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 import { BarChart3, FilterX } from 'lucide-react'
-import type { Product } from '@/services/productService'
+import type { DashboardMetrics } from '@/services/dashboardService'
 import { formatPercent } from '@/lib/format'
+import { SURPLUS_MARGIN_THRESHOLD, type ActiveHealthBucket } from '@/lib/healthBucket'
 
-export type HealthBucketKey = 'loss' | 'low' | 'healthy' | 'high'
-
-interface HealthBucket {
-  key: HealthBucketKey
+interface HealthBucketColumn {
+  key: ActiveHealthBucket
   title: string
   shortTitle: string
   rangeLabel: string
@@ -19,39 +18,30 @@ interface HealthBucket {
 }
 
 interface HealthDistributionHistogramProps {
-  products: Product[]
+  /** Métricas de `GET /api/dashboard/metrics`: los buckets se cuentan en el servidor sobre todo el catálogo. */
+  metrics: DashboardMetrics | null
   isLoading: boolean
-  selectedBucket: HealthBucketKey | null
-  onSelectBucket: (key: HealthBucketKey | null) => void
+  selectedBucket: ActiveHealthBucket | null
+  onSelectBucket: (key: ActiveHealthBucket | null) => void
 }
 
+const surplusLabel = formatPercent(SURPLUS_MARGIN_THRESHOLD, { decimals: 0 })
+
 /**
- * Histograma interactivo que agrupa los productos según su salud financiera.
- * Calcula internamente los buckets y maneja su propio skeleton de carga.
+ * Histograma interactivo de la salud financiera de todo el catálogo.
+ * No cuenta productos en el cliente: dibuja los buckets que calcula el servidor,
+ * así las columnas coinciden con las tarjetas y con el total del catálogo.
  */
 export function HealthDistributionHistogram({
-  products,
+  metrics,
   isLoading,
   selectedBucket,
   onSelectBucket,
 }: HealthDistributionHistogramProps) {
-  const activeRecipeProducts = useMemo(() => products.filter((p) => p.ingredients.length > 0), [products])
-  const draftProductsCount = useMemo(() => products.filter((p) => p.ingredients.length === 0).length, [products])
-
-  const healthBuckets = useMemo<HealthBucket[]>(() => {
-    const total = activeRecipeProducts.length
-    let lossCount = 0, lowCount = 0, healthyCount = 0, highCount = 0
-
-    activeRecipeProducts.forEach((p) => {
-      const margin = p.marginPercent ?? 0
-      const target = p.minMarginPercent ?? 30
-
-      if (margin < 0) lossCount += 1
-      else if (margin < target) lowCount += 1
-      else if (margin <= 60) healthyCount += 1
-      else highCount += 1
-    })
-
+  const healthBuckets = useMemo<HealthBucketColumn[]>(() => {
+    if (!metrics) return []
+    const { lossCount, riskCount, targetCount, surplusCount } = metrics
+    const total = lossCount + riskCount + targetCount + surplusCount
     const calcPct = (cnt: number) => (total > 0 ? (cnt / total) * 100 : 0)
 
     return [
@@ -59,7 +49,7 @@ export function HealthDistributionHistogram({
         key: 'loss',
         title: 'Venta a Pérdida',
         shortTitle: 'Pérdida',
-        rangeLabel: '< 0%',
+        rangeLabel: `< ${formatPercent(0, { decimals: 0 })}`,
         count: lossCount,
         percentage: calcPct(lossCount),
         colorClass: 'bg-rose-600 dark:bg-rose-600',
@@ -68,44 +58,47 @@ export function HealthDistributionHistogram({
         textClass: 'text-rose-700 dark:text-rose-300',
       },
       {
-        key: 'low',
+        key: 'risk',
         title: 'En Riesgo',
         shortTitle: 'Riesgo',
-        rangeLabel: '< Umbral',
-        count: lowCount,
-        percentage: calcPct(lowCount),
+        rangeLabel: 'Bajo su mínimo',
+        count: riskCount,
+        percentage: calcPct(riskCount),
         colorClass: 'bg-rose-400 dark:bg-rose-400',
         bgHoverClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
         borderClass: 'border-rose-200 dark:border-rose-900/60',
         textClass: 'text-rose-600 dark:text-rose-400',
       },
       {
-        key: 'healthy',
+        key: 'target',
         title: 'En Objetivo',
         shortTitle: 'Objetivo',
-        rangeLabel: '30%–60%',
-        count: healthyCount,
-        percentage: calcPct(healthyCount),
+        rangeLabel: `Su mínimo a ${surplusLabel}`,
+        count: targetCount,
+        percentage: calcPct(targetCount),
         colorClass: 'bg-emerald-500 dark:bg-emerald-500',
         bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
         borderClass: 'border-emerald-200 dark:border-emerald-900/60',
         textClass: 'text-emerald-700 dark:text-emerald-300',
       },
       {
-        key: 'high',
+        key: 'surplus',
         title: 'Superávit',
         shortTitle: 'Óptimo',
-        rangeLabel: '> 60%',
-        count: highCount,
-        percentage: calcPct(highCount),
+        rangeLabel: `> ${surplusLabel}`,
+        count: surplusCount,
+        percentage: calcPct(surplusCount),
         colorClass: 'bg-emerald-600 dark:bg-emerald-400',
         bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
         borderClass: 'border-emerald-200 dark:border-emerald-900/60',
         textClass: 'text-emerald-800 dark:text-emerald-200',
       },
     ]
-  }, [activeRecipeProducts])
+  }, [metrics])
 
+  const activeProductsCount = healthBuckets.reduce((sum, bucket) => sum + bucket.count, 0)
+  const draftProductsCount = metrics?.draftCount ?? 0
+  const catalogTotal = activeProductsCount + draftProductsCount
   const maxBucketCount = useMemo(() => Math.max(1, ...healthBuckets.map((b) => b.count)), [healthBuckets])
   const activeBucketMeta = useMemo(() => healthBuckets.find((b) => b.key === selectedBucket), [healthBuckets, selectedBucket])
 
@@ -122,6 +115,11 @@ export function HealthDistributionHistogram({
     )
   }
 
+  // Sin métricas (falla de la API) no se dibujan columnas en cero: el panel muestra el error.
+  if (!metrics) {
+    return null
+  }
+
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -134,6 +132,9 @@ export function HealthDistributionHistogram({
           </div>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Volumen del catálogo agrupado por rango de rentabilidad frente al costo.
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            Cada producto se compara con su propio margen mínimo.
           </p>
         </div>
 
@@ -150,8 +151,8 @@ export function HealthDistributionHistogram({
         )}
       </div>
 
-      {activeRecipeProducts.length === 0 ? (
-        <div className="mt-4 flex h-36 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400 dark:border-gray-800">
+      {activeProductsCount === 0 ? (
+        <div className="mt-4 flex h-36 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
           Aún no hay productos con receta activa para clasificar en el histograma.
         </div>
       ) : (
@@ -168,6 +169,8 @@ export function HealthDistributionHistogram({
                   type="button"
                   onClick={() => onSelectBucket(isSelected ? null : bucket.key)}
                   disabled={!hasProducts}
+                  aria-pressed={isSelected}
+                  aria-label={`${bucket.title}: ${bucket.count} ${bucket.count === 1 ? 'producto' : 'productos'}, ${bucket.rangeLabel.toLowerCase()}`}
                   className={`group relative flex flex-col justify-end rounded-2xl border p-2 transition-all text-center cursor-pointer select-none sm:p-3.5 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/40'
@@ -175,10 +178,10 @@ export function HealthDistributionHistogram({
                   }`}
                 >
                   <div className="mb-1.5">
-                    <span className={`block text-base font-black sm:text-xl ${bucket.textClass}`}>
+                    <span data-testid="bucket-count" className={`block text-base font-black sm:text-xl ${bucket.textClass}`}>
                       {bucket.count}
                     </span>
-                    <span className="block text-[10px] font-semibold text-gray-400 sm:text-xs">
+                    <span className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 sm:text-xs">
                       {formatPercent(bucket.percentage, { decimals: 0 })}
                     </span>
                   </div>
@@ -206,15 +209,17 @@ export function HealthDistributionHistogram({
             })}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] text-gray-400 dark:border-gray-800/80">
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] text-gray-500 dark:border-gray-800/80 dark:text-gray-400">
             <span>
               {draftProductsCount > 0 ? (
                 <>
                   <strong className="text-gray-600 dark:text-gray-300">{draftProductsCount}</strong> en borrador (sin receta)
                 </>
               ) : (
-                '100% del catálogo costea con receta'
+                `${formatPercent(100, { decimals: 0 })} del catálogo costea con receta`
               )}
+              {' · '}
+              {catalogTotal} {catalogTotal === 1 ? 'producto' : 'productos'} en total
             </span>
             <span className="hidden sm:inline">
               Haz clic en una columna para filtrar los productos abajo
