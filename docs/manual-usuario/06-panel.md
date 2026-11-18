@@ -43,3 +43,7 @@ La grilla ordena los productos de menor a mayor margen, con los borradores al fi
 - **En el celular:** el botón **Cargar más** suma los 20 siguientes debajo de los que ya ves.
 
 Al cambiar de columna en el histograma, la grilla vuelve a la primera página.
+
+## Descargar el reporte en PDF
+
+Arriba, junto al saludo, el botón **Descargar reporte (PDF)** baja el reporte semanal con los números de este panel, sin esperar al mail del lunes. Qué trae y qué hacer si falla: [Reporte semanal en PDF](08-reporte-semanal.md).
