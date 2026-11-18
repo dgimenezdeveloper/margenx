@@ -9,6 +9,8 @@ import dashboardRoutes from './routes/dashboard';
 import suppliersRoutes from './routes/suppliers';
 import purchasingRoutes from './routes/purchasing';
 import webhooksRoutes from './routes/webhooks';
+import internalReportsRoutes from './routes/internalReports';
+import reportsRoutes from './routes/reports';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -28,6 +30,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/purchasing', purchasingRoutes);
 app.use('/api/webhooks', webhooksRoutes);
+app.use('/api/internal/reports', internalReportsRoutes);
+app.use('/api/reports', reportsRoutes);
 /*
   Health check de la API.
   Permite comprobar rápidamente si el servidor

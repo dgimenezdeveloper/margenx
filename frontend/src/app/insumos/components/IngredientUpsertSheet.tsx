@@ -1,18 +1,16 @@
 import type { FieldErrors, UseFormRegister, UseFormSetValue } from 'react-hook-form'
-import { AlertTriangle, History, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, History, LoaderCircle, Package, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { ingredientSchema } from '@/schemas/ingredientSchema'
-import type { Ingredient } from '@/services/ingredientService'
+import type { Ingredient, IngredientProductUsage } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
+import { formatQuantityWithUnit } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-/**
- * Modal / bottom sheet para crear o actualizar un insumo.
- * Reúne el formulario con validación Zod, la acción de guardar, historial,
- * eliminación y la sección de proveedores asociados cuando corresponde.
- */
 const ingredientUnits = ['kg', 'litro', 'unidad'] as const
 
 interface IngredientUpsertSheetProps {
@@ -36,14 +34,19 @@ interface IngredientUpsertSheetProps {
   money: (value: number) => string
   onNumericKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onDecimalChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onCostBlur?: (event: React.FocusEvent<HTMLInputElement>) => void
   watchedCurrentCost?: string | number
+  usedProducts?: IngredientProductUsage[]
+  /** Total real de productos que usan el insumo; la lista puede traer menos. */
+  usedProductsTotal?: number
+  isLoadingProducts?: boolean
+  /** La consulta de "Se usa en" falló: se muestra el error con Reintentar, no el estado vacío. */
+  productsError?: boolean
+  onRetryProducts?: () => void
+  /** false para el colaborador: el endpoint de "Se usa en" es solo ADMIN. */
+  showUsedProducts?: boolean
 }
 
-/**
- * Renderiza la ficha de creación o edición del insumo y su bloque de proveedores.
- * Se encarga de mostrar la versión de alta, la de edición con historial y la vista
- * de confirmación de eliminación sin duplicar la lógica del resto de la pantalla.
- */
 export function IngredientUpsertSheet({
   selected,
   newOpen,
@@ -65,7 +68,15 @@ export function IngredientUpsertSheet({
   money,
   onNumericKeyDown,
   onDecimalChange,
+  onCostBlur,
+  usedProducts = [],
+  usedProductsTotal,
+  isLoadingProducts = false,
+  productsError = false,
+  onRetryProducts,
+  showUsedProducts = true,
 }: IngredientUpsertSheetProps) {
+  const usedCount = Math.max(usedProductsTotal ?? 0, usedProducts.length)
   if (!selected && !newOpen) {
     return null
   }
@@ -117,7 +128,7 @@ export function IngredientUpsertSheet({
                   </DialogTitle>
                   <DialogDescription className="sr-only">
                     {selected
-                      ? `Actualizá el costo unitario de ${selected.name} y sus proveedores asociados.`
+                      ? `Actualizá el nombre, unidad o costo unitario de ${selected.name} y sus proveedores asociados.`
                       : 'Cargá el nombre, la unidad de medida y el costo unitario del nuevo insumo.'}
                   </DialogDescription>
                 </div>
@@ -165,45 +176,57 @@ export function IngredientUpsertSheet({
                   />
                 )}
 
-                {!selected && (
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                <div>
+                  <label htmlFor="ingredient-name" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
                     Nombre del insumo
-                    <input
-                      {...register('name')}
-                      placeholder="Ej. Harina 0000"
-                      className="mt-2 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus:ring-2 dark:focus:ring-indigo-500/20"
-                    />
-                    {errors.name && <p className="mt-1 text-xs font-bold text-rose-500">{errors.name.message}</p>}
                   </label>
-                )}
+                  <input
+                    id="ingredient-name"
+                    {...register('name')}
+                    placeholder="Ej. Harina 0000"
+                    aria-invalid={!!errors.name}
+                    aria-describedby={errors.name ? 'ingredient-name-error' : undefined}
+                    className={cn(
+                      'mt-2 h-12 w-full rounded-2xl border bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500',
+                      errors.name
+                        ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:border-rose-500/70'
+                        : 'border-gray-200 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:focus:border-indigo-500'
+                    )}
+                  />
+                  {errors.name && (
+                    <p id="ingredient-name-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
 
-                {!selected && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
-                      Unidad de medida
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {ingredientUnits.map((u) => (
-                        <button
-                          key={u}
-                          type="button"
-                          onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
-                          className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
-                            selectedUnit === u
-                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {u}
-                        </button>
-                      ))}
-                    </div>
-                    {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                    Unidad de medida
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {ingredientUnits.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
+                        className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
+                          selectedUnit === u
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
                   </div>
-                )}
+                  {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                </div>
 
-                <label htmlFor="ingredient-current-cost" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                  Costo unitario ({selected ? selected.unit : selectedUnit})
+                <div>
+                  <label htmlFor="ingredient-current-cost" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                    Costo unitario ({selectedUnit || selected?.unit})
+                  </label>
                   <div className="mt-2 flex h-12 items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-indigo-600 focus-within:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus-within:border-indigo-500 dark:focus-within:bg-gray-800 dark:focus-within:ring-2 dark:focus-within:ring-indigo-500/20">
                     <span className="text-lg font-bold text-gray-400">$</span>
                     <input
@@ -211,6 +234,7 @@ export function IngredientUpsertSheet({
                       {...register('currentCost')}
                       onKeyDown={onNumericKeyDown}
                       onChange={onDecimalChange}
+                      onBlur={onCostBlur}
                       inputMode="decimal"
                       type="text"
                       placeholder="0,00"
@@ -224,12 +248,93 @@ export function IngredientUpsertSheet({
                       {errors.currentCost.message}
                     </p>
                   )}
-                </label>
+                </div>
 
                 {hasDefaultSupplier && (
                   <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <p>El costo manual puede ser reemplazado por la próxima actualización automática del proveedor.</p>
+                  </div>
+                )}
+
+                {selected && showUsedProducts && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Package className="size-4 text-indigo-600 dark:text-indigo-400" />
+                        <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                          Se usa en
+                        </span>
+                      </div>
+                      {!isLoadingProducts && !productsError && usedCount > 0 && (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                          {usedCount} {usedCount === 1 ? 'producto' : 'productos'}
+                        </span>
+                      )}
+                    </div>
+
+                    {isLoadingProducts ? (
+                      <div className="flex items-center justify-center p-4 text-xs font-semibold text-gray-400">
+                        <LoaderCircle className="size-4 animate-spin mr-2" />
+                        Cargando productos vinculados...
+                      </div>
+                    ) : productsError ? (
+                      <div
+                        role="alert"
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+                      >
+                        <span>No pudimos cargar los productos que usan este insumo.</span>
+                        {onRetryProducts && (
+                          <button
+                            type="button"
+                            onClick={onRetryProducts}
+                            className="min-h-11 shrink-0 cursor-pointer rounded-xl border border-rose-200 bg-white px-3 font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300"
+                          >
+                            Reintentar
+                          </button>
+                        )}
+                      </div>
+                    ) : usedProducts.length > 0 ? (
+                      <>
+                        <ul
+                          aria-label="Productos que usan este insumo"
+                          className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1"
+                        >
+                          {usedProducts.map((prod) => (
+                            <li key={prod.id}>
+                              <Link
+                                to={`/productos/${prod.id}`}
+                                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-xs transition hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-900"
+                              >
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <p className="truncate font-bold text-gray-900 dark:text-gray-100">
+                                    {prod.name}
+                                  </p>
+                                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                    Usa: <strong className="text-gray-700 dark:text-gray-300">{formatQuantityWithUnit(prod.quantity, selected.unit)}</strong>
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-semibold text-gray-900 dark:text-white">
+                                    {money(Number(prod.salePrice) || 0)}
+                                  </span>
+                                  <ChevronRight className="size-4 text-gray-400" aria-hidden="true" />
+                                </div>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                        {usedCount > usedProducts.length && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            Se muestran los primeros {usedProducts.length} de {usedCount}.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800/50">
+                        Este insumo no se utiliza en ninguna receta activa.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

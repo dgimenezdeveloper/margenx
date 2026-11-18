@@ -7,6 +7,14 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Con viewport-fit=cover (index.html), en horizontal el contenido llegaría hasta la muesca del
+   iPhone. El relleno lateral lo deja dentro de la zona segura. En vertical, en Android y en
+   escritorio la zona segura de los costados vale 0. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 /* En modo oscuro, convierte el logotipo a blanco puro instantáneamente sin delay */
 :is(.dark) .logo-adaptive,
 .dark .logo-adaptive {

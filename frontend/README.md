@@ -84,6 +84,7 @@ Los listados largos (`/insumos`, `/productos` y las presentaciones de `/proveedo
 - `src/hooks/usePaginatedList.ts`: estado de página, filas por página, búsqueda con espera de 300 ms (`SEARCH_DEBOUNCE_MS`) y "Cargar más". Devuelve `meta` (con `meta.total` para los contadores), `catalogTotal` (total sin búsqueda, para tarjetas como "Insumos activos"), `appliedSearch` y `setItems` para actualizar la página visible tras editar.
 - `src/components/pagination.tsx` (`Pagination`): en escritorio, `nav` con "Mostrando 21–40 de 218 insumos", selector "Filas por página" y botones "Página anterior"/"Página siguiente" de 44 px con `aria-label`; en mobile, "Cargar más" en lugar del paginador. No se muestra si no hay resultados.
 - `src/hooks/useIngredientSearch.ts`: búsqueda en la API para el selector de insumos de la receta (`/productos/nuevo` y el modal de `/productos/:id`), con la misma espera de 300 ms y hasta 100 resultados.
+- **Excepción: el panel (`/dashboard`).** Los números del panel (tarjetas, histograma y margen promedio) salen de `GET /api/dashboard/metrics`, que cuenta los cinco buckets sobre todo el catálogo en el servidor. La grilla "Catálogo Monitoreado" sí filtra en memoria, porque `GET /api/products` no filtra por bucket: recibe el catálogo completo con `productService.getAll` y lo muestra de a 20 con `Pagination` ("Cargar más" en mobile). Al tocar una columna del histograma, la grilla usa `classifyHealthBucket` (`src/lib/healthBucket.ts`), la misma regla que el servidor, para mostrar los mismos productos que cuenta la columna.
 
 ### Diálogos (`Dialog`)
 
@@ -173,6 +174,19 @@ Para verificar su correcto funcionamiento e instalabilidad:
    - **iOS (Safari):** Al tocar el botón **Compartir** y presionar **"Agregar a Inicio"**, el sistema debe precargar el título "MargenX" y el isotipo nítido proveniente de `apple-touch-icon.png` sobre fondo plano sin esquinas negras ni transparencias no deseadas.
 
 `src/__tests__/pwa.test.ts` (Vitest) valida en cada `npm test` los campos obligatorios del manifest, que cada ícono mida lo que declara en `sizes`, que el maskable y el `apple-touch-icon` sean opacos, que `favicon.ico` sea un ICO real y la regla de `nginx.conf` del manifest.
+
+### Zona segura de iOS (app instalada)
+
+`index.html` declara `viewport-fit=cover`. Con eso, en el iPhone `env(safe-area-inset-bottom)` vale la franja de la línea de inicio, y en horizontal `env(safe-area-inset-left)` y `env(safe-area-inset-right)` valen la franja de la muesca. Sin la directiva, iOS devuelve 0 y en la app instalada la línea de inicio queda sobre la `BottomNav`. En Android y en escritorio valen 0.
+
+Reglas para lo que se fija en pantalla:
+
+1. **Lo fijo abajo suma la zona segura a su relleno inferior.** La `BottomNav` usa `pb-[max(.75rem,env(safe-area-inset-bottom))]` y `DialogSheet`, `pb-[max(1.5rem,env(safe-area-inset-bottom))]`. Un `DialogSheet` con `p-0` pone ese relleno en su pie de botones, como la carga masiva (`BulkIngredientsModal`).
+2. **Una barra fija encima de la `BottomNav` usa `ABOVE_BOTTOM_NAV_CLASS`** de `src/lib/mobile-layout.ts`, como `ProductMobileFooter` y la barra de `/productos/nuevo`. Si cambia el alto de la `BottomNav`, se cambia ahí.
+3. **Una pantalla con barra fija deja lugar al final** con un relleno que suma la zona segura. Por ejemplo, `pb-[calc(13rem+env(safe-area-inset-bottom))]` en la ficha del producto.
+4. **Los costados en horizontal** los resuelve el `body` en `src/index.css`.
+
+Chromium no simula la zona segura: la prueba que manda es en un iPhone con Face ID, con la app abierta desde el ícono. `src/__tests__/ios-safe-area.test.tsx` exige la directiva del viewport, el relleno lateral del `body` y el inferior de `DialogSheet`.
 
 ### Service worker y página Sin conexión
 

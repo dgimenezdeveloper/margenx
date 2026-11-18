@@ -219,7 +219,7 @@ export function BulkIngredientsModal({ isOpen, onClose, existingSupplies, onSucc
             {stage.name === 'done' && <ResultStep batch={stage.batch} result={stage.result} />}
           </div>
 
-          <footer className="flex shrink-0 flex-col gap-2 border-t border-gray-100 px-5 py-4 md:flex-row-reverse md:px-6 dark:border-gray-800">
+          <footer className="flex shrink-0 flex-col gap-2 border-t border-gray-100 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:flex-row-reverse md:px-6 dark:border-gray-800">
             {(stage.name === 'review' || stage.name === 'importing') && (
               <PrimaryButton onClick={handleImport} disabled={stage.name === 'importing' || stage.batch.valid.length === 0}>
                 {stage.name === 'importing' ? (

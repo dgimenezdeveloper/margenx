@@ -1,33 +1,43 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { MarginBadge } from '@/components/MarginBadge'
+import { Pagination } from '@/components/pagination'
+import { DEFAULT_PAGE_SIZE } from '@/services/pagination'
 import type { Product } from '@/services/productService'
-import type { HealthBucketKey } from './HealthDistributionHistogram'
 import { formatMoney } from '@/lib/format'
+import { classifyHealthBucket, type ActiveHealthBucket } from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
 
-const getBucketTitle = (key: HealthBucketKey) => {
-  switch (key) {
-    case 'loss': return 'Venta a Pérdida'
-    case 'low': return 'En Riesgo'
-    case 'healthy': return 'En Objetivo'
-    case 'high': return 'Superávit'
-    default: return ''
-  }
+const BUCKET_TITLES: Record<ActiveHealthBucket, string> = {
+  loss: 'Venta a Pérdida',
+  risk: 'En Riesgo',
+  target: 'En Objetivo',
+  surplus: 'Superávit',
 }
 
 interface MonitoredCatalogGridProps {
   products: Product[]
   isLoading: boolean
   isCollaborator: boolean
-  selectedBucket: HealthBucketKey | null
+  selectedBucket: ActiveHealthBucket | null
   onClearFilter: () => void
+}
+
+interface PagingState {
+  /** Columna del histograma para la que vale la página; al cambiar de columna se vuelve a la primera. */
+  bucket: ActiveHealthBucket | null
+  page: number
+  limit: number
+  /** true después de "Cargar más" (mobile): se muestran las páginas acumuladas. */
+  append: boolean
 }
 
 /**
  * Grilla de productos monitoreados.
+ * Recibe el catálogo completo (todas las páginas de la API) porque `GET /api/products`
+ * no filtra por bucket, y lo muestra de a 20 con el paginador compartido.
  * Maneja su propio ordenamiento (alfabético para colaboradores, por margen para admins)
  * y su propio skeleton de carga.
  */
@@ -62,20 +72,31 @@ export function MonitoredCatalogGrid({
   const displayedProducts = useMemo(() => {
     if (!selectedBucket || isCollaborator) return sortedProducts
 
-    return sortedProducts.filter((p) => {
-      if (p.ingredients.length === 0) return false
-      const m = p.marginPercent ?? 0
-      const target = p.minMarginPercent ?? 30
-
-      switch (selectedBucket) {
-        case 'loss': return m < 0
-        case 'low': return m >= 0 && m < target
-        case 'healthy': return m >= target && m <= 60
-        case 'high': return m > 60 && m >= target
-        default: return true
-      }
-    })
+    // Misma regla que el servidor: la grilla muestra los mismos productos que cuenta la columna.
+    return sortedProducts.filter((p) => classifyHealthBucket(p) === selectedBucket)
   }, [sortedProducts, selectedBucket, isCollaborator])
+
+  const activeBucket = isCollaborator ? null : selectedBucket
+  const [paging, setPaging] = useState<PagingState>({
+    bucket: activeBucket,
+    page: 1,
+    limit: DEFAULT_PAGE_SIZE,
+    append: false,
+  })
+  const current: PagingState =
+    paging.bucket === activeBucket ? paging : { ...paging, bucket: activeBucket, page: 1, append: false }
+
+  const total = displayedProducts.length
+  const totalPages = Math.ceil(total / current.limit)
+  // Si el catálogo se achicó (por ejemplo, al reintentar), no se queda en una página vacía.
+  const page = Math.min(current.page, Math.max(totalPages, 1))
+  const pageProducts = current.append
+    ? displayedProducts.slice(0, page * current.limit)
+    : displayedProducts.slice((page - 1) * current.limit, page * current.limit)
+
+  const goToPage = (next: number) => setPaging({ ...current, page: next, append: false })
+  const setLimit = (limit: number) => setPaging({ ...current, page: 1, limit, append: false })
+  const loadMore = () => setPaging({ ...current, page: page + 1, append: true })
 
   return (
     <section className="space-y-4">
@@ -84,7 +105,7 @@ export function MonitoredCatalogGrid({
           <h2 className="text-lg font-bold tracking-tight md:text-xl">
             {selectedBucket && !isCollaborator ? (
               <span className="truncate block">
-                Productos: {getBucketTitle(selectedBucket)}{' '}
+                Productos: {BUCKET_TITLES[selectedBucket]}{' '}
                 <span className="text-xs font-semibold text-gray-400">
                   ({displayedProducts.length} de {products.length})
                 </span>
@@ -143,7 +164,7 @@ export function MonitoredCatalogGrid({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {displayedProducts.map((product) => {
+          {pageProducts.map((product) => {
             const hasRecipe = product.ingredients.length > 0
 
             return (
@@ -186,6 +207,21 @@ export function MonitoredCatalogGrid({
             )
           })}
         </div>
+      )}
+
+      {!isLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={current.limit}
+          shown={pageProducts.length}
+          itemLabel="productos"
+          hasMore={page < totalPages}
+          onPageChange={goToPage}
+          onLimitChange={setLimit}
+          onLoadMore={loadMore}
+        />
       )}
     </section>
   )

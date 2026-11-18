@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 2.2 (Sincronización Sprint 5 — integración real con n8n y backlog reprogramado)
-**Fecha de Actualización:** 24 de Octubre de 2026
+**Versión:** 3.0 (Alcance de la cursada contra la Fase 2 y calendario con el Sprint 7)
+**Fecha de Actualización:** 17 de Noviembre de 2026
 
 ---
 
@@ -87,6 +87,32 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 - Multi-sucursal dentro de una misma cuenta de comercio.
 - Historial exhaustivo de auditoría de modificaciones de usuarios (más allá de la trazabilidad de costos e historial de precios).
 
+### Alcance de la cursada y Fase 2
+
+La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/11/2026), con el congelamiento de funcionalidades el **28/11/2026** (§6). El equipo confirmó el 14/11/2026 que Smart Purchasing, el reporte semanal en PDF y la invitación de colaboradores entran en la cursada. Esta es la **tabla única** de alcance: la especificación funcional y los entregables la citan o la copian sin cambios. El estado de cada capacidad (*Disponible*, *Planificado* o *Propuesta*) está en `docs/especificacion-funcional.md` §11.
+
+| Capacidad | Alcance | Fuente |
+| :---- | :---- | :---- |
+| Insumos, productos en borrador, recetas y cálculo del margen en vivo | Cursada (Sprints 0 a 2) | §6, ADR-004 |
+| Panel de rentabilidad con semáforo y métricas sobre todo el catálogo | Cursada (Sprints 3 y 6) | §6, especificación §6 |
+| Roles `ADMIN` y `COLLABORATOR` con los datos financieros ocultos al colaborador | Cursada (Sprint 3) | ADR-007, especificación §8 |
+| Proveedores, presentaciones y costo vigente desde la predeterminada | Cursada (Sprints 3 y 5) | ADR-005, especificación §4 |
+| Ingesta de listas por correo, filtro de descarte y cuarentena | Cursada (Sprints 4 y 5) | ADR-005, especificación §5 |
+| Recálculo en cascada y alerta de margen por correo | Cursada (Sprint 4) | §2, especificación §6 |
+| PWA instalable con sesión persistente | Cursada (Sprint 5) | ADR-006 |
+| Invitar y dar de baja colaboradores desde Perfil | Cursada (Sprint 6) | ADR-008, especificación §8 |
+| Compras inteligentes (Smart Purchasing, RF-15) | Cursada (Sprint 6) | §6, especificación §7 |
+| Reporte semanal de márgenes en PDF por correo y descarga desde la app | Cursada (Sprint 6) | §2, §6 |
+| Documentación interactiva de la API (Swagger / OpenAPI) | Cursada (Sprint 7) | §6 |
+| Lighthouse > 90 a 360 px (RNF-01, RNF-02) | Cursada (Sprint 7) | §6 |
+| Monitor de disponibilidad de producción y staging | Cursada (Sprint 7) | §2 |
+| Release `v1.0.0` | Cursada (Sprint 7) | §6, `docs/runbook-release.md` |
+| Permisos granulares y roles intermedios; invitar a otro `ADMIN` y cambiar roles | Fase 2 | ADR-007, ADR-008 |
+| Backoffice interno de cuentas (mientras tanto, Concierge MVP) | Fase 2 | `docs/propuesta-proyecto.md` §13.1, ADR-008 |
+| Moneda y cotización ARS/USD | Fase 2 | `docs/retrospectivas/acta-cierre-sprint-5.md` §5 |
+| Aviso al rechazar un precio en cuarentena | Fase 2 (propuesta) | ADR-005 |
+| Starter pack por rubro, alta de insumo desde la receta, bandeja de códigos no mapeados, notificación en la app, Telegram y push, y vista de precios para el colaborador | Propuesta sin sprint: no comprometida en la cursada | especificación §11 |
+
 ---
 
 ## 2. Arquitectura de Integración con n8n
@@ -100,7 +126,8 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 | `margin.alert.triggered` | Backend → n8n, después de la transacción en la que un producto cruzó su margen mínimo (edición manual del costo, presentación predeterminada o liberación de cuarentena) | `{ accountId, accountSlug, tradeName, ownerEmail, ingredient: { id, name }, affectedProductsCount, criticalProducts, triggeredAt }` | Webhook `margin-alert` de n8n (URL en `N8N_MARGIN_ALERT_WEBHOOK_URL`) | Implementado |
 | `collaborator.invitation.created` | Backend → n8n, al crear una invitación de colaborador (Clerk la crea sin su mail) | `{ email, tradeName, inviterEmail, invitationUrl, expiresInDays }` | Webhook `collaborator-invitation` de n8n (URL en `N8N_INVITATION_WEBHOOK_URL`); responde 200 recién después del envío | Implementado (ADR-008) |
 | `supplier.pricelist.received` | n8n → backend, al recibir una lista mayorista por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` | Implementado (reglas en ADR-005) |
-| `report.weekly.requested` | Cron de n8n los lunes a las 08:00, consultando la API | `{ accountId, ownerEmail, periodStart, periodEnd }` | A definir | Planificado (Sprint 6) |
+| `report.weekly.requested` | n8n → backend, con un disparador semanal los lunes a las 08:00 (hora de Argentina), solo en producción | Sin cuerpo: n8n pide `GET /api/internal/reports/accounts` y, por cada cuenta, `GET /api/internal/reports/weekly/:slug`, que devuelve el reporte ya calculado | Endpoints internos del backend, por la red interna de Docker; Nginx niega `/api/internal/` desde afuera. n8n genera el PDF con Gotenberg y lo envía por Brevo al Administrador | Implementado (Backend; workflow satélite en n8n pendiente) |
+| Descarga del reporte desde la app | Backend → n8n, cuando el Administrador pide el PDF (`GET /api/reports/weekly.pdf`) | El mismo reporte ya calculado | Webhook `report-pdf` de n8n (URL en `N8N_REPORT_PDF_WEBHOOK_URL`); responde con el PDF, generado con el mismo Gotenberg que el del correo | Implementado (Backend; workflow satélite en n8n pendiente) |
 | `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | A definir | Propuesta (no planificado) |
 
 ### Tareas resueltas por n8n
@@ -108,8 +135,8 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 1. **Alertas de margen bajo:** al recibir `margin.alert.triggered`, n8n responde inmediatamente con `200 OK` al backend y procesa de forma asíncrona una plantilla HTML responsive con diseño accesible (WCAG AA). Despacha el correo a través del relay SMTP autenticado de Brevo (`smtp-relay.brevo.com:587`, STARTTLS) firmado por `alertas@margenx.tech`.
 2. **Invitación de colaboradores:** al recibir `collaborator.invitation.created`, n8n valida que el enlace sea de aceptación de Clerk, arma el mail en español con la plantilla de MargenX y lo envía por Brevo desde `alertas@margenx.tech`. Responde 200 al backend solo después del envío; si falla, el backend informa que el mail no salió y el Administrador copia el enlace desde Perfil (ADR-008).
 3. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
-4. **Reporte PDF semanal** · *Planificado (Sprint 6)*: n8n consultaría la API del backend, generaría un PDF con los márgenes de todos los productos y lo enviaría al Administrador los lunes. El endpoint de consulta todavía no existe.
-5. **(Stretch goal)** Recordatorio automático si un insumo no actualiza su costo hace más de N días.
+4. **Reporte semanal de márgenes en PDF** · *Planificado (Sprint 6)*: los lunes a las 08:00, n8n pide al backend las cuentas activas y el reporte de cada una, arma el HTML con la plantilla compartida de los mails, lo convierte a PDF con Gotenberg (contenedor solo en la red interna) y lo envía por Brevo al Administrador. El backend calcula todos los números con `Prisma.Decimal` y la misma lógica del panel; n8n no lee la base ni calcula márgenes. La descarga desde la app usa el mismo generador a través del webhook `report-pdf`. Una cuenta que falla no frena a las demás y se avisa a Discord. La decisión de generar el PDF en n8n con Gotenberg se registra en un ADR junto con el workflow.
+5. **Costos sin actualizar** · *Planificado (Sprint 6)*: el recordatorio de insumos que no cambian de costo hace más de 30 días va como una sección del reporte semanal, sin un workflow aparte.
 
 **Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n consume eventos, orquesta notificaciones y envía las listas de precios a la API, que es la única que escribe — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
@@ -118,6 +145,8 @@ Para mitigar el riesgo de saturación de memoria RAM en el servidor ante proceso
 - Evalúa el consumo real de memoria del host.
 - Si supera el umbral del **85%**, ejecuta `docker stats --no-stream` para identificar los contenedores que más demandan memoria.
 - Construye y despacha un mensaje Embed enriquecido a Discord con mención a DevOps, incorporando un periodo de bloqueo de 30 minutos para evitar saturación de notificaciones.
+
+**Monitor de disponibilidad** · *Planificado (Sprint 7)*: un workflow de n8n consulta cada 5 minutos el healthcheck de la API y el frontend de producción y de staging, y avisa a Discord la caída después de 2 fallas seguidas y la recuperación. Guarda su estado en los datos estáticos del workflow, sin escribir en la base.
 
 ---
 
@@ -453,6 +482,7 @@ graph TB
 
         subgraph AUTOMATION ["Servicios Satélite"]
             N8N["n8n Engine (1024 MB | Heap 768 MB)"]
+            Gotenberg["Gotenberg — HTML a PDF (512 MB, solo red interna) · Planificado"]
         end
     end
 
@@ -469,6 +499,8 @@ graph TB
     BackP -.->|Verify JWT| Clerk
     BackP -->|Webhooks HTTP| N8N
     N8N -->|SMTP STARTTLS| Brevo
+    N8N -.->|"Reportes /api/internal (Planificado)"| BackP
+    N8N -.->|"HTML a PDF (Planificado)"| Gotenberg
     EmailRouting -->|Reenvío Catch-All| Gmail
     N8N -.->|IMAP SSL 993| Gmail
     CronHost -.->|Supervisa RAM > 85%| Discord["Canal Discord Equipo"]
@@ -498,6 +530,7 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
   - Backend (prod y dev): 512 MB c/u.
   - Frontend (prod y dev): 128 MB c/u.
   - Techo total del stack: ~3.3 GB, garantizando más de 4.5 GB libres en el servidor.
+  - Gotenberg (*Planificado*, para el reporte semanal en PDF): 512 MB con reserva de 128 MB y Chromium sin arranque automático, de modo que no ocupa memoria mientras no se genera un PDF. Con él, el techo sube a ~3.8 GB. La memoria se mide con `docker stats` y `monitor-memory.sh` durante una generación antes de activarlo.
 - **Rotación de logs** (`json-file`, `max-size: 10m`, `max-file: 3`) en todos los servicios, para evitar desbordes de disco.
 - **Postgres protegido:** el puerto se vincula a `127.0.0.1:5435:5432` (solo loopback del host), eliminando exposición pública directa a internet.
 - **`DATABASE_URL` por entorno:** cada servicio de backend la toma de su propio archivo de entorno (`.env.prod` / `.env.dev`).
@@ -563,9 +596,9 @@ Estas 3 suites son las **mínimas obligatorias** para el DoD del proyecto. Se ej
 
 ---
 
-## 6. Backlog de Producto y Sprint Planning (Sprint 0 al 6)
+## 6. Backlog de Producto y Sprint Planning (Sprint 0 al 7)
 
-Para mitigar riesgos técnicos, evitar dependencias bloqueantes y asegurar el cumplimiento de los hitos académicos exigidos tanto por la cátedra de Práctica Profesional Supervisada (Product Owner) como por Metodologías Ágiles (Cliente), el proyecto se estructura en un **Sprint 0 de fundaciones** y **6 Sprints de desarrollo de 2 semanas cada uno** (14 semanas en total).
+Para mitigar riesgos técnicos, evitar dependencias bloqueantes y asegurar el cumplimiento de los hitos académicos exigidos tanto por la cátedra de Práctica Profesional Supervisada (Product Owner) como por Metodologías Ágiles (Cliente), el proyecto se estructura en un **Sprint 0 de fundaciones** y **7 Sprints de desarrollo**, de 2 semanas cada uno salvo el Sprint 3, que duró una (15 semanas en total, del 22/08 al 04/12/2026). El Sprint 7 se agregó cuando la cátedra movió la entrega final al 05/12/2026 (aviso de la docente del 12/11/2026); las fechas de cada sprint son las del campo Sprint del tablero.
 
 La distribución del trabajo adopta un enfoque **Contract-First**: en los primeros días de cada iteración se definen los contratos TypeScript y schemas de Zod, permitiendo al Frontend avanzar en vistas desacopladas mediante **Zustand** mientras el Backend implementa las transacciones de base de datos, garantizando integraciones limpias hacia el final de cada sprint.
 
@@ -585,7 +618,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 
 ---
 
-### Historias de Usuario y Tareas Técnicas por Sprint (Sprint 0 al 6)
+### Historias de Usuario y Tareas Técnicas por Sprint (Sprint 0 al 7)
 
 #### Sprint 0: Setup Técnico y Arquitectura (22/08 al 04/09) — [Completado]
 * **Hito Cátedra:** Requerimientos, backlog, diseño y arquitectura (Clase 05/09).
@@ -684,8 +717,8 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA] Suite E2E en Playwright para validación del flujo integral de recálculo en cascada (Completado).
   * [QA] Pruebas de concurrencia y estrés sobre recálculos masivos de recetas (Completado).
 
-#### Sprint 5: Proveedores, PWA, Deuda Técnica y Endurecimiento (25/10 al 07/11) — [En curso]
-* **Hito Cátedra:** Ensayo general de defensa y revisión integral (Clase 14/11).
+#### Sprint 5: Proveedores, PWA, Deuda Técnica y Endurecimiento (25/10 al 07/11) — [Completado]
+* **Hito Cátedra:** Entrega 6 a la cátedra y release `v0.6.0` (07/11).
 * **Entregable:** Vista y detalle de proveedores con cuarentena integrada, código de artículo y carga masiva de insumos (camino B); PWA instalable con sesión persistente y página offline; accesibilidad de diálogos y formularios; backup diario con ensayo de restauración; endurecimiento de la VPS y de Nginx; Node 22 LTS con CI completo; documentación sincronizada con el código. Smart Purchasing, el reporte PDF semanal y la meta de Lighthouse se reprogramaron al Sprint 6.
 * **Backend:**
   * [BE] Integridad de datos en la base (unicidad y validación de decimales).
@@ -711,27 +744,51 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA] Recorrido por rol en dispositivos reales y regresión del sprint con matriz de defectos.
   * [DOCS] ADR del costo vigente, la cuarentena y el canal de ingesta; especificación funcional unificada; convención de docs como código; documentos históricos; READMEs, runbook y manual de usuario.
 
-#### Sprint 6: Smart Purchasing, Reporte PDF, Congelamiento de Release v1.0 y Defensa Final (08/11 al 21/11)
-* **Hito Cátedra:** ENTREGA FINAL Y DEFENSA DE PPS (Clase 28/11).
-* **Entregable:** Versión final Release v1.0 congelada, Smart Purchasing, reporte PDF semanal, documentación interactiva Swagger/OpenAPI, video demo comercial de 3 minutos y sistema listo para la defensa.
-* **Frontend (Federico Paal):**
-  * [FE] Vista de Smart Purchasing con comparador de ofertas y orden de compra sugerida (RF-15). *Reprogramado desde el Sprint 5.*
-  * [FE] Solicitud y descarga del reporte consolidado de márgenes. *Reprogramado desde el Sprint 5.*
-  * [FE] Verificación de compatibilidad cross-browser y pulido final de microinteracciones (RNF-07).
-* **Backend (Mauricio Barreras):**
-  * [BE] Motor de compras inteligentes y agrupación por proveedor óptimo (RF-15). *Reprogramado desde el Sprint 5.*
-  * [BE] Endpoint de consulta para el reporte de márgenes. *Reprogramado desde el Sprint 5.*
-  * [BE] Publicación de documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
-  * [BE] Congelamiento de código, remoción de endpoints de test y limpieza final.
-* **QA / PO (Leandro Herrera):**
-  * [QA/FE] Auditoría de accesibilidad y performance con Google Lighthouse > 90 pts (RNF-01, RNF-02). *Reprogramado desde el Sprint 5.*
-  * [QA/PO] Versión final del Manual de Usuario y Guía Rápida para el comercio en formato PDF.
-  * [QA] Reporte final de métricas de calidad y cierre formal de la matriz de trazabilidad.
-* **DevOps / SM (Darío Giménez):**
-  * [N8N] Workflow con disparador semanal para generar y enviar el PDF de márgenes. *Reprogramado desde el Sprint 5.*
-  * [DEVOPS] Vitest y su cobertura en la misma versión mayor en backend y frontend.
-  * [DEVOPS] Tagging formal de Release `v1.0.0` en Git y congelamiento de rama `main`.
-  * [SCRUM/ALL] Grabación del Video Demo comercial, redacción del Acta de Cierre y diapositivas de defensa.
+#### Sprint 6: Smart Purchasing, Reporte PDF, Invitación de Colaboradores y Pulido de la App (07/11 al 20/11) — [En curso]
+* **Hito Cátedra:** Clase de pre-entrega (21/11), con la Sprint Review.
+* **Entregable:** Compras inteligentes (API y pantalla), reporte semanal de márgenes en PDF por correo y descarga desde la app, invitación de colaboradores desde Perfil, búsqueda y paginación de todo el catálogo, métricas del panel sobre todo el catálogo, y correcciones de usabilidad, formato y accesibilidad. El estado de cada tarea está en el tablero.
+* **Frontend:**
+  * [FE] Pantalla de compras sugeridas en `/compras` (RF-15). *Reprogramado desde el Sprint 5.*
+  * [FE] Descarga del reporte en PDF y estado real del reporte en Perfil. *Reprogramado desde el Sprint 5.*
+  * [FE] Paginación y búsqueda en insumos, productos, recetas y detalle de proveedor.
+  * [FE] Panel: histograma, catálogo y margen promedio sobre todo el catálogo.
+  * [FE] Ficha del insumo: editar nombre y unidad, ver dónde se usa e historial reciente primero.
+  * [FE] Cantidades de receta en gramos o mililitros; formato es-AR en importes, porcentajes, cantidades y plantilla Excel.
+  * [FE] Selector de insumos de la receta, un solo nombre para cada estado de margen y accesibilidad de los campos de producto.
+  * [FE] Modales y barras fijas en mobile, Perfil sin interruptores que no guardan y pantallas públicas con sesión iniciada.
+* **Backend:**
+  * [BE] API de compras sugeridas y vista previa de pedido, agrupadas por proveedor más conveniente (RF-15). *Reprogramado desde el Sprint 5.*
+  * [BE] API del reporte semanal de márgenes: endpoints internos para n8n y descarga desde la app. *Reprogramado desde el Sprint 5.*
+  * [BE] Invitación de colaboradores por mail desde Perfil (ADR-008).
+  * [BE] Búsqueda por nombre en insumos y productos, paginación de presentaciones y productos que usan un insumo.
+  * [BE] Buckets del histograma y margen promedio robusto (mediana) en las métricas del panel.
+  * [BE] Unidad de los insumos unificada en `u`.
+* **DevOps / n8n:**
+  * [N8N] Workflow semanal del reporte de márgenes en PDF con Gotenberg. *Reprogramado desde el Sprint 5.*
+  * [N8N] Rediseño del correo de resumen de ingesta y enlace de respaldo del correo de alerta.
+  * [DEVOPS] Vitest y su cobertura en la misma versión mayor en backend y frontend; DevContainer sincronizado con la rama.
+* **QA / Documentación / Scrum:**
+  * [QA] Enlace del correo de alerta probado en iPhone y capturas de la guía de instalación.
+  * [DOCS] SAD, especificación funcional y plan de entregas alineados en alcance y calendario.
+  * [SCRUM] Retrospectiva pendiente del Sprint 5, Sprint Review del 21/11 y acta de cierre del Sprint 6.
+
+#### Sprint 7: Release v1.0.0 y Defensa (21/11 al 04/12)
+* **Hito Cátedra:** Entrega final de la cursada (05/12/2026). Entre el 21/11 y el 05/12 la revisión de la cátedra es en línea.
+* **Congelamiento de funcionalidades:** 28/11/2026. Desde ese día `develop` solo recibe correcciones de defectos de la regresión y documentación.
+* **Entregable:** Release `v1.0.0` en producción, documentación interactiva de la API, regresión completa con matriz de trazabilidad, documentos finales actualizados, video demo comercial de 3 minutos y defensa ensayada.
+* **Frontend:**
+  * [FE] Retoques visuales en panel, insumos y proveedores; pie de página con Soporte y Documentación; avisos de error, de cambios sin guardar y de colaborador redirigido.
+* **Backend:**
+  * [BE] Documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
+* **DevOps / n8n:**
+  * [N8N] Monitor de disponibilidad de producción y staging con aviso a Discord.
+  * [DEVOPS] Release `v1.0.0`: congelamiento, merge a `main`, etiqueta, rotación de credenciales y runbook de release corregido.
+* **QA / PO:**
+  * [QA] Auditoría de Lighthouse > 90 a 360 px (RNF-01, RNF-02). *Reprogramado desde el Sprint 6.*
+  * [QA] Regresión final completa y matriz de trazabilidad de RF-01 a RF-20 y de RNF-01 a RNF-11, incluida la compatibilidad de navegadores (RNF-07).
+* **Documentación / Scrum (todo el equipo):**
+  * [DOCS] Entregables finales: documentación técnica, manual de usuario, presentación y TPI de Metodologías Ágiles, con la tabla de alcance de §1.
+  * [SCRUM] Balance de impacto en los comercios piloto, video demo de 3 minutos, ensayo de la defensa y acta final.
 
 ---
 

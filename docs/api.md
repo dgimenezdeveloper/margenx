@@ -1,7 +1,7 @@
 
 # API REST — Contratos, Límites, Seguridad y Códigos HTTP
 
-Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Toda ruta requiere autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk, salvo el webhook receptor que utiliza firma por secreto criptográfico.
+Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
 
 ---
 
@@ -34,6 +34,7 @@ Esta especificación constituye la fuente única de verdad para el Frontend, las
 - `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar el proveedor predeterminado sin asignar un reemplazo).
 - `500 Internal Server Error`: Excepción no controlada en servidor.
 - `502 Bad Gateway`: Falló un servicio externo del que depende la operación (hoy, la Backend API de Clerk al invitar, revocar o dar de baja). La operación no se aplicó y se puede reintentar.
+- `503 Service Unavailable`: Un servicio satélite necesario para completar la solicitud (como el generador de PDF en n8n) no respondió o está deshabilitado.
 
 ---
 
@@ -710,3 +711,23 @@ Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto
     "itemsCount": 1
   }
   ```
+
+---
+
+## 11. Módulo Reportes Semanales (`/api/reports` y `/api/internal/reports`)
+
+### Rutas internas para n8n
+
+Estas rutas requieren la cabecera `x-margenx-webhook-secret`, comparada en tiempo constante. Si falta la cabecera o `INTERNAL_WEBHOOK_SECRET` no está configurado, responden `401 Unauthorized`. Nginx bloquea `/api/internal/` desde el exterior con `403`; n8n las consume por la red interna de Docker.
+
+- `GET /api/internal/reports/accounts`: lista las cuentas activas con `id`, `slug`, `businessName` y el correo del ADMIN más antiguo (`ownerEmail`, o `null`).
+- `GET /api/internal/reports/weekly/:slug`: devuelve el reporte semanal calculado para una cuenta activa. Acepta `from` y `to` opcionales como fechas ISO; si no se indican, usa los últimos siete días. Un slug inexistente o inactivo responde `404`.
+
+### Rutas de la aplicación
+
+Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 Forbidden`. El reporte se limita a la cuenta del usuario autenticado. `from` y `to` son parámetros opcionales de fecha ISO.
+
+- `GET /api/reports/weekly`: devuelve el reporte como JSON.
+- `GET /api/reports/weekly.pdf`: envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día en `America/Argentina/Buenos_Aires`. Si n8n no está configurado, falla, expira o devuelve un PDF vacío, responde `503` con un mensaje genérico, sin detalles internos.
+
+El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.

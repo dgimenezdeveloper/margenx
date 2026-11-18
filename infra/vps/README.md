@@ -326,6 +326,12 @@ Todas las respuestas de producción y staging incorporan cabeceras defensivas pa
 - `X-Robots-Tag: noindex, nofollow, noarchive` (exclusivo para `dev.margenx.tech`, `api-dev.margenx.tech` y `n8n.margenx.tech`).
 - `Content-Security-Policy-Report-Only`: activa en modo observación sin bloqueo de recursos.
 
+### Rutas internas y PDF del reporte semanal
+
+Los bloques de API de producción y staging en `nginx/margenx.conf` incluyen `location ^~ /api/internal/ { deny all; }`, que responde `403` a las llamadas externas a endpoints internos. n8n debe consumir esos endpoints desde la red interna de Docker.
+
+La URL del webhook n8n para generar el PDF bajo demanda se configura como `N8N_REPORT_PDF_WEBHOOK_URL` en `/opt/margenx-infra/.env`. El mismo `.env` se carga en los backends de producción y staging.
+
 ### Límites de Cuerpo (client_max_body_size)
 - **API (`api.margenx.tech` y `api-dev.margenx.tech`):** `6 MB`. Nginx rechaza con `413 Request Entity Too Large` solicitudes mayores a 6 MB antes de sobrecargar Express. El webhook de ingesta de backend acepta hasta 5 MB.
 - **Frontend:** `2 MB`.

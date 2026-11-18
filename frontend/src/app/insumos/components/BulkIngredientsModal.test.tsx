@@ -217,4 +217,12 @@ describe('BulkIngredientsModal', () => {
     await user.click(screen.getByRole('button', { name: 'Cargar otra planilla' }))
     await waitFor(() => expect(screen.getByText('Paso 1 de 3: Archivo')).toBeInTheDocument())
   })
+
+  it('los botones de abajo quedan fuera de la zona segura de iOS en la app instalada (#406)', () => {
+    renderModal()
+
+    // El diálogo usa p-0, así que el relleno inferior lo pone su pie de botones
+    const pie = screen.getByRole('button', { name: 'Cancelar' }).closest('footer')
+    expect(pie).toHaveClass('pb-[max(1rem,env(safe-area-inset-bottom))]')
+  })
 })
