@@ -70,7 +70,7 @@ function tarjetas() {
   return screen.getAllByRole('heading', { level: 3 })
 }
 
-describe('MonitoredCatalogGrid sobre todo el catálogo (#351)', () => {
+describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
   it('muestra el total real en "Ver catálogo completo" y 20 productos por página', () => {
     renderGrilla()
     expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
@@ -100,15 +100,25 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351)', () => {
     expect(screen.getByText(/mostrando 40 de 339 productos/i)).toBeInTheDocument()
   })
 
-  it('al filtrar por columna busca en todo el catálogo, no solo en la primera página', () => {
+  it('al filtrar por columna busca en todo el catálogo y muestra el nombre unificado en título y tarjeta', () => {
     renderGrilla('risk')
+    expect(screen.getByText(/Productos: En riesgo/i)).toBeInTheDocument()
     expect(screen.getByText('(107 de 339)')).toBeInTheDocument()
     expect(screen.getByText(/mostrando 1–20 de 107 productos/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /ver catálogo completo \(339\)/i })).toBeInTheDocument()
+    expect(screen.getAllByText('En riesgo').length).toBe(20)
   })
 
-  it('el filtro de superávit trae los 40 productos de más de 60 %', () => {
+  it('al filtrar por pérdida muestra "Pérdida" tanto en el título como en cada tarjeta', () => {
+    renderGrilla('loss')
+    expect(screen.getByText(/Productos: Pérdida/i)).toBeInTheDocument()
+    expect(screen.getByText('(12 de 339)')).toBeInTheDocument()
+    expect(screen.getAllByText('Pérdida').length).toBe(12)
+  })
+
+  it('el filtro de superávit trae los 40 productos de más de 60 % con el nombre unificado', () => {
     renderGrilla('surplus')
+    expect(screen.getByText(/Productos: Superávit/i)).toBeInTheDocument()
     expect(screen.getByText('(40 de 339)')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
     const ultimas = tarjetas()
