@@ -24,6 +24,10 @@ interface KeyMatch {
   url: string
 }
 
+// Recorre cualquier JSON (objetos y arrays, en cualquier nivel de anidamiento)
+// buscando alguna de las FORBIDDEN_KEYS como nombre de propiedad — réplica,
+// del lado del test, de la misma estrategia "por clave" que usa
+// sanitizeFinancialData en el backend (backend/src/middlewares/rbac.ts).
 function findForbiddenKeys(value: unknown, forbidden: readonly string[], path = '$'): Omit<KeyMatch, 'url'>[] {
   if (value === null || typeof value !== 'object') return []
 
@@ -47,6 +51,9 @@ function findForbiddenKeys(value: unknown, forbidden: readonly string[], path = 
   return matches
 }
 
+// Adjunta los listeners de red/consola ANTES de la primera navegación, para
+// no perder tráfico disparado apenas carga la página (ej. el fetch inicial
+// de /api/dashboard/metrics o /api/products).
 function attachAuditListeners(page: Page) {
   const keyMatches: KeyMatch[] = []
   const jsonResponsesSeen: string[] = []
@@ -60,6 +67,9 @@ function attachAuditListeners(page: Page) {
     const contentType = response.headers()['content-type'] ?? ''
     if (!contentType.includes('application/json')) return
 
+    // Fire-and-forget: page.on('response') no puede ser async de forma segura
+    // (Playwright no espera estos handlers), así que la promesa se encadena
+    // aparte y el test espera explícitamente con waitForTimeout más abajo.
     void response
       .json()
       .then((body) => {
@@ -68,11 +78,23 @@ function attachAuditListeners(page: Page) {
           keyMatches.push({ ...match, url })
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Respuesta sin body JSON parseable (204, error de red, etc.) — no es
+        // relevante para esta auditoría, se ignora.
+      })
   })
 
   page.on('console', (msg) => {
     if (msg.type() !== 'error') return
+
+    // Chrome genera este mensaje sintético para CUALQUIER respuesta no-2xx
+    // (XHR/fetch, CSS, imágenes), independientemente de si la app lo maneja
+    // bien o no. En esta suite es ruido esperado: el 403 de /api/dashboard/metrics
+    // para un colaborador es el comportamiento RBAC correcto que estamos
+    // auditando (ver TC-RBAC-03), no un bug — la app ya lo atrapa con
+    // Promise.allSettled (dashboard/page.tsx) y no rompe el render. No
+    // enmascara errores reales: cualquier excepción de JS no controlada
+    // sigue cubierta por separado en pageErrors (listener 'pageerror' abajo).
     if (/^Failed to load resource:/.test(msg.text())) return
 
     consoleErrors.push(msg.text())
@@ -85,6 +107,10 @@ function attachAuditListeners(page: Page) {
   return { keyMatches, jsonResponsesSeen, consoleErrors, pageErrors }
 }
 
+// Límite de palabra explícito: DesktopFooter renderiza "© MargenX..." en
+// TODAS las páginas (incluidas las que ve un colaborador), y "MargenX"
+// contiene "margen" como substring — sin \b, cualquier test de esta spec
+// fallaría siempre por el nombre de marca, no por una fuga real de datos.
 const COSTO_TEXT = /\bcostos?\b/i
 const MARGEN_TEXT = /\bm[aá]rgenes?\b/i
 
@@ -92,6 +118,9 @@ test.describe('TC-RBAC-01: Ocultamiento de costo y margen en /productos (issue #
   test('ningún selector de /productos contiene texto de costo o margen', async ({ page }) => {
     await page.goto('/productos')
 
+    // Control positivo: confirma que el catálogo realmente cargó productos
+    // antes de afirmar la ausencia de "costo"/"margen" — si no, la aserción
+    // de abajo pasaría trivialmente ante una lista vacía o una carga fallida.
     await expect(page.locator('tbody tr').first()).toBeVisible()
 
     await expect(page.getByText(COSTO_TEXT)).toHaveCount(0)
@@ -103,6 +132,8 @@ test.describe('TC-RBAC-01: Ocultamiento de costo y margen en /productos (issue #
     await page.locator('tbody tr').first().click()
     await expect(page).toHaveURL(/\/productos\/.+/)
 
+    // Confirma que la ficha realmente cargó (nombre + precio de venta,
+    // únicos datos que la Historia de Usuario permite ver al colaborador).
     await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
 
     await expect(page.getByText(/subtotal/i)).toHaveCount(0)
@@ -117,6 +148,8 @@ test.describe('TC-RBAC-02: Intercepción de ruta administrativa /insumos (issue 
     await page.goto('/insumos')
 
     await expect(page).toHaveURL(/\/productos$/)
+    // Confirma que la redirección no dejó ningún resto del contenido de
+    // Insumos montado (que AdminOnlyRoute reemplazó el árbol, no solo navegó).
     await expect(page.getByRole('heading', { name: /insumos/i })).toHaveCount(0)
   })
 })
@@ -134,8 +167,13 @@ test.describe('TC-RBAC-03: Fuga de datos financieros en tráfico de red (issue #
     await expect(page).toHaveURL(/\/productos\/.+/)
     await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
 
+    // Deja un margen para que las promesas de response.json() (asíncronas,
+    // fuera del ciclo de vida que Playwright espera automáticamente) terminen
+    // de resolver antes de inspeccionar los arrays acumulados.
     await page.waitForTimeout(1000)
 
+    // Control positivo: si esto da 0, el filtro de URL/content-type está mal
+    // y las aserciones de "no hay fuga" de abajo serían un falso positivo.
     expect(audit.jsonResponsesSeen.length).toBeGreaterThan(0)
 
     expect(
@@ -157,19 +195,25 @@ test.describe('TC-RBAC-03: Fuga de datos financieros en tráfico de red (issue #
 
 test.describe('TC-RBAC-04: Intercepción de ruta administrativa /productos/nuevo', () => {
   test('forzar la navegación a /productos/nuevo redirige de inmediato a /productos', async ({ page }) => {
+    // Se intenta acceder directamente a la ruta de creación de productos,
+    // la cual ahora está protegida por AdminOnlyRoute.
     await page.goto('/productos/nuevo')
 
+    // El colaborador debe ser redirigido al catálogo de productos.
     await expect(page).toHaveURL(/\/productos$/)
+
+    // Confirma que la redirección fue efectiva y no se renderizó el formulario de alta.
     await expect(page.getByRole('heading', { name: /nuevo producto/i })).toHaveCount(0)
   })
 })
-
 test.describe('TC-RBAC-05: Intercepción de ruta administrativa /proveedores (issue #249)', () => {
   test('forzar la navegación a /proveedores redirige a /productos y el menú no ofrece el enlace', async ({ page }) => {
     await page.goto('/proveedores')
 
     await expect(page).toHaveURL(/\/productos$/)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de proveedores.
     await expect(page.getByRole('heading', { name: /^proveedores$/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Proveedores" al colaborador.
     await expect(page.getByRole('link', { name: 'Proveedores' })).toHaveCount(0)
     await expect(page.getByTestId('bottom-nav-proveedores')).toHaveCount(0)
   })
@@ -180,10 +224,13 @@ test.describe('TC-RBAC-06: Bandeja de cuarentena y dirección de ingesta (issue 
     await page.goto('/proveedores/cuarentena')
 
     await expect(page).toHaveURL(/\/productos$/)
+    // Control positivo: el catálogo del colaborador cargó, así que las ausencias de abajo no son por una página en blanco.
     await expect(page.locator('tbody tr').first()).toBeVisible()
 
+    // AdminOnlyRoute reemplazó el árbol: ni la bandeja ni sus pestañas quedaron montadas.
     await expect(page.getByRole('heading', { name: /precios en cuarentena/i })).toHaveCount(0)
     await expect(page.getByRole('navigation', { name: 'Secciones de proveedores' })).toHaveCount(0)
+    // La dirección precios-<slug>@margenx.tech es solo para el administrador (GET /api/auth/me no le envía el slug).
     await expect(page.getByText(/precios[-.+][a-z0-9-]+@margenx\.tech/i)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Copiar dirección' })).toHaveCount(0)
   })
@@ -194,7 +241,9 @@ test.describe('TC-RBAC-07: Intercepción de ruta administrativa /compras (issue 
     await page.goto('/compras')
 
     await expect(page).toHaveURL(/\/productos$/)
-    await expect(page.getByRole('heading', { name: /^compras$/i })).toHaveCount(0)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de compras sugeridas.
+    await expect(page.getByRole('heading', { name: /compras sugeridas/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Compras" al colaborador.
     await expect(page.getByRole('link', { name: 'Compras' })).toHaveCount(0)
     await expect(page.getByTestId('bottom-nav-compras')).toHaveCount(0)
   })
