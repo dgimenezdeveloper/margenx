@@ -277,3 +277,41 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
     expect(screen.queryByText(/margen promedio/i)).toBeNull()
   })
 })
+
+describe('DashboardPage: descarga del reporte semanal (#392)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(dashboardService.getMetrics).mockResolvedValue({
+      activeIngredientsCount: 218,
+      criticalProductsCount: 119,
+      healthyProductsCount: 170,
+      averageMarginPercent: 38.5,
+      recentCostVariationsCount: 7,
+      lossCount: 12,
+      riskCount: 107,
+      targetCount: 130,
+      surplusCount: 40,
+      draftCount: 50,
+    })
+    vi.mocked(productService.getAll).mockResolvedValue(catalogoDemo())
+  })
+
+  it('el ADMIN ve "Descargar reporte (PDF)" también en el celular', async () => {
+    mockUser.role = 'ADMIN'
+    render(<DashboardPage />)
+
+    const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
+    // Los otros atajos del encabezado se ocultan en mobile; la descarga no.
+    expect(boton.closest('.hidden')).toBeNull()
+  })
+
+  it('Escenario Gherkin: Colaborador -> no ve la descarga del reporte', async () => {
+    mockUser.role = 'COLLABORATOR'
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: /descargar reporte/i })).toBeNull()
+  })
+})
