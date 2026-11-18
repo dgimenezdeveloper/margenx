@@ -33,7 +33,8 @@ test.describe('TC-COMPRAS-01: Sugerir compra (issue #389)', () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Compras Sugeridas' })).toBeVisible()
       const group = supplierGroup(page)
       await expect(group.getByText(INGREDIENT, { exact: true })).toBeVisible()
-      await expect(group.getByText(/^-\$[\d.,]+\/kg \([\d,]+ %\)$/).first()).toBeVisible()
+      // formatPercent separa el "%" con espacio duro (U+00A0): \s lo cubre, un espacio común no.
+      await expect(group.getByText(/^-\$[\d.,]+\/kg \([\d,]+\s%\)$/).first()).toBeVisible()
       await expect(page.getByText(/no modifica tus costos vigentes ni tus recetas/i)).toBeVisible()
 
       // Mobile: tarjetas apiladas, sin la fila de encabezados de la tabla.
