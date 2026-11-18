@@ -11,6 +11,7 @@ const DESTINOS = [
   ['../workflows/ingesta-listas.json', 'Generar Resumen al Dueño'],
   ['../workflows/alertas-margen.json', 'Generar Plantilla Dinámica'],
   ['../workflows/invitacion-colaborador.json', 'Generar Mail de Invitación'],
+  ['../workflows/reporte-semanal.json', 'Generar Reporte HTML'],
 ];
 const BLOQUE = /\/\/ <plantilla-mail-margenx>[\s\S]*?\/\/ <\/plantilla-mail-margenx>/;
 
