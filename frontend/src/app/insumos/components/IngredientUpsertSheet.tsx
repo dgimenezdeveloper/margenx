@@ -37,7 +37,14 @@ interface IngredientUpsertSheetProps {
   onCostBlur?: (event: React.FocusEvent<HTMLInputElement>) => void
   watchedCurrentCost?: string | number
   usedProducts?: IngredientProductUsage[]
+  /** Total real de productos que usan el insumo; la lista puede traer menos. */
+  usedProductsTotal?: number
   isLoadingProducts?: boolean
+  /** La consulta de "Se usa en" falló: se muestra el error con Reintentar, no el estado vacío. */
+  productsError?: boolean
+  onRetryProducts?: () => void
+  /** false para el colaborador: el endpoint de "Se usa en" es solo ADMIN. */
+  showUsedProducts?: boolean
 }
 
 export function IngredientUpsertSheet({
@@ -63,8 +70,13 @@ export function IngredientUpsertSheet({
   onDecimalChange,
   onCostBlur,
   usedProducts = [],
+  usedProductsTotal,
   isLoadingProducts = false,
+  productsError = false,
+  onRetryProducts,
+  showUsedProducts = true,
 }: IngredientUpsertSheetProps) {
+  const usedCount = Math.max(usedProductsTotal ?? 0, usedProducts.length)
   if (!selected && !newOpen) {
     return null
   }
@@ -245,7 +257,7 @@ export function IngredientUpsertSheet({
                   </div>
                 )}
 
-                {selected && (
+                {selected && showUsedProducts && (
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -254,9 +266,9 @@ export function IngredientUpsertSheet({
                           Se usa en
                         </span>
                       </div>
-                      {usedProducts && usedProducts.length > 0 && (
+                      {!isLoadingProducts && !productsError && usedCount > 0 && (
                         <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                          {usedProducts.length} {usedProducts.length === 1 ? 'producto' : 'productos'}
+                          {usedCount} {usedCount === 1 ? 'producto' : 'productos'}
                         </span>
                       )}
                     </div>
@@ -266,35 +278,58 @@ export function IngredientUpsertSheet({
                         <LoaderCircle className="size-4 animate-spin mr-2" />
                         Cargando productos vinculados...
                       </div>
-                    ) : usedProducts && usedProducts.length > 0 ? (
-                      <ul
-                        aria-label="Productos que usan este insumo"
-                        className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1"
+                    ) : productsError ? (
+                      <div
+                        role="alert"
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
                       >
-                        {usedProducts.map((prod) => (
-                          <li key={prod.id}>
-                            <Link
-                              to={`/productos/${prod.id}`}
-                              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-xs transition hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-900"
-                            >
-                              <div className="min-w-0 flex-1 pr-2">
-                                <p className="truncate font-bold text-gray-900 dark:text-gray-100">
-                                  {prod.name}
-                                </p>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                  Usa: <strong className="text-gray-700 dark:text-gray-300">{formatQuantityWithUnit(prod.quantity, selected.unit)}</strong>
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-semibold text-gray-900 dark:text-white">
-                                  {money(Number(prod.salePrice) || 0)}
-                                </span>
-                                <ChevronRight className="size-4 text-gray-400" aria-hidden="true" />
-                              </div>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                        <span>No pudimos cargar los productos que usan este insumo.</span>
+                        {onRetryProducts && (
+                          <button
+                            type="button"
+                            onClick={onRetryProducts}
+                            className="min-h-11 shrink-0 cursor-pointer rounded-xl border border-rose-200 bg-white px-3 font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300"
+                          >
+                            Reintentar
+                          </button>
+                        )}
+                      </div>
+                    ) : usedProducts.length > 0 ? (
+                      <>
+                        <ul
+                          aria-label="Productos que usan este insumo"
+                          className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1"
+                        >
+                          {usedProducts.map((prod) => (
+                            <li key={prod.id}>
+                              <Link
+                                to={`/productos/${prod.id}`}
+                                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-xs transition hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-900"
+                              >
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <p className="truncate font-bold text-gray-900 dark:text-gray-100">
+                                    {prod.name}
+                                  </p>
+                                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                    Usa: <strong className="text-gray-700 dark:text-gray-300">{formatQuantityWithUnit(prod.quantity, selected.unit)}</strong>
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-semibold text-gray-900 dark:text-white">
+                                    {money(Number(prod.salePrice) || 0)}
+                                  </span>
+                                  <ChevronRight className="size-4 text-gray-400" aria-hidden="true" />
+                                </div>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                        {usedCount > usedProducts.length && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            Se muestran los primeros {usedProducts.length} de {usedCount}.
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800/50">
                         Este insumo no se utiliza en ninguna receta activa.

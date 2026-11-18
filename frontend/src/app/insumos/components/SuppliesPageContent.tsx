@@ -36,6 +36,8 @@ import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => formatMoney(val)
+/** "Se usa en" lista hasta esta cantidad de productos; el contador usa el total real (meta.total). */
+const USED_PRODUCTS_LIMIT = 100
 
 let toastIdCounter = 0
 
@@ -87,6 +89,10 @@ export default function SuppliesPageContent() {
 
   const [usedProducts, setUsedProducts] = useState<IngredientProductUsage[]>([])
   const [isLoadingProducts, setIsLoadingProducts] = useState(false)
+  // Total real de productos que usan el insumo (meta.total): la lista trae hasta USED_PRODUCTS_LIMIT.
+  const [usedProductsTotal, setUsedProductsTotal] = useState(0)
+  // La consulta falló: no se sabe si el insumo se usa, así que no se muestra "no se usa".
+  const [productsError, setProductsError] = useState(false)
   const [showUnitConfirm, setShowUnitConfirm] = useState(false)
   const [pendingSaveData, setPendingSaveData] = useState<z.input<typeof ingredientSchema> | null>(null)
 
@@ -197,6 +203,32 @@ export default function SuppliesPageContent() {
   const isTotalEmpty = !isLoading && meta?.total === 0 && !appliedSearch
   const isSearchEmpty = !isLoading && meta?.total === 0 && Boolean(appliedSearch)
 
+  const resetUsedProducts = () => {
+    setUsedProducts([])
+    setUsedProductsTotal(0)
+    setProductsError(false)
+    setIsLoadingProducts(false)
+  }
+
+  const loadUsedProducts = (ingredientId: string) => {
+    setIsLoadingProducts(true)
+    setProductsError(false)
+    ingredientService
+      .getProducts(getToken, ingredientId, { page: 1, limit: USED_PRODUCTS_LIMIT })
+      .then((res) => {
+        setUsedProducts(res.data)
+        setUsedProductsTotal(res.meta.total)
+      })
+      .catch(() => {
+        setUsedProducts([])
+        setUsedProductsTotal(0)
+        setProductsError(true)
+      })
+      .finally(() => {
+        setIsLoadingProducts(false)
+      })
+  }
+
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
@@ -205,18 +237,12 @@ export default function SuppliesPageContent() {
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: toCostInput(supply.currentCost) })
 
-    setIsLoadingProducts(true)
-    ingredientService
-      .getProducts(getToken, supply.id, { page: 1, limit: 100 })
-      .then((res) => {
-        setUsedProducts(res.data)
-      })
-      .catch(() => {
-        setUsedProducts([])
-      })
-      .finally(() => {
-        setIsLoadingProducts(false)
-      })
+    // GET /api/ingredients/:id/products es solo ADMIN: el colaborador no lo consulta ni ve la sección.
+    if (isCollaborator) {
+      resetUsedProducts()
+      return
+    }
+    loadUsedProducts(supply.id)
   }
 
   const handleOpenNew = () => {
@@ -224,8 +250,7 @@ export default function SuppliesPageContent() {
     setShowDeleteConfirm(false)
     setShowUnitConfirm(false)
     setPendingSaveData(null)
-    setUsedProducts([])
-    setIsLoadingProducts(false)
+    resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
   }
@@ -236,8 +261,7 @@ export default function SuppliesPageContent() {
     setShowDeleteConfirm(false)
     setShowUnitConfirm(false)
     setPendingSaveData(null)
-    setUsedProducts([])
-    setIsLoadingProducts(false)
+    resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
 
@@ -307,10 +331,13 @@ export default function SuppliesPageContent() {
     }
   }
 
+  const usageUnknown = isLoadingProducts || productsError
+
   const handleSave = async (data: z.input<typeof ingredientSchema>) => {
     const canonicalUnit = data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit
 
-    if (selected && selected.unit !== canonicalUnit && usedProducts.length > 0) {
+    // Si todavía no se sabe dónde se usa (cargando o con error), se confirma igual.
+    if (selected && selected.unit !== canonicalUnit && (usageUnknown || usedProductsTotal > 0)) {
       setPendingSaveData(data)
       setShowUnitConfirm(true)
       return
@@ -631,7 +658,13 @@ export default function SuppliesPageContent() {
         }}
         onCostBlur={handleCostBlur}
         usedProducts={usedProducts}
+        usedProductsTotal={usedProductsTotal}
         isLoadingProducts={isLoadingProducts}
+        productsError={productsError}
+        onRetryProducts={() => {
+          if (selected) loadUsedProducts(selected.id)
+        }}
+        showUsedProducts={!isCollaborator}
       />
       <UnsavedChangesDialog
         open={showDiscardConfirm}
@@ -663,12 +696,19 @@ export default function SuppliesPageContent() {
                     : pendingSaveData?.unit
                 )}
               </strong>.
-              {usedProducts.length > 0 && (
+              {usageUnknown ? (
                 <span className="block mt-2 font-medium">
-                  Este insumo se utiliza en <strong>{usedProducts.length} {usedProducts.length === 1 ? 'producto' : 'productos'}</strong>.
-                  Las cantidades guardadas en las recetas no se convertirán automáticamente: se mantendrán los mismos números.
-                  Deberás revisar las recetas afectadas para verificar que las proporciones sigan siendo correctas.
+                  No pudimos confirmar en qué recetas se usa este insumo. Si se usa, las cantidades guardadas en las
+                  recetas no se convertirán automáticamente: se mantendrán los mismos números.
                 </span>
+              ) : (
+                usedProductsTotal > 0 && (
+                  <span className="block mt-2 font-medium">
+                    Este insumo se utiliza en <strong>{usedProductsTotal} {usedProductsTotal === 1 ? 'producto' : 'productos'}</strong>.
+                    Las cantidades guardadas en las recetas no se convertirán automáticamente: se mantendrán los mismos números.
+                    Deberás revisar las recetas afectadas para verificar que las proporciones sigan siendo correctas.
+                  </span>
+                )
               )}
             </DialogDescription>
             <div className="mt-6 flex gap-3">
