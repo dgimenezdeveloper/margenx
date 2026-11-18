@@ -28,6 +28,9 @@ Este directorio contiene la definicion formal y reproducible de la infraestructu
     |  |                                                              |  |
     |  |  * n8n Engine (margenx_n8n_prod)                             |  |
     |  |    n8n.margenx.tech                                          |  |
+    |  |                                                              |  |
+    |  |  * Gotenberg (margenx_gotenberg), HTML a PDF                  |  |
+    |  |    solo red interna, sin puertos publicados                  |  |
     |  +--------------------------------------------------------------+  |
     +--------------------------------------------------------------------+
 
@@ -92,6 +95,7 @@ DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<VPS_HOST>:<DB_PORT>/margenx_
   1. El Backend recalcula costos y detecta que un producto cayó por debajo del margen mínimo.
   2. El Backend dispara un webhook asíncrono hacia el endpoint expuesto de n8n.
   3. n8n recibe el payload JSON, formatea la alerta y envía el correo electrónico al Administrador del comercio.
+* **Reporte semanal en PDF (ADR-009):** los lunes a las 08:00, n8n pide al backend las cuentas activas y el reporte de cada una por la red interna (`http://backend-prod:3000/api/internal/...`), lo convierte a PDF con Gotenberg (`http://gotenberg:3000`) y lo envía por Brevo. La descarga desde la app usa el mismo workflow a través del webhook `report-pdf`. Detalle en `infra/n8n/README.md`.
 
 ---
 
@@ -328,9 +332,37 @@ Todas las respuestas de producción y staging incorporan cabeceras defensivas pa
 
 ### Rutas internas y PDF del reporte semanal
 
-Los bloques de API de producción y staging en `nginx/margenx.conf` incluyen `location ^~ /api/internal/ { deny all; }`, que responde `403` a las llamadas externas a endpoints internos. n8n debe consumir esos endpoints desde la red interna de Docker.
+Los bloques de API de producción y staging en `nginx/margenx.conf` incluyen `location ^~ /api/internal/ { deny all; }`, que responde `403` a las llamadas externas a endpoints internos. n8n los consume desde la red interna de Docker: `MARGENX_INTERNAL_API_URL` (`http://backend-prod:3000`) y `MARGENX_INTERNAL_DEV_API_URL` (`http://backend-dev:3000`), con esos valores por defecto en el servicio `n8n` del compose. `MARGENX_API_URL` es la URL pública y para estas rutas recibe 403.
 
 La URL del webhook n8n para generar el PDF bajo demanda se configura como `N8N_REPORT_PDF_WEBHOOK_URL` en `/opt/margenx-infra/.env`. El mismo `.env` se carga en los backends de producción y staging.
+
+### Gotenberg (HTML a PDF del reporte semanal)
+
+Servicio `gotenberg` del compose (ADR-009): `gotenberg/gotenberg:8.40.0`, solo en `margenx_network` y **sin puertos publicados**, con 512 MB de límite y 128 MB de reserva. Chromium arranca con la primera conversión, se apaga a los 60 s sin uso, convierte de a dos como máximo, no ejecuta JavaScript y solo lee el HTML recibido (`--chromium-allow-list=^file:///tmp/.*`). n8n lo llama en `GOTENBERG_URL` (`http://gotenberg:3000`).
+
+Memoria medida en local con la misma imagen y un reporte de 3 páginas: 9 a 25 MB en reposo, pico de 257 MB en la primera conversión, ~160 MB con Chromium encendido y de vuelta a ~25 MB al apagarse.
+
+**Despliegue (una vez, después del merge).** El pipeline no copia el compose a la VPS: los cambios se aplican a mano en `/opt/margenx-infra`.
+
+```bash
+cd /opt/margenx-infra
+cp docker-compose.yml docker-compose.yml.bak-$(date +%Y%m%d)
+# 1. Agregar el servicio gotenberg y, en el servicio n8n, las tres líneas MARGENX_INTERNAL_API_URL,
+#    MARGENX_INTERNAL_DEV_API_URL y GOTENBERG_URL, copiándolos de infra/vps/docker-compose.prod.yml.
+docker compose config -q && echo "compose válido"
+# 2. Levantar Gotenberg y recrear n8n (la ingesta IMAP se corta unos segundos y reconecta sola)
+docker compose up -d gotenberg n8n
+docker compose ps gotenberg n8n
+# 3. Comprobaciones: Gotenberg responde desde n8n, no desde el host, y n8n ve las variables
+docker compose exec n8n wget -qO- http://gotenberg:3000/health
+docker compose exec n8n sh -c 'wget -qO- --header "x-margenx-webhook-secret: $INTERNAL_WEBHOOK_SECRET" http://backend-dev:3000/api/internal/reports/accounts' | head -c 200; echo
+docker compose exec n8n printenv GOTENBERG_URL MARGENX_INTERNAL_API_URL MARGENX_INTERNAL_DEV_API_URL
+curl -s -o /dev/null -w "%{http_code}\n" https://api.margenx.tech/api/internal/reports/accounts   # 403
+```
+
+**Medición de memoria** (se registra en el PR): en una terminal `docker stats margenx_gotenberg`, y en otra se genera un PDF (descarga desde `dev.margenx.tech` o `Prueba Manual (Staging)` en n8n). Anotar el valor en reposo, el pico y el valor un minuto después. Después correr `/bin/bash /opt/margenx-infra/scripts/monitor-memory.sh` para ver el uso total del host.
+
+**Revertir:** `docker compose stop gotenberg && docker compose rm -f gotenberg`, restaurar `docker-compose.yml.bak-<fecha>` y `docker compose up -d n8n`. El reporte deja de enviarse y la descarga desde la app responde 503 con un mensaje genérico.
 
 ### Límites de Cuerpo (client_max_body_size)
 - **API (`api.margenx.tech` y `api-dev.margenx.tech`):** `6 MB`. Nginx rechaza con `413 Request Entity Too Large` solicitudes mayores a 6 MB antes de sobrecargar Express. El webhook de ingesta de backend acepta hasta 5 MB.

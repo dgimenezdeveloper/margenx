@@ -51,6 +51,10 @@ services:
       - MARGENX_DEV_API_URL=${MARGENX_DEV_API_URL:-}
       - IMAP_USER=${IMAP_USER}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      # Reporte semanal (ADR-009): backends y Gotenberg por la red interna, porque Nginx niega /api/internal/ desde afuera
+      - MARGENX_INTERNAL_API_URL=${MARGENX_INTERNAL_API_URL:-http://backend-prod:3000}
+      - MARGENX_INTERNAL_DEV_API_URL=${MARGENX_INTERNAL_DEV_API_URL:-http://backend-dev:3000}
+      - GOTENBERG_URL=${GOTENBERG_URL:-http://gotenberg:3000}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
     volumes:
@@ -65,6 +69,38 @@ services:
           memory: 1024M
         reservations:
           memory: 384M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # Gotenberg: HTML a PDF para el reporte semanal (ADR-009)
+  # Solo red interna (sin puertos publicados): lo llama n8n en http://gotenberg:3000.
+  # Chromium arranca con la primera conversión y se apaga tras 60 s sin uso, así que en reposo ocupa ~25 MB.
+  # Sin JavaScript y sin descargas: solo puede leer el HTML que recibe (file:///tmp).
+  # ========================================================
+  gotenberg:
+    image: gotenberg/gotenberg:8.40.0
+    container_name: margenx_gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --api-timeout=30s
+      - --chromium-auto-start=false
+      - --chromium-idle-shutdown-timeout=60s
+      - --chromium-max-concurrency=2
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=^file:///tmp/.*
+    networks:
+      - margenx_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
     logging:
       driver: "json-file"
       options:
