@@ -7,7 +7,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 ### Added
 
 - **Frontend:** Edición de nombre y unidad de medida en la ficha del insumo (`/insumos`), con validación reactiva de nombre duplicado (`409 Conflict`) adyacente al campo y diálogo modal de advertencia accesible al cambiar la unidad de un insumo presente en recetas activas (`#354`).
-- **Frontend:** Sección "Se usa en" en la ficha del insumo con listado completo de productos vinculados, cantidades utilizadas y enlaces directos a sus fichas técnicas, consumiendo el endpoint paginado `GET /api/ingredients/:id/products` (`#354`).
+- **Frontend:** Sección "Se usa en" en la ficha del insumo (solo `ADMIN`) con los productos vinculados, cantidades utilizadas y enlaces directos a sus fichas técnicas, consumiendo el endpoint paginado `GET /api/ingredients/:id/products`. El contador muestra el total real y, con más de 100 productos, la lista avisa cuántos se ven. Si la consulta falla, la sección muestra el error con Reintentar en lugar de decir que el insumo no se usa, y cambiar la unidad pide confirmación aunque la lista no haya cargado (`#354`).
 - **Frontend:** Ordenamiento del historial de costos con el cambio más reciente primero por defecto y botón interactivo para alternar orden cronológico ascendente y descendente en `PriceHistoryModal` (`#354`).
 - **Frontend:** Formateo en estándar argentino (`2.179,13`) para el campo de costo del insumo en la ficha de edición (`#354`).
 - **QA:** Pruebas unitarias completas de la sección "Se usa en", edición de nombre/unidad, captura de error 409 y conmutación de orden en el historial de costos (`#354`).

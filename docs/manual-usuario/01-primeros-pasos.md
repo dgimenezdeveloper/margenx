@@ -77,6 +77,9 @@ Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se u
 - Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y el precio de venta vigente al público.
 - Al tocar cualquier producto de la lista, navegarás directamente hacia su ficha técnica para revisar o ajustar su formulación.
 - Si el insumo no forma parte de ninguna receta, la sección te informará claramente que no está siendo utilizado en productos activos.
+- Si un insumo está en más de 100 productos, la sección muestra los primeros 100 y avisa cuántos son en total.
+- Si la lista no se puede cargar (por ejemplo, sin conexión), la sección lo avisa y ofrece **Reintentar**. Mientras no se sepa dónde se usa el insumo, cambiar la unidad pide confirmación igual.
+- La sección es solo para el Administrador: el Colaborador no la ve.
 
 ---
 
