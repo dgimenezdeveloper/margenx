@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '@testing-library/jest-dom'
 import SuppliesPageContent from './SuppliesPageContent'
 import { ingredientService } from '@/services/ingredientService'
@@ -423,5 +423,120 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
     fireEvent.blur(costInput)
 
     expect(costInput).toHaveValue('3.500,5')
+  })
+})
+describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => {
+  const pan = (i: number) => ({
+    id: `prod-${i}`,
+    name: `Pan de campo ${i}`,
+    quantity: 0.1,
+    salePrice: 3000,
+    cost: 1000,
+    marginAmount: 2000,
+    marginPercent: 66,
+    minMarginPercent: 30,
+    marginStatus: 'surplus' as const,
+    updatedAt: '2026-10-14T12:00:00.000Z',
+  })
+  const usos = (cantidad: number, total = cantidad) => ({
+    data: Array.from({ length: cantidad }, (_, i) => pan(i + 1)),
+    meta: { total, page: 1, limit: 100, totalPages: Math.ceil(total / 100) },
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser.role = 'ADMIN'
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([
+      { id: 'ing-1', name: 'Aceite de girasol', unit: 'kg', currentCost: 2000 },
+    ]))
+    vi.mocked(ingredientService.update).mockResolvedValue({
+      ingredient: { id: 'ing-1', name: 'Aceite de girasol', unit: 'l', currentCost: 2000 },
+      affectedProductsCount: 0,
+      criticalProducts: [],
+    })
+  })
+
+  afterEach(() => {
+    mockUser.role = 'ADMIN'
+  })
+
+  const abrirFicha = async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const [fila] = await screen.findAllByText('Aceite de girasol')
+    fireEvent.click(fila)
+    return user
+  }
+
+  it('si la consulta falla, avisa el error con Reintentar y no dice que el insumo no se usa', async () => {
+    vi.mocked(ingredientService.getProducts)
+      .mockRejectedValueOnce(new Error('500'))
+      .mockResolvedValueOnce(usos(1))
+    const user = await abrirFicha()
+
+    expect(await screen.findByText('No pudimos cargar los productos que usan este insumo.')).toBeInTheDocument()
+    expect(screen.queryByText('Este insumo no se utiliza en ninguna receta activa.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('Pan de campo 1')).toBeInTheDocument()
+    expect(ingredientService.getProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la consulta falla, cambiar la unidad pide confirmación igual', async () => {
+    vi.mocked(ingredientService.getProducts).mockRejectedValue(new Error('500'))
+    const user = await abrirFicha()
+    await screen.findByText('No pudimos cargar los productos que usan este insumo.')
+
+    await user.click(screen.getByRole('button', { name: 'litro' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })
+    expect(dialogo).toHaveTextContent(/No pudimos confirmar en qué recetas se usa/i)
+    expect(ingredientService.update).not.toHaveBeenCalled()
+  })
+
+  it('mientras la lista carga, cambiar la unidad pide confirmación', async () => {
+    vi.mocked(ingredientService.getProducts).mockReturnValue(new Promise(() => {}))
+    const user = await abrirFicha()
+
+    await user.click(screen.getByRole('button', { name: 'litro' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+
+    expect(await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })).toBeInTheDocument()
+    expect(ingredientService.update).not.toHaveBeenCalled()
+  })
+
+  it('sin recetas que lo usen, cambiar la unidad guarda directo', async () => {
+    vi.mocked(ingredientService.getProducts).mockResolvedValue(usos(0))
+    const user = await abrirFicha()
+    await screen.findByText('Este insumo no se utiliza en ninguna receta activa.')
+
+    await user.click(screen.getByRole('button', { name: 'litro' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+
+    await waitFor(() =>
+      expect(ingredientService.update).toHaveBeenCalledWith(expect.any(Function), 'ing-1', expect.objectContaining({ unit: 'l' }))
+    )
+    expect(screen.queryByRole('dialog', { name: '¿Cambiar unidad de medida?' })).not.toBeInTheDocument()
+  })
+
+  it('el colaborador no consulta "Se usa en" ni ve la sección: el endpoint es solo ADMIN', async () => {
+    mockUser.role = 'COLLABORATOR'
+    vi.mocked(ingredientService.getProducts).mockResolvedValue(usos(0))
+    await abrirFicha()
+
+    expect(await screen.findByRole('dialog', { name: 'Actualizar Costo' })).toBeInTheDocument()
+    expect(ingredientService.getProducts).not.toHaveBeenCalled()
+    expect(screen.queryByText('Se usa en')).not.toBeInTheDocument()
+    expect(screen.queryByText('Este insumo no se utiliza en ninguna receta activa.')).not.toBeInTheDocument()
+  })
+
+  it('con más productos que los listados, el contador muestra el total y avisa cuántos se ven', async () => {
+    vi.mocked(ingredientService.getProducts).mockResolvedValue(usos(100, 150))
+    await abrirFicha()
+
+    expect(await screen.findByText('150 productos')).toBeInTheDocument()
+    expect(screen.getByText('Se muestran los primeros 100 de 150.')).toBeInTheDocument()
   })
 })
