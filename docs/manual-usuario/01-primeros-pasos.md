@@ -102,7 +102,8 @@ Insumos, Productos y la ficha de cada proveedor muestran el catálogo de a 20 fi
 - **Buscar:** escribí parte del nombre en el buscador. La búsqueda recorre todo el catálogo, no solo la página visible, e ignora tildes y mayúsculas: "sesamo" encuentra "Semillas de sésamo La Molinera". Los resultados aparecen apenas dejás de escribir.
 - **En la computadora:** debajo de la lista, elegí cuántas filas ver (20, 50 o 100) y pasá de página con las flechas "Página anterior" y "Página siguiente".
 - **En el celular:** al final de la lista, tocá **Cargar más** para sumar las 20 filas siguientes sin perder las que ya veías.
-- **En la receta:** al elegir un insumo para un producto (alta o edición), escribí en "Filtrar por nombre..." y el selector busca en todos tus insumos.
+- **En la receta:** al elegir un insumo para un producto (alta o edición), escribí en "Filtrar por nombre..." y el selector busca en todos tus insumos. Usá las flechas del teclado para recorrer las opciones y Enter para elegir; Escape cierra la lista sin cerrar la pantalla. Los insumos ya agregados muestran "Ya en la receta" y no se pueden volver a elegir.
+- **Alta rápida desde la receta:** si no encontrás el insumo, elegí "+ Crear nuevo insumo" al final de la lista. Completá nombre, unidad y costo en el modal secundario; al crearlo queda seleccionado sin perder los datos de la receta.
 
 ---
 

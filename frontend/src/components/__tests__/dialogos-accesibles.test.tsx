@@ -21,6 +21,7 @@ import type { SupplierSummary } from '@/services/supplierService'
 import type { Ingredient } from '@/services/ingredientService'
 import type { productSchema } from '@/schemas/productSchema'
 import type { ingredientSchema } from '@/schemas/ingredientSchema'
+import { QuickCreateIngredientModal } from '@/components/quick-create-ingredient-modal'
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: vi.fn().mockResolvedValue('token-de-prueba') }),
@@ -199,6 +200,16 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
       <SupplierDeleteDialog open supplier={molino} onClose={vi.fn()} onDeleted={vi.fn()} onDeactivated={vi.fn()} />
     ),
     titulo: '¿Dar de baja a Molino Olavarriense?',
+  },
+  {
+    nombre: 'Nuevo insumo (rápido)',
+    ui: <QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />,
+    titulo: 'Nuevo insumo',
+  },
+  {
+    nombre: 'Alta rápida de insumo desde receta',
+    ui: <QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />,
+    titulo: 'Nuevo Insumo',
   },
 ]
 

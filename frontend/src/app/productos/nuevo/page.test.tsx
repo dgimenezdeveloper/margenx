@@ -26,7 +26,7 @@ vi.mock('@/services/productService', () => ({
 }))
 
 vi.mock('@/services/ingredientService', () => ({
-  ingredientService: { getAll: vi.fn(), list: vi.fn() },
+  ingredientService: { getAll: vi.fn(), list: vi.fn(), create: vi.fn() },
 }))
 
 // Insumo de panadería que se compra por kg
@@ -103,10 +103,10 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Levadura fresca/ }))
+    await user.click(await screen.findByRole('combobox', { name: /Levadura fresca/ }))
     await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'sesamo')
 
-    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
+    await user.click(await screen.findByRole('option', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
     expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
 
     await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
@@ -119,7 +119,7 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Levadura fresca/ }))
+    await user.click(await screen.findByRole('combobox', { name: /Levadura fresca/ }))
     await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'azafran')
 
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()

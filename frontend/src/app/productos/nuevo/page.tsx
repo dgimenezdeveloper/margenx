@@ -8,18 +8,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   AlertTriangle,
-  ChevronDown,
   Info,
   LoaderCircle,
   Plus,
-  Search,
   ShieldCheck,
   Trash2,
-  X,
 } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
+import { QuickCreateIngredientModal } from '@/components/quick-create-ingredient-modal'
+import { RecipeIngredientCombobox } from '@/components/recipe-ingredient-combobox'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
@@ -37,7 +36,6 @@ import { formatMoney, formatPercent, formatQuantityWithUnit, formatUnit } from '
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import { cn } from '@/lib/utils'
-import { useIngredientSearch } from '@/hooks/useIngredientSearch'
 
 const money = (val: number) => formatMoney(val)
 
@@ -77,14 +75,15 @@ export default function NewProductPage() {
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
 
-  const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  // Insumo elegido desde la búsqueda en la API: puede no estar en la lista cargada.
+  // Insumo elegido desde la búsqueda en la API o recién creado: puede no estar en la lista cargada.
   const [pickedSupply, setPickedSupply] = useState<Ingredient | null>(null)
-  const { results: remoteResults, isSearching } = useIngredientSearch(getToken, searchQuery)
   const [selectedSupplyId, setSelectedSupplyId] = useState<string>('')
   const [recipeUnit, setRecipeUnit] = useState('gr')
   const [inputQty, setInputQty] = useState('100')
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
+  const [quickCreateInitialName, setQuickCreateInitialName] = useState('')
+  const comboboxTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const addIngredient = useRecipeStore((s: RecipeState) => s.addIngredient)
@@ -166,35 +165,50 @@ export default function NewProductPage() {
     }
   }, [getToken, resetStore])
 
-  const selectedSupply = useMemo(
-    () =>
-      (pickedSupply?.id === selectedSupplyId ? pickedSupply : undefined) ??
-      supplies.find((s) => s.id === selectedSupplyId) ??
-      supplies[0],
-    [pickedSupply, supplies, selectedSupplyId]
+  const existingIngredientIds = useMemo(
+    () => items.map((item) => item.ingredientId),
+    [items]
   )
+  const existingIngredientSet = useMemo(
+    () => new Set(existingIngredientIds),
+    [existingIngredientIds]
+  )
+
+  const selectedSupply = useMemo(() => {
+    if (!selectedSupplyId || existingIngredientSet.has(selectedSupplyId)) return undefined
+    return (
+      (pickedSupply?.id === selectedSupplyId ? pickedSupply : undefined) ??
+      supplies.find((s) => s.id === selectedSupplyId)
+    )
+  }, [existingIngredientSet, pickedSupply, selectedSupplyId, supplies])
 
   const availableUnits = useMemo(
     () => (selectedSupply ? getAvailableRecipeUnits(selectedSupply.unit) : ['kg']),
     [selectedSupply]
   )
 
-  // Con texto, el selector busca en la API (sin tildes ni mayúsculas) y no solo en lo cargado.
-  const filteredSupplies = searchQuery.trim() ? (remoteResults ?? []) : supplies
-
   const handleSelectSupply = (supply: Ingredient) => {
     setPickedSupply(supply)
     setSelectedSupplyId(supply.id)
     const units = getAvailableRecipeUnits(supply.unit)
-    setRecipeUnit(units[0] || supply.unit)
-    setInputQty(units[0] === 'gr' ? '100' : units[0] === 'ml' ? '100' : '1')
-    setIsDropdownOpen(false)
-    setSearchQuery('')
+    const nextUnit = units[0] || supply.unit
+    setRecipeUnit(nextUnit)
+    setInputQty(nextUnit === 'gr' ? '100' : nextUnit === 'ml' ? '100' : '1')
+  }
+
+  const handleQuickCreated = (created: Ingredient) => {
+    setSupplies((prev) =>
+      [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+    )
+    handleSelectSupply(created)
+    setIsQuickCreateOpen(false)
+    notify(`Insumo "${created.name}" creado y elegido`)
+    comboboxTriggerRef.current?.focus()
   }
 
   const handleAddIngredient = () => {
     const num = Number(inputQty)
-    if (!selectedSupply || num <= 0) return
+    if (!selectedSupply || existingIngredientSet.has(selectedSupply.id) || num <= 0) return
 
     const { baseQty } = convertToBaseQty(num, recipeUnit, selectedSupply.unit)
     if (baseQty <= 0) return
@@ -209,13 +223,25 @@ export default function NewProductPage() {
       inputQty: num,
     })
 
+    const nextExisting = new Set([...existingIngredientIds, selectedSupply.id])
+    const nextSupply = supplies.find((s) => !nextExisting.has(s.id))
+    if (nextSupply) handleSelectSupply(nextSupply)
+    else {
+      setSelectedSupplyId('')
+      setPickedSupply(null)
+    }
+
     notify(`"${selectedSupply.name}" agregado a la receta`)
-    setInputQty(recipeUnit === 'gr' ? '100' : recipeUnit === 'ml' ? '100' : '1')
   }
 
   const confirmRemoveItem = () => {
     if (!ingredientToDelete) return
-    removeIngredient(ingredientToDelete.id)
+    const removedId = ingredientToDelete.id
+    removeIngredient(removedId)
+    if (!selectedSupply) {
+      const restored = supplies.find((s) => s.id === removedId)
+      if (restored) handleSelectSupply(restored)
+    }
     notify(`"${ingredientToDelete.name}" eliminado de la receta`)
     setIngredientToDelete(null)
   }
@@ -426,93 +452,24 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
-                  <span id="new-product-supply-label" className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5">
-                    Seleccionar Insumo de la Despensa
-                  </span>
-
-                  <button
-                    id="new-product-supply-dropdown-btn"
-                    // El nombre accesible suma la etiqueta y el insumo elegido: con aria-label se perdía cuál está seleccionado.
-                    aria-labelledby="new-product-supply-label new-product-supply-dropdown-btn"
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    disabled={isLoadingSupplies || supplies.length === 0}
-                    className={cn(
-                      'flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer',
-                      CANONICAL_FOCUS_CLASSES
-                    )}
-                  >
-                    <span className="truncate">
-                      {selectedSupply
-                        ? `${selectedSupply.name} (${money(selectedSupply.currentCost)}/${formatUnit(selectedSupply.unit)})`
-                        : 'Buscar insumo...'}
-                    </span>
-                    <ChevronDown
-                      className={`size-4 text-gray-400 transition-transform duration-200 ${
-                        isDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {isDropdownOpen && (
-                    <div className="absolute inset-x-4 top-20 z-30 mt-1 max-h-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="sticky top-0 border-b border-gray-100 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-950">
-                        <div className="relative flex items-center">
-                          <Search className="pointer-events-none absolute left-3 size-4 text-gray-400" />
-                          <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Filtrar por nombre..."
-                            aria-label="Filtrar insumos por nombre"
-                            autoFocus
-                            className={cn(
-                              'min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white',
-                              CANONICAL_FOCUS_CLASSES
-                            )}
-                          />
-                          {searchQuery && (
-                            <button
-                              type="button"
-                              onClick={() => setSearchQuery('')}
-                              aria-label="Limpiar búsqueda"
-                              className="absolute right-2 p-1 text-gray-400 hover:text-gray-600"
-                            >
-                              <X className="size-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 p-1 dark:divide-gray-800">
-                        {filteredSupplies.length === 0 ? (
-                          <div className="p-4 text-center text-xs font-semibold text-gray-400" aria-live="polite">
-                            {isSearching ? 'Buscando insumos...' : 'No se encontraron insumos con ese nombre.'}
-                          </div>
-                        ) : (
-                          filteredSupplies.map((supply) => (
-                            <button
-                              key={supply.id}
-                              type="button"
-                              onClick={() => handleSelectSupply(supply)}
-                              className={cn(
-                                'flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-xs font-bold transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer',
-                                CANONICAL_FOCUS_CLASSES,
-                                supply.id === selectedSupplyId
-                                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                                  : 'text-gray-800 dark:text-gray-200'
-                              )}
-                            >
-                              <span className="truncate">{supply.name}</span>
-                              <span className="ml-2 shrink-0 text-gray-400">
-                                {money(supply.currentCost)}/{formatUnit(supply.unit)}
-                              </span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <RecipeIngredientCombobox
+                    supplies={supplies}
+                    selectedSupply={selectedSupply}
+                    existingIngredientIds={existingIngredientIds}
+                    isOpen={isDropdownOpen}
+                    onOpenChange={setIsDropdownOpen}
+                    onSelect={handleSelectSupply}
+                    onOpenQuickCreate={(initialName) => {
+                      setQuickCreateInitialName(initialName)
+                      setIsQuickCreateOpen(true)
+                    }}
+                    label="Seleccionar Insumo de la Despensa"
+                    disabled={isLoadingSupplies}
+                    emptyMessage="No se encontraron insumos con ese nombre."
+                    labelClassName="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"
+                    triggerClassName="flex min-h-11 h-12 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 cursor-pointer"
+                    triggerRef={comboboxTriggerRef}
+                  />
 
                   <div className="mt-3.5 flex items-center gap-2">
                     <div className="flex-1">
@@ -885,6 +842,16 @@ export default function NewProductPage() {
       />
 
       <UnsavedChangesDialog open={showDialog} onConfirm={confirmNavigation} onCancel={cancelNavigation} />
+
+      <QuickCreateIngredientModal
+        isOpen={isQuickCreateOpen}
+        initialName={quickCreateInitialName}
+        onClose={() => {
+          setIsQuickCreateOpen(false)
+          comboboxTriggerRef.current?.focus()
+        }}
+        onCreated={handleQuickCreated}
+      />
     </main>
   )
 }

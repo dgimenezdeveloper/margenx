@@ -16,7 +16,7 @@ vi.mock('@clerk/clerk-react', () => ({
 }))
 
 vi.mock('@/services/ingredientService', () => ({
-  ingredientService: { list: vi.fn() },
+  ingredientService: { list: vi.fn(), create: vi.fn() },
 }))
 
 const harina = { id: 'ing-harina', name: 'Harina de trigo 000 Olavarriense', unit: 'kg', currentCost: 736.25 } as Ingredient
@@ -38,9 +38,9 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={onAdd} />
     )
 
-    await user.click(screen.getByText(/Harina de trigo 000 Olavarriense/))
+    await user.click(screen.getByRole('combobox'))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'sesamo')
-    await user.click(await screen.findByRole('button', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
+    await user.click(await screen.findByRole('option', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
 
     expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
     expect(screen.getByText(/Semillas de sésamo La Molinera \(/)).toBeInTheDocument()
@@ -59,7 +59,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    await user.click(screen.getByText(/Harina de trigo 000 Olavarriense/))
+    await user.click(screen.getByRole('combobox'))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'azafran')
 
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
