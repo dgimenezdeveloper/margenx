@@ -6,30 +6,35 @@ El panel (**Inicio**, `/dashboard`) resume la salud de **todo tu catálogo**, no
 
 ## Las tarjetas
 
-- **Productos en Riesgo:** cuántos productos con receta quedaron por debajo de su margen mínimo, incluidos los que se venden a pérdida.
+- **Productos en Riesgo:** cuántos productos con receta quedaron por debajo de su margen mínimo (suma los productos en **Pérdida** y **En riesgo**).
 - **Insumos Activos:** cuántos insumos tenés cargados.
 - **Margen Promedio:** la **mediana** del margen de los productos con receta: la mitad de tus productos gana más que ese valor y la otra mitad, menos. Se usa la mediana y no un promedio simple para que un solo precio mal cargado (por ejemplo, un producto de $13 que cuesta $3.854) no arrastre el número. El color sigue el signo: verde si es positivo, rojo si es negativo y neutro si es 0 %.
 
 En el celular se ve la tarjeta de productos en riesgo; las de insumos y margen promedio aparecen desde la tableta.
 
+## Los cinco estados de rentabilidad
+
+Todos los listados, el panel y las fichas de producto usan exactamente el mismo nombre para cada estado:
+
+| Estado | Qué significa |
+|---|---|
+| **Pérdida** | Margen menor a 0 %: el precio no cubre el costo. |
+| **En riesgo** | Margen de 0 % o más, pero por debajo del mínimo de ese producto. |
+| **En objetivo** | Margen entre el mínimo del producto y 60 %. |
+| **Superávit** | Margen mayor a 60 % y por encima del mínimo del producto. |
+| **Borrador** | Producto sin receta cargada todavía (sin margen calculado). |
+
 ## El histograma de salud
 
-Agrupa los productos que tienen receta en cuatro columnas. **Cada producto se compara con su propio margen mínimo**, el que le pusiste en su ficha, y no con un valor fijo para todo el catálogo:
+Agrupa los productos que tienen receta en cuatro columnas (**Pérdida**, **En riesgo**, **En objetivo** y **Superávit**). **Cada producto se compara con su propio margen mínimo**, el que le pusiste en su ficha, y no con un valor fijo para todo el catálogo.
 
-| Columna | Qué productos cuenta |
-|---|---|
-| **Venta a Pérdida** | Margen menor a 0 %: el precio no cubre el costo. |
-| **En Riesgo** | Margen de 0 % o más, pero por debajo del mínimo de ese producto. |
-| **En Objetivo** | Margen entre el mínimo del producto y 60 %. |
-| **Superávit** | Margen mayor a 60 % y por encima del mínimo del producto. |
-
-Debajo de cada número está el porcentaje sobre los productos con receta. Al pie se informan los productos **en borrador** (sin receta, que no tienen margen) y el **total del catálogo**: las cuatro columnas más los borradores dan ese total.
+Debajo de cada número está el porcentaje sobre los productos con receta. Al pie se informan los productos en **borrador** (sin receta) y el **total del catálogo**: las cuatro columnas más los borradores dan ese total.
 
 Ejemplo: con 339 productos, 50 en borrador y columnas de 12, 107, 130 y 40, la suma es 12 + 107 + 130 + 40 + 50 = 339, y el enlace dice **Ver catálogo completo (339)**.
 
 ## Filtrar la grilla desde el histograma
 
-1. Tocá una columna del histograma (por ejemplo, **En Riesgo**).
+1. Tocá una columna del histograma (por ejemplo, **En riesgo**).
 2. La grilla de abajo muestra solo esos productos, buscando en todo el catálogo, y el título indica cuántos son sobre el total (`107 de 339`).
 3. Para volver a ver todo, tocá **Restablecer** (o **Ver catálogo completo** en la computadora), o tocá de nuevo la misma columna.
 
