@@ -11,7 +11,7 @@ El personal con rol Colaborador no tiene acceso a esta sección ni puede visuali
 - **Desde la computadora:** en la barra de navegación superior, haciendo clic en el enlace **Compras** (ícono del changuito de supermercado).
 - **Desde el celular:** en el menú de navegación inferior fijo (`BottomNav`), tocando el ícono **Compras**.
 
-<!-- [CAPTURA 360PX SUGERIDA: 06-compras-sugeridas-mobile.webp | Pantalla /compras en vista móvil de 360px mostrando tarjetas KPI y lista de compras sugeridas] -->
+<!-- [CAPTURA 360PX SUGERIDA: 07-compras-sugeridas-mobile.webp | Pantalla /compras en vista móvil de 360px mostrando tarjetas KPI y lista de compras sugeridas] -->
 
 ---
 
@@ -44,7 +44,7 @@ Las sugerencias se consolidan y agrupan por cada distribuidor mayorista recomend
 
 > **Regla de oro de costos:** Consultar esta pantalla **no modifica tus costos vigentes ni altera las recetas de tus productos**. Solo identifica dónde comprar más barato.
 
-<!-- [CAPTURA 360PX SUGERIDA: 06-compras-agrupadas-proveedor.webp | Desglose de insumos sugeridos agrupados por proveedor con botón Hacer predeterminada] -->
+<!-- [CAPTURA 360PX SUGERIDA: 07-compras-agrupadas-proveedor.webp | Desglose de insumos sugeridos agrupados por proveedor con botón Hacer predeterminada] -->
 
 ---
 
@@ -78,7 +78,7 @@ Una vez calculada la previsualización:
 - **Copiar pedido:** Tocá el botón **Copiar pedido**. El sistema formateará automáticamente el detalle en texto plano estructurado con emojis y saltos de línea, listo para pegar directamente en un chat de WhatsApp o en un correo electrónico dirigido al vendedor.
 - **Imprimir:** Tocá el botón **Imprimir**. La aplicación preparará una hoja de estilos de impresión limpia (`window.print`), ocultando barras de menú, botones y elementos visuales innecesarios, dejando únicamente la orden de compra lista para entregar a cocina o al personal de depósito.
 
-<!-- [CAPTURA 360PX SUGERIDA: 06-previsualizacion-pedido.webp | Sección de orden de compra calculada con total estimado, ahorro y botones Copiar e Imprimir] -->
+<!-- [CAPTURA 360PX SUGERIDA: 07-previsualizacion-pedido.webp | Sección de orden de compra calculada con total estimado, ahorro y botones Copiar e Imprimir] -->
 
 ---
 

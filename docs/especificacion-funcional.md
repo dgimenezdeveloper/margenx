@@ -293,7 +293,7 @@ El backend entrega los datos del reporte semanal mediante `/api/internal/reports
 
 ---
 
-## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API)*
+## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible*
 
 Con varios proveedores por insumo, el sistema calcula dónde conviene comprar (`GET /api/purchasing/suggestions`) y permite armar una orden de compra optimizada desde la interfaz en `/compras` (`POST /api/purchasing/order-preview`):
 
