@@ -8,6 +8,8 @@ import {
   calculateUnitCost,
   classifyProductHealthBucket,
   calculateMedianMarginPercent,
+  calculateCatalogHealthSummary,
+  calculateSuggestedSalePrice,
   applyIngredientCostChange,
   applyBatchIngredientCostChanges,
 } from './marginCalculator';
@@ -544,5 +546,60 @@ describe('calculateMedianMarginPercent', () => {
   it('calcula la mediana con cantidad par aplicando redondeo ROUND_HALF_UP a 2 decimales', () => {
     expect(calculateMedianMarginPercent([D('15.00'), D('25.00'), D('18.00'), D('30.00')]).toFixed(2)).toBe('21.50');
     expect(calculateMedianMarginPercent([D('10.00'), D('33.33'), D('33.34'), D('60.00')]).toFixed(2)).toBe('33.34');
+  });
+});
+
+describe('calculateCatalogHealthSummary', () => {
+  it('clasifica los cinco buckets y calcula la mediana excluyendo borradores', () => {
+    expect(
+      calculateCatalogHealthSummary([
+        { marginPercent: D('-10.00'), minMarginPercent: D('30.00'), ingredientsCount: 2 },
+        { marginPercent: D('15.00'), minMarginPercent: D('30.00'), ingredientsCount: 1 },
+        { marginPercent: D('40.00'), minMarginPercent: D('30.00'), ingredientsCount: 3 },
+        { marginPercent: D('70.00'), minMarginPercent: D('30.00'), ingredientsCount: 2 },
+        { marginPercent: D('0.00'), minMarginPercent: D('30.00'), ingredientsCount: 0 },
+      ])
+    ).toEqual({
+      totalProducts: 5,
+      criticalProductsCount: 2,
+      healthyProductsCount: 2,
+      averageMarginPercent: 27.5,
+      lossCount: 1,
+      riskCount: 1,
+      targetCount: 1,
+      surplusCount: 1,
+      draftCount: 1,
+    });
+  });
+
+  it('devuelve los contadores y la mediana en cero con un catálogo vacío', () => {
+    expect(calculateCatalogHealthSummary([])).toEqual({
+      totalProducts: 0,
+      criticalProductsCount: 0,
+      healthyProductsCount: 0,
+      averageMarginPercent: 0,
+      lossCount: 0,
+      riskCount: 0,
+      targetCount: 0,
+      surplusCount: 0,
+      draftCount: 0,
+    });
+  });
+});
+
+describe('calculateSuggestedSalePrice', () => {
+  it('calcula el precio para alcanzar el margen mínimo y redondea a dos decimales', () => {
+    expect(calculateSuggestedSalePrice(D('700.00'), D('30.00')).toFixed(2)).toBe('1000.00');
+    expect(calculateSuggestedSalePrice(D('1000.00'), D('35.00')).toFixed(2)).toBe('1538.46');
+  });
+
+  it('usa el factor de respaldo 0.5 cuando el margen mínimo es al menos 100%', () => {
+    expect(calculateSuggestedSalePrice(D('500.00'), D('100.00')).toFixed(2)).toBe('1000.00');
+    expect(calculateSuggestedSalePrice(D('500.00'), D('150.00')).toFixed(2)).toBe('1000.00');
+  });
+
+  it('devuelve cero cuando el costo no es positivo', () => {
+    expect(calculateSuggestedSalePrice(D('0.00'), D('30.00')).toFixed(2)).toBe('0.00');
+    expect(calculateSuggestedSalePrice(D('-10.00'), D('30.00')).toFixed(2)).toBe('0.00');
   });
 });
