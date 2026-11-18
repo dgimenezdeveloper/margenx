@@ -331,6 +331,7 @@
               "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
               "        pm.expect(pm.response.headers.get('Content-Disposition')).to.match(/^attachment; filename=\"margenx-reporte-\\d{4}-\\d{2}-\\d{2}\\.pdf\"$/);",
               "        pm.expect(pm.response.headers.get('Cache-Control')).to.eql('private, no-store');",
+              "        pm.expect(pm.response.headers.get('Access-Control-Expose-Headers')).to.eql('Content-Disposition');",
               "    });",
               "    pm.test('El cuerpo inicia con firma %PDF-', function () {",
               "        pm.expect(pm.response.text().slice(0, 5)).to.eql('%PDF-');",

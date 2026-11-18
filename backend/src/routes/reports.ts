@@ -85,6 +85,8 @@ router.get('/weekly.pdf', async (req: AuthenticatedRequest, res: Response) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="margenx-reporte-${dateTag}.pdf"`);
   res.setHeader('Cache-Control', 'private, no-store');
+  // La app y la API se publican en orígenes distintos: sin exponerla, el navegador no deja leer el nombre.
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
   return res.status(200).send(pdfBuffer);
 });

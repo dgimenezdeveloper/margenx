@@ -146,6 +146,8 @@ describe('rutas de reportes para la app', () => {
       'attachment; filename="margenx-reporte-2026-11-17.pdf"'
     );
     expect(response.headers['cache-control']).toBe('private, no-store');
+    // La app y la API están en orígenes distintos: sin esta cabecera el navegador oculta el nombre del archivo.
+    expect(response.headers['access-control-expose-headers']).toBe('Content-Disposition');
     expect(Buffer.from(response.body).toString('utf8')).toContain('%PDF-1.4');
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://n8n.example.test/webhook/report-pdf');
