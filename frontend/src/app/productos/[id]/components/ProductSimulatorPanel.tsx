@@ -6,6 +6,10 @@ import { NumericInput } from '@/components/NumericInput'
 import { formatPercent } from '@/lib/format'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
+import {
+  HEALTH_BUCKET_META,
+  resolveProductHealthBucket,
+} from '@/lib/healthBucket'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -47,6 +51,20 @@ export function ProductSimulatorPanel({
   isMobile,
   setActiveStrategy,
 }: ProductSimulatorPanelProps) {
+  const bucket = resolveProductHealthBucket({
+    hasRecipe: hasRecipe && cost > 0,
+    marginPercent: margin,
+    minMarginPercent: targetMargin,
+  })
+  const meta = HEALTH_BUCKET_META[bucket]
+
+  const projectionColor =
+    bucket === 'draft'
+      ? 'text-gray-500 dark:text-gray-400'
+      : bucket === 'loss' || bucket === 'risk'
+        ? 'text-rose-700 dark:text-rose-400'
+        : 'text-emerald-700 dark:text-emerald-400'
+
   return (
     <div className={isMobile ? 'flex flex-col flex-1 overflow-hidden mt-4' : 'space-y-5'}>
       <div className={isMobile ? 'flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5' : 'space-y-5'}>
@@ -125,18 +143,10 @@ export function ProductSimulatorPanel({
           />
         </div>
 
-        <p
-          className={`text-xs font-bold ${
-            !hasRecipe
-              ? 'text-gray-500 dark:text-gray-400'
-              : margin >= targetMargin
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-rose-700 dark:text-rose-400'
-          }`}
-        >
-          {!hasRecipe
-            ? 'Proyección: 0.0% (Sin Receta)'
-            : `Proyección: Margen ${formatPercent(margin)} ${margin >= targetMargin ? 'Saludable' : 'Bajo'}`}
+        <p className={`text-xs font-bold ${projectionColor}`}>
+          {bucket === 'draft'
+            ? 'Proyección: 0,0 % · Borrador'
+            : `Proyección: Margen ${formatPercent(margin)} · ${meta.label}`}
         </p>
       </div>
 

@@ -2,7 +2,11 @@ import { useMemo } from 'react'
 import { BarChart3, FilterX } from 'lucide-react'
 import type { DashboardMetrics } from '@/services/dashboardService'
 import { formatPercent } from '@/lib/format'
-import { SURPLUS_MARGIN_THRESHOLD, type ActiveHealthBucket } from '@/lib/healthBucket'
+import {
+  HEALTH_BUCKET_META,
+  SURPLUS_MARGIN_THRESHOLD,
+  type ActiveHealthBucket,
+} from '@/lib/healthBucket'
 
 interface HealthBucketColumn {
   key: ActiveHealthBucket
@@ -47,51 +51,51 @@ export function HealthDistributionHistogram({
     return [
       {
         key: 'loss',
-        title: 'Venta a Pérdida',
-        shortTitle: 'Pérdida',
+        title: HEALTH_BUCKET_META.loss.label,
+        shortTitle: HEALTH_BUCKET_META.loss.shortLabel,
         rangeLabel: `< ${formatPercent(0, { decimals: 0 })}`,
         count: lossCount,
         percentage: calcPct(lossCount),
-        colorClass: 'bg-rose-600 dark:bg-rose-600',
-        bgHoverClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
-        borderClass: 'border-rose-200 dark:border-rose-900/60',
-        textClass: 'text-rose-700 dark:text-rose-300',
+        colorClass: HEALTH_BUCKET_META.loss.chartBarClassName,
+        bgHoverClass: HEALTH_BUCKET_META.loss.bgHoverClassName,
+        borderClass: HEALTH_BUCKET_META.loss.borderClassName,
+        textClass: HEALTH_BUCKET_META.loss.textClassName,
       },
       {
         key: 'risk',
-        title: 'En Riesgo',
-        shortTitle: 'Riesgo',
+        title: HEALTH_BUCKET_META.risk.label,
+        shortTitle: HEALTH_BUCKET_META.risk.shortLabel,
         rangeLabel: 'Bajo su mínimo',
         count: riskCount,
         percentage: calcPct(riskCount),
-        colorClass: 'bg-rose-400 dark:bg-rose-400',
-        bgHoverClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
-        borderClass: 'border-rose-200 dark:border-rose-900/60',
-        textClass: 'text-rose-600 dark:text-rose-400',
+        colorClass: HEALTH_BUCKET_META.risk.chartBarClassName,
+        bgHoverClass: HEALTH_BUCKET_META.risk.bgHoverClassName,
+        borderClass: HEALTH_BUCKET_META.risk.borderClassName,
+        textClass: HEALTH_BUCKET_META.risk.textClassName,
       },
       {
         key: 'target',
-        title: 'En Objetivo',
-        shortTitle: 'Objetivo',
+        title: HEALTH_BUCKET_META.target.label,
+        shortTitle: HEALTH_BUCKET_META.target.shortLabel,
         rangeLabel: `Su mínimo a ${surplusLabel}`,
         count: targetCount,
         percentage: calcPct(targetCount),
-        colorClass: 'bg-emerald-500 dark:bg-emerald-500',
-        bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
-        borderClass: 'border-emerald-200 dark:border-emerald-900/60',
-        textClass: 'text-emerald-700 dark:text-emerald-300',
+        colorClass: HEALTH_BUCKET_META.target.chartBarClassName,
+        bgHoverClass: HEALTH_BUCKET_META.target.bgHoverClassName,
+        borderClass: HEALTH_BUCKET_META.target.borderClassName,
+        textClass: HEALTH_BUCKET_META.target.textClassName,
       },
       {
         key: 'surplus',
-        title: 'Superávit',
-        shortTitle: 'Óptimo',
+        title: HEALTH_BUCKET_META.surplus.label,
+        shortTitle: HEALTH_BUCKET_META.surplus.shortLabel,
         rangeLabel: `> ${surplusLabel}`,
         count: surplusCount,
         percentage: calcPct(surplusCount),
-        colorClass: 'bg-emerald-600 dark:bg-emerald-400',
-        bgHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
-        borderClass: 'border-emerald-200 dark:border-emerald-900/60',
-        textClass: 'text-emerald-800 dark:text-emerald-200',
+        colorClass: HEALTH_BUCKET_META.surplus.chartBarClassName,
+        bgHoverClass: HEALTH_BUCKET_META.surplus.bgHoverClassName,
+        borderClass: HEALTH_BUCKET_META.surplus.borderClassName,
+        textClass: HEALTH_BUCKET_META.surplus.textClassName,
       },
     ]
   }, [metrics])
@@ -145,7 +149,7 @@ export function HealthDistributionHistogram({
             className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-950/80 dark:text-indigo-300 dark:hover:bg-indigo-800"
           >
             <FilterX className="size-3.5" />
-            Filtrando: {activeBucketMeta.shortTitle} ({activeBucketMeta.count})
+            Filtrando: {activeBucketMeta.title} ({activeBucketMeta.count})
             <span className="text-[10px] underline ml-1">Restablecer</span>
           </button>
         )}
@@ -213,7 +217,8 @@ export function HealthDistributionHistogram({
             <span>
               {draftProductsCount > 0 ? (
                 <>
-                  <strong className="text-gray-600 dark:text-gray-300">{draftProductsCount}</strong> en borrador (sin receta)
+                  <strong className="text-gray-600 dark:text-gray-300">{draftProductsCount}</strong> en{' '}
+                  {HEALTH_BUCKET_META.draft.label.toLowerCase()} (sin receta)
                 </>
               ) : (
                 `${formatPercent(100, { decimals: 0 })} del catálogo costea con receta`
