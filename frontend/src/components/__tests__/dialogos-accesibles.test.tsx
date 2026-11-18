@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import '@testing-library/jest-dom'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
@@ -91,28 +92,30 @@ function SimulatorSheetHarness() {
 function IngredientSheetHarness({ selected, showDeleteConfirm = false }: { selected: Ingredient | null; showDeleteConfirm?: boolean }) {
   const { register, setValue, formState } = useForm<IngredientInput>()
   return (
-    <IngredientUpsertSheet
-      selected={selected}
-      newOpen={!selected}
-      showDeleteConfirm={showDeleteConfirm}
-      isCollaborator={false}
-      onSubmit={vi.fn()}
-      onRequestClose={vi.fn()}
-      onRequestDelete={vi.fn()}
-      onDeleteConfirm={vi.fn()}
-      onCancelDelete={vi.fn()}
-      onOpenHistory={vi.fn()}
-      onOpenPackaging={vi.fn()}
-      onEditConnection={vi.fn()}
-      onMakeDefault={vi.fn()}
-      register={register}
-      setValue={setValue}
-      errors={formState.errors}
-      selectedUnit="kg"
-      money={(value) => `$${value}`}
-      onNumericKeyDown={vi.fn()}
-      onDecimalChange={vi.fn()}
-    />
+    <MemoryRouter>
+      <IngredientUpsertSheet
+        selected={selected}
+        newOpen={!selected}
+        showDeleteConfirm={showDeleteConfirm}
+        isCollaborator={false}
+        onSubmit={vi.fn()}
+        onRequestClose={vi.fn()}
+        onRequestDelete={vi.fn()}
+        onDeleteConfirm={vi.fn()}
+        onCancelDelete={vi.fn()}
+        onOpenHistory={vi.fn()}
+        onOpenPackaging={vi.fn()}
+        onEditConnection={vi.fn()}
+        onMakeDefault={vi.fn()}
+        register={register}
+        setValue={setValue}
+        errors={formState.errors}
+        selectedUnit="kg"
+        money={(value) => `$${value}`}
+        onNumericKeyDown={vi.fn()}
+        onDecimalChange={vi.fn()}
+      />
+    </MemoryRouter>
   )
 }
 
@@ -207,7 +210,6 @@ describe('Diálogos de MargenX: título, descripción y botones con nombre acces
     expect(dialog).toHaveAccessibleName(titulo)
     expect(dialog).toHaveAccessibleDescription(/\S/)
 
-    // Un botón solo con ícono (por ejemplo, la X de cerrar) necesita aria-label para el lector de pantalla
     for (const button of within(dialog).getAllByRole('button')) {
       expect(button).toHaveAccessibleName(/\S/)
     }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { X, History, TrendingUp, TrendingDown, Minus, LoaderCircle } from 'lucide-react'
-import { useAuth } from '@clerk/clerk-react'
+import { useEffect, useState, useMemo } from 'react'
+import { X, History, TrendingUp, TrendingDown, Minus, LoaderCircle, ArrowUpDown } from 'lucide-react'
+import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { ingredientService, type PriceHistory } from '@/services/ingredientService'
 import { EmptyState } from '@/components/empty-state'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
@@ -28,10 +28,11 @@ const formatDate = (isoString: string) => {
 }
 
 export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientName }: PriceHistoryModalProps) {
-  const { getToken } = useAuth()
+  const getToken = useTokenGetter()
   const [history, setHistory] = useState<PriceHistory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
   useEffect(() => {
     if (!isOpen || !ingredientId) return
@@ -58,6 +59,14 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
     }
   }, [isOpen, ingredientId, getToken])
 
+  const sortedHistory = useMemo(() => {
+    return [...history].sort((a, b) => {
+      const timeA = new Date(a.changedAt).getTime()
+      const timeB = new Date(b.changedAt).getTime()
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB
+    })
+  }, [history, sortOrder])
+
   if (!isOpen) return null
 
   return (
@@ -77,9 +86,25 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
                 Variaciones registradas en el costo unitario de {ingredientName}.
               </DialogDescription>
             </div>
-            <DialogClose aria-label="Cerrar historial de costos" className="flex size-10 min-h-11 min-w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer">
-              <X className="size-5" />
-            </DialogClose>
+            <div className="flex items-center gap-2">
+              {history.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                  aria-label={sortOrder === 'desc' ? 'Ordenar por más antiguos primero' : 'Ordenar por más recientes primero'}
+                  title={sortOrder === 'desc' ? 'Cambiar a más antiguos primero' : 'Cambiar a más recientes primero'}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                >
+                  <ArrowUpDown className="size-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">
+                    {sortOrder === 'desc' ? 'Más recientes' : 'Más antiguos'}
+                  </span>
+                </button>
+              )}
+              <DialogClose aria-label="Cerrar historial de costos" className="flex size-10 min-h-11 min-w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition cursor-pointer">
+                <X className="size-5" />
+              </DialogClose>
+            </div>
           </div>
 
           <div className="mt-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -92,7 +117,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 text-center">
                 {error}
               </div>
-            ) : history.length === 0 ? (
+            ) : sortedHistory.length === 0 ? (
               <div className="py-6">
                 <EmptyState
                   icon={<History className="size-6" />}
@@ -102,7 +127,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
               </div>
             ) : (
               <div className="relative border-l-2 border-gray-100 dark:border-gray-800 ml-3 space-y-6 py-4">
-                {history.map((entry) => {
+                {sortedHistory.map((entry) => {
                   const percentChange = entry.oldCost > 0
                     ? ((entry.newCost - entry.oldCost) / entry.oldCost) * 100
                     : 100

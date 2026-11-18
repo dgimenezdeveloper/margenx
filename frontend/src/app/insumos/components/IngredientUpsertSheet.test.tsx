@@ -1,41 +1,162 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import '@testing-library/jest-dom'
 
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
+import type { Ingredient, IngredientProductUsage } from '@/services/ingredientService'
 
-describe('IngredientUpsertSheet', () => {
-  it('requests deletion instead of closing the confirmation panel when the trash button is pressed', async () => {
+const mockIngredient: Ingredient = { id: 'ing-1', name: 'Harina 000 Olavariense', unit: 'kg', currentCost: 736.25 }
+
+describe('IngredientUpsertSheet - Criterios de Aceptación Issue #354', () => {
+  it('solicita confirmación de eliminación en vez de cerrar el diálogo al presionar el botón de papelera', async () => {
     const onRequestDelete = vi.fn()
     const onCancelDelete = vi.fn()
 
     render(
-      <IngredientUpsertSheet
-        selected={{ id: '1', name: 'Harina', unit: 'kg', currentCost: 120 }}
-        newOpen={false}
-        showDeleteConfirm={false}
-        isCollaborator={false}
-        onSubmit={vi.fn()}
-        onRequestClose={vi.fn()}
-        onDeleteConfirm={vi.fn()}
-        onCancelDelete={onCancelDelete}
-        onRequestDelete={onRequestDelete}
-        onOpenHistory={vi.fn()}
-        onOpenPackaging={vi.fn()}
-        onEditConnection={vi.fn()}
-        onMakeDefault={vi.fn()}
-        register={vi.fn() as never}
-        setValue={vi.fn() as never}
-        errors={{}}
-        selectedUnit="kg"
-        money={(value) => `$${value}`}
-        onNumericKeyDown={vi.fn()}
-        onDecimalChange={vi.fn()}
-      />
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={onCancelDelete}
+          onRequestDelete={onRequestDelete}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(value) => `$${value}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+        />
+      </MemoryRouter>
     )
 
     fireEvent.click(screen.getByLabelText('Eliminar insumo'))
 
     expect(onRequestDelete).toHaveBeenCalledTimes(1)
     expect(onCancelDelete).not.toHaveBeenCalled()
+  })
+
+  it('renderiza inputs de nombre y unidad editables cuando selected está presente', () => {
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByLabelText('Nombre del insumo')).toBeInTheDocument()
+    expect(screen.getByText('Unidad de medida')).toBeInTheDocument()
+  })
+
+  it('Escenario Gherkin "Dónde se usa": renderiza los 27 productos vinculados con enlace a cada uno', () => {
+    const mockProducts: IngredientProductUsage[] = Array.from({ length: 27 }, (_, i) => ({
+      id: `prod-${i + 1}`,
+      name: `Producto Terminado ${i + 1}`,
+      quantity: 0.25,
+      salePrice: 4000,
+      cost: 1200,
+      marginAmount: 2800,
+      marginPercent: 70,
+      minMarginPercent: 30,
+      marginStatus: 'surplus',
+      updatedAt: '2026-10-14T12:00:00.000Z',
+    }))
+
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+          usedProducts={mockProducts}
+          isLoadingProducts={false}
+        />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('27 productos')).toBeInTheDocument()
+    const links = screen.getAllByRole('link')
+    expect(links).toHaveLength(27)
+    expect(links[0]).toHaveAttribute('href', '/productos/prod-1')
+    expect(links[26]).toHaveAttribute('href', '/productos/prod-27')
+  })
+
+  it('muestra mensaje adyacente al input cuando existe error 409 de nombre duplicado', () => {
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{ name: { type: 'server', message: 'Ya existe un insumo con ese nombre.' } }}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    const errorMsg = screen.getByRole('alert')
+    expect(errorMsg).toHaveTextContent('Ya existe un insumo con ese nombre.')
   })
 })

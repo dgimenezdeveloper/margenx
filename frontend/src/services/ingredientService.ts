@@ -47,6 +47,24 @@ export interface BulkUploadResponse {
   errors: Array<{ row: number; reason: string }>
 }
 
+export interface IngredientProductUsage {
+  id: string
+  name: string
+  quantity: number | string
+  salePrice: number | string
+  cost: number | string
+  marginAmount: number | string
+  marginPercent: number | string
+  minMarginPercent: number | string
+  marginStatus: 'loss' | 'risk' | 'target' | 'surplus' | 'draft'
+  updatedAt: string
+}
+
+export interface IngredientProductsResponse {
+  data: IngredientProductUsage[]
+  meta: PageMeta
+}
+
 type RawIngredient = Omit<Ingredient, 'currentCost' | 'supplierConnections'> & {
   currentCost: number | string
   supplierConnections?: Array<Omit<SupplierIngredient, 'packageSize' | 'packagePrice'> & {
@@ -152,6 +170,15 @@ export const ingredientService = {
   async getHistory(getToken: TokenGetter, id: string): Promise<PriceHistory[]> {
     const response = await fetchApi<HistoryResponse>(`/ingredients/${id}/history`, getToken)
     return (response.history || []).map(normalizeHistory)
+  },
+
+  async getProducts(
+    getToken: TokenGetter,
+    id: string,
+    params?: PageParams
+  ): Promise<IngredientProductsResponse> {
+    const query = params ? buildPageQuery(params) : 'page=1&limit=100'
+    return fetchApi<IngredientProductsResponse>(`/ingredients/${id}/products?${query}`, getToken)
   },
 
   async bulkUpload(getToken: TokenGetter, rows: BulkUploadRowInput[]): Promise<BulkUploadResponse> {

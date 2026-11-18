@@ -2,7 +2,7 @@
 
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -18,14 +18,16 @@ import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
-import { formatMoney } from '@/lib/format'
+import { formatMoney, formatUnit } from '@/lib/format'
+import { formatNumeroAR, parseNumeroAR } from '@/lib/numericFormat'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import type { PageParams } from '@/services/pagination'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
-import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { ingredientService, type Ingredient, type IngredientProductUsage } from '@/services/ingredientService'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
@@ -34,8 +36,8 @@ import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => formatMoney(val)
-/** El costo guardado se muestra con coma decimal y sin separador de miles: "2179,13". */
-const toCostInput = (val: number | string) => String(val).replace('.', ',')
+/** "Se usa en" lista hasta esta cantidad de productos; el contador usa el total real (meta.total). */
+const USED_PRODUCTS_LIMIT = 100
 
 let toastIdCounter = 0
 
@@ -51,10 +53,8 @@ export default function SuppliesPageContent() {
   const { user } = useCurrentUser()
   const navigate = useNavigate()
   const isCollaborator = user?.role === 'COLLABORATOR'
-  // La carga masiva es solo del administrador: mientras el rol no se conoce, no se muestra.
   const canBulkUpload = user?.role === 'ADMIN'
 
-  // La API pagina y busca (sin tildes ni mayúsculas); la tarjeta de insumos activos lee meta.total.
   const fetchSupplies = useCallback((params: PageParams) => ingredientService.list(getToken, params), [getToken])
   const {
     items: supplies,
@@ -75,6 +75,7 @@ export default function SuppliesPageContent() {
     reload: reloadSupplies,
     setItems: setSupplies,
   } = usePaginatedList(fetchSupplies, { errorMessage: 'No se pudieron cargar los insumos.' })
+
   const [quarantineCount, setQuarantineCount] = useState(0)
   const [bulkCatalog, setBulkCatalog] = useState<Ingredient[]>([])
   const [selected, setSelected] = useState<Ingredient | null>(null)
@@ -86,12 +87,30 @@ export default function SuppliesPageContent() {
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<SupplierIngredient | undefined>(undefined)
 
+  const [usedProducts, setUsedProducts] = useState<IngredientProductUsage[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
+  // Total real de productos que usan el insumo (meta.total): la lista trae hasta USED_PRODUCTS_LIMIT.
+  const [usedProductsTotal, setUsedProductsTotal] = useState(0)
+  // La consulta falló: no se sabe si el insumo se usa, así que no se muestra "no se usa".
+  const [productsError, setProductsError] = useState(false)
+  const [showUnitConfirm, setShowUnitConfirm] = useState(false)
+  const [pendingSaveData, setPendingSaveData] = useState<z.input<typeof ingredientSchema> | null>(null)
+
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
 
   const handleRetry = reloadSupplies
 
-  // La detección de duplicados de la planilla necesita el catálogo completo, no solo la página visible.
+  const toCostInput = (val: number | string) => formatNumeroAR(val)
+
+  const handleCostBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+    const parsed = parseNumeroAR(event.target.value)
+    if (parsed !== '') {
+      const formatted = formatNumeroAR(parsed)
+      setValue('currentCost', formatted, { shouldValidate: true })
+    }
+  }
+
   const openBulkModal = () => {
     ingredientService
       .getAll(getToken)
@@ -170,6 +189,7 @@ export default function SuppliesPageContent() {
     handleSubmit,
     reset,
     setValue,
+    setError,
     control,
     formState: { errors, isDirty },
   } = useForm<z.input<typeof ingredientSchema>>({
@@ -183,16 +203,54 @@ export default function SuppliesPageContent() {
   const isTotalEmpty = !isLoading && meta?.total === 0 && !appliedSearch
   const isSearchEmpty = !isLoading && meta?.total === 0 && Boolean(appliedSearch)
 
+  const resetUsedProducts = () => {
+    setUsedProducts([])
+    setUsedProductsTotal(0)
+    setProductsError(false)
+    setIsLoadingProducts(false)
+  }
+
+  const loadUsedProducts = (ingredientId: string) => {
+    setIsLoadingProducts(true)
+    setProductsError(false)
+    ingredientService
+      .getProducts(getToken, ingredientId, { page: 1, limit: USED_PRODUCTS_LIMIT })
+      .then((res) => {
+        setUsedProducts(res.data)
+        setUsedProductsTotal(res.meta.total)
+      })
+      .catch(() => {
+        setUsedProducts([])
+        setUsedProductsTotal(0)
+        setProductsError(true)
+      })
+      .finally(() => {
+        setIsLoadingProducts(false)
+      })
+  }
+
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
+    setShowUnitConfirm(false)
+    setPendingSaveData(null)
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: toCostInput(supply.currentCost) })
+
+    // GET /api/ingredients/:id/products es solo ADMIN: el colaborador no lo consulta ni ve la sección.
+    if (isCollaborator) {
+      resetUsedProducts()
+      return
+    }
+    loadUsedProducts(supply.id)
   }
 
   const handleOpenNew = () => {
     setSelected(null)
     setShowDeleteConfirm(false)
+    setShowUnitConfirm(false)
+    setPendingSaveData(null)
+    resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
   }
@@ -201,6 +259,9 @@ export default function SuppliesPageContent() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
+    setShowUnitConfirm(false)
+    setPendingSaveData(null)
+    resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
 
@@ -212,16 +273,18 @@ export default function SuppliesPageContent() {
     handleCloseSheet()
   }
 
-  const handleSave = async (data: z.input<typeof ingredientSchema>) => {
-    const numericCost = Number(data.currentCost)
+  const executeSave = async (data: z.input<typeof ingredientSchema>) => {
+    const rawCost = typeof data.currentCost === 'string' ? parseNumeroAR(data.currentCost) : data.currentCost
+    const numericCost = Number(rawCost)
     if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
       notify('El insumo no puede superar $99.999.999,99.', 'error')
       return
     }
 
+    const canonicalUnit = data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit
     const input = {
-      name: selected?.name ?? data.name,
-      unit: data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit,
+      name: data.name.trim(),
+      unit: canonicalUnit,
       currentCost: numericCost,
     }
 
@@ -231,10 +294,11 @@ export default function SuppliesPageContent() {
         const ingredient = response.ingredient
 
         setSupplies((current) => current.map((item) => (item.id === ingredient.id ? ingredient : item)))
+        setSelected(ingredient)
 
         notify(
-          `Costo de ${selected.name} actualizado`,
-          `Nuevo valor: ${money(Number(data.currentCost))}`,
+          `Insumo "${ingredient.name}" actualizado correctamente`,
+          `Nuevo valor: ${money(numericCost)}`,
           'success'
         )
 
@@ -259,8 +323,35 @@ export default function SuppliesPageContent() {
       }
       handleCloseSheet()
     } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 409) {
+        setError('name', { type: 'server', message: error.message }, { shouldFocus: true })
+        return
+      }
       notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
     }
+  }
+
+  const usageUnknown = isLoadingProducts || productsError
+
+  const handleSave = async (data: z.input<typeof ingredientSchema>) => {
+    const canonicalUnit = data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit
+
+    // Si todavía no se sabe dónde se usa (cargando o con error), se confirma igual.
+    if (selected && selected.unit !== canonicalUnit && (usageUnknown || usedProductsTotal > 0)) {
+      setPendingSaveData(data)
+      setShowUnitConfirm(true)
+      return
+    }
+
+    await executeSave(data)
+  }
+
+  const handleConfirmUnitChange = () => {
+    if (!pendingSaveData) return
+    const data = pendingSaveData
+    setShowUnitConfirm(false)
+    setPendingSaveData(null)
+    void executeSave(data)
   }
 
   const confirmDelete = async () => {
@@ -562,10 +653,18 @@ export default function SuppliesPageContent() {
         money={money}
         onNumericKeyDown={handleDecimalARKeyDown}
         onDecimalChange={(event) => {
-          // El campo se escribe en es-AR ("1.234,56") y se guarda tal cual: el schema lo interpreta con parseNumeroAR.
           const clean = sanitizeDecimalAR(event.target.value)
           setValue('currentCost', clean, { shouldValidate: true, shouldDirty: true })
         }}
+        onCostBlur={handleCostBlur}
+        usedProducts={usedProducts}
+        usedProductsTotal={usedProductsTotal}
+        isLoadingProducts={isLoadingProducts}
+        productsError={productsError}
+        onRetryProducts={() => {
+          if (selected) loadUsedProducts(selected.id)
+        }}
+        showUsedProducts={!isCollaborator}
       />
       <UnsavedChangesDialog
         open={showDiscardConfirm}
@@ -575,6 +674,65 @@ export default function SuppliesPageContent() {
         }}
         onCancel={() => setShowDiscardConfirm(false)}
       />
+      <Dialog open={showUnitConfirm} onOpenChange={(open) => { if (!open) setShowUnitConfirm(false) }}>
+        <DialogPortal>
+          <DialogBackdrop className="z-80" />
+          <DialogPopup className="z-80 max-w-md text-left">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
+              <AlertTriangle className="size-7" />
+            </div>
+            <DialogTitle className="text-center text-lg font-bold">
+              ¿Cambiar unidad de medida?
+            </DialogTitle>
+            <DialogDescription className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+              Estás a punto de cambiar la unidad de <strong>{selected?.name}</strong> de{' '}
+              <strong>{formatUnit(selected?.unit)}</strong> a{' '}
+              <strong>
+                {formatUnit(
+                  pendingSaveData?.unit === 'litro'
+                    ? 'l'
+                    : pendingSaveData?.unit === 'unidad'
+                    ? 'u'
+                    : pendingSaveData?.unit
+                )}
+              </strong>.
+              {usageUnknown ? (
+                <span className="block mt-2 font-medium">
+                  No pudimos confirmar en qué recetas se usa este insumo. Si se usa, las cantidades guardadas en las
+                  recetas no se convertirán automáticamente: se mantendrán los mismos números.
+                </span>
+              ) : (
+                usedProductsTotal > 0 && (
+                  <span className="block mt-2 font-medium">
+                    Este insumo se utiliza en <strong>{usedProductsTotal} {usedProductsTotal === 1 ? 'producto' : 'productos'}</strong>.
+                    Las cantidades guardadas en las recetas no se convertirán automáticamente: se mantendrán los mismos números.
+                    Deberás revisar las recetas afectadas para verificar que las proporciones sigan siendo correctas.
+                  </span>
+                )
+              )}
+            </DialogDescription>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnitConfirm(false)
+                  setPendingSaveData(null)
+                }}
+                className="min-h-11 flex-1 cursor-pointer rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmUnitChange}
+                className="min-h-11 flex-1 cursor-pointer rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
+              >
+                Sí, cambiar unidad
+              </button>
+            </div>
+          </DialogPopup>
+        </DialogPortal>
+      </Dialog>
       {selected && (
         <PriceHistoryModal
           isOpen={showHistoryModal}
