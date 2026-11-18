@@ -1,0 +1,835 @@
+{
+  "name": "MargenX - Reporte Semanal de Márgenes (PDF)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "name": "Lunes 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Prueba Manual (Staging)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "entorno",
+              "name": "entorno",
+              "value": "prod",
+              "type": "string"
+            },
+            {
+              "id": "apiBase",
+              "name": "apiBase",
+              "value": "={{ ($env.MARGENX_INTERNAL_API_URL || 'http://backend-prod:3000').trim().replace(/\\/+$/, '').replace(/\\/api$/, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Entorno Producción",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "entorno",
+              "name": "entorno",
+              "value": "dev",
+              "type": "string"
+            },
+            {
+              "id": "apiBase",
+              "name": "apiBase",
+              "value": "={{ ($env.MARGENX_INTERNAL_DEV_API_URL || 'http://backend-dev:3000').trim().replace(/\\/+$/, '').replace(/\\/api$/, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "destinatarioPrueba",
+              "name": "destinatarioPrueba",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "soloSlug",
+              "name": "soloSlug",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Entorno Staging",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.apiBase }}/api/internal/reports/accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-margenx-webhook-secret",
+              "value": "={{ $env.INTERNAL_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Pedir Cuentas Activas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una salida por cuenta activa, con el entorno y la URL interna del backend que le corresponden.\n// En staging (disparador manual) se puede limitar a un slug y mandar todo a una casilla de prueba, para no\n// escribirle a todas las cuentas de staging. En producción esos dos campos se ignoran. Modo: una vez para todos.\nconst config = $('Entorno Staging').isExecuted ? $('Entorno Staging').first().json : $('Entorno Producción').first().json;\nconst entorno = config.entorno === 'dev' ? 'dev' : 'prod';\nconst apiBase = String(config.apiBase || '');\nconst destinatarioPrueba = entorno === 'dev' ? String(config.destinatarioPrueba || '').trim() : '';\nconst soloSlug = entorno === 'dev' ? String(config.soloSlug || '').trim() : '';\n\nconst cuentas = $input.first().json.accounts;\nif (!Array.isArray(cuentas)) {\n  throw new Error('La API no devolvió la lista de cuentas (falta \"accounts\").');\n}\n\nreturn cuentas\n  .filter((c) => c && c.slug && (!soloSlug || c.slug === soloSlug))\n  .map((c) => ({\n    json: {\n      entorno,\n      apiBase,\n      slug: String(c.slug),\n      comercio: String(c.businessName || ''),\n      destinatario: destinatarioPrueba || String(c.ownerEmail || ''),\n    },\n  }));\n"
+      },
+      "name": "Separar Cuentas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.apiBase }}/api/internal/reports/weekly/{{ encodeURIComponent($json.slug) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-margenx-webhook-secret",
+              "value": "={{ $env.INTERNAL_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 0
+            }
+          }
+        }
+      },
+      "name": "Pedir Reporte Semanal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "report-pdf",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Reporte PDF",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        440,
+        700
+      ],
+      "webhookId": "report-pdf-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "header-not-empty",
+              "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "env-secret-not-empty",
+              "leftValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "secret-match",
+              "leftValue": "={{ $json.headers['x-margenx-webhook-secret'] }}",
+              "rightValue": "={{ $env.INTERNAL_WEBHOOK_SECRET || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Validar Secreto Webhook",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Unauthorized: Secreto de webhook inválido o ausente.\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Responder 401 No Autorizado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Arma el reporte semanal de márgenes con la plantilla compartida de MargenX (ADR-009): el HTML A4 que Gotenberg\n// convierte a PDF y, en el envío de los lunes, el mail que lo acompaña. Un solo generador para el PDF del mail y el\n// de la descarga a pedido (webhook report-pdf). No calcula nada: muestra los números del backend (ADR-003).\n// Modo: una vez por ítem.\n// <plantilla-mail-margenx>\n// Plantilla compartida de los mails de MargenX (ingesta, alertas, invitaciones y reporte semanal) y de su versión A4.\n// Fuente única: infra/n8n/plantillas/mail-margenx.js. No editar este bloque en n8n:\n// se copia a los workflows con `node infra/n8n/plantillas/sincronizar.mjs`.\nconst MX_APP = { prod: 'https://margenx.tech', dev: 'https://dev.margenx.tech' };\nconst MX_TONOS = {\n  peligro: { fondo: '#fef2f2', borde: '#ef4444', titulo: '#991b1b', texto: '#7f1d1d', chipFondo: '#450a0a', chipTexto: '#fca5a5', chipBorde: '#7f1d1d' },\n  aviso: { fondo: '#fffbeb', borde: '#f59e0b', titulo: '#92400e', texto: '#78350f', chipFondo: '#451a03', chipTexto: '#fcd34d', chipBorde: '#78350f' },\n  info: { fondo: '#eef2ff', borde: '#4f46e5', titulo: '#3730a3', texto: '#312e81', chipFondo: '#1e1b4b', chipTexto: '#c7d2fe', chipBorde: '#3730a3' },\n  ok: { fondo: '#f0fdf4', borde: '#22c55e', titulo: '#166534', texto: '#14532d', chipFondo: '#052e16', chipTexto: '#86efac', chipBorde: '#14532d' },\n};\nfunction escapeHtml(str) {\n  if (str === null || str === undefined) return '';\n  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\n// Número con separador de miles argentino: 2.500\nfunction mxEntero(n) {\n  return (Number(n) || 0).toLocaleString('es-AR');\n}\n// \"1 fila\" / \"2 filas\": el singular solo para exactamente 1\nfunction mxCantidad(n, singular, plural) {\n  return `${mxEntero(n)} ${Number(n) === 1 ? singular : plural}`;\n}\nfunction mxPorcentaje(n) {\n  return (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';\n}\nfunction mxPesos(n) {\n  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);\n}\nfunction mxBoton(href, etiqueta) {\n  return `<a href=\"${escapeHtml(href)}\" target=\"_blank\" style=\"background-color: #4f46e5; color: #ffffff; padding: 10px 18px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 6px; display: inline-block;\">${escapeHtml(etiqueta)}</a>`;\n}\n// Bloque destacado con título, contenido (HTML ya escapado) y un botón opcional\nfunction mxAviso(tono, titulo, contenidoHtml, boton) {\n  const t = MX_TONOS[tono] || MX_TONOS.info;\n  const accion = boton ? `<p style=\"margin: 12px 0 0 0;\">${mxBoton(boton.href, boton.etiqueta)}</p>` : '';\n  return `<div style=\"background-color: ${t.fondo}; border-left: 4px solid ${t.borde}; padding: 12px 12px; border-radius: 0 8px 8px 0; margin: 0 0 16px 0;\">\n  <p style=\"margin: 0; font-size: 15px; font-weight: 700; color: ${t.titulo};\">${escapeHtml(titulo)}</p>\n  <div style=\"margin: 6px 0 0 0; font-size: 14px; line-height: 1.5; color: ${t.texto};\">${contenidoHtml}</div>${accion}\n</div>`;\n}\n// Tabla de productos bajo su margen mínimo, con el botón \"Ajustar\" de cada uno\nfunction mxTablaProductos(filas) {\n  const cuerpo = filas.map((f) => `<tr style=\"border-bottom: 1px solid #e2e8f0;\">\n  <td style=\"padding: 10px 8px; font-size: 14px; font-weight: 600; color: #0f172a;\">${escapeHtml(f.nombre)}<div style=\"font-size: 12px; font-weight: 400; color: #64748b;\">Nuevo costo: ${escapeHtml(mxPesos(f.costo))}</div></td>\n  <td style=\"padding: 10px 8px; font-size: 13px; text-align: right; white-space: nowrap;\"><span style=\"background-color: #fee2e2; color: #b91c1c; font-weight: 700; padding: 3px 6px; border-radius: 4px; border: 1px solid #fecaca; display: inline-block;\">${escapeHtml(mxPorcentaje(f.margen))}</span><div style=\"font-size: 12px; color: #475569; margin-top: 4px;\">mín. ${escapeHtml(mxPorcentaje(f.minimo))}</div></td>\n  <td style=\"padding: 10px 8px; text-align: right;\"><a href=\"${escapeHtml(f.enlace)}\" target=\"_blank\" style=\"background-color: #4f46e5; color: #ffffff; padding: 6px 10px; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 4px; display: inline-block;\">Ajustar</a></td>\n</tr>`).join('');\n  return `<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse: collapse; border: 1px solid #e2e8f0; width: 100%; background-color: #ffffff;\">\n<thead><tr style=\"background-color: #f1f5f9; text-align: left;\">\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;\">Producto</th>\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; text-align: right;\">Margen</th>\n  <th style=\"padding: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; text-align: right;\"></th>\n</tr></thead>\n<tbody>${cuerpo}</tbody>\n</table>`;\n}\n// Documento completo: encabezado de marca, etiqueta de estado, contenido y pie\nfunction mxDocumento({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {\n  const t = MX_TONOS[tono] || MX_TONOS.info;\n  return `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>${escapeHtml(titulo)}</title>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #f8fafc; padding: 16px 8px;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;\">\n          <tr>\n            <td style=\"background-color: #0f172a; padding: 18px 16px;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;\">MARGEN<span style=\"color: #6366f1;\">X</span></span>\n                    <span style=\"font-size: 11px; color: #94a3b8; display: block; margin-top: 2px; text-transform: uppercase; letter-spacing: 1px;\">Control de rentabilidad en tiempo real</span>\n                  </td>\n                  <td align=\"right\">\n                    <span style=\"background-color: ${t.chipFondo}; color: ${t.chipTexto}; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; border: 1px solid ${t.chipBorde}; text-transform: uppercase; white-space: nowrap; display: inline-block;\">${escapeHtml(etiqueta)}</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding: 20px 16px; font-size: 14px; line-height: 1.5; color: #334155;\">\n              ${contenidoHtml}\n            </td>\n          </tr>\n          <tr>\n            <td style=\"background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center;\">\n              ${pieHtml ? `<p style=\"margin: 0 0 8px 0; font-size: 12px; color: #64748b;\">${pieHtml}</p>` : ''}\n              <p style=\"margin: 0; font-size: 11px; color: #94a3b8;\">MargenX &bull; Soporte: contacto@margenx.tech</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>`;\n}\n// Versión para imprimir en A4 (reporte semanal en PDF, que convierte Gotenberg): mismo encabezado de marca,\n// página A4 con @page, encabezados de tabla que se repiten en cada hoja y filas que nunca se cortan.\n// Las tablas usan las clases mx-num (montos alineados a la derecha) y mx-sub (segunda línea de una celda).\nfunction mxDocumentoA4({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {\n  const t = MX_TONOS[tono] || MX_TONOS.info;\n  return `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>${escapeHtml(titulo)}</title>\n  <style>\n    @page { size: A4; margin: 14mm 12mm 16mm 12mm; }\n    * { box-sizing: border-box; }\n    html, body { margin: 0; padding: 0; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #0f172a; background-color: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n    .mx-marca { background-color: #0f172a; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }\n    .mx-logo { font-size: 18pt; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }\n    .mx-lema { display: block; font-size: 7.5pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }\n    .mx-chip { background-color: ${t.chipFondo}; color: ${t.chipTexto}; border: 1px solid ${t.chipBorde}; font-size: 8pt; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; white-space: nowrap; }\n    h1 { font-size: 17pt; margin: 16px 0 2px 0; }\n    h2 { font-size: 13pt; margin: 20px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid #e2e8f0; break-after: avoid; page-break-after: avoid; }\n    h3 { font-size: 11pt; margin: 14px 0 4px 0; break-after: avoid; page-break-after: avoid; }\n    p { margin: 0 0 8px 0; }\n    table { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }\n    thead { display: table-header-group; }\n    tr { break-inside: avoid; page-break-inside: avoid; }\n    th { background-color: #f1f5f9; color: #334155; font-size: 8pt; font-weight: 700; text-transform: uppercase; text-align: left; padding: 6px; border-bottom: 1px solid #cbd5e1; }\n    td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; overflow-wrap: anywhere; }\n    .mx-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }\n    .mx-sub { display: block; font-size: 8.5pt; color: #475569; }\n    .mx-nota { font-size: 9pt; color: #475569; }\n    .mx-pie { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #475569; break-inside: avoid; page-break-inside: avoid; }\n  </style>\n</head>\n<body>\n  <header class=\"mx-marca\">\n    <span class=\"mx-logo\">MARGEN<span style=\"color: #6366f1;\">X</span><span class=\"mx-lema\">Control de rentabilidad en tiempo real</span></span>\n    <span class=\"mx-chip\">${escapeHtml(etiqueta)}</span>\n  </header>\n  <main>\n    ${contenidoHtml}\n  </main>\n  <footer class=\"mx-pie\">\n    ${pieHtml ? `<p>${pieHtml}</p>` : ''}\n    <p>MargenX &bull; Soporte: contacto@margenx.tech</p>\n  </footer>\n</body>\n</html>`;\n}\n// </plantilla-mail-margenx>\n\nconst ZONA = 'America/Argentina/Buenos_Aires';\nconst EMAIL = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n// Mismos nombres que la app: estados de la especificación funcional §6, unidades y motivos de cuarentena\nconst ESTADOS = { loss: 'Pérdida', risk: 'En riesgo' };\nconst UNIDADES = { kg: 'kg', g: 'g', l: 'litro', ml: 'ml', u: 'unidad', unit: 'unidad', unidad: 'unidad', litro: 'litro' };\n\nconst una = (texto) => String(texto ?? '').replace(/[\\r\\n]+/g, ' ').trim();\nconst unidad = (u) => UNIDADES[una(u).toLowerCase()] || una(u);\nconst esc = (texto) => escapeHtml(una(texto));\nconst variacion = (n) => `${Number(n) > 0 ? '+' : ''}${mxPorcentaje(n)}`;\nconst decimal = (n) => (Number(n) || 0).toLocaleString('es-AR', { maximumFractionDigits: 3 });\nconst seccion = (datos) => ({\n  total: Number(datos?.totalCount) || 0,\n  items: Array.isArray(datos?.items) ? datos.items : [],\n});\n\nfunction fecha(iso, conHora) {\n  const d = new Date(iso);\n  if (Number.isNaN(d.getTime())) return '';\n  const opciones = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: ZONA };\n  if (conHora) Object.assign(opciones, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });\n  return new Intl.DateTimeFormat('es-AR', opciones).format(d);\n}\n\n// AAAA-MM-DD en hora de Argentina, igual que el nombre del archivo de la descarga desde la app\nfunction fechaArchivo(iso) {\n  const partes = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: ZONA }).formatToParts(new Date(iso));\n  const parte = (tipo) => partes.find((p) => p.type === tipo).value;\n  return `${parte('year')}-${parte('month')}-${parte('day')}`;\n}\n\nfunction motivoCuarentena(item) {\n  if (item.quarantineReason === 'COSTO_UNITARIO_INSUFICIENTE') return 'Costo casi nulo';\n  if (item.quarantineReason === 'VARIACION_MAYOR_50_POR_CIENTO') return Number(item.variationPercent) >= 0 ? 'Aumento > 50%' : 'Caída > 50%';\n  return 'Variación anormal';\n}\n\n// Codifica en base64 sin Buffer ni btoa, que el nodo Code de n8n no garantiza\nfunction aBase64(texto) {\n  const utf8 = encodeURIComponent(texto);\n  const bytes = [];\n  for (let i = 0; i < utf8.length; i++) {\n    if (utf8[i] === '%') {\n      bytes.push(parseInt(utf8.substr(i + 1, 2), 16));\n      i += 2;\n    } else {\n      bytes.push(utf8.charCodeAt(i));\n    }\n  }\n  const ALFABETO = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  let salida = '';\n  for (let i = 0; i < bytes.length; i += 3) {\n    const n = (bytes[i] << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);\n    salida += ALFABETO[(n >> 18) & 63] + ALFABETO[(n >> 12) & 63];\n    salida += i + 1 < bytes.length ? ALFABETO[(n >> 6) & 63] : '=';\n    salida += i + 2 < bytes.length ? ALFABETO[n & 63] : '=';\n  }\n  return salida;\n}\n\nfunction tabla(columnas, filas) {\n  const th = columnas.map((c) => `<th${c.num ? ' class=\"mx-num\"' : ''}>${escapeHtml(c.titulo)}</th>`).join('');\n  const cuerpo = filas\n    .map((fila) => `<tr>${fila.map((celda, i) => `<td${columnas[i].num ? ' class=\"mx-num\"' : ''}>${celda}</td>`).join('')}</tr>`)\n    .join('\\n');\n  return `<table>\\n<thead><tr>${th}</tr></thead>\\n<tbody>\\n${cuerpo}\\n</tbody>\\n</table>`;\n}\n\nconst sub = (texto) => `<span class=\"mx-sub\">${texto}</span>`;\nconst nota = (texto) => `<p class=\"mx-nota\">${texto}</p>`;\nconst resto = (datos, texto) =>\n  datos.total > datos.items.length ? nota(`Se muestran ${mxEntero(datos.items.length)} de ${mxEntero(datos.total)}. ${texto}`) : '';\n\nfunction validar(reporte) {\n  if (!reporte || typeof reporte !== 'object') return 'El reporte llegó vacío.';\n  if (!una(reporte.account?.businessName)) return 'El reporte no trae el nombre del comercio.';\n  if (!reporte.catalogHealth || typeof reporte.catalogHealth !== 'object') return 'El reporte no trae la salud del catálogo.';\n  if (Number.isNaN(new Date(reporte.generatedAt).getTime())) return 'El reporte no trae la fecha de generación.';\n  return '';\n}\n\nfunction resumen(reporte) {\n  const bajo = seccion(reporte.belowMinimumProducts);\n  const cuarentena = seccion(reporte.quarantine);\n  const viejos = seccion(reporte.staleCosts);\n  return {\n    comercio: una(reporte.account.businessName),\n    desde: una(reporte.period?.fromFormatted) || fecha(reporte.period?.from),\n    hasta: una(reporte.period?.toFormatted) || fecha(reporte.period?.to),\n    bajo,\n    cuarentena,\n    viejos,\n    dias: Number(reporte.staleCosts?.thresholdDays) || 30,\n    cambios: seccion(reporte.weeklyCostChanges),\n    ahorros: seccion(reporte.purchasingSavings),\n    salud: reporte.catalogHealth,\n    pendientes: bajo.total + cuarentena.total + viejos.total,\n  };\n}\n\nfunction paraRevisar(d) {\n  const partes = ['<h2>Para revisar</h2>'];\n  if (d.pendientes === 0) {\n    partes.push(mxAviso('ok', 'Nada para revisar esta semana', `<p style=\"margin: 0;\">Ningún producto quedó debajo de su margen mínimo, no hay precios en cuarentena y todos los costos cambiaron en los últimos ${mxEntero(d.dias)} días.</p>`));\n    return partes.join('\\n');\n  }\n  if (d.bajo.total > 0) {\n    partes.push(`<h3>Productos debajo de su margen mínimo (${mxEntero(d.bajo.total)})</h3>`);\n    partes.push(nota('Del menor al mayor margen. El precio sugerido es el que devuelve a cada producto su margen mínimo.'));\n    partes.push(tabla(\n      [{ titulo: 'Producto' }, { titulo: 'Estado' }, { titulo: 'Margen', num: true }, { titulo: 'Precio actual', num: true }, { titulo: 'Precio sugerido', num: true }],\n      d.bajo.items.map((p) => [\n        esc(p.name),\n        escapeHtml(ESTADOS[p.status] || ESTADOS.risk),\n        `${escapeHtml(mxPorcentaje(p.marginPercent))}${sub(`mín. ${escapeHtml(mxPorcentaje(p.minMarginPercent))}`)}`,\n        escapeHtml(mxPesos(p.salePrice)),\n        `<strong>${escapeHtml(mxPesos(p.suggestedSalePrice))}</strong>`,\n      ]),\n    ));\n    partes.push(resto(d.bajo, 'El resto está en la app, en Productos.'));\n  }\n  if (d.cuarentena.total > 0) {\n    partes.push(`<h3>Precios en cuarentena (${mxEntero(d.cuarentena.total)})</h3>`);\n    partes.push(nota('Precios de proveedores que MargenX frenó porque cambiaron demasiado. Se aceptan o se rechazan en Proveedores, Cuarentena.'));\n    partes.push(tabla(\n      [{ titulo: 'Insumo' }, { titulo: 'Proveedor' }, { titulo: 'Costo vigente', num: true }, { titulo: 'Costo propuesto', num: true }, { titulo: 'Variación', num: true }],\n      d.cuarentena.items.map((q) => [\n        `${esc(q.ingredientName)}${sub(escapeHtml(motivoCuarentena(q)))}`,\n        esc(q.supplierName),\n        `${escapeHtml(mxPesos(q.currentUnitCost))} / ${esc(unidad(q.unit))}${sub(`bulto: ${escapeHtml(mxPesos(q.currentPackagePrice))}`)}`,\n        `${escapeHtml(mxPesos(q.proposedUnitCost))} / ${esc(unidad(q.unit))}${sub(`bulto: ${escapeHtml(mxPesos(q.pendingPackagePrice))}`)}`,\n        escapeHtml(variacion(q.variationPercent)),\n      ]),\n    ));\n    partes.push(resto(d.cuarentena, 'Se muestran los más antiguos; el resto está en la bandeja de la app.'));\n  }\n  if (d.viejos.total > 0) {\n    partes.push(`<h3>Costos sin actualizar (${mxEntero(d.viejos.total)})</h3>`);\n    partes.push(nota(`Insumos cuyo costo no cambia hace más de ${mxEntero(d.dias)} días. Conviene confirmarlo con el proveedor.`));\n    partes.push(tabla(\n      [{ titulo: 'Insumo' }, { titulo: 'Costo actual', num: true }, { titulo: 'Último cambio', num: true }, { titulo: 'Sin cambios', num: true }],\n      d.viejos.items.map((s) => [\n        esc(s.name),\n        `${escapeHtml(mxPesos(s.currentCost))} / ${esc(unidad(s.unit))}`,\n        escapeHtml(fecha(s.lastUpdatedAt)),\n        escapeHtml(mxCantidad(s.daysWithoutUpdate, 'día', 'días')),\n      ]),\n    ));\n    partes.push(resto(d.viejos, 'Se muestran los más antiguos.'));\n  }\n  return partes.filter(Boolean).join('\\n');\n}\n\nfunction saludDelCatalogo(d) {\n  const s = d.salud;\n  const fila = (estado, cantidad, criterio) => [escapeHtml(estado), escapeHtml(mxEntero(cantidad)), escapeHtml(criterio)];\n  return [\n    '<h2>Salud del catálogo</h2>',\n    `<p>${escapeHtml(mxCantidad(s.totalProducts, 'producto', 'productos'))} y ${escapeHtml(mxCantidad(s.activeIngredientsCount, 'insumo', 'insumos'))}. Margen promedio: <strong>${escapeHtml(mxPorcentaje(s.averageMarginPercent))}</strong> (la mediana de los productos con receta).</p>`,\n    tabla(\n      [{ titulo: 'Estado' }, { titulo: 'Productos', num: true }, { titulo: 'Criterio' }],\n      [\n        fila('Pérdida', s.lossCount, 'Margen menor a 0 %.'),\n        fila('En riesgo', s.riskCount, 'Margen debajo del mínimo del producto.'),\n        fila('En objetivo', s.targetCount, 'Margen entre el mínimo del producto y 60 %.'),\n        fila('Superávit', s.surplusCount, 'Margen mayor a 60 %.'),\n        fila('Borrador', s.draftCount, 'Sin receta: todavía no tiene margen.'),\n      ],\n    ),\n  ].join('\\n');\n}\n\nfunction cambiosDeCosto(d) {\n  const partes = ['<h2>Cambios de costo de la semana</h2>'];\n  if (d.cambios.total === 0) {\n    partes.push('<p>No hubo cambios de costo en el período.</p>');\n    return partes.join('\\n');\n  }\n  partes.push(tabla(\n    [{ titulo: 'Insumo' }, { titulo: 'Antes', num: true }, { titulo: 'Ahora', num: true }, { titulo: 'Variación', num: true }, { titulo: 'Productos', num: true }, { titulo: 'Fecha', num: true }],\n    d.cambios.items.map((c) => [\n      `${esc(c.ingredientName)}${sub(`por ${esc(unidad(c.unit))}`)}`,\n      escapeHtml(mxPesos(c.oldCost)),\n      escapeHtml(mxPesos(c.newCost)),\n      escapeHtml(variacion(c.variationPercent)),\n      escapeHtml(mxEntero(c.affectedProductsCount)),\n      escapeHtml(fecha(c.changedAt)),\n    ]),\n  ));\n  partes.push(resto(d.cambios, 'Se muestran los de mayor variación.'));\n  return partes.filter(Boolean).join('\\n');\n}\n\nfunction oportunidadesDeAhorro(d) {\n  const partes = ['<h2>Oportunidades de ahorro</h2>'];\n  if (d.ahorros.total === 0) {\n    partes.push('<p>No hay presentaciones más baratas que las que usás hoy.</p>');\n    return partes.join('\\n');\n  }\n  partes.push(nota('Proveedores activos con una presentación más barata que la predeterminada, sin contar los precios en cuarentena.'));\n  partes.push(tabla(\n    [{ titulo: 'Insumo' }, { titulo: 'Hoy' }, { titulo: 'Más barato' }, { titulo: 'Ahorro por unidad', num: true }, { titulo: 'Ahorro por bulto', num: true }],\n    d.ahorros.items.map((a) => [\n      esc(a.ingredientName),\n      `${esc(a.currentSupplierName)}${sub(`${escapeHtml(mxPesos(a.currentUnitCost))} / ${esc(unidad(a.unit))}`)}`,\n      `${esc(a.bestSupplierName)}${sub(`${escapeHtml(mxPesos(a.bestUnitCost))} / ${esc(unidad(a.unit))}`)}`,\n      `${escapeHtml(mxPesos(a.savingsPerUnit))}${sub(escapeHtml(mxPorcentaje(a.savingsPercent)))}`,\n      `${escapeHtml(mxPesos(a.packageSavings))}${sub(`bulto de ${escapeHtml(decimal(a.packageSize))} ${esc(unidad(a.unit))}`)}`,\n    ]),\n  ));\n  partes.push(resto(d.ahorros, 'El resto está en la app, en Compras.'));\n  return partes.filter(Boolean).join('\\n');\n}\n\nfunction documentoPdf(reporte, d) {\n  const generado = reporte.generatedAt;\n  const contenidoHtml = [\n    `<h1>${escapeHtml(d.comercio)}</h1>`,\n    `<p class=\"mx-nota\">Reporte semanal de márgenes, del ${escapeHtml(d.desde)} al ${escapeHtml(d.hasta)}</p>`,\n    paraRevisar(d),\n    saludDelCatalogo(d),\n    cambiosDeCosto(d),\n    oportunidadesDeAhorro(d),\n  ].join('\\n');\n  return mxDocumentoA4({\n    titulo: `Reporte semanal de ${d.comercio}`,\n    etiqueta: 'Reporte semanal',\n    tono: d.pendientes > 0 ? 'aviso' : 'ok',\n    contenidoHtml,\n    pieHtml: `Generado el ${escapeHtml(fecha(generado, true))} (hora de Argentina). Montos calculados por MargenX al ${escapeHtml(fecha(generado))}.`,\n  });\n}\n\nfunction mail(d, appBase) {\n  const enlace = `${appBase}/dashboard`;\n  const titulo = d.pendientes > 0 ? 'Esta semana hay cosas para revisar' : 'Nada para revisar esta semana';\n  const lineas = [\n    `${mxCantidad(d.bajo.total, 'producto', 'productos')} debajo de su margen mínimo`,\n    `${mxCantidad(d.cuarentena.total, 'precio', 'precios')} en cuarentena`,\n    `${mxCantidad(d.viejos.total, 'costo sin actualizar', 'costos sin actualizar')} hace más de ${mxEntero(d.dias)} días`,\n  ];\n  const numeros = [\n    ['Margen promedio (mediana)', mxPorcentaje(d.salud.averageMarginPercent)],\n    ['Productos en el catálogo', mxEntero(d.salud.totalProducts)],\n    ['Cambios de costo en la semana', mxEntero(d.cambios.total)],\n    ['Oportunidades de ahorro', mxEntero(d.ahorros.total)],\n  ];\n  const periodo = `Del ${d.desde} al ${d.hasta}.`;\n  const adjunto = 'El reporte completo va adjunto en PDF, listo para imprimir o reenviar.';\n  const filas = numeros\n    .map(([etiqueta, valor]) => `<tr style=\"border-bottom: 1px solid #e2e8f0;\"><td style=\"padding: 8px; font-size: 14px; color: #334155;\">${escapeHtml(etiqueta)}</td><td style=\"padding: 8px; font-size: 14px; font-weight: 700; color: #0f172a; text-align: right; white-space: nowrap;\">${escapeHtml(valor)}</td></tr>`)\n    .join('');\n  const contenidoHtml = [\n    mxAviso(d.pendientes > 0 ? 'aviso' : 'ok', titulo, `<p style=\"margin: 0 0 6px 0;\">${escapeHtml(periodo)}</p><ul style=\"margin: 0; padding-left: 18px;\">${lineas.map((l) => `<li>${escapeHtml(l)}</li>`).join('')}</ul>`),\n    `<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse: collapse; border: 1px solid #e2e8f0; width: 100%; background-color: #ffffff;\"><tbody>${filas}</tbody></table>`,\n    `<p style=\"margin: 16px 0 0 0;\">${escapeHtml(adjunto)}</p>`,\n    `<p style=\"margin: 20px 0 0 0; text-align: center;\">${mxBoton(enlace, 'Abrir MargenX')}</p>`,\n  ].join('');\n  const emailHtml = mxDocumento({\n    titulo: `Reporte semanal de ${d.comercio}`,\n    etiqueta: 'Reporte semanal',\n    tono: d.pendientes > 0 ? 'aviso' : 'ok',\n    contenidoHtml,\n    pieHtml: `Comercio: <strong>${escapeHtml(d.comercio)}</strong>`,\n  });\n  const emailText = [\n    `MargenX · Reporte semanal · ${d.comercio}`,\n    periodo,\n    '',\n    `${titulo}:`,\n    ...lineas.map((l) => `- ${l}`),\n    '',\n    ...numeros.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`),\n    '',\n    adjunto,\n    `Abrir MargenX: ${enlace}`,\n    '',\n    '---',\n    'MargenX - Soporte: contacto@margenx.tech',\n  ].join('\\n');\n  return { emailSubject: `MargenX · Reporte semanal · ${d.comercio}`, emailHtml, emailText };\n}\n\nconst entrada = $input.item.json;\n// El webhook entrega { headers, params, query, body }; el envío semanal, el reporte tal cual lo devuelve la API\nconst esDescarga = entrada.headers !== undefined && 'body' in entrada;\nconst origen = esDescarga ? 'descarga' : 'semanal';\nconst reporte = esDescarga ? entrada.body : entrada;\nconst cuenta = esDescarga ? {} : $('Separar Cuentas').item.json;\nconst entorno = cuenta.entorno === 'dev' ? 'dev' : 'prod';\nconst slug = una(cuenta.slug || reporte?.account?.slug);\n\nconst error = validar(reporte);\nif (error) {\n  return { json: { valido: false, origen, slug, entorno, motivo: error } };\n}\nconst destinatario = una(cuenta.destinatario);\nif (!esDescarga && !EMAIL.test(destinatario)) {\n  return { json: { valido: false, origen, slug, entorno, motivo: 'La cuenta no tiene un correo de Administrador válido: no se envió el reporte.' } };\n}\n\nconst datos = resumen(reporte);\nconst json = { valido: true, origen, slug, entorno, nombreArchivo: `margenx-reporte-${fechaArchivo(reporte.generatedAt)}.pdf` };\nif (!esDescarga) {\n  Object.assign(json, { destinatario }, mail(datos, MX_APP[entorno]));\n}\nreturn {\n  json,\n  binary: {\n    html: { data: aBase64(documentoPdf(reporte, datos)), mimeType: 'text/html', fileName: 'index.html', fileExtension: 'html' },\n  },\n};\n"
+      },
+      "name": "Generar Reporte HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "¿Reporte válido?",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "¿Reporte válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "¿Descarga inválida?",
+              "leftValue": "={{ $json.origen }}",
+              "rightValue": "descarga",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "¿Descarga inválida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Datos del reporte inválidos: no se generó el PDF.\"\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "name": "Responder 422 Datos Inválidos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.GOTENBERG_URL || 'http://gotenberg:3000').trim().replace(/\\/+$/, '') }}/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "html"
+            },
+            {
+              "parameterType": "formData",
+              "name": "preferCssPageSize",
+              "value": "true"
+            },
+            {
+              "parameterType": "formData",
+              "name": "printBackground",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 45000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 0
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdf"
+            }
+          }
+        }
+      },
+      "name": "Convertir a PDF (Gotenberg)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "¿Descarga a pedido?",
+              "leftValue": "={{ $('Generar Reporte HTML').item.json.origen }}",
+              "rightValue": "descarga",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "¿Descarga a pedido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "pdf",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Responder PDF",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "¿Falló la descarga?",
+              "leftValue": "={{ $('Generar Reporte HTML').item.json.origen }}",
+              "rightValue": "descarga",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "¿Falló la descarga?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"No se pudo generar el PDF del reporte.\"\n}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "name": "Responder 502 Sin PDF",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Toma el PDF que devolvió Gotenberg, lo nombra margenx-reporte-AAAA-MM-DD.pdf y recupera los datos del mail\n// que armó \"Generar Reporte HTML\". Modo: una vez por ítem.\nconst datos = $('Generar Reporte HTML').item.json;\nconst pdf = $input.item.binary.pdf;\nreturn {\n  json: {\n    slug: datos.slug,\n    entorno: datos.entorno,\n    destinatario: datos.destinatario,\n    emailSubject: datos.emailSubject,\n    emailHtml: datos.emailHtml,\n    emailText: datos.emailText,\n  },\n  binary: {\n    pdf: { ...pdf, mimeType: 'application/pdf', fileName: datos.nombreArchivo, fileExtension: 'pdf' },\n  },\n};\n"
+      },
+      "name": "Preparar Mail del Reporte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "MargenX <alertas@margenx.tech>",
+        "toEmail": "={{ $json.destinatario }}",
+        "subject": "={{ $json.emailSubject }}",
+        "emailFormat": "both",
+        "html": "={{ $json.emailHtml }}",
+        "text": "={{ $json.emailText }}",
+        "options": {
+          "appendAttribution": false,
+          "attachments": "pdf"
+        }
+      },
+      "name": "Enviar Reporte (Brevo)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        360
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "margenx-brevo-smtp",
+          "name": "Brevo MargenX SMTP Relay"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Arma el aviso a Discord (canal de infraestructura) de una cuenta que no recibió su reporte: qué cuenta,\n// en qué paso y con qué código HTTP. Sin correos ni datos personales. Modo: una vez por ítem.\nconst PASOS = {\n  'Pedir Cuentas Activas': 'el backend no devolvió la lista de cuentas',\n  'Pedir Reporte Semanal': 'el backend no devolvió el reporte',\n  '¿Falló la descarga?': 'Gotenberg no generó el PDF',\n  'Enviar Reporte (Brevo)': 'Brevo no aceptó el mail',\n};\n\nfunction cuenta() {\n  try {\n    return $('Separar Cuentas').item.json;\n  } catch {\n    return {};\n  }\n}\n\nfunction codigoHttp(error) {\n  if (!error) return '';\n  const directo = typeof error === 'object' ? error.httpCode || error.statusCode || error.status : '';\n  if (directo) return String(directo);\n  const texto = typeof error === 'object' ? `${error.message || ''} ${error.description || ''}` : String(error);\n  const hallado = /\\b([45]\\d\\d)\\b/.exec(texto);\n  return hallado ? hallado[1] : '';\n}\n\nconst item = $input.item.json;\nconst paso = $prevNode.name;\nconst datos = { ...cuenta(), ...(item.slug ? { slug: item.slug } : {}), ...(item.entorno ? { entorno: item.entorno } : {}) };\nconst entorno = datos.entorno || ($('Entorno Staging').isExecuted ? 'dev' : 'prod');\nconst etiqueta = entorno === 'dev' ? 'staging' : 'producción';\nconst codigo = codigoHttp(item.error);\nconst causa = item.motivo ? String(item.motivo).replace(/\\.$/, '') : PASOS[paso] || `falló el paso \"${paso}\"`;\nconst http = codigo ? ` (HTTP ${codigo})` : '';\n\nlet content;\nif (paso === 'Pedir Cuentas Activas') {\n  const pista = ['401', '403'].includes(codigo) ? ' Revisar INTERNAL_WEBHOOK_SECRET en n8n y en el backend.' : '';\n  content = `⚠️ [n8n · reporte semanal · ${etiqueta}] No se envió ningún reporte: ${causa}${http}.${pista}`;\n} else {\n  const slug = String(datos.slug || 'sin slug').replace(/[^a-z0-9-]/gi, '');\n  content = `⚠️ [n8n · reporte semanal · ${etiqueta}] No se envió el reporte de \"${slug}\": ${causa}${http}. Las demás cuentas siguen.`;\n}\n\nreturn { json: { content } };\n"
+      },
+      "name": "Armar Aviso de Falla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Avisar a Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        640
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Lunes 08:00": {
+      "main": [
+        [
+          {
+            "node": "Entorno Producción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prueba Manual (Staging)": {
+      "main": [
+        [
+          {
+            "node": "Entorno Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entorno Producción": {
+      "main": [
+        [
+          {
+            "node": "Pedir Cuentas Activas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entorno Staging": {
+      "main": [
+        [
+          {
+            "node": "Pedir Cuentas Activas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir Cuentas Activas": {
+      "main": [
+        [
+          {
+            "node": "Separar Cuentas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar Aviso de Falla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Cuentas": {
+      "main": [
+        [
+          {
+            "node": "Pedir Reporte Semanal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir Reporte Semanal": {
+      "main": [
+        [
+          {
+            "node": "Generar Reporte HTML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar Aviso de Falla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Reporte PDF": {
+      "main": [
+        [
+          {
+            "node": "Validar Secreto Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Secreto Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generar Reporte HTML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401 No Autorizado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Reporte HTML": {
+      "main": [
+        [
+          {
+            "node": "¿Reporte válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reporte válido?": {
+      "main": [
+        [
+          {
+            "node": "Convertir a PDF (Gotenberg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Descarga inválida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Descarga inválida?": {
+      "main": [
+        [
+          {
+            "node": "Responder 422 Datos Inválidos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar Aviso de Falla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir a PDF (Gotenberg)": {
+      "main": [
+        [
+          {
+            "node": "¿Descarga a pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Falló la descarga?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Descarga a pedido?": {
+      "main": [
+        [
+          {
+            "node": "Responder PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Mail del Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falló la descarga?": {
+      "main": [
+        [
+          {
+            "node": "Responder 502 Sin PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar Aviso de Falla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mail del Reporte": {
+      "main": [
+        [
+          {
+            "node": "Enviar Reporte (Brevo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Reporte (Brevo)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Armar Aviso de Falla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar Aviso de Falla": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "active": false
+}

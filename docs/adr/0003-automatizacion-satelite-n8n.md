@@ -1,6 +1,6 @@
 # 3. Orquestador de Eventos Satélite n8n Desacoplado vía Webhooks
 
-* **Estado:** Aceptado · Enmendado por ADR-005 (canal de ingesta)
+* **Estado:** Aceptado · Enmendado por ADR-005 (canal de ingesta) y ADR-009 (reporte semanal)
 * **Fecha:** 2026-08-30
 * **Decisores:** Dario Gimenez (DevOps/SM)
 
@@ -34,4 +34,4 @@ La decisión de usar n8n como satélite desacoplado y la regla de que **n8n nunc
 * **URL de n8n:** n8n escucha en `127.0.0.1:5678` y se publica por Nginx en `https://n8n.margenx.tech` (puerto 443), según `infra/vps/README.md`.
 * **"n8n solo lee":** n8n también **envía** listas de precios al backend por `POST /api/webhooks/supplier-prices`, autenticado con `x-margenx-webhook-secret`. Toda escritura pasa por la API, que valida y aplica las reglas de negocio. El canal de ingesta y la cuarentena están en **ADR-005**.
 * **Alerta de margen:** el backend envía el evento a la URL de `N8N_MARGIN_ALERT_WEBHOOK_URL` (`backend/src/services/marginAlertDispatcher.ts`, workflow `infra/n8n/workflows/alertas-margen.json`).
-* **Reporte semanal en PDF:** no está implementado y el endpoint `GET /api/reports/margin-summary` no existe. Está planificado para el Sprint 6.
+* **Reporte semanal en PDF (actualizado el 18/11/2026):** implementado en el Sprint 6 según **ADR-009**. n8n no consulta una API pública: pide el reporte ya calculado a `GET /api/internal/reports/accounts` y `GET /api/internal/reports/weekly/:slug` por la red interna de Docker, con `x-margenx-webhook-secret`, y Nginx niega `/api/internal/` desde Internet. El HTML se convierte a PDF con Gotenberg (`infra/n8n/workflows/reporte-semanal.json`). El endpoint `GET /api/reports/margin-summary` del texto original nunca existió.

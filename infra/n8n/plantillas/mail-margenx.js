@@ -1,5 +1,5 @@
 // <plantilla-mail-margenx>
-// Plantilla compartida de los mails de MargenX (resumen de ingesta y alertas de margen).
+// Plantilla compartida de los mails de MargenX (ingesta, alertas, invitaciones y reporte semanal) y de su versión A4.
 // Fuente única: infra/n8n/plantillas/mail-margenx.js. No editar este bloque en n8n:
 // se copia a los workflows con `node infra/n8n/plantillas/sincronizar.mjs`.
 const MX_APP = { prod: 'https://margenx.tech', dev: 'https://dev.margenx.tech' };
@@ -100,6 +100,56 @@ function mxDocumento({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
       </td>
     </tr>
   </table>
+</body>
+</html>`;
+}
+// Versión para imprimir en A4 (reporte semanal en PDF, que convierte Gotenberg): mismo encabezado de marca,
+// página A4 con @page, encabezados de tabla que se repiten en cada hoja y filas que nunca se cortan.
+// Las tablas usan las clases mx-num (montos alineados a la derecha) y mx-sub (segunda línea de una celda).
+function mxDocumentoA4({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
+  const t = MX_TONOS[tono] || MX_TONOS.info;
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(titulo)}</title>
+  <style>
+    @page { size: A4; margin: 14mm 12mm 16mm 12mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #0f172a; background-color: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .mx-marca { background-color: #0f172a; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .mx-logo { font-size: 18pt; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+    .mx-lema { display: block; font-size: 7.5pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .mx-chip { background-color: ${t.chipFondo}; color: ${t.chipTexto}; border: 1px solid ${t.chipBorde}; font-size: 8pt; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; white-space: nowrap; }
+    h1 { font-size: 17pt; margin: 16px 0 2px 0; }
+    h2 { font-size: 13pt; margin: 20px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid #e2e8f0; break-after: avoid; page-break-after: avoid; }
+    h3 { font-size: 11pt; margin: 14px 0 4px 0; break-after: avoid; page-break-after: avoid; }
+    p { margin: 0 0 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    th { background-color: #f1f5f9; color: #334155; font-size: 8pt; font-weight: 700; text-transform: uppercase; text-align: left; padding: 6px; border-bottom: 1px solid #cbd5e1; }
+    td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; overflow-wrap: anywhere; }
+    .mx-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .mx-sub { display: block; font-size: 8.5pt; color: #475569; }
+    .mx-nota { font-size: 9pt; color: #475569; }
+    .mx-pie { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #475569; break-inside: avoid; page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <header class="mx-marca">
+    <span class="mx-logo">MARGEN<span style="color: #6366f1;">X</span><span class="mx-lema">Control de rentabilidad en tiempo real</span></span>
+    <span class="mx-chip">${escapeHtml(etiqueta)}</span>
+  </header>
+  <main>
+    ${contenidoHtml}
+  </main>
+  <footer class="mx-pie">
+    ${pieHtml ? `<p>${pieHtml}</p>` : ''}
+    <p>MargenX &bull; Soporte: contacto@margenx.tech</p>
+  </footer>
 </body>
 </html>`;
 }
