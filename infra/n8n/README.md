@@ -7,11 +7,13 @@ n8n **nunca escribe en la base de datos**: solo lee/escribe a través de la API 
 | `workflows/alertas-margen.json` | Recibe el webhook del backend y envía el correo de margen crítico. | #172, #254 |
 | `workflows/ingesta-listas.json` | Lee la casilla central por IMAP, convierte la planilla adjunta, la despacha al backend y envía el resumen al dueño. | #170, #171, #253, #254 |
 | `workflows/invitacion-colaborador.json` | Recibe el webhook del backend y envía el mail de invitación de un colaborador. | #395 |
-| `plantillas/mail-margenx.js` | Plantilla compartida de los mails (encabezado, avisos, botones, tabla de productos, pie). Fuente única: se copia a los nodos Code. | #254 |
+| `workflows/reporte-semanal.json` | Los lunes a las 08:00 manda a cada cuenta su reporte de márgenes en PDF (Gotenberg), y genera el mismo PDF a pedido para la descarga desde la app (webhook `report-pdf`). | #391 |
+| `plantillas/mail-margenx.js` | Plantilla compartida de los mails (encabezado, avisos, botones, tabla de productos, pie) y su versión A4 para el PDF. Fuente única: se copia a los nodos Code. | #254, #391 |
 | `plantillas/sincronizar.mjs` | Copia la plantilla a los workflows (`--check` solo verifica). | #254 |
 | `tests/ingesta-nodos.test.mjs` | Prueba los nodos Code de la ingesta sin necesitar n8n. | #170, #171, #254 |
 | `tests/invitacion-nodos.test.mjs` | Prueba el workflow de invitación: mail válido, enlaces que no son de Clerk, escapes, remitente, control del secreto y respuestas al backend. | #395 |
 | `tests/alertas-nodos.test.mjs` | Prueba el nodo `Generar Plantilla Dinámica` de las alertas: enlaces "Ajustar" y botón principal, con y sin ID de producto, en producción y en staging; remitente y plantilla. | #329, #254 |
+| `tests/reporte-nodos.test.mjs` | Prueba el reporte semanal: secciones del PDF en orden, formato es-AR, nombres de estado, escapes, CSS de impresión, mail, aviso a Discord, conexiones, secreto del webhook y el servicio de Gotenberg del compose. | #391 |
 
 ## Ingesta de listas de precios (`ingesta-listas.json`)
 
@@ -43,7 +45,7 @@ Varios correos en una misma ejecución se procesan por separado: cada fila queda
 4. Importar `workflows/ingesta-listas.json`, reasignar las credenciales de los tres nodos que las usan (el exporte trae ids de ejemplo) y activarlo. El exporte del repositorio queda inactivo, sin ids reales de credenciales ni metadatos de la instancia, y los correos usan `emailFormat: both` (HTML + texto plano), remitente `MargenX <alertas@margenx.tech>` y `appendAttribution: false`: al reexportar desde n8n, restaurarlo antes del commit (`node infra/n8n/tests/ingesta-nodos.test.mjs` lo verifica).
 5. Probar en staging enviando un `.csv` a `precios-dev-<slug-de-prueba>@margenx.tech` y revisar el resumen recibido y que la ejecución no aparezca en producción.
 
-Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/tests/alertas-nodos.test.mjs` y `node infra/n8n/tests/invitacion-nodos.test.mjs` (CI corre las tres).
+Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/tests/alertas-nodos.test.mjs`, `node infra/n8n/tests/invitacion-nodos.test.mjs` y `node infra/n8n/tests/reporte-nodos.test.mjs` (CI corre las cuatro).
 
 ## Alertas de margen (`alertas-margen.json`)
 
@@ -70,15 +72,39 @@ Flujo: `Webhook Invitación Colaborador` → `Validar Secreto Webhook` (el mismo
 
 **Evidencia antes de la revisión, sin tocar producción** (`docs/process/revision-de-prs.md` §5): importar el workflow como copia inactiva y ejecutarlo a mano con datos fijados en el webhook, y adjuntar al PR el ID de la ejecución y una captura del mail recortada, sin el destinatario.
 
+## Reporte semanal en PDF (`reporte-semanal.json`)
+
+Por qué en n8n y con Gotenberg: ADR-009. El backend calcula todo (`docs/api.md` §11); el workflow solo arma el HTML, lo convierte y lo envía.
+
+**Envío de los lunes:** `Lunes 08:00` (cron `0 8 * * 1`, zona `America/Argentina/Buenos_Aires` en la configuración del workflow) → `Entorno Producción` → `Pedir Cuentas Activas` (`GET /api/internal/reports/accounts`) → `Separar Cuentas` → `Pedir Reporte Semanal` (`GET /api/internal/reports/weekly/:slug`, de a una cuenta) → `Generar Reporte HTML` → `¿Reporte válido?` → `Convertir a PDF (Gotenberg)` (de a un PDF) → `¿Descarga a pedido?` (no) → `Preparar Mail del Reporte` → `Enviar Reporte (Brevo)`.
+
+**Descarga a pedido:** `Webhook Reporte PDF` (`POST /webhook/report-pdf`) → `Validar Secreto Webhook` (el mismo control que las alertas; sin secreto, 401) → `Generar Reporte HTML` → `Convertir a PDF (Gotenberg)` → `Responder PDF` (`application/pdf`). El backend manda el reporte ya calculado y espera hasta 20 s; si algo falla, responde 503 a la app con un mensaje genérico.
+
+- **Un solo generador:** los dos caminos pasan por el mismo nodo `Generar Reporte HTML` y el mismo nodo de Gotenberg, así que el PDF del mail y el de la descarga son iguales.
+- **Backend por la red interna:** Nginx niega `/api/internal/` desde Internet (403), así que n8n usa `MARGENX_INTERNAL_API_URL` (`http://backend-prod:3000`) y `MARGENX_INTERNAL_DEV_API_URL` (`http://backend-dev:3000`), nunca `MARGENX_API_URL`. Si faltan, el workflow usa esos mismos valores. Gotenberg: `GOTENBERG_URL` (`http://gotenberg:3000`).
+- **El PDF, en el orden en que se lee:** encabezado con el comercio y el período; "Para revisar" (productos debajo de su margen mínimo con el precio sugerido, precios en cuarentena y costos sin actualizar); salud del catálogo; cambios de costo de la semana; oportunidades de ahorro; y un pie con la fecha de generación y "Montos calculados por MargenX al <fecha>". Montos y fechas en es-AR (`$ 1.234,56`, `23/11/2026`), estados con los nombres de la especificación funcional §6 (Pérdida, En riesgo, En objetivo, Superávit, Borrador), unidades como en la app (`u` → "unidad") y motivos de cuarentena como en la bandeja ("Aumento > 50%", "Costo casi nulo"). Si el backend manda solo una parte de una lista (por ejemplo, 20 de 23 productos), el PDF lo aclara.
+- **El mail:** asunto "MargenX · Reporte semanal · <comercio>", los números clave, el botón "Abrir MargenX" (`<app>/dashboard` del entorno) y el PDF adjunto como `margenx-reporte-AAAA-MM-DD.pdf` (fecha de Argentina). Va al `ownerEmail` que devuelve la API (el ADMIN más antiguo de la cuenta). Remitente `MargenX <alertas@margenx.tech>`, HTML + texto plano y `appendAttribution: false`, igual que los otros mails.
+- **Una cuenta que falla no frena a las demás:** un 4xx/5xx del backend, un reporte inválido, una cuenta sin correo de ADMIN, un error de Gotenberg o un rechazo de Brevo van por la salida de error a `Armar Aviso de Falla` → `Avisar a Discord` (`DISCORD_WEBHOOK_URL`; si falta, solo se omite el aviso) y las otras cuentas siguen. El aviso dice el entorno, el slug, el paso y el código HTTP, sin correos ni datos personales. Si falla la lista de cuentas, el aviso dice que no salió ningún reporte (y, con 401/403, que se revise `INTERNAL_WEBHOOK_SECRET`).
+- **Staging:** el cron solo corre para producción. Para staging, abrir el workflow y ejecutar `Prueba Manual (Staging)`, que usa `backend-dev`. En el nodo `Entorno Staging` se puede completar `soloSlug` (una sola cuenta) y `destinatarioPrueba` (todos los mails van a esa casilla). En producción esos dos campos no existen.
+
+**Puesta en marcha (después del merge):**
+
+1. En la VPS, sumar el servicio `gotenberg` y las tres variables nuevas del servicio `n8n` de `infra/vps/docker-compose.prod.yml` al `docker-compose.yml` de `/opt/margenx-infra` (ver `infra/vps/README.md` §10) y levantar: `docker compose up -d gotenberg n8n`. `N8N_REPORT_PDF_WEBHOOK_URL` ya está en el `.env` de los backends desde #390.
+2. Importar `workflows/reporte-semanal.json` como workflow nuevo y reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Enviar Reporte (Brevo)`. El exporte del repositorio queda inactivo y sin ids reales: al reexportar, restaurarlo antes del commit (`node infra/n8n/tests/reporte-nodos.test.mjs` lo verifica).
+3. Probar staging con `Prueba Manual (Staging)`, con `soloSlug` y `destinatarioPrueba` completos, y la descarga desde `dev.margenx.tech` (el webhook responde solo con el workflow activo).
+4. Activarlo. Desde ese momento corre el cron de los lunes y responde el webhook `report-pdf` para los dos backends.
+
+**Evidencia antes de la revisión, sin tocar producción** (`docs/process/revision-de-prs.md` §5): importar el workflow como copia inactiva, ejecutar `Prueba Manual (Staging)` con `soloSlug` y `destinatarioPrueba`, y adjuntar al PR el ID de la ejecución, la captura del mail y el PDF recortados sin el destinatario, y `docker stats margenx_gotenberg` durante la generación. Después se borra la copia.
+
 ## Plantilla compartida de mails (`plantillas/mail-margenx.js`)
 
-El resumen de ingesta (`Generar Resumen al Dueño`), la alerta de margen (`Generar Plantilla Dinámica`) y la invitación de colaboradores (`Generar Mail de Invitación`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte.
+El resumen de ingesta (`Generar Resumen al Dueño`), la alerta de margen (`Generar Plantilla Dinámica`), la invitación de colaboradores (`Generar Mail de Invitación`) y el reporte semanal (`Generar Reporte HTML`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte. `mxDocumentoA4` es la versión para imprimir del reporte semanal: mismo encabezado de marca, página A4 con `@page`, encabezados de tabla que se repiten en cada hoja y filas que no se cortan.
 
 Un nodo Code de n8n no puede importar archivos, así que la plantilla se **copia** dentro de cada nodo, entre los marcadores `// <plantilla-mail-margenx>` y `// </plantilla-mail-margenx>`. Para cambiarla:
 
 1. Editar `plantillas/mail-margenx.js` (nunca el bloque dentro de n8n o del JSON).
-2. `node infra/n8n/plantillas/sincronizar.mjs` (reemplaza solo el bloque en los tres workflows, sin reformatear el JSON).
-3. `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/tests/alertas-nodos.test.mjs` y `node infra/n8n/tests/invitacion-nodos.test.mjs`: fallan si algún workflow quedó con otra versión de la plantilla.
-4. Importar los tres workflows en n8n (ver cada sección).
+2. `node infra/n8n/plantillas/sincronizar.mjs` (reemplaza solo el bloque en los cuatro workflows, sin reformatear el JSON).
+3. Las cuatro pruebas de `infra/n8n/tests/`: fallan si algún workflow quedó con otra versión de la plantilla.
+4. Importar los cuatro workflows en n8n (ver cada sección).
 
-**Remitente:** el nodo `emailSend` 2.1 ignora la opción `senderName`, así que el nombre va dentro de `fromEmail`: `MargenX <alertas@margenx.tech>` en los cuatro nodos de envío. Con `appendAttribution: false` n8n no agrega su pie "This email was sent automatically with n8n". El alias `alertas@margenx.tech` tiene que estar verificado como remitente en Brevo.
+**Remitente:** el nodo `emailSend` 2.1 ignora la opción `senderName`, así que el nombre va dentro de `fromEmail`: `MargenX <alertas@margenx.tech>` en los cinco nodos de envío. Con `appendAttribution: false` n8n no agrega su pie "This email was sent automatically with n8n". El alias `alertas@margenx.tech` tiene que estar verificado como remitente en Brevo.

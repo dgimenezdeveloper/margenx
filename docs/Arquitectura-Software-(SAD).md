@@ -126,8 +126,8 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 | `margin.alert.triggered` | Backend → n8n, después de la transacción en la que un producto cruzó su margen mínimo (edición manual del costo, presentación predeterminada o liberación de cuarentena) | `{ accountId, accountSlug, tradeName, ownerEmail, ingredient: { id, name }, affectedProductsCount, criticalProducts, triggeredAt }` | Webhook `margin-alert` de n8n (URL en `N8N_MARGIN_ALERT_WEBHOOK_URL`) | Implementado |
 | `collaborator.invitation.created` | Backend → n8n, al crear una invitación de colaborador (Clerk la crea sin su mail) | `{ email, tradeName, inviterEmail, invitationUrl, expiresInDays }` | Webhook `collaborator-invitation` de n8n (URL en `N8N_INVITATION_WEBHOOK_URL`); responde 200 recién después del envío | Implementado (ADR-008) |
 | `supplier.pricelist.received` | n8n → backend, al recibir una lista mayorista por correo | `{ accountSlug, items: [{ code, description, price }] }` | `POST /api/webhooks/supplier-prices` | Implementado (reglas en ADR-005) |
-| `report.weekly.requested` | n8n → backend, con un disparador semanal los lunes a las 08:00 (hora de Argentina), solo en producción | Sin cuerpo: n8n pide `GET /api/internal/reports/accounts` y, por cada cuenta, `GET /api/internal/reports/weekly/:slug`, que devuelve el reporte ya calculado | Endpoints internos del backend, por la red interna de Docker; Nginx niega `/api/internal/` desde afuera. n8n genera el PDF con Gotenberg y lo envía por Brevo al Administrador | Implementado (Backend; workflow satélite en n8n pendiente) |
-| Descarga del reporte desde la app | Backend → n8n, cuando el Administrador pide el PDF (`GET /api/reports/weekly.pdf`) | El mismo reporte ya calculado | Webhook `report-pdf` de n8n (URL en `N8N_REPORT_PDF_WEBHOOK_URL`); responde con el PDF, generado con el mismo Gotenberg que el del correo | Implementado (Backend; workflow satélite en n8n pendiente) |
+| `report.weekly.requested` | n8n → backend, con un disparador semanal los lunes a las 08:00 (hora de Argentina), solo en producción | Sin cuerpo: n8n pide `GET /api/internal/reports/accounts` y, por cada cuenta, `GET /api/internal/reports/weekly/:slug`, que devuelve el reporte ya calculado | Endpoints internos del backend, por la red interna de Docker (`MARGENX_INTERNAL_API_URL`, `MARGENX_INTERNAL_DEV_API_URL`); Nginx niega `/api/internal/` desde afuera. n8n genera el PDF con Gotenberg y lo envía por Brevo al Administrador | Implementado (ADR-009) |
+| Descarga del reporte desde la app | Backend → n8n, cuando el Administrador pide el PDF (`GET /api/reports/weekly.pdf`) | El mismo reporte ya calculado | Webhook `report-pdf` de n8n (URL en `N8N_REPORT_PDF_WEBHOOK_URL`); responde con el PDF, generado con el mismo Gotenberg que el del correo | Implementado (ADR-009) |
 | `ingredient.cost.updated` | Backend, en cada actualización de costo de insumo | `{ accountId, ingredientId, previousCost, newCost, updatedBy }` | A definir | Propuesta (no planificado) |
 
 ### Tareas resueltas por n8n
@@ -135,8 +135,8 @@ Las dos direcciones se autentican con la cabecera `x-margenx-webhook-secret`.
 1. **Alertas de margen bajo:** al recibir `margin.alert.triggered`, n8n responde inmediatamente con `200 OK` al backend y procesa de forma asíncrona una plantilla HTML responsive con diseño accesible (WCAG AA). Despacha el correo a través del relay SMTP autenticado de Brevo (`smtp-relay.brevo.com:587`, STARTTLS) firmado por `alertas@margenx.tech`.
 2. **Invitación de colaboradores:** al recibir `collaborator.invitation.created`, n8n valida que el enlace sea de aceptación de Clerk, arma el mail en español con la plantilla de MargenX y lo envía por Brevo desde `alertas@margenx.tech`. Responde 200 al backend solo después del envío; si falla, el backend informa que el mail no salió y el Administrador copia el enlace desde Perfil (ADR-008).
 3. **Ingesta de listas de precios:** n8n lee el adjunto recibido en `precios-<slug>@margenx.tech`, normaliza las columnas, envía el lote al backend y manda al dueño el resumen con el resultado (`infra/n8n/README.md`, ADR-005).
-4. **Reporte semanal de márgenes en PDF** · *Planificado (Sprint 6)*: los lunes a las 08:00, n8n pide al backend las cuentas activas y el reporte de cada una, arma el HTML con la plantilla compartida de los mails, lo convierte a PDF con Gotenberg (contenedor solo en la red interna) y lo envía por Brevo al Administrador. El backend calcula todos los números con `Prisma.Decimal` y la misma lógica del panel; n8n no lee la base ni calcula márgenes. La descarga desde la app usa el mismo generador a través del webhook `report-pdf`. Una cuenta que falla no frena a las demás y se avisa a Discord. La decisión de generar el PDF en n8n con Gotenberg se registra en un ADR junto con el workflow.
-5. **Costos sin actualizar** · *Planificado (Sprint 6)*: el recordatorio de insumos que no cambian de costo hace más de 30 días va como una sección del reporte semanal, sin un workflow aparte.
+4. **Reporte semanal de márgenes en PDF** (ADR-009): los lunes a las 08:00 (solo producción), n8n pide al backend las cuentas activas y el reporte de cada una, arma el HTML A4 con la plantilla compartida de los mails, lo convierte a PDF con Gotenberg (contenedor solo en la red interna) y lo envía por Brevo al Administrador, con el PDF adjunto. El backend calcula todos los números con `Prisma.Decimal` y la misma lógica del panel; n8n no lee la base ni calcula márgenes. La descarga desde la app usa el mismo generador a través del webhook `report-pdf`. Una cuenta que falla (error del backend, cuenta sin correo de Administrador, PDF o envío fallido) no frena a las demás y se avisa a Discord sin datos personales. Staging se prueba con un disparador manual contra `backend-dev`. Workflow: `infra/n8n/workflows/reporte-semanal.json`.
+5. **Costos sin actualizar**: el recordatorio de insumos que no cambian de costo hace más de 30 días va como una sección del reporte semanal, sin un workflow aparte.
 
 **Regla de arquitectura:** n8n **nunca** escribe directamente en la base de datos de producción ni contiene lógica de negocio (el cálculo de margen vive exclusivamente en el backend). n8n consume eventos, orquesta notificaciones y envía las listas de precios a la API, que es la única que escribe — esto mantiene el monolito como única fuente de verdad y evita acoplamientos frágiles.
 
@@ -482,7 +482,7 @@ graph TB
 
         subgraph AUTOMATION ["Servicios Satélite"]
             N8N["n8n Engine (1024 MB | Heap 768 MB)"]
-            Gotenberg["Gotenberg — HTML a PDF (512 MB, solo red interna) · Planificado"]
+            Gotenberg["Gotenberg — HTML a PDF (512 MB, solo red interna)"]
         end
     end
 
@@ -499,8 +499,8 @@ graph TB
     BackP -.->|Verify JWT| Clerk
     BackP -->|Webhooks HTTP| N8N
     N8N -->|SMTP STARTTLS| Brevo
-    N8N -.->|"Reportes /api/internal (Planificado)"| BackP
-    N8N -.->|"HTML a PDF (Planificado)"| Gotenberg
+    N8N -->|"Reportes /api/internal (red interna)"| BackP
+    N8N -->|"HTML a PDF"| Gotenberg
     EmailRouting -->|Reenvío Catch-All| Gmail
     N8N -.->|IMAP SSL 993| Gmail
     CronHost -.->|Supervisa RAM > 85%| Discord["Canal Discord Equipo"]
@@ -530,7 +530,7 @@ Para sostener los 6 contenedores de Staging y Producción dentro de los recursos
   - Backend (prod y dev): 512 MB c/u.
   - Frontend (prod y dev): 128 MB c/u.
   - Techo total del stack: ~3.3 GB, garantizando más de 4.5 GB libres en el servidor.
-  - Gotenberg (*Planificado*, para el reporte semanal en PDF): 512 MB con reserva de 128 MB y Chromium sin arranque automático, de modo que no ocupa memoria mientras no se genera un PDF. Con él, el techo sube a ~3.8 GB. La memoria se mide con `docker stats` y `monitor-memory.sh` durante una generación antes de activarlo.
+  - Gotenberg (reporte semanal en PDF, ADR-009): 512 MB con reserva de 128 MB. Chromium arranca con la primera conversión y se apaga tras 60 s sin uso, así que en reposo ocupa ~25 MB; en la medición local llegó a 257 MB durante la conversión. Con él, el techo sube a ~3.8 GB. La memoria en la VPS se mide con `docker stats` y `monitor-memory.sh` durante una generación antes de activarlo.
 - **Rotación de logs** (`json-file`, `max-size: 10m`, `max-file: 3`) en todos los servicios, para evitar desbordes de disco.
 - **Postgres protegido:** el puerto se vincula a `127.0.0.1:5435:5432` (solo loopback del host), eliminando exposición pública directa a internet.
 - **`DATABASE_URL` por entorno:** cada servicio de backend la toma de su propio archivo de entorno (`.env.prod` / `.env.dev`).

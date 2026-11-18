@@ -289,7 +289,7 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 
 ### Reporte semanal de márgenes · *Disponible (API)*
 
-El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El workflow de envío semanal automático por correo sigue *Planificado*.
+El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El envío por correo · *Disponible*: los lunes a las 08:00 (hora de Argentina), n8n manda al Administrador de cada cuenta activa el reporte en PDF, en este orden: "Para revisar" (productos debajo de su margen mínimo con el precio sugerido, precios en cuarentena y costos sin actualizar), salud del catálogo con los nombres de estado de esta sección, cambios de costo de la semana y oportunidades de ahorro. Los montos van en formato es-AR. Una cuenta sin correo de Administrador no recibe nada (ADR-009, `infra/n8n/README.md`).
 
 ---
 
@@ -387,7 +387,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
 | Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
 | Reporte semanal de márgenes (API de datos y descarga PDF) | Disponible (API) |
-| Workflow automático semanal de reporte PDF por correo (n8n) | Planificado |
+| Workflow automático semanal de reporte PDF por correo (n8n) | Disponible |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
