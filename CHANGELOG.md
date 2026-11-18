@@ -6,6 +6,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **Frontend:** Pantalla de compras sugeridas y cálculo de pedidos en `/compras` (solo `ADMIN`, protegida por `AdminOnlyRoute` y oculta para `COLLABORATOR`), agrupada por distribuidor con tarjetas en mobile y tabla responsive en desktop, conmutación de proveedor predeterminado con recálculo en cascada, cálculo de pedidos con subtotales y ahorro neto, copiado a texto plano para WhatsApp e impresión limpia (`#389`).
+- **Frontend:** Servicio `purchasingService.ts` consumiendo los endpoints de `#388` (`GET /api/purchasing/suggestions` y `POST /api/purchasing/order-preview`) y suite de pruebas unitarias (`#389`).
+- **Docs:** Capítulo de manual de usuario `docs/manual-usuario/06-compras-sugeridas.md` y actualización de la matriz de rutas en `docs/manual-usuario/02-rutas-y-roles.md` (`#389`).
+- **QA:** Caso de prueba E2E `TC-RBAC-07` en `rbac-security.spec.ts` verificando la intercepción de `/compras` y censura de navegación para el rol colaborador (`#389`).
 - **Backend:** Servicio `purchasingService.ts` y endpoints `GET /api/purchasing/suggestions` y `POST /api/purchasing/order-preview` (solo `ADMIN`, acotados por `accountId`, solo lectura con `Prisma.Decimal` y `calculateUnitCost`) excluyendo proveedores inactivos y presentaciones en cuarentena (`#388`).
 - **QA:** Colección Postman `MargenX - Compras API` y script `run-tests-compras.sh` (`#388`).
 - **DevOps:** El DevContainer se sincroniza solo con la rama: `.devcontainer/scripts/sync-dev-env.sh` corre al crear el contenedor, cada vez que VS Code o Cursor se conectan (`postAttachCommand`) y al cambiar de rama o hacer `git pull` (hooks versionados en `.githooks/`). Alinea Node con `.nvmrc` mediante nvm (corrige los contenedores creados antes del paso a Node 22, que seguían en Node 20), ejecuta `npm ci` solo si cambió un lockfile, regenera el cliente de Prisma y aplica las migraciones pendientes únicamente sobre la base local del DevContainer, sin seed (ignora una `DATABASE_URL` exportada en la terminal; prueba `sync-dev-env.test.sh` en el CI). Reemplaza al `npm install` del `postCreateCommand`. Documentado en `README.md`, "Entorno sincronizado" (`#395`).
@@ -34,6 +38,10 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Fixed
 
+- **Frontend:** Corrección del import de `formatPackage` en `/compras` trayéndolo desde `@/lib/supplierDisplay` en lugar de `@/lib/format`, previniendo fallos en compilación estricta (`#389`).
+- **Frontend / UX:** El diálogo de confirmación para establecer proveedor predeterminado en `/compras` anuncia con exactitud el nombre del distribuidor sugerido que se está eligiendo y no el proveedor anterior (`#389`).
+- **Frontend / UX:** Sustitución de recarga completa de ventana en el estado vacío de `/compras` por navegación interna SPA mediante `useNavigate` (`#389`).
+- **Frontend / Accesibilidad:** Aplicación de las clases canónicas de anillo de foco accesible (`CANONICAL_FOCUS_CLASSES`) en todos los controles interactivos y botones de `/compras` (`#389`).
 - **Frontend:** Con catálogos de más de 20 filas, `/insumos` y `/productos` mostraban solo la primera página: la tarjeta "Insumos activos" contaba 20, el buscador filtraba solo esos 20 y el selector de la receta ofrecía los primeros 20 insumos. Ahora la búsqueda va a la API (sin tildes ni mayúsculas, 300 ms después de dejar de escribir), los contadores leen `meta.total`, el selector de la receta busca en todo el catálogo y la detección de duplicados de la planilla usa el catálogo completo (`#350`).
 - **Frontend:** El aviso de confirmación de `/proveedores/cuarentena` se puede cerrar con la X o deslizándolo: `ToastAlert` recibe `onClose`, que antes faltaba y dejaba deshabilitados el botón y el gesto (`#311`).
 - **Frontend:** La tarjeta "Variaciones recientes" de `/insumos` muestra la cantidad real de precios en cuarentena en lugar de un 2 fijo (`#311`).
