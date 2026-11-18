@@ -13,6 +13,7 @@ import InstallPage from './app/instalar/page'
 import SuppliersListPage from './app/proveedores/page'
 import SupplierDetailPage from './app/proveedores/[id]/page'
 import QuarantinePage from './app/proveedores/cuarentena/page'
+import PurchasesPage from './app/compras/page'
 import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
@@ -74,6 +75,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <AdminOnlyRoute>
           <QuarantinePage />
+        </AdminOnlyRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/compras',
+    element: (
+      <ProtectedRoute>
+        <AdminOnlyRoute>
+          <PurchasesPage />
         </AdminOnlyRoute>
       </ProtectedRoute>
     ),

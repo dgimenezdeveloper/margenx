@@ -13,6 +13,7 @@ import {
   LogOut,
   Moon,
   Package,
+  ShoppingCart,
   Sun,
   Truck,
 } from 'lucide-react'
@@ -65,6 +66,7 @@ export function Navbar({
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
     { label: 'Proveedores', href: '/proveedores', icon: Truck },
+    { label: 'Compras', href: '/compras', icon: ShoppingCart },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ].filter(link => isNavLinkVisible(link.href, role))
 
@@ -72,7 +74,6 @@ export function Navbar({
     sessionStorage.removeItem('margenx_active_session')
     document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     localStorage.removeItem('margenx_last_active')
-    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
     void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
   }
 
