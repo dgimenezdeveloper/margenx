@@ -211,3 +211,19 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     expect(campoHarina()).toHaveValue('1')
   })
 })
+
+describe('ProductDetailPage - lugar para las barras de abajo en mobile (#406)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(productService.getById).mockResolvedValue(mockProduct)
+    vi.mocked(ingredientService.getAll).mockResolvedValue([])
+  })
+
+  it('el final de la ficha deja lugar a la barra del producto, la BottomNav y la zona segura de iOS', async () => {
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    // Barra del producto (132 px) + BottomNav (50 px + max(12 px, zona segura)) entran en 13rem + zona segura
+    expect(screen.getByRole('main')).toHaveClass('pb-[calc(13rem+env(safe-area-inset-bottom))]')
+  })
+})

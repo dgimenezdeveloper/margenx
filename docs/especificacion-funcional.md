@@ -1,7 +1,7 @@
 # Especificación funcional y diseño de dominio — MargenX
 
 **Documento:** catálogo de insumos, recetas, proveedores, ingesta de listas de precios y roles.
-**Versión:** 2.0 · **Fecha:** 26/10/2026 · **Responsable:** Darío Giménez (Tech Lead)
+**Versión:** 2.1 · **Fecha:** 17/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
 **Reemplaza a:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md` (versión 1.0). Este documento los unifica y los corrige contra el código de `develop` al 26/10/2026.
 
 ## Cómo leer este documento
@@ -137,6 +137,7 @@ Ejemplo: bolsa de 25 kg a $18.406,25 → $736,25 por kg.
 - **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo (restricción `@@unique([supplierId, ingredientId])`).
 - Asociar una presentación a un par que ya existe la actualiza (upsert), no la duplica.
 - Borrar un proveedor borra sus presentaciones; el costo actual de los insumos no cambia.
+- **Quitar una presentación** (`DELETE /api/suppliers/:id/ingredients/:ingredientId`): si es la predeterminada y el insumo tiene otras, la API responde 409 y pide marcar otra como predeterminada primero; si es la única, se borra y el costo actual del insumo no cambia (ADR-005 §1 y §4).
 - Todas las operaciones de proveedores son solo para ADMIN.
 
 ### Ejemplo: un insumo, cuatro proveedores
@@ -168,7 +169,7 @@ Un mayorista manda su catálogo completo (miles de artículos). Si el sistema lo
 
 > La lista de un proveedor **nunca** crea insumos. **Solo** actualiza precios de presentaciones cuyo `supplierCode` ya está vinculado en la cuenta.
 
-### 5.2. Canal de entrada · *Disponible (activación en producción: Planificado)*
+### 5.2. Canal de entrada · *Disponible*
 
 El canal de ingesta desatendida y su filtro de descarte están formalizados en **ADR-005** §3 (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`).
 
@@ -285,6 +286,10 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
 - **Margen promedio robusto (`averageMarginPercent`):** se adopta la **mediana** del `marginPercent` de los productos activos (excluyendo borradores), calculada con `Prisma.Decimal` (`ROUND_HALF_UP` a 2 decimales).
   - *Por qué mediana y no promedio simple ni margen ponderado:* un precio mal cargado (por ejemplo, `$13` con costo `$3.854`, equivalente a `-29.546 %`) distorsiona un promedio simple; y como MargenX no registra volumen de ventas (ADR-004 / fuera de alcance POS), un margen ponderado por `salePrice` unitario sigue quedando dominado por una pérdida alta en comercios con pocos productos o precios unitarios bajos (como *Química GyJ*). La mediana mantiene un punto de quiebre del 50 % independientemente del tamaño del catálogo.
 
+### Reporte semanal de márgenes · *Disponible (API)*
+
+El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El workflow de envío semanal automático por correo sigue *Planificado*.
+
 ---
 
 ## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API)*
@@ -358,6 +363,8 @@ Account (CASCADE)
 
 ## 11. Estado de implementación
 
+La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fecha y qué queda para la Fase 2 está en la tabla única de alcance del SAD (`docs/Arquitectura-Software-(SAD).md` §1, "Alcance de la cursada y Fase 2"). Esta tabla dice el estado de cada capacidad en `develop`.
+
 | Capacidad | Estado |
 |---|---|
 | Carga manual de insumos (camino A) | Disponible |
@@ -368,14 +375,17 @@ Account (CASCADE)
 | Proveedores y presentaciones desde la ficha del insumo, proveedor predeterminado | Disponible |
 | Vista de proveedores (`/proveedores`): lista con cantidad de insumos y de precios en cuarentena, alta, edición, desactivación y baja con confirmación | Disponible |
 | Detalle de proveedor (`/proveedores/:id`) con sus presentaciones | Disponible |
-| Código de artículo cargado desde la app | Planificado |
+| Código de artículo cargado desde la app | Disponible |
 | Bandeja de códigos no mapeados | Propuesta |
-| Ingesta por correo, filtro de descarte y resumen | Disponible (activación en producción: Planificado) |
+| Ingesta por correo, filtro de descarte y resumen | Disponible |
 | Cuarentena de precios y bandeja `/proveedores/cuarentena` | Disponible |
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
+| Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
+| Reporte semanal de márgenes (API de datos y descarga PDF) | Disponible (API) |
+| Workflow automático semanal de reporte PDF por correo (n8n) | Planificado |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
@@ -384,5 +394,5 @@ Account (CASCADE)
 
 1. ¿Se permiten varias presentaciones del mismo proveedor para un insumo (por ejemplo, pack chico y bolsa)? Hoy el modelo lo impide.
 2. ¿Rechazar un precio en cuarentena debe avisar al dueño? Hoy no avisa.
-3. ¿Qué pasa al quitar la presentación predeterminada de un insumo? Hoy no existe un endpoint para borrar una presentación.
+3. ~~¿Qué pasa al quitar la presentación predeterminada de un insumo?~~ **Resuelta** por ADR-005 §1 y §4: con otras presentaciones, la API responde 409 y pide elegir otra predeterminada; si es la única, se borra (§4, "Reglas vigentes", y `docs/api.md` §6).
 4. ¿Entra el camino C (starter packs) en el alcance del proyecto?

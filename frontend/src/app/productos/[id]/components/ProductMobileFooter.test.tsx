@@ -54,4 +54,25 @@ describe('ProductMobileFooter (Mobile 360px)', () => {
     expect(screen.queryByRole('button', { name: /Ajustar/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Guardar/i })).not.toBeInTheDocument()
   })
+
+  it('queda apoyada sobre la BottomNav, con la zona segura de iOS (#406)', () => {
+    const { container } = render(
+      <ProductMobileFooter
+        isCollaborator={false}
+        watchedSalePrice={15000}
+        gain={5000}
+        cost={10000}
+        margin={33.3}
+        targetMargin={30}
+        itemsCount={3}
+        isSaving={false}
+        onOpenSimulator={vi.fn()}
+      />
+    )
+
+    // La BottomNav mide 3.125rem más su relleno inferior, que incluye la zona segura
+    expect(container.querySelector('footer')).toHaveClass(
+      'bottom-[calc(3.125rem+max(0.75rem,env(safe-area-inset-bottom)))]'
+    )
+  })
 })

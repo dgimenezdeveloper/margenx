@@ -1,7 +1,7 @@
 
 # Definition of Done (DoD) — MargenX
 **Materia:** Prácticas Profesionales Supervisadas (PPS)  
-**Vigencia:** Sprint 0 a Sprint 6 (7 iteraciones de 2 semanas)  
+**Vigencia:** Sprint 0 a Sprint 7 (8 iteraciones de 2 semanas; el Sprint 3 duró una)  
 
 Una Historia de Usuario, Tarea o Issue solo se considerará **DONE (Terminada)** cuando cumpla estrictamente con la totalidad de los siguientes criterios:
 
