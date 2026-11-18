@@ -114,7 +114,7 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
 
-          <section className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                 Hola, {isCollaborator ? 'Colaborador' : 'Administrador'}
@@ -127,19 +127,19 @@ export default function DashboardPage() {
             </div>
 
             {!isCollaborator && (
-              <div className="flex flex-col gap-3 md:flex-row md:items-start">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start lg:shrink-0">
                 {/* Solo ADMIN: GET /api/reports/weekly.pdf responde 403 a cualquier otro rol. */}
-                {isAdmin && <WeeklyReportDownload className="md:max-w-xs md:items-end" />}
+                {isAdmin && <WeeklyReportDownload className="md:max-w-xs lg:items-end" />}
                 <div className="hidden items-center gap-3 md:flex">
                   <Link
                     href="/insumos"
-                    className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                    className="whitespace-nowrap rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                   >
                     Actualizar Insumos
                   </Link>
                   <Link
                     href="/productos/nuevo"
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700"
+                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700"
                   >
                     <Plus className="size-4" /> Nuevo Producto
                   </Link>

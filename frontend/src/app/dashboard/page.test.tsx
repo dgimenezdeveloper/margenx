@@ -34,8 +34,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
   ),
 }))
 
@@ -303,6 +303,20 @@ describe('DashboardPage: descarga del reporte semanal (#392)', () => {
     const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
     // Los otros atajos del encabezado se ocultan en mobile; la descarga no.
     expect(boton.closest('.hidden')).toBeNull()
+  })
+
+  it('los atajos del encabezado no se parten en dos líneas al sumar la descarga', async () => {
+    mockUser.role = 'ADMIN'
+    render(<DashboardPage />)
+
+    const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
+    for (const el of [boton, screen.getByText('Actualizar Insumos'), screen.getByText('Nuevo Producto').closest('a')!]) {
+      expect(el.className).toMatch(/whitespace-nowrap/)
+    }
+    // Con tres acciones, el saludo y los botones van en fila recién desde lg (en md no entran).
+    const seccion = screen.getByRole('heading', { level: 1 }).closest('section')!
+    expect(seccion.className).toMatch(/lg:flex-row/)
+    expect(seccion.className).not.toMatch(/(^|\s)md:flex-row/)
   })
 
   it('Escenario Gherkin: Colaborador -> no ve la descarga del reporte', async () => {

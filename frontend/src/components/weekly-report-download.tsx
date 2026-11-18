@@ -10,7 +10,7 @@ interface WeeklyReportDownloadProps {
 }
 
 const BUTTON_CLASS =
-  'inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 md:w-auto'
+  'inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 md:w-auto'
 const LINK_CLASS =
   'inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-bold text-indigo-700 underline-offset-4 transition hover:underline disabled:cursor-wait disabled:opacity-70 dark:text-indigo-300'
 
