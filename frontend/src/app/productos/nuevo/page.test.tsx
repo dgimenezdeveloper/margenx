@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
+import { productService } from '@/services/productService'
 import { useRecipeStore } from '@/stores/useRecipeStore'
 import NewProductPage from './page'
 
@@ -126,6 +127,59 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     await vi.waitFor(() => expect(ingredientService.list).toHaveBeenCalled())
     resolver({ items: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } })
     expect(await screen.findByText('No se encontraron insumos con ese nombre.', undefined, BUSQUEDA)).toBeInTheDocument()
+  })
+})
+
+describe('NewProductPage - selector de la receta: repetidos y alta rápida (#357)', () => {
+  const manteca = { id: 'ing-manteca', name: 'Manteca La Serenísima', unit: 'kg', currentCost: 9500 } as Ingredient
+  const azafran = { id: 'ing-azafran', name: 'Azafrán en hebras', unit: 'kg', currentCost: 85000.5 } as Ingredient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura, manteca])
+    vi.mocked(ingredientService.list).mockResolvedValue({
+      items: [],
+      meta: { total: 0, page: 1, limit: 100, totalPages: 0 },
+    })
+  })
+
+  it('después de sumar la levadura no queda preseleccionada y figura como "Ya en la receta"', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const agregar = await screen.findByRole('button', { name: /Agregar Insumo a la Receta/i })
+    await vi.waitFor(() => expect(agregar).toBeEnabled())
+    await user.click(agregar)
+
+    const trigger = screen.getByRole('combobox', { name: /Seleccionar Insumo de la Despensa/ })
+    expect(trigger).toHaveTextContent('Manteca La Serenísima')
+
+    await user.click(trigger)
+    const repetida = screen.getByRole('option', { name: /Levadura fresca/ })
+    expect(repetida).toHaveTextContent('Ya en la receta')
+    expect(repetida).toBeDisabled()
+  })
+
+  it('alta rápida: crea el insumo sin enviar el producto y lo deja elegido para la receta', async () => {
+    vi.mocked(ingredientService.create).mockResolvedValue(azafran)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('combobox', { name: /Levadura fresca/ }))
+    await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'Azafrán en hebras')
+    await user.click(screen.getByRole('option', { name: '+ Crear nuevo insumo' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Nuevo insumo' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Azafrán en hebras')
+    await user.type(screen.getByLabelText(/Costo unitario/), '85000,50')
+    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo insumo' })).not.toBeInTheDocument())
+    expect(ingredientService.create).toHaveBeenCalledWith(getToken, { name: 'Azafrán en hebras', unit: 'kg', currentCost: 85000.5 })
+    expect(productService.create).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox', { name: /Azafrán en hebras/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
+    expect(useRecipeStore.getState().items[0]?.ingredientId).toBe('ing-azafran')
   })
 })
 

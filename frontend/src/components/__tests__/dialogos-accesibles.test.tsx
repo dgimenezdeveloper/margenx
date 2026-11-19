@@ -202,12 +202,7 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
     titulo: '¿Dar de baja a Molino Olavarriense?',
   },
   {
-    nombre: 'Nuevo insumo (rápido)',
-    ui: <QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />,
-    titulo: 'Nuevo insumo',
-  },
-  {
-    nombre: 'Alta rápida de insumo desde receta',
+    nombre: 'Alta rápida de insumo desde la receta',
     ui: <QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />,
     titulo: 'Nuevo insumo',
   },
