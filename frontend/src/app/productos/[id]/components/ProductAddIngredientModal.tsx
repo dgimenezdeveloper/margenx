@@ -122,7 +122,7 @@ export function ProductAddIngredientModal({
               <DialogClose aria-label="Cerrar sumar insumo" className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800"><X className="size-5" /></DialogClose>
             </div>
 
-            <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto pr-2">
+            <div className="flex-1 space-y-4 pr-2">
               <RecipeIngredientCombobox
                 supplies={availablePantry}
                 selectedSupply={currentSupply}

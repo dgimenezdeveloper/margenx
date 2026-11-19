@@ -40,7 +40,7 @@ export function RecipeIngredientCombobox({
   placeholderText = 'Buscar insumo...',
   emptyMessage = 'No se encontraron insumos.',
   labelClassName = 'block text-xs font-bold text-gray-600 dark:text-gray-300',
-  triggerClassName = 'mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white cursor-pointer',
+  triggerClassName = 'mt-2 flex min-h-11 h-12 w-full items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 text-left text-sm font-bold text-gray-900 shadow-xs transition hover:bg-white dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white cursor-pointer',
   triggerRef,
 }: RecipeIngredientComboboxProps) {
   const baseId = useId()
@@ -227,7 +227,7 @@ export function RecipeIngredientCombobox({
             </div>
           </div>
 
-          <div id={listboxId} role="listbox" aria-label="Insumos disponibles" className="max-h-48 divide-y divide-gray-100 overflow-y-auto p-1 dark:divide-gray-800">
+          <div id={listboxId} role="listbox" aria-label="Insumos disponibles" className="max-h-33 divide-y divide-gray-100 overflow-y-auto overscroll-contain p-1 sm:max-h-48 dark:divide-gray-800">
             {filteredSupplies.length === 0 ? (
               <div className="p-4 text-center text-xs font-semibold text-gray-400" aria-live="polite">
                 {isSearching ? 'Buscando insumos...' : emptyMessage}
