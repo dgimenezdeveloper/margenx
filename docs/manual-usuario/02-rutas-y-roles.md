@@ -15,6 +15,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/proveedores` | Directorio de proveedores mayoristas | Redirige a `/login` | Acceso total, alta, edición y baja | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores/:id` | Ficha y presentaciones de proveedor | Redirige a `/login` | Acceso total, SKU y empaques | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores/cuarentena` | Bandeja de precios retenidos | Redirige a `/login` | Acceso total, liberar y rechazar | **Bloqueado:** Redirige a `/productos` |
+| `/compras` | Sugerencias de compras y armado de pedidos mayoristas | Redirige a `/login` | Acceso total | **Bloqueado:** Redirige a `/productos` |
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |
@@ -25,4 +26,4 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 
 En `/login`, los enlaces **Política de privacidad** y **Guía de instalación** están al pie, debajo del formulario.
 
-<!-- [CAPTURA 360PX SUGERIDA: 02-rutas-bottom-nav-comparativa.webp | Comparativa visual de la barra de navegación inferior móvil: 5 pestañas para ADMIN vs 3 pestañas para COLLABORATOR] -->
+<!-- [CAPTURA 360PX SUGERIDA: 02-rutas-bottom-nav-comparativa.webp | Comparativa visual de la barra de navegación inferior móvil: 6 pestañas para ADMIN vs 3 pestañas para COLLABORATOR] -->

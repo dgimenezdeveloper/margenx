@@ -13,6 +13,7 @@ import {
   LogOut,
   Moon,
   Package,
+  ShoppingCart,
   Sun,
   Truck,
 } from 'lucide-react'
@@ -65,6 +66,7 @@ export function Navbar({
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
     { label: 'Proveedores', href: '/proveedores', icon: Truck },
+    { label: 'Compras', href: '/compras', icon: ShoppingCart },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ].filter(link => isNavLinkVisible(link.href, role))
 
