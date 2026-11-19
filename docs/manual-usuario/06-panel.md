@@ -2,15 +2,15 @@
 
 El panel (**Inicio**, `/dashboard`) resume la salud de **todo tu catálogo**, no solo de los productos que se ven en pantalla. Las tarjetas, el histograma y el total del catálogo salen de la misma cuenta, así que sus números coinciden entre sí. Esta guía es para el Administrador; el Colaborador ve solo el catálogo con los precios de venta (`03-colaborador.md`).
 
-<!-- [CAPTURA 360PX SUGERIDA: 06-panel-mobile.webp | Panel a 360 px con la tarjeta de productos en riesgo, el histograma de cuatro columnas y la grilla] -->
+<!-- [CAPTURA 360PX SUGERIDA: 06-panel-mobile.webp | Panel a 360 px con la tarjeta de productos debajo de su mínimo, el histograma de cuatro columnas y la grilla] -->
 
 ## Las tarjetas
 
-- **Productos en Riesgo:** cuántos productos con receta quedaron por debajo de su margen mínimo (suma los productos en **Pérdida** y **En riesgo**).
+- **Productos debajo de su mínimo:** cuántos productos con receta quedaron por debajo de su margen mínimo. Suma las columnas **Pérdida** y **En riesgo** del histograma; por eso la tarjeta no usa el nombre de un estado.
 - **Insumos Activos:** cuántos insumos tenés cargados.
 - **Margen Promedio:** la **mediana** del margen de los productos con receta: la mitad de tus productos gana más que ese valor y la otra mitad, menos. Se usa la mediana y no un promedio simple para que un solo precio mal cargado (por ejemplo, un producto de $13 que cuesta $3.854) no arrastre el número. El color sigue el signo: verde si es positivo, rojo si es negativo y neutro si es 0 %.
 
-En el celular se ve la tarjeta de productos en riesgo; las de insumos y margen promedio aparecen desde la tableta.
+En el celular se ve la tarjeta de productos debajo de su mínimo; las de insumos y margen promedio aparecen desde la tableta.
 
 ## Los cinco estados de rentabilidad
 
