@@ -169,7 +169,7 @@ export function QuickCreateIngredientModal({
                   aria-invalid={errors.name ? 'true' : 'false'}
                   aria-describedby={errors.name ? 'quick-ingredient-name-error' : undefined}
                   className={cn(
-                    'mt-2 h-12 w-full rounded-2xl border bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500',
+                    'mt-2 h-12 w-full rounded-2xl border bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:bg-white dark:bg-gray-800 dark:focus:bg-gray-800 dark:text-white dark:placeholder-gray-500',
                     CANONICAL_FOCUS_CLASSES,
                     errors.name
                       ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:border-rose-500/70'
