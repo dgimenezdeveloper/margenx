@@ -10,7 +10,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/login` | Pantalla de inicio de sesión (Clerk); con el enlace de una invitación, alta del colaborador | Acceso público | Redirige al destino / dashboard | Redirige al destino / dashboard |
 | `/privacidad` | Política de privacidad y tratamiento de datos | Acceso público, con "Volver a la web" | Acceso, con "Ir al panel" | Acceso, con "Ir al panel" |
 | `/instalar` | Guía de instalación de la app (PWA) | Acceso público, con "Ingresar" | Acceso, con "Ir al panel" | Acceso, con "Ir al panel" |
-| `/dashboard` | Panel principal de control y catálogo | Redirige a `/login` | Acceso total con KPIs financieros | Acceso sin métricas de costo ni margen |
+| `/dashboard` | Panel principal de control y catálogo | Redirige a `/login` | Acceso total con KPIs financieros y descarga del reporte semanal en PDF | Acceso sin métricas de costo ni margen ni reporte |
 | `/insumos` | Despensa de insumos y costos unitarios | Redirige a `/login` | Acceso total, alta, edición y baja | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores` | Directorio de proveedores mayoristas | Redirige a `/login` | Acceso total, alta, edición y baja | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores/:id` | Ficha y presentaciones de proveedor | Redirige a `/login` | Acceso total, SKU y empaques | **Bloqueado:** Redirige a `/productos` |
@@ -19,7 +19,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |
-| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y Colaboradores | Consulta de cuenta (sin alertas ni Colaboradores) |
+| `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y del reporte semanal (con su descarga) y Colaboradores | Consulta de cuenta (sin alertas, reporte ni Colaboradores) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
 **Pantallas públicas con la sesión iniciada.** Las pantallas públicas reconocen la sesión: `/instalar` y `/privacidad` ofrecen **Ir al panel** en lugar de **Ingresar** o **Volver a la web**. Al abrir `/` con la sesión iniciada (por ejemplo, escribiendo el dominio a mano), la app va directo al dashboard sin mostrar antes la landing. Mientras se verifica la sesión, la pantalla queda con el fondo vacío; si la verificación tarda más de 1,5 s (red lenta o un bloqueador), se muestra la versión sin sesión.
