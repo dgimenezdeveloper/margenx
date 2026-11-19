@@ -66,6 +66,7 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     // se deriva del valor real devuelto por la API en vez de hardcodear un
     // porcentaje, para no depender de que los costos del seed no cambien.
     const expectedBadgePercent = formatPercent(criticalPanFlauta.currentMarginPercent, { minDecimals: 0 })
+    const expectedStatusLabel = Number(criticalPanFlauta.currentMarginPercent) < 0 ? 'Pérdida' : 'En riesgo'
 
     // --- Verificación del toast informativo de recálculo ---
     // La cola de toasts (PR #211) muestra primero el de éxito (~3s) antes de
@@ -81,12 +82,12 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     await page.getByTestId('bottom-nav-productos').click()
     await expect(page).toHaveURL(/\/productos$/)
 
-    // --- Verificación visual: badge rojo "Crítico" en la tarjeta del producto ---
+    // --- Verificación visual: badge rojo con estado unificado ("Pérdida" o "En riesgo") en la tarjeta ---
     // El nombre accesible refleja el `text-transform: capitalize` del h3 ("Pan Flauta — 1 Kg"),
     // de ahí la bandera 'i' en vez de comparar contra el texto literal del seed.
     const productCard = page.getByRole('link', { name: new RegExp(PRODUCT_NAME, 'i') })
     await expect(productCard).toBeVisible()
-    await expect(productCard.getByText(`Crítico (${expectedBadgePercent})`)).toBeVisible()
+    await expect(productCard.getByText(`${expectedStatusLabel} (${expectedBadgePercent})`)).toBeVisible()
 
     // --- Gherkin: la prueba completa debe finalizar en menos de 15 segundos ---
     expect(Date.now() - start).toBeLessThan(15000)

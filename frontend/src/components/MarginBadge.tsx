@@ -1,6 +1,10 @@
 import { AlertTriangle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatPercent } from '@/lib/format'
+import {
+  HEALTH_BUCKET_META,
+  resolveProductHealthBucket,
+} from '@/lib/healthBucket'
 
 export interface MarginBadgeProps {
   marginPercent?: number | null
@@ -25,84 +29,63 @@ export function MarginBadge({
   showValue = true,
   size = 'sm',
 }: MarginBadgeProps) {
-  // 1. Blindaje RBAC: si el usuario es colaborador, no renderiza margen en el DOM
+  // 1. Blindaje RBAC: si el usuario es colaborador, no renderiza margen en el DOM (ADR-007)
   if (isCollaborator) {
     return null
   }
 
-  // 2. Encapsulación de receta: un producto tiene receta si y solo si tiene insumos cargados
-  const recipeExists =
-    hasRecipe ??
-    (ingredientsCount !== undefined
-      ? ingredientsCount > 0
-      : Array.isArray(ingredients)
-        ? ingredients.length > 0
-        : true)
+  const bucket = resolveProductHealthBucket({
+    hasRecipe,
+    ingredientsCount,
+    ingredients,
+    marginPercent,
+    minMarginPercent,
+  })
 
+  // 2. Guarda defensiva contra datos financieros sanitizados o ausentes
+  if (bucket !== 'draft' && (marginPercent == null || minMarginPercent == null)) {
+    return null
+  }
+
+  const meta = HEALTH_BUCKET_META[bucket]
   const sizeClasses = size === 'md' ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[11px]'
   const iconSizeClasses = size === 'md' ? 'size-3.5 shrink-0' : 'size-3 shrink-0'
 
-  if (!recipeExists) {
+  if (bucket === 'draft') {
     return (
       <span
         className={cn(
           'inline-flex shrink-0 items-center justify-center rounded-full font-bold transition-colors',
-          'border border-gray-200 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+          meta.badgeClassName,
           sizeClasses,
           className
         )}
       >
-        Sin Receta
+        {meta.label}
       </span>
     )
   }
 
-  // 3. Guarda defensiva contra datos financieros sanitizados o ausentes (evita NaN% o fugas)
-  if (marginPercent == null || minMarginPercent == null) {
-    return null
-  }
-
-  const isCritical = Number(marginPercent) < Number(minMarginPercent)
-  // Sin ceros sobrantes: "60 %", "25,4 %".
   const formattedValue = formatPercent(marginPercent, { minDecimals: 0 })
-
-  if (isCritical) {
-    return (
-      <span
-        className={cn(
-          'inline-flex shrink-0 items-center gap-1.5 rounded-full font-black transition-colors',
-          'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/70 dark:text-rose-200',
-          sizeClasses,
-          className
-        )}
-      >
-        <AlertTriangle className={iconSizeClasses} aria-hidden="true" />
-        <span>
-          <span>Crítico</span>
-          {showValue && (
-            <>
-              {' ('}
-              <span>{formattedValue}</span>
-              {')'}
-            </>
-          )}
-        </span>
-      </span>
-    )
-  }
+  const isLossOrRisk = bucket === 'loss' || bucket === 'risk'
 
   return (
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-full font-black transition-colors',
-        'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/70 dark:text-emerald-200',
+        meta.badgeClassName,
         sizeClasses,
         className
       )}
+      aria-label={`${meta.label}: ${formattedValue}`}
     >
-      <ShieldCheck className={iconSizeClasses} aria-hidden="true" />
+      {isLossOrRisk ? (
+        <AlertTriangle className={iconSizeClasses} aria-hidden="true" />
+      ) : (
+        <ShieldCheck className={iconSizeClasses} aria-hidden="true" />
+      )}
       <span>
-        <span>Saludable</span>
+        <span>{meta.label}</span>
         {showValue && (
           <>
             {' ('}

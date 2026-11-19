@@ -48,9 +48,11 @@ describe('DashboardKpiCards: margen promedio (#351)', () => {
     expect(screen.getByText(/mediana de los productos con receta/i)).toBeInTheDocument()
   })
 
-  it('la tarjeta de riesgo suma pérdida y riesgo de todo el catálogo', () => {
+  it('la tarjeta suma Pérdida y En riesgo de todo el catálogo sin usar el nombre de un estado (#358)', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
-    expect(screen.getByText('119 Productos en Riesgo')).toBeInTheDocument()
+    expect(screen.getByText('119 Productos debajo de su mínimo')).toBeInTheDocument()
+    expect(screen.getByText('Pérdida o En riesgo')).toBeInTheDocument()
+    expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
   })
 
   it('los rótulos de las tarjetas no usan gris 400 sobre blanco (contraste menor a 4,5:1)', () => {

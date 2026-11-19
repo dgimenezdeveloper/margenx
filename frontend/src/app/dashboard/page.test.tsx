@@ -103,7 +103,7 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
     expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument()
 
     // No debe pintar indicadores en cero
-    expect(screen.queryByText(/0 productos en riesgo/i)).toBeNull()
+    expect(screen.queryByText(/0 productos debajo de su mínimo/i)).toBeNull()
     expect(screen.queryByText(/0 insumos/i)).toBeNull()
     expect(screen.queryByText(/0,0 %/i)).toBeNull()
   })
@@ -147,7 +147,7 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
     fireEvent.click(retryBtn)
 
     await waitFor(() => {
-      expect(screen.getByText(/2 Productos en Riesgo/i)).toBeInTheDocument()
+      expect(screen.getByText(/2 Productos debajo de su mínimo/i)).toBeInTheDocument()
       expect(screen.getByText(/10 Insumos/i)).toBeInTheDocument()
       expect(screen.getByText(/55,5 %/i)).toBeInTheDocument()
       expect(screen.getByText('Pan flauta')).toBeInTheDocument()
@@ -190,7 +190,7 @@ describe('DashboardPage - Manejo de Errores y Reintentos (UX-04)', () => {
       expect(screen.queryByRole('alert')).toBeNull()
     })
     expect(screen.queryByText('Fallo del servidor')).toBeNull()
-    expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
+    expect(screen.queryByText(/productos? debajo de su mínimo/i)).toBeNull()
   })
 })
 
@@ -237,7 +237,7 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
       .reduce((sum, el) => sum + Number(el.textContent), 0)
     expect(columnas + 50).toBe(339)
     expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
-    expect(screen.getByText('119 Productos en Riesgo')).toBeInTheDocument()
+    expect(screen.getByText('119 Productos debajo de su mínimo')).toBeInTheDocument()
   })
 
   it('Escenario Gherkin: Precio mal cargado -> un margen promedio negativo se muestra en rojo', async () => {
@@ -273,7 +273,7 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
     })
     expect(dashboardService.getMetrics).not.toHaveBeenCalled()
     expect(screen.queryByText(/distribución de salud financiera/i)).toBeNull()
-    expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
+    expect(screen.queryByText(/productos? debajo de su mínimo/i)).toBeNull()
     expect(screen.queryByText(/margen promedio/i)).toBeNull()
   })
 })

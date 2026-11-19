@@ -70,7 +70,7 @@ Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5)
 
 - **Cargando:** skeleton o indicador de carga. También se muestra mientras se reintenta, en lugar del error anterior.
 - **Vacío:** `src/components/empty-state.tsx`, solo cuando la API respondió bien y no hay datos.
-- **Error:** `src/components/error-state.tsx` (`ErrorState`), cuando la API falla (5xx) o no hay red. Reemplaza a los indicadores: un fallo nunca se pinta como "0 productos en riesgo" ni como una lista vacía.
+- **Error:** `src/components/error-state.tsx` (`ErrorState`), cuando la API falla (5xx) o no hay red. Reemplaza a los indicadores: un fallo nunca se pinta como "0 productos debajo de su mínimo" ni como una lista vacía.
 
 `ErrorState` recibe `title`, `description` y `onRetry` (botón **Reintentar**, alto mínimo de 44 px) y se anuncia con `role="alert"`. Opcionales: `retryLabel`, `icon`, `className` e `isRetrying` (deshabilita el botón y muestra "Reintentando..." en pantallas que mantienen el error visible durante el reintento). `onAction` y `actionLabel` son alias para mantener la misma interfaz que `EmptyState`.
 

@@ -20,6 +20,7 @@ import {
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import ToastAlert from '@/components/ToastAlert'
+import { MarginBadge } from '@/components/MarginBadge'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
@@ -38,6 +39,7 @@ import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import { cn } from '@/lib/utils'
 import { useIngredientSearch } from '@/hooks/useIngredientSearch'
+import { HEALTH_BUCKET_META, resolveProductHealthBucket } from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
 
@@ -97,11 +99,6 @@ export default function NewProductPage() {
   const totalCost = useRecipeStore((s: RecipeState) => s.totalCost())
   const marginAmount = useRecipeStore((s: RecipeState) => s.marginAmount())
   const marginPercent = useRecipeStore((s: RecipeState) => s.marginPercent())
-  const isUnderMargin = useRecipeStore((s: RecipeState) => s.isUnderMargin())
-
-  const isHealthy = !isUnderMargin
-  const hasCriticalMargin = marginPercent < -100
-  const hasHealthyMargin = marginPercent >= 100
 
   const {
     register,
@@ -127,6 +124,13 @@ export default function NewProductPage() {
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
 
   const targetMargin = Number(watchedMinMargin) || defaultMinMarginPercent || 30
+
+  const bucket = resolveProductHealthBucket({
+    hasRecipe: items.length > 0,
+    marginPercent,
+    minMarginPercent: targetMargin,
+  })
+  const statusMeta = HEALTH_BUCKET_META[bucket]
 
   useEffect(() => {
     if (!isLoadingUser && defaultMinMarginPercent !== undefined) {
@@ -263,7 +267,7 @@ export default function NewProductPage() {
 
       notify(
         items.length === 0
-          ? 'Producto guardado en estado borrador (Sin Receta).'
+          ? `Producto guardado en estado ${HEALTH_BUCKET_META.draft.label} (sin receta).`
           : 'Producto creado exitosamente con receta vinculada.'
       )
       isNavigatingAfterSaveRef.current = true
@@ -605,7 +609,8 @@ export default function NewProductPage() {
 
                 {items.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
-                    Aún no has sumado insumos a esta receta. El producto se guardará como borrador ("Sin Receta").
+                    Aún no has sumado insumos a esta receta. El producto se guardará en estado{' '}
+                    <strong>{HEALTH_BUCKET_META.draft.label}</strong> (sin receta).
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/50 p-2 dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/40">
@@ -693,52 +698,41 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  {items.length === 0 ? (
+                  {bucket === 'draft' ? (
                     <div className="flex items-center gap-2 rounded-2xl bg-gray-100 p-4 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                      <span className="size-2.5 rounded-full bg-gray-400" />
-                      Producto en modo borrador (Sin Receta).
+                      <span className="size-2.5 rounded-full bg-gray-400" aria-hidden="true" />
+                      {statusMeta.label}: {statusMeta.description}
                     </div>
-                  ) : hasCriticalMargin ? (
+                  ) : bucket === 'loss' || bucket === 'risk' ? (
                     <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/40 animate-in fade-in">
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                          <AlertTriangle className="size-3.5" /> Margen Bajo
+                          <AlertTriangle className="size-3.5" aria-hidden="true" /> {statusMeta.label}
                         </span>
                         <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
                           {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        Venta a pérdida: Estás perdiendo {formatMoney(Math.abs(marginAmount))} por unidad.
+                        {bucket === 'loss'
+                          ? `Venta a pérdida: Estás perdiendo ${formatMoney(Math.abs(marginAmount))} por unidad.`
+                          : `El margen está por debajo del umbral personalizado (${formatPercent(targetMargin, { minDecimals: 0 })}).`}
                       </p>
                     </div>
-                  ) : isHealthy || hasHealthyMargin ? (
+                  ) : (
                     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 animate-in fade-in">
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-200/70 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                          <ShieldCheck className="size-3.5" /> Margen Saludable
+                          <ShieldCheck className="size-3.5" aria-hidden="true" /> {statusMeta.label}
                         </span>
                         <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
                           {formatPercent(marginPercent)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        Cumple o supera el objetivo de rentabilidad ({formatPercent(targetMargin, { minDecimals: 0 })}).
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/40 animate-in fade-in">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-200/70 px-2.5 py-1 text-xs font-black text-rose-800 dark:bg-rose-900 dark:text-rose-200">
-                          <AlertTriangle className="size-3.5" /> Margen Bajo
-                        </span>
-                        <span className="text-2xl font-black text-rose-700 dark:text-rose-300">
-                          {formatPercent(marginPercent)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        El margen está por debajo del umbral personalizado (
-                        {formatPercent(Number(watchedMinMargin) || 0, { minDecimals: 0 })}).
+                        {bucket === 'surplus'
+                          ? `Supera el objetivo de rentabilidad (${formatPercent(targetMargin, { minDecimals: 0 })}) y el 60 %.`
+                          : `Cumple el objetivo de rentabilidad (${formatPercent(targetMargin, { minDecimals: 0 })}).`}
                       </p>
                     </div>
                   )}
@@ -848,17 +842,13 @@ export default function NewProductPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {items.length === 0 ? (
-                  <span className="text-[11px] font-bold text-gray-500">Modo Borrador</span>
-                ) : isUnderMargin ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                    <AlertTriangle className="size-3" /> Margen Bajo ({formatPercent(marginPercent)})
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" /> Saludable ({formatPercent(marginPercent)})
-                  </span>
-                )}
+                <MarginBadge
+                  marginPercent={marginPercent}
+                  minMarginPercent={targetMargin}
+                  hasRecipe={items.length > 0}
+                  ingredientsCount={items.length}
+                  size="sm"
+                />
               </div>
             </div>
 
