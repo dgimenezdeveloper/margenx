@@ -332,6 +332,7 @@ describe('ProfilePage (/perfil): pie de Soporte y Documentación (#363)', () => 
     render(<ProfilePage />)
 
     const [soporteMovil] = screen.getAllByRole('button', { name: 'Soporte' })
+    expect(soporteMovil.className).toContain('focus-visible:outline-2')
     fireEvent.click(soporteMovil)
 
     const dialogo = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })

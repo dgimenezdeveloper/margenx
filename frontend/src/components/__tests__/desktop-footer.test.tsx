@@ -32,7 +32,10 @@ describe('DesktopFooter: Soporte y Documentación (#363)', () => {
     const user = userEvent.setup()
     render(<DesktopFooter />)
 
-    await user.click(screen.getByRole('button', { name: 'Soporte' }))
+    const soporte = screen.getByRole('button', { name: 'Soporte' })
+    expect(soporte).toHaveAttribute('type', 'button')
+    expect(soporte.className).toContain('focus-visible:outline-2')
+    await user.click(soporte)
 
     const dialogo = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })
     expect(within(dialogo).getByRole('link', { name: /Correo de Asistencia/ })).toHaveAttribute(
