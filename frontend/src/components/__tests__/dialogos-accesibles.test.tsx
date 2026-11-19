@@ -209,7 +209,7 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
   {
     nombre: 'Alta rápida de insumo desde receta',
     ui: <QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />,
-    titulo: 'Nuevo Insumo',
+    titulo: 'Nuevo insumo',
   },
 ]
 

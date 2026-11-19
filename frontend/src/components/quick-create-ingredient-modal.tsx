@@ -123,7 +123,7 @@ export function QuickCreateIngredientModal({
                 <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">
                   Despensa
                 </p>
-                <DialogTitle className="mt-1 text-2xl">Nuevo Insumo</DialogTitle>
+                <DialogTitle className="mt-1 text-2xl">Nuevo insumo</DialogTitle>
                 <DialogDescription className="sr-only">
                   Cargá el nombre, la unidad de medida y el costo unitario del nuevo insumo para sumarlo a la receta.
                 </DialogDescription>

@@ -38,7 +38,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={onAdd} />
     )
 
-    await user.click(screen.getByRole('combobox'))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'sesamo')
     await user.click(await screen.findByRole('option', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
 
@@ -59,7 +59,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    await user.click(screen.getByRole('combobox'))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'azafran')
 
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()

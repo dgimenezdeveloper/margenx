@@ -184,7 +184,8 @@ export function RecipeIngredientCombobox({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={listboxId}
-        aria-labelledby={`${labelId} ${triggerId}`}
+        aria-labelledby={isOpen ? undefined : `${labelId} ${triggerId}`}
+        aria-label={isOpen ? undefined : displaySupply ? `${label}: ${displaySupply.name}` : `${label}: ${placeholderText}`}
         disabled={disabled}
         onClick={() => isOpen ? closeDropdown(false) : openDropdown(-1)}
         onKeyDown={handleTriggerKeyDown}
