@@ -1,7 +1,7 @@
 // frontend/src/app/productos/[id]/page.tsx
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -225,6 +225,18 @@ export default function ProductDetailPage() {
     }
   }
 
+  const existingIngredientIds = useMemo(
+    () => items.map((item) => item.ingredientId),
+    [items]
+  )
+
+  const handleIngredientCreated = (created: Ingredient) => {
+    setAvailablePantry((prev) =>
+      [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+    )
+    notify(`Insumo "${created.name}" creado y elegido.`, 'info')
+  }
+
   if (isLoading || isRoleLoading) return <main className="min-h-screen bg-gray-50 px-4 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6"><div className="h-10 w-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" /><div className="h-64 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" /></div></main>
   if (loadError || !product) return <main className="min-h-screen bg-gray-50 px-4 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl"><Navbar title="Producto no encontrado" backHref="/productos" /><div className="mt-8"><EmptyState icon={<Package className="size-6" />} title="Ficha técnica inexistente" description={loadError || 'No pudimos encontrar los datos del producto solicitado.'} actionLabel="Volver al catálogo" onAction={() => navigate('/productos')} /></div></div><BottomNav /></main>
 
@@ -255,7 +267,7 @@ export default function ProductDetailPage() {
           <ProductMobileFooter isCollaborator={isCollaborator} watchedSalePrice={watchedSalePrice as string | number} gain={gain} cost={cost} margin={margin} targetMargin={targetMargin} itemsCount={items.length} isSaving={isSaving} onOpenSimulator={() => setIsSimulatorOpen(true)} />
         </form>
       </div>
-      {showAddModal && !isCollaborator && <ProductAddIngredientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} availablePantry={availablePantry} isLoadingSupplies={false} onAdd={handleAddIngredient} />}
+      {showAddModal && !isCollaborator && <ProductAddIngredientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} availablePantry={availablePantry} existingIngredientIds={existingIngredientIds} isLoadingSupplies={false} onAdd={handleAddIngredient} onIngredientCreated={handleIngredientCreated} />}
       <ProductDeleteDialog isOpen={showDeleteModal} isDeleting={isDeleting} productName={product.name} onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteProduct} />
       <ProductRemoveIngredientDialog ingredientName={ingredientToDelete?.name || null} onClose={() => setIngredientToDelete(null)} onConfirm={confirmRemoveIngredient} />
       {!isCollaborator && <ProductMobileSimulatorSheet isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} gain={gain} {...simulatorProps} />}
