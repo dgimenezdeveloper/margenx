@@ -5,6 +5,7 @@ import {
   SURPLUS_MARGIN_THRESHOLD,
   classifyHealthBucket,
   resolveProductHealthBucket,
+  type ActiveHealthBucket,
 } from '@/lib/healthBucket'
 import type { Product } from '@/services/productService'
 
@@ -81,5 +82,35 @@ describe('HEALTH_BUCKET_META y resolveProductHealthBucket (#358)', () => {
     expect(resolveProductHealthBucket({ hasRecipe: true, marginPercent: 20, minMarginPercent: 30 })).toBe('risk')
     expect(resolveProductHealthBucket({ hasRecipe: true, marginPercent: 45, minMarginPercent: 30 })).toBe('target')
     expect(resolveProductHealthBucket({ hasRecipe: true, marginPercent: 75, minMarginPercent: 30 })).toBe('surplus')
+  })
+})
+
+describe('una sola regla para el panel, la lista y la ficha (#358)', () => {
+  // Márgenes en los bordes de cada estado, siempre contra el mínimo propio del producto.
+  const bordes: Array<{ marginPercent: number; minMarginPercent: number; esperado: ActiveHealthBucket }> = [
+    { marginPercent: -0.01, minMarginPercent: 35, esperado: 'loss' },
+    { marginPercent: 0, minMarginPercent: 35, esperado: 'risk' },
+    { marginPercent: 34.99, minMarginPercent: 35, esperado: 'risk' },
+    { marginPercent: 35, minMarginPercent: 35, esperado: 'target' },
+    { marginPercent: 32, minMarginPercent: 35, esperado: 'risk' },
+    { marginPercent: 32, minMarginPercent: 25, esperado: 'target' },
+    { marginPercent: 60, minMarginPercent: 35, esperado: 'target' },
+    { marginPercent: 60.01, minMarginPercent: 35, esperado: 'surplus' },
+    { marginPercent: 65, minMarginPercent: 70, esperado: 'risk' },
+  ]
+
+  it.each(bordes)(
+    'margen $marginPercent % con mínimo $minMarginPercent %: $esperado en el panel, la lista y la ficha',
+    ({ marginPercent, minMarginPercent, esperado }) => {
+      expect(classifyHealthBucket(producto({ marginPercent, minMarginPercent }))).toBe(esperado)
+      expect(
+        resolveProductHealthBucket({ ingredientsCount: receta.length, marginPercent, minMarginPercent })
+      ).toBe(esperado)
+    }
+  )
+
+  it('un producto sin receta es borrador en el panel, la lista y la ficha', () => {
+    expect(classifyHealthBucket(producto({ ingredients: [], marginPercent: 80 }))).toBe('draft')
+    expect(resolveProductHealthBucket({ ingredientsCount: 0, marginPercent: 80, minMarginPercent: 35 })).toBe('draft')
   })
 })
