@@ -2,15 +2,19 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, type KeyboardEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { ChevronRight, LoaderCircle, Package, Plus, Search } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
+import { ToastAlert } from '@/components/ToastAlert'
 import { Pagination } from '@/components/pagination'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { useToast } from '@/hooks/useToast'
+import { ADMIN_ONLY_NOTICE, isAdminOnlyRedirectState } from '@/lib/adminOnlyRedirect'
 import { MarginBadge } from '@/components/MarginBadge'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import type { PageParams } from '@/services/pagination'
@@ -24,6 +28,17 @@ export default function ProductsPage() {
   const { getToken } = useAuth()
   const { user } = useCurrentUser()
   const isCollaborator = user?.role === 'COLLABORATOR'
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { toast, notify, dismiss: dismissToast } = useToast()
+
+  // Un colaborador que abrió una pantalla del administrador llega acá desde AdminOnlyRoute (#364).
+  // El aviso se muestra una vez y se limpia el estado del historial para que recargar no lo repita.
+  useEffect(() => {
+    if (!isAdminOnlyRedirectState(location.state)) return
+    notify(ADMIN_ONLY_NOTICE.title, 'info', ADMIN_ONLY_NOTICE.description)
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+  }, [location.state, location.pathname, location.search, navigate, notify])
 
   // La API pagina y busca sin tildes ni mayúsculas; los contadores leen meta.total.
   const fetchProducts = useCallback((params: PageParams) => productService.list(getToken, params), [getToken])
@@ -56,6 +71,15 @@ export default function ProductsPage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      {toast && (
+        <ToastAlert
+          key={toast.id}
+          title={toast.title}
+          description={toast.description}
+          type={toast.type}
+          onClose={dismissToast}
+        />
+      )}
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
           <Navbar />
