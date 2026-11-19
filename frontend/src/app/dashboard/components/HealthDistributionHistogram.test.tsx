@@ -31,12 +31,12 @@ function renderHistograma(metrics: DashboardMetrics | null, onSelectBucket = vi.
   return onSelectBucket
 }
 
-describe('HealthDistributionHistogram con los buckets del servidor (#351)', () => {
+describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)', () => {
   it('dibuja los conteos de todo el catálogo: columnas + borradores = 339', () => {
     renderHistograma(catalogoDemo)
 
     const columnas = {
-      loss: screen.getByRole('button', { name: /venta a pérdida: 12 productos/i }),
+      loss: screen.getByRole('button', { name: /pérdida: 12 productos/i }),
       risk: screen.getByRole('button', { name: /en riesgo: 107 productos/i }),
       target: screen.getByRole('button', { name: /en objetivo: 130 productos/i }),
       surplus: screen.getByRole('button', { name: /superávit: 40 productos/i }),
@@ -75,7 +75,7 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351)', () =
 
   it('una columna vacía queda deshabilitada', () => {
     renderHistograma({ ...catalogoDemo, lossCount: 0, criticalProductsCount: 107 })
-    expect(screen.getByRole('button', { name: /venta a pérdida: 0 productos/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /pérdida: 0 productos/i })).toBeDisabled()
   })
 
   it('sin productos con receta muestra el aviso y cuenta los borradores', () => {
@@ -99,7 +99,7 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351)', () =
     expect(screen.queryByText(/distribución de salud financiera/i)).toBeNull()
   })
 
-  it('marca la columna seleccionada y muestra el chip con su conteo', () => {
+  it('marca la columna seleccionada y muestra el chip con su nombre unificado y conteo', () => {
     render(
       <HealthDistributionHistogram
         metrics={catalogoDemo}
@@ -109,7 +109,7 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351)', () =
       />
     )
     expect(screen.getByRole('button', { name: /superávit: 40 productos/i })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: /filtrando: óptimo \(40\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /filtrando: superávit \(40\)/i })).toBeInTheDocument()
   })
 
   it('el total del catálogo y los porcentajes no usan gris 400 sobre blanco (contraste menor a 4,5:1)', () => {

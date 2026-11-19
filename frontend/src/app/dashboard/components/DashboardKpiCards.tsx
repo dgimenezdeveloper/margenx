@@ -1,6 +1,7 @@
 import { AlertTriangle, Boxes, TrendingDown, TrendingUp } from 'lucide-react'
 import type { DashboardMetrics } from '@/services/dashboardService'
 import { formatPercent } from '@/lib/format'
+import { HEALTH_BUCKET_META } from '@/lib/healthBucket'
 
 /** El color del margen promedio sigue su signo: un margen negativo nunca se pinta en verde. */
 function marginTone(value: number) {
@@ -63,10 +64,11 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
         <div>
           <p className="text-sm font-bold text-rose-700 dark:text-rose-100">
             {metrics.criticalProductsCount}{' '}
-            {metrics.criticalProductsCount === 1 ? 'Producto en Riesgo' : 'Productos en Riesgo'}
+            {metrics.criticalProductsCount === 1 ? 'Producto debajo de su mínimo' : 'Productos debajo de su mínimo'}
           </p>
+          {/* Suma dos estados del glosario: no usa el nombre de ninguno para no contar distinto que el histograma (#358). */}
           <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
-            Margen por debajo del umbral mínimo
+            {HEALTH_BUCKET_META.loss.label} o {HEALTH_BUCKET_META.risk.label}
           </p>
         </div>
       </section>

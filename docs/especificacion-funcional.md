@@ -1,7 +1,7 @@
 # Especificación funcional y diseño de dominio — MargenX
 
 **Documento:** catálogo de insumos, recetas, proveedores, ingesta de listas de precios y roles.
-**Versión:** 2.1 · **Fecha:** 17/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
+**Versión:** 2.2 · **Fecha:** 18/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
 **Reemplaza a:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md` (versión 1.0). Este documento los unifica y los corrige contra el código de `develop` al 26/10/2026.
 
 ## Cómo leer este documento
@@ -78,11 +78,11 @@ Decisión de diseño del camino C: los costos "de referencia de mercado" envejec
 
 ## 3. Productos y recetas
 
-### Producto en borrador ("Sin Receta") · *Disponible*
+### Producto en borrador ("Borrador") · *Disponible*
 
 Un producto puede crearse **sin insumos**, para que el comercio cargue su lista de precios de venta antes de pesar ingredientes (ej. *Hamburguesa Simple — precio de venta $3.800 — margen mínimo 35 %*).
 
-- Mientras no tenga receta, la interfaz lo muestra como **"Borrador (Sin Receta)"**.
+- Mientras no tenga receta, la interfaz lo muestra con el estado unificado **"Borrador"** (sin receta cargada).
 - En ese estado se permite `salePrice = 0` como valor de transición, pero solo si el producto todavía no tiene receta.
 - Cuando el producto ya tiene insumos, `salePrice` debe ser estrictamente mayor a `0`; de lo contrario la API responde `400 Bad Request`.
 - Si no tiene receta, su costo y margen se informan como `0.00` y `0.00 %` para representar "sin costo cargado", no "rentabilidad nula" (ADR-004). No dispara alertas.
@@ -273,6 +273,18 @@ Cuando cambia el costo de un insumo (edición manual, cambio de presentación pr
 - **Indicador visual** · *Disponible*: el semáforo de margen en el panel y en los productos.
 - **Otros canales** · *Propuesta*: notificación dentro de la app, bot de Telegram y notificaciones push de la PWA. Todos deben ser de costo $0.
 
+### Glosario unificado de estados de rentabilidad · *Disponible*
+
+Todo el sistema (panel principal, histograma, catálogo de productos, ficha técnica, barra móvil, simulador y reportes) comparte una única fuente de verdad (`HEALTH_BUCKET_META` en `frontend/src/lib/healthBucket.ts`) para denominar cada estado de rentabilidad:
+
+| Clave técnica | Nombre oficial | Condición financiera |
+|---|---|---|
+| `draft` | **Borrador** | Productos sin ingredientes en su receta (`ingredients.length === 0`). |
+| `loss` | **Pérdida** | Productos con receta y margen porcentual `< 0 %` (venta a pérdida). |
+| `risk` | **En riesgo** | Productos con receta, margen `>= 0 %` y menor al `minMarginPercent` **propio** de ese producto. |
+| `target` | **En objetivo** | Productos con receta, margen `>= minMarginPercent` propio y `<= 60 %`. |
+| `surplus` | **Superávit** | Productos con receta, margen `>= minMarginPercent` propio y `> 60 %`. |
+
 ### Métricas del panel y margen promedio (`/api/dashboard/metrics`) · *Disponible*
 
 El panel principal calcula la salud de **todo el catálogo** de la cuenta en el servidor (sin depender de la paginación de `/api/products`), siempre acotado por `accountId` y exclusivo para el rol `ADMIN`:
@@ -285,11 +297,11 @@ El panel principal calcula la salud de **todo el catálogo** de la cuenta en el 
   - **Superávit (`surplusCount`):** con receta, margen `>= minMarginPercent` propio y `> 60 %`.
 - **Margen promedio robusto (`averageMarginPercent`):** se adopta la **mediana** del `marginPercent` de los productos activos (excluyendo borradores), calculada con `Prisma.Decimal` (`ROUND_HALF_UP` a 2 decimales).
   - *Por qué mediana y no promedio simple ni margen ponderado:* un precio mal cargado (por ejemplo, `$13` con costo `$3.854`, equivalente a `-29.546 %`) distorsiona un promedio simple; y como MargenX no registra volumen de ventas (ADR-004 / fuera de alcance POS), un margen ponderado por `salePrice` unitario sigue quedando dominado por una pérdida alta en comercios con pocos productos o precios unitarios bajos (como *Química GyJ*). La mediana mantiene un punto de quiebre del 50 % independientemente del tamaño del catálogo.
-- **En el panel:** las tarjetas y el histograma muestran estos valores sin recalcularlos en el navegador, así que las columnas más los borradores suman el total del catálogo, el mismo que indica "Ver catálogo completo". Los rótulos del histograma aclaran que cada producto se compara con su propio mínimo. El margen promedio se pinta según su signo (rojo si es negativo, verde si es positivo) y aclara que es la mediana. Al tocar una columna, la grilla muestra esos productos de todo el catálogo con la misma regla, de a 20 con el paginador. Detalle para el usuario: `docs/manual-usuario/06-panel.md`.
+- **En el panel:** las tarjetas y el histograma muestran estos valores sin recalcularlos en el navegador, así que las columnas más los borradores suman el total del catálogo, el mismo que indica "Ver catálogo completo". Los rótulos del histograma aclaran que cada producto se compara con su propio mínimo. El margen promedio se pinta según su signo (rojo si es negativo, verde si es positivo) y aclara que es la mediana. Al tocar una columna, la grilla muestra esos productos de todo el catálogo con la misma regla y con la misma denominación de estado del glosario unificado, de a 20 con el paginador. Detalle para el usuario: `docs/manual-usuario/06-panel.md`.
 
-### Reporte semanal de márgenes · *Disponible (API)*
+### Reporte semanal de márgenes · *Disponible*
 
-El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El envío por correo · *Disponible*: los lunes a las 08:00 (hora de Argentina), n8n manda al Administrador de cada cuenta activa el reporte en PDF, en este orden: "Para revisar" (productos debajo de su margen mínimo con el precio sugerido, precios en cuarentena y costos sin actualizar), salud del catálogo con los nombres de estado de esta sección, cambios de costo de la semana y oportunidades de ahorro. Los montos van en formato es-AR. Una cuenta sin correo de Administrador no recibe nada (ADR-009, `infra/n8n/README.md`).
+El backend entrega los datos del reporte semanal mediante `/api/internal/reports` (para n8n) y `/api/reports` (para ADMIN desde la app). Incluye los indicadores del catálogo con los mismos buckets y mediana del panel, productos debajo del mínimo con precio sugerido, cambios de costo, cuarentena, oportunidades de ahorro y costos desactualizados. La descarga `GET /api/reports/weekly.pdf` delega la generación del PDF al webhook satélite de n8n. El envío por correo · *Disponible*: los lunes a las 08:00 (hora de Argentina), n8n manda al Administrador de cada cuenta activa el reporte en PDF, en este orden: "Para revisar" (productos debajo de su margen mínimo con el precio sugerido, precios en cuarentena y costos sin actualizar), salud del catálogo con los nombres de estado de esta sección, cambios de costo de la semana y oportunidades de ahorro. Los montos van en formato es-AR. Una cuenta sin correo de Administrador no recibe nada (ADR-009, `infra/n8n/README.md`). La descarga desde la app · *Disponible*: solo el ADMIN ve **Descargar reporte (PDF)** en el panel y **Descargar el último reporte** en Perfil, donde el reporte figura como "Activo · lunes 08:00". El archivo se llama `margenx-reporte-AAAA-MM-DD.pdf` y no se guarda en el service worker; si el generador no responde (503), la app avisa y el botón queda disponible para reintentar. Detalle para el usuario: `docs/manual-usuario/08-reporte-semanal.md`.
 
 ---
 
@@ -386,7 +398,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
 | Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
-| Reporte semanal de márgenes (API de datos y descarga PDF) | Disponible (API) |
+| Reporte semanal de márgenes (API de datos y descarga PDF desde el panel y Perfil) | Disponible |
 | Workflow automático semanal de reporte PDF por correo (n8n) | Disponible |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |

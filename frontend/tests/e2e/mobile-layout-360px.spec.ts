@@ -52,7 +52,7 @@ test.describe('TC-LAYOUT-360PX: Diálogos móviles y barra de producto sin desbo
     await expect(footer).toBeVisible()
 
     // 1. El badge de rentabilidad está visible en la primera fila de datos
-    const badge = footer.getByText(/Saludable|Crítico|Bajo|Sin Receta/i).first()
+    const badge = footer.getByText(/Borrador|Pérdida|En riesgo|En objetivo|Superávit/i).first()
     await expect(badge).toBeVisible()
 
     // 2. Los botones de acción "Ajustar" y "Guardar" están en la segunda fila

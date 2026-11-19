@@ -6,15 +6,19 @@ import { Pagination } from '@/components/pagination'
 import { DEFAULT_PAGE_SIZE } from '@/services/pagination'
 import type { Product } from '@/services/productService'
 import { formatMoney } from '@/lib/format'
-import { classifyHealthBucket, type ActiveHealthBucket } from '@/lib/healthBucket'
+import {
+  HEALTH_BUCKET_META,
+  classifyHealthBucket,
+  type ActiveHealthBucket,
+} from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
 
 const BUCKET_TITLES: Record<ActiveHealthBucket, string> = {
-  loss: 'Venta a Pérdida',
-  risk: 'En Riesgo',
-  target: 'En Objetivo',
-  surplus: 'Superávit',
+  loss: HEALTH_BUCKET_META.loss.label,
+  risk: HEALTH_BUCKET_META.risk.label,
+  target: HEALTH_BUCKET_META.target.label,
+  surplus: HEALTH_BUCKET_META.surplus.label,
 }
 
 interface MonitoredCatalogGridProps {
@@ -48,7 +52,6 @@ export function MonitoredCatalogGrid({
   selectedBucket,
   onClearFilter,
 }: MonitoredCatalogGridProps) {
-
   const sortedProducts = useMemo(() => {
     if (isCollaborator) {
       return [...products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
@@ -106,7 +109,7 @@ export function MonitoredCatalogGrid({
             {selectedBucket && !isCollaborator ? (
               <span className="truncate block">
                 Productos: {BUCKET_TITLES[selectedBucket]}{' '}
-                <span className="text-xs font-semibold text-gray-400">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                   ({displayedProducts.length} de {products.length})
                 </span>
               </span>
@@ -146,7 +149,7 @@ export function MonitoredCatalogGrid({
           ))}
         </div>
       ) : displayedProducts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
           {selectedBucket && !isCollaborator ? (
             <>
               No hay productos que coincidan con la categoría de rentabilidad seleccionada.

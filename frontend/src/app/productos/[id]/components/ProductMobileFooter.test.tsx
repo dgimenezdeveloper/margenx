@@ -4,8 +4,8 @@ import '@testing-library/jest-dom'
 
 import { ProductMobileFooter } from './ProductMobileFooter'
 
-describe('ProductMobileFooter (Mobile 360px)', () => {
-  it('renderiza el precio, costo, ganancia y badge de margen en la fila de información', () => {
+describe('ProductMobileFooter (Mobile 360px, #358)', () => {
+  it('renderiza el precio, costo, ganancia y badge con estado unificado en la fila de información', () => {
     render(
       <ProductMobileFooter
         isCollaborator={false}
@@ -26,7 +26,7 @@ describe('ProductMobileFooter (Mobile 360px)', () => {
     expect(screen.getByText('$5.000,00')).toBeInTheDocument()
     expect(screen.getByText('Costo:')).toBeInTheDocument()
     expect(screen.getByText('$10.000,00')).toBeInTheDocument()
-    expect(screen.getByText(/Saludable/i)).toBeInTheDocument()
+    expect(screen.getByText('En objetivo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Ajustar/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Guardar/i })).toBeInTheDocument()
   })
@@ -50,7 +50,7 @@ describe('ProductMobileFooter (Mobile 360px)', () => {
     expect(screen.getByText('$15.000,00')).toBeInTheDocument()
     expect(screen.queryByText('Ganancia:')).not.toBeInTheDocument()
     expect(screen.queryByText('Costo:')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Saludable/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/En objetivo|En riesgo|Pérdida|Superávit|Borrador/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ajustar/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Guardar/i })).not.toBeInTheDocument()
   })
