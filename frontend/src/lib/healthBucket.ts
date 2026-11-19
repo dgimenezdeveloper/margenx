@@ -100,6 +100,17 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
 }
 
 /**
+ * Regla única de los estados de un producto con receta: la usan el panel, la lista y la ficha,
+ * para que el mismo producto tenga el mismo estado en todas las pantallas.
+ */
+function classifyMargin(margin: number, minimum: number): ActiveHealthBucket {
+  if (margin < 0) return 'loss'
+  if (margin < minimum) return 'risk'
+  if (margin <= SURPLUS_MARGIN_THRESHOLD) return 'target'
+  return 'surplus'
+}
+
+/**
  * Clasifica un producto con la regla de `classifyProductHealthBucket` del backend
  * (docs/especificacion-funcional.md §6).
  */
@@ -107,12 +118,7 @@ export function classifyHealthBucket(
   product: Pick<Product, 'ingredients' | 'marginPercent' | 'minMarginPercent'>
 ): HealthBucket {
   if (!product.ingredients || product.ingredients.length === 0) return 'draft'
-  const margin = product.marginPercent ?? 0
-  const minimum = product.minMarginPercent ?? 0
-  if (margin < 0) return 'loss'
-  if (margin < minimum) return 'risk'
-  if (margin <= SURPLUS_MARGIN_THRESHOLD) return 'target'
-  return 'surplus'
+  return classifyMargin(product.marginPercent ?? 0, product.minMarginPercent ?? 0)
 }
 
 /**
@@ -135,11 +141,5 @@ export function resolveProductHealthBucket(params: {
         : true)
 
   if (!recipeExists) return 'draft'
-  const margin = Number(params.marginPercent ?? 0)
-  const minimum = Number(params.minMarginPercent ?? 0)
-
-  if (margin < 0) return 'loss'
-  if (margin < minimum) return 'risk'
-  if (margin <= SURPLUS_MARGIN_THRESHOLD) return 'target'
-  return 'surplus'
+  return classifyMargin(Number(params.marginPercent ?? 0), Number(params.minMarginPercent ?? 0))
 }
