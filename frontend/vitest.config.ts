@@ -35,7 +35,6 @@ export default defineConfig({
         'src/components/ui/**',
         'src/shims/**',
         'src/hooks/useSessionSecurity.ts',
-        'src/hooks/useUnsavedChangesWarning.ts',
         'src/lib/useCurrentUser.ts',
         'src/lib/clerkConfig.ts',
         'src/stores/useUserStore.ts',

@@ -1,9 +1,10 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { act, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '@testing-library/jest-dom'
 import SuppliesPageContent from './SuppliesPageContent'
+import { renderWithDataRouter } from '@/test-utils/renderWithDataRouter'
+import { TOAST_DURATION_MS } from '@/lib/toast'
 import { ingredientService } from '@/services/ingredientService'
 import { supplierService } from '@/services/supplierService'
 import { ApiError } from '@/services/api'
@@ -74,12 +75,7 @@ const pagina = <T,>(items: T[]) => ({
   meta: { total: items.length, page: 1, limit: 20, totalPages: items.length === 0 ? 0 : 1 },
 })
 
-const renderPage = () =>
-  render(
-    <MemoryRouter initialEntries={['/insumos']}>
-      <SuppliesPageContent />
-    </MemoryRouter>
-  )
+const renderPage = () => renderWithDataRouter(<SuppliesPageContent />, '/insumos')
 
 describe('SuppliesPageContent - Manejo de Errores y Reintentos (UX-17)', () => {
   beforeEach(() => {
@@ -538,5 +534,97 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
 
     expect(await screen.findByText('150 productos')).toBeInTheDocument()
     expect(screen.getByText('Se muestran los primeros 100 de 150.')).toBeInTheDocument()
+  })
+})
+
+describe('SuppliesPageContent - cambios sin guardar y avisos de error (#364)', () => {
+  const harina = { id: 'ing-1', name: 'Harina 000 Cañuelas', unit: 'kg', currentCost: 736.25 }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([harina]))
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    vi.mocked(ingredientService.getProducts).mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const editarNombre = async (user: ReturnType<typeof userEvent.setup>) => {
+    const [row] = await screen.findAllByText('Harina 000 Cañuelas')
+    fireEvent.click(row)
+    const nameInput = await screen.findByLabelText('Nombre del insumo')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Harina 0000 Cañuelas')
+  }
+
+  it('con la ficha del insumo modificada, salir de la pantalla pide confirmación y "Seguir editando" se queda', async () => {
+    const user = userEvent.setup()
+    const { router } = renderPage()
+    await editarNombre(user)
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+
+    expect(await screen.findByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/insumos')
+
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument())
+    expect(router.state.location.pathname).toBe('/insumos')
+    expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Harina 0000 Cañuelas')
+  })
+
+  it('"Descartar" deja salir de Insumos', async () => {
+    const user = userEvent.setup()
+    const { router } = renderPage()
+    await editarNombre(user)
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Otra pantalla' })).toBeInTheDocument()
+  })
+
+  it('con la ficha modificada, cerrar o recargar la pestaña pide confirmación; sin cambios, no', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const [row] = await screen.findAllByText('Harina 000 Cañuelas')
+    fireEvent.click(row)
+    await screen.findByLabelText('Nombre del insumo')
+    const sinCambios = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(sinCambios)
+    expect(sinCambios.defaultPrevented).toBe(false)
+
+    await user.clear(screen.getByLabelText('Nombre del insumo'))
+    await user.type(screen.getByLabelText('Nombre del insumo'), 'Harina 0000 Cañuelas')
+    const conCambios = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(conCambios)
+    expect(conCambios.defaultPrevented).toBe(true)
+  })
+
+  it('el error al guardar dura más que un aviso de éxito y se puede cerrar antes con la X', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    vi.mocked(ingredientService.update).mockRejectedValue(new ApiError('Error al actualizar el insumo.', 500))
+    renderPage()
+    await editarNombre(user)
+
+    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error al actualizar el insumo.')
+
+    // Pasado el tiempo de un aviso de éxito, el error sigue en pantalla.
+    act(() => {
+      vi.advanceTimersByTime(TOAST_DURATION_MS.success + 200)
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Error al actualizar el insumo.')
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+    await waitFor(() => expect(screen.queryByText('Error al actualizar el insumo.')).not.toBeInTheDocument())
   })
 })

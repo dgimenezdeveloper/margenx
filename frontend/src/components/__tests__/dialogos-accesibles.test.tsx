@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom'
 import '@testing-library/jest-dom'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
@@ -120,6 +120,11 @@ function IngredientSheetHarness({ selected, showDeleteConfirm = false }: { selec
   )
 }
 
+// SupplierFormDialog usa useBlocker (cambios sin guardar), que exige un router de datos.
+const enRouterDeDatos = (ui: ReactElement) => (
+  <RouterProvider router={createMemoryRouter([{ path: '/', element: ui }])} />
+)
+
 const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }> = [
   {
     nombre: 'Cerrar sesión',
@@ -186,12 +191,12 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
   },
   {
     nombre: 'Nuevo proveedor',
-    ui: <SupplierFormDialog open supplier={null} onClose={vi.fn()} onSaved={vi.fn()} />,
+    ui: enRouterDeDatos(<SupplierFormDialog open supplier={null} onClose={vi.fn()} onSaved={vi.fn()} />),
     titulo: 'Nuevo proveedor',
   },
   {
     nombre: 'Editar proveedor',
-    ui: <SupplierFormDialog open supplier={molino} onClose={vi.fn()} onSaved={vi.fn()} />,
+    ui: enRouterDeDatos(<SupplierFormDialog open supplier={molino} onClose={vi.fn()} onSaved={vi.fn()} />),
     titulo: 'Editar proveedor',
   },
   {

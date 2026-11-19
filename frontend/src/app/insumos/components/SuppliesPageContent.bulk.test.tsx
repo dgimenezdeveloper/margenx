@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { supplierService } from '@/services/supplierService'
 import SuppliesPageContent from './SuppliesPageContent'
+import { renderWithDataRouter } from '@/test-utils/renderWithDataRouter'
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: vi.fn().mockResolvedValue('token-de-prueba'), signOut: vi.fn() }),
@@ -51,12 +51,7 @@ const HARINA: Ingredient = {
   updatedAt: '2026-10-01T00:00:00.000Z',
 }
 
-const renderPage = () =>
-  render(
-    <MemoryRouter initialEntries={['/insumos']}>
-      <SuppliesPageContent />
-    </MemoryRouter>
-  )
+const renderPage = () => renderWithDataRouter(<SuppliesPageContent />, '/insumos')
 
 describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => {
   beforeEach(() => {
