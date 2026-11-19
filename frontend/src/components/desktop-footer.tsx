@@ -13,7 +13,11 @@ export function DesktopFooter() {
       <footer className="hidden md:flex mt-auto w-full items-center justify-between border-t border-gray-200/60 py-6 text-sm text-gray-500 dark:border-gray-800/60 dark:text-gray-400">
         <p>© {new Date().getFullYear()} MargenX. Todos los derechos reservados.</p>
         <div className="flex items-center gap-6">
-          <button onClick={() => setIsModalOpen(true)} className="transition-colors hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer">
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className={`cursor-pointer rounded transition-colors hover:text-gray-900 dark:hover:text-gray-100 ${CANONICAL_FOCUS_CLASSES}`}
+          >
             Soporte
           </button>
           <a

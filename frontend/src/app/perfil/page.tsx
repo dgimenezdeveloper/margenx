@@ -278,7 +278,13 @@ export default function ProfilePage() {
           <div className="flex items-center gap-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
             <Link to="/privacidad" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Política</Link>
             <Link to="/instalar" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Instalar</Link>
-            <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Soporte</button>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className={`cursor-pointer rounded hover:text-indigo-600 dark:hover:text-indigo-400 ${CANONICAL_FOCUS_CLASSES}`}
+            >
+              Soporte
+            </button>
             <a
               href={USER_MANUAL_URL}
               target="_blank"
