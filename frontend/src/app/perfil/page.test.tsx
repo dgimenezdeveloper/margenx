@@ -301,3 +301,41 @@ describe('ProfilePage (/perfil): reporte semanal en PDF (#392)', () => {
     expect(screen.queryByRole('button', { name: 'Descargar el último reporte' })).toBeNull()
   })
 })
+
+describe('ProfilePage (/perfil): pie de Soporte y Documentación (#363)', () => {
+  const MANUAL_EN_MAIN = 'https://github.com/dgimenezdeveloper/margenx/tree/main/docs/manual-usuario'
+
+  beforeEach(() => {
+    mockIsLoading = false
+  })
+
+  it.each([
+    ['administrador', { id: 'u-admin', role: 'ADMIN' as const, email: 'admin.panaderia@seed.example.test' }],
+    ['colaborador', { id: 'u-colab', role: 'COLLABORATOR' as const, email: 'colab.panaderia@seed.example.test' }],
+  ])('Escenario Gherkin "Documentación": el %s llega al manual desde el pie móvil y el de escritorio', (_rol, usuario) => {
+    mockUser = usuario
+    render(<ProfilePage />)
+
+    // Perfil monta el pie móvil (md:hidden) y el DesktopFooter (hidden md:flex).
+    const enlaces = screen.getAllByRole('link', { name: 'Documentación (se abre en una pestaña nueva)' })
+    expect(enlaces).toHaveLength(2)
+    for (const enlace of enlaces) {
+      expect(enlace).toHaveAttribute('href', MANUAL_EN_MAIN)
+      expect(enlace).toHaveAttribute('target', '_blank')
+      expect(enlace).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    expect(screen.queryByRole('button', { name: /Documentación/ })).toBeNull()
+  })
+
+  it('Escenario Gherkin "Soporte": el pie móvil abre el diálogo de soporte sin teléfono', async () => {
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+
+    const [soporteMovil] = screen.getAllByRole('button', { name: 'Soporte' })
+    fireEvent.click(soporteMovil)
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })
+    expect(dialogo).toHaveTextContent('soporte@margenx.tech')
+    expect(dialogo).not.toHaveTextContent(/WhatsApp/i)
+  })
+})
