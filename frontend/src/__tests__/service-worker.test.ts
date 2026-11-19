@@ -76,6 +76,14 @@ describe('Service worker: llamadas a la API', () => {
     },
   );
 
+  it('el PDF del reporte semanal va por la regla NetworkOnly de la API y no se precachea (#392)', () => {
+    const pdf = fetchRequest('https://api.margenx.tech/api/reports/weekly.pdf');
+    expect(isApiRequest(pdf)).toBe(true);
+    expect(rebuilt(isApiRequest)(pdf)).toBe(true);
+    expect(runtimeCaching.find((rule) => (rule.urlPattern as Matcher)(pdf))?.handler).toBe('NetworkOnly');
+    expect((workbox.globPatterns ?? []).some((pattern) => pattern.includes('pdf'))).toBe(false);
+  });
+
   it('la API va en NetworkOnly y sin ninguna opción de caché', () => {
     const apiRule = runtimeCaching.find((rule) => rule.urlPattern === isApiRequest);
     expect(apiRule?.handler).toBe('NetworkOnly');

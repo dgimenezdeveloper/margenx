@@ -34,8 +34,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
   ),
 }))
 
@@ -275,5 +275,57 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
     expect(screen.queryByText(/distribución de salud financiera/i)).toBeNull()
     expect(screen.queryByText(/productos en riesgo/i)).toBeNull()
     expect(screen.queryByText(/margen promedio/i)).toBeNull()
+  })
+})
+
+describe('DashboardPage: descarga del reporte semanal (#392)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(dashboardService.getMetrics).mockResolvedValue({
+      activeIngredientsCount: 218,
+      criticalProductsCount: 119,
+      healthyProductsCount: 170,
+      averageMarginPercent: 38.5,
+      recentCostVariationsCount: 7,
+      lossCount: 12,
+      riskCount: 107,
+      targetCount: 130,
+      surplusCount: 40,
+      draftCount: 50,
+    })
+    vi.mocked(productService.getAll).mockResolvedValue(catalogoDemo())
+  })
+
+  it('el ADMIN ve "Descargar reporte (PDF)" también en el celular', async () => {
+    mockUser.role = 'ADMIN'
+    render(<DashboardPage />)
+
+    const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
+    // Los otros atajos del encabezado se ocultan en mobile; la descarga no.
+    expect(boton.closest('.hidden')).toBeNull()
+  })
+
+  it('los atajos del encabezado no se parten en dos líneas al sumar la descarga', async () => {
+    mockUser.role = 'ADMIN'
+    render(<DashboardPage />)
+
+    const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
+    for (const el of [boton, screen.getByText('Actualizar Insumos'), screen.getByText('Nuevo Producto').closest('a')!]) {
+      expect(el.className).toMatch(/whitespace-nowrap/)
+    }
+    // Con tres acciones, el saludo y los botones van en fila recién desde lg (en md no entran).
+    const seccion = screen.getByRole('heading', { level: 1 }).closest('section')!
+    expect(seccion.className).toMatch(/lg:flex-row/)
+    expect(seccion.className).not.toMatch(/(^|\s)md:flex-row/)
+  })
+
+  it('Escenario Gherkin: Colaborador -> no ve la descarga del reporte', async () => {
+    mockUser.role = 'COLLABORATOR'
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: /descargar reporte/i })).toBeNull()
   })
 })

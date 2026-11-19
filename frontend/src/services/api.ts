@@ -26,14 +26,15 @@ async function readErrorMessage(response: Response): Promise<string> {
   return `La solicitud falló (${response.status}).`
 }
 
-export async function fetchApi<T>(
+async function sendApiRequest(
   path: string,
   getToken: TokenGetter,
-  init: RequestInit = {},
-): Promise<T> {
+  init: RequestInit,
+  accept: string,
+): Promise<Response> {
   const token = await getToken()
   const headers = new Headers(init.headers)
-  headers.set('Accept', 'application/json')
+  headers.set('Accept', accept)
 
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -50,6 +51,26 @@ export async function fetchApi<T>(
     throw new ApiError(message, response.status)
   }
 
+  return response
+}
+
+export async function fetchApi<T>(
+  path: string,
+  getToken: TokenGetter,
+  init: RequestInit = {},
+): Promise<T> {
+  const response = await sendApiRequest(path, getToken, init, 'application/json')
+
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+/** Descarga un archivo binario (por ejemplo, un PDF) con el mismo manejo de errores que `fetchApi`. */
+export async function fetchApiFile(
+  path: string,
+  getToken: TokenGetter,
+  accept: string,
+): Promise<{ blob: Blob; headers: Headers }> {
+  const response = await sendApiRequest(path, getToken, {}, accept)
+  return { blob: await response.blob(), headers: response.headers }
 }
