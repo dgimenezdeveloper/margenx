@@ -1,7 +1,8 @@
 import { Check, AlertTriangle, X, Info } from 'lucide-react'
 import { useState, useRef } from 'react'
+import type { ToastType } from '@/lib/toast'
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info'
+export type { ToastType } from '@/lib/toast'
 
 interface ToastAlertProps {
   title?: string
@@ -63,8 +64,13 @@ export function ToastAlert({
     Icon = AlertTriangle
   }
 
+  // Errores y advertencias interrumpen al lector de pantalla; éxitos e información esperan su turno.
+  const isUrgent = type === 'error' || type === 'warning'
+
   return (
     <div
+      role={isUrgent ? 'alert' : 'status'}
+      aria-live={isUrgent ? 'assertive' : 'polite'}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

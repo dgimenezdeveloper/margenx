@@ -320,8 +320,10 @@ describe('PurchasesPage (/compras)', () => {
     await waitFor(() => {
       expect(purchasingService.getSuggestions).toHaveBeenCalledTimes(2)
     })
+    // Terminó la recarga: ya no queda el esqueleto de carga (el aviso de éxito también es role="status").
     await waitFor(() => {
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      const carga = screen.queryAllByRole('status').filter((el) => !el.textContent?.includes('predeterminada'))
+      expect(carga).toHaveLength(0)
     })
     expect(screen.getByText('Distribuidora del Centro')).toBeInTheDocument()
   })

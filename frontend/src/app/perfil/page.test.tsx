@@ -205,6 +205,22 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(errorElements.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('el aviso de un error al guardar el margen es una alerta cerrable, no el aviso verde de éxito (#364)', async () => {
+    vi.mocked(authService.updateGlobalMargin).mockRejectedValueOnce(
+      new ApiError('Error al conectar con el servidor', 500)
+    )
+
+    render(<ProfilePage />)
+
+    fireEvent.change(screen.getByLabelText('Margen Mínimo Sugerido'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar Margen/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error al conectar con el servidor')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
   it('Apertura de LogoutDialog al tocar Cerrar Sesión', async () => {
     render(<ProfilePage />)
 

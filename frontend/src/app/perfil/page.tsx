@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Check, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
+import { Bell, Building2, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -14,6 +14,8 @@ import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
 import { clearSessionCaches } from '@/lib/serviceWorkerCache'
 import { NumericInput } from '@/components/NumericInput'
+import { ToastAlert } from '@/components/ToastAlert'
+import { useToast } from '@/hooks/useToast'
 import { CollaboratorsSection } from '@/components/collaborators-section'
 import { WeeklyReportDownload } from '@/components/weekly-report-download'
 
@@ -25,7 +27,7 @@ export default function ProfilePage() {
 
   const [customMargin, setCustomMargin] = useState<string | null>(null)
   const [isSavingGlobalMargin, setIsSavingGlobalMargin] = useState<boolean>(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const { toast, notify, dismiss: dismissToast } = useToast()
   const [marginError, setMarginError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
@@ -36,11 +38,6 @@ export default function ProfilePage() {
 
   const currentMarginValue =
     customMargin !== null ? customMargin : String(defaultMinMarginPercent ?? 30)
-
-  const notify = (msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 3500)
-  }
 
   const handleSaveGlobalMargin = async () => {
     setMarginError(null)
@@ -67,7 +64,7 @@ export default function ProfilePage() {
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'No se pudo guardar el margen global.'
       setMarginError(msg)
-      notify(msg)
+      notify(msg, 'error')
     } finally {
       setIsSavingGlobalMargin(false)
     }
@@ -83,12 +80,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {toast && (
-        <div className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-xl animate-in fade-in slide-in-from-top-4">
-          <Check className="size-5 shrink-0" />
-          <span>{toast}</span>
-        </div>
-      )}
+      {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismissToast} />}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
