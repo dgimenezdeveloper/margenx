@@ -22,10 +22,16 @@ MargenX implementa un blindaje de doble capa:
 | **Dashboard (`/dashboard`)** | Métricas consolidadas, KPIs de riesgo e histograma | Solo catálogo monitoreado con precios de venta al público |
 | **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo Producto* | Solo nombres y precios de venta finales cobrados al público |
 | **Ficha Técnica (`/productos/:id`)** | Ficha completa, desglose de recetas, cantidades y simulador | Ficha de lectura: nombre, precio de venta y lista conceptual de insumos (sin cantidades ni costos) |
-| **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** Redirige forzosamente a `/productos` |
-| **Proveedores (`/proveedores`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** Redirige forzosamente a `/productos` |
-| **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** Redirige forzosamente a `/productos` |
+| **Alta de producto (`/productos/nuevo`)** | Constructor de recetas con simulador | **Bloqueado:** vuelve a `/productos` con aviso |
+| **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** vuelve a `/productos` con aviso |
+| **Proveedores (`/proveedores` y `/proveedores/:id`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** vuelve a `/productos` con aviso |
+| **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** vuelve a `/productos` con aviso |
+| **Compras sugeridas (`/compras`)** | Sugerencias y pedidos a proveedores | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Perfil (`/perfil`)** | Configuración de margen, estado de alertas n8n y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
+
+### Aviso al abrir una pantalla del administrador
+
+Si el colaborador abre una pantalla bloqueada (por ejemplo, desde un enlace guardado o escribiendo `/insumos` en la barra de direcciones), la app lo lleva al catálogo de productos y muestra el aviso **"Esa pantalla es solo para el administrador"** con el texto "Te trajimos al catálogo de productos.". El aviso se cierra solo a los pocos segundos o con la **X** (en el celular, también deslizándolo). Recargar el catálogo no lo vuelve a mostrar. Ninguna pantalla bloqueada llega a mostrarse, ni siquiera por un instante.
 
 <!-- [CAPTURA 360PX SUGERIDA: 03-colaborador-productos.webp | Pantalla /productos navegada por un COLLABORATOR mostrando únicamente nombres y precios de venta al público, sin costos ni porcentajes] -->
 
