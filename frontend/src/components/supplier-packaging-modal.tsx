@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { useForm, useWatch, type SubmitErrorHandler } from 'react-hook-form'
+import { Controller, useForm, useWatch, type SubmitErrorHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Select } from '@base-ui/react/select'
 import type { z } from 'zod'
 import {
   Calculator,
+  Check,
   ChevronDown,
   LoaderCircle,
   Plus,
@@ -27,6 +29,7 @@ import { NumericInput } from '@/components/NumericInput'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { formatMoney, formatPercent } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 
 type PackagingFormInput = z.input<typeof supplierPackagingSchema>
 
@@ -313,9 +316,9 @@ export function SupplierPackagingModal({
                       <button
                         type="button"
                         onClick={() => setIsAddingQuickSupplier(true)}
-                        className="text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 cursor-pointer"
+                        className={`inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60 ${CANONICAL_FOCUS_CLASSES}`}
                       >
-                        <Plus className="size-3" /> Nuevo
+                        <Plus className="size-3.5" aria-hidden="true" /> Nuevo proveedor
                       </button>
                     )}
                   </div>
@@ -373,29 +376,54 @@ export function SupplierPackagingModal({
                       )}
                     </div>
                   ) : (
-                    <div className="relative">
-                      <select
-                        id="supplier-select"
-                        {...register('supplierId')}
-                        disabled={!!existingConnection}
-                        aria-invalid={!!errors.supplierId}
-                        aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
-                        className={`min-h-11 h-12 w-full appearance-none rounded-2xl border bg-gray-50 px-4 pr-10 text-xs font-bold text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 dark:focus-within:ring-2 dark:focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed ${
-                          errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
-                        }`}
-                      >
-                        {suppliers.map((s) => (
-                          <option
-                            key={s.id}
-                            value={s.id}
-                            className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+                    // Desplegable de Base UI y no un <select> nativo: la lista abierta usa los colores,
+                    // el radio y el modo oscuro de MargenX y se maneja con flechas, Enter y Escape (#362).
+                    <Controller
+                      control={control}
+                      name="supplierId"
+                      render={({ field }) => (
+                        <Select.Root
+                          value={field.value || null}
+                          onValueChange={(value) => field.onChange(value ?? '')}
+                          items={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+                          disabled={!!existingConnection}
+                        >
+                          <Select.Trigger
+                            id="supplier-select"
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            aria-invalid={!!errors.supplierId}
+                            aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
+                            className={`flex min-h-11 h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border bg-gray-50 px-4 text-left text-xs font-bold text-gray-900 transition hover:border-indigo-300 data-[popup-open]:border-indigo-600 data-[popup-open]:bg-white dark:bg-gray-800 dark:text-white dark:hover:border-indigo-700 dark:data-[popup-open]:border-indigo-500 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60 ${CANONICAL_FOCUS_CLASSES} ${
+                              errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                            }`}
                           >
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-                    </div>
+                            <Select.Value className="truncate" placeholder="Elegí un proveedor" />
+                            <Select.Icon className="shrink-0 text-gray-500 dark:text-gray-300">
+                              <ChevronDown className="size-4" aria-hidden="true" />
+                            </Select.Icon>
+                          </Select.Trigger>
+                          <Select.Portal>
+                            <Select.Positioner alignItemWithTrigger={false} sideOffset={6} className="z-80 outline-none">
+                              <Select.Popup className="max-h-[min(var(--available-height),18rem)] w-[var(--anchor-width)] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl outline-none dark:border-gray-700 dark:bg-gray-900">
+                                {suppliers.map((s) => (
+                                  <Select.Item
+                                    key={s.id}
+                                    value={s.id}
+                                    className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 text-xs font-bold text-gray-800 outline-none select-none data-[highlighted]:bg-indigo-50 data-[highlighted]:text-indigo-800 data-[selected]:text-indigo-700 dark:text-gray-200 dark:data-[highlighted]:bg-indigo-950/60 dark:data-[highlighted]:text-indigo-200 dark:data-[selected]:text-indigo-300"
+                                  >
+                                    <Select.ItemText className="min-w-0 break-words">{s.name}</Select.ItemText>
+                                    <Select.ItemIndicator className="shrink-0">
+                                      <Check className="size-4" aria-hidden="true" />
+                                    </Select.ItemIndicator>
+                                  </Select.Item>
+                                ))}
+                              </Select.Popup>
+                            </Select.Positioner>
+                          </Select.Portal>
+                        </Select.Root>
+                      )}
+                    />
                   )}
                   {errors.supplierId && (
                     <p id="supplier-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
