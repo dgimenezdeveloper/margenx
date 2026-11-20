@@ -42,8 +42,6 @@
     "vitest": "^5.1.0"
   },
   "overrides": {
-    "@prisma/config": {
-      "effect": "3.22.4"
-    }
+    "effect": "3.22.5"
   }
 }
