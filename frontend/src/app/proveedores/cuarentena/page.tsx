@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { ShieldAlert, RefreshCw } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
@@ -10,45 +10,22 @@ import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { ToastAlert } from '@/components/ToastAlert'
 import { useQuarantineStore } from '@/stores/useQuarantineStore'
+import { useToast } from '@/hooks/useToast'
 import { SuppliersTabs } from '../components/SuppliersTabs'
 import { QuarantineList } from './components/QuarantineList'
 
 export default function QuarantinePage() {
   const { getToken } = useAuth()
   const { items, isLoading, error, fetchItems } = useQuarantineStore()
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { toast, notify, dismiss: closeToast } = useToast()
 
   useEffect(() => {
     void fetchItems(getToken)
   }, [getToken, fetchItems])
 
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    }
-  }, [])
-
-  const clearToastTimer = () => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = null
-  }
-
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
-    clearToastTimer()
-    setToast({ message: msg, type })
-    toastTimerRef.current = setTimeout(() => setToast(null), 4000)
-  }
-
-  // ToastAlert habilita el botón de cerrar y el deslizamiento solo si recibe onClose.
-  const closeToast = () => {
-    clearToastTimer()
-    setToast(null)
-  }
-
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      {toast && <ToastAlert message={toast.message} type={toast.type} onClose={closeToast} />}
+      {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={closeToast} />}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">

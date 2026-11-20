@@ -23,6 +23,7 @@ import { MarginBadge } from '@/components/MarginBadge'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
+import { useToast } from '@/hooks/useToast'
 import { productSchema, type ProductFormValues } from '@/schemas/productSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -46,7 +47,7 @@ export default function NewProductPage() {
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const { toast, notify, dismiss: dismissToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submitLockRef = useRef(false)
   const isNavigatingAfterSaveRef = useRef(false)
@@ -63,16 +64,6 @@ export default function NewProductPage() {
       setFlashingKey(null)
     }, 180)
   }
-
-  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message: msg, type })
-  }
-
-  useEffect(() => {
-    if (!toast) return
-    const id = window.setTimeout(() => setToast(null), 4000)
-    return () => window.clearTimeout(id)
-  }, [toast])
 
   const [supplies, setSupplies] = useState<Ingredient[]>([])
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(true)
@@ -167,7 +158,7 @@ export default function NewProductPage() {
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
       resetStore()
     }
-  }, [getToken, resetStore])
+  }, [getToken, resetStore, notify])
 
   const existingIngredientIds = useMemo(
     () => items.map((item) => item.ingredientId),
@@ -339,9 +330,10 @@ export default function NewProductPage() {
     <main className="min-h-screen bg-gray-50 px-4 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
         <ToastAlert
-          key={`${toast.type}-${toast.message}`}
-          message={toast.message}
+          key={toast.id}
+          title={toast.title}
           type={toast.type}
+          onClose={dismissToast}
         />
       )}
 

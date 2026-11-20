@@ -6,6 +6,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { Dialog, DialogBackdrop, DialogClose, DialogDescription, DialogPortal, DialogSheet, DialogTitle } from '@/components/ui/dialog'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { supplierSchema, toSupplierPayload, type SupplierFormInput } from '@/schemas/supplierSchema'
 import { ApiError } from '@/services/api'
 import { supplierService, type Supplier } from '@/services/supplierService'
@@ -77,6 +78,13 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
   })
 
   const isActive = useWatch({ control, name: 'isActive' })
+
+  // Con el diálogo abierto y cambios sin guardar, salir de la pantalla o cerrar la pestaña pide confirmación (#364).
+  const {
+    showDialog: showLeaveConfirm,
+    confirmNavigation: confirmLeave,
+    cancelNavigation: cancelLeave,
+  } = useUnsavedChangesWarning(open && isDirty && !isSubmitting)
 
   useEffect(() => {
     if (open) reset(toFormValues(supplier))
@@ -300,6 +308,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
         onConfirm={close}
         onCancel={() => setShowDiscard(false)}
       />
+      <UnsavedChangesDialog open={showLeaveConfirm} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </>
   )
 }

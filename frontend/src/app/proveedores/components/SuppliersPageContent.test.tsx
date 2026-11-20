@@ -1,11 +1,11 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 
 import { ApiError } from '@/services/api'
 import { supplierService, type SupplierSummary } from '@/services/supplierService'
+import { renderWithDataRouter } from '@/test-utils/renderWithDataRouter'
 import SuppliersPageContent from './SuppliersPageContent'
 
 const getToken = vi.fn().mockResolvedValue('token')
@@ -65,12 +65,7 @@ const quimica: SupplierSummary = {
   quarantineCount: 0,
 }
 
-const renderPage = () =>
-  render(
-    <MemoryRouter initialEntries={['/proveedores']}>
-      <SuppliersPageContent />
-    </MemoryRouter>
-  )
+const renderPage = () => renderWithDataRouter(<SuppliersPageContent />, '/proveedores')
 
 const supplierList = () => screen.getByRole('list', { name: 'Proveedores' })
 

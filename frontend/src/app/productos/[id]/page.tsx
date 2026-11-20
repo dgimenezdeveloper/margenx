@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/empty-state'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { useUserRole } from '@/hooks/useUserRole'
+import { useToast } from '@/hooks/useToast'
 import { productSchema } from '@/schemas/productSchema'
 import { productService, type Product } from '@/services/productService'
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
@@ -58,7 +59,7 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<Product | null>(null)
   const [availablePantry, setAvailablePantry] = useState<Ingredient[]>([])
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const { toast, notify, dismiss: dismissToast } = useToast()
 
   const items = useRecipeStore((s: RecipeState) => s.items)
   const setItems = useRecipeStore((s: RecipeState) => s.setItems)
@@ -75,11 +76,6 @@ export default function ProductDetailPage() {
   const isHealthy = useRecipeStore((s: RecipeState) => !s.isUnderMargin())
 
   const hasRecipe = items.length > 0
-
-  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message: msg, type })
-    window.setTimeout(() => setToast(null), 3000)
-  }
 
   const { register, handleSubmit, reset, setValue, setError, control, formState: { errors, isDirty } } = useForm<ProductInput>({
     resolver: zodResolver(productSchema),
@@ -244,7 +240,7 @@ export default function ProductDetailPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 pb-[calc(13rem+env(safe-area-inset-bottom))] pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
-      {toast && <ToastAlert key={`${toast.type}-${toast.message}`} message={toast.message} type={toast.type} />}
+      {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismissToast} />}
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
         <Navbar title={product.name} backHref="/productos" />
         <ProductStatusBanner isCollaborator={isCollaborator} hasRecipe={hasRecipe} hasCriticalMargin={margin < -100} isHealthy={isHealthy} hasHealthyMargin={margin >= 100} targetMargin={targetMargin} margin={margin} />

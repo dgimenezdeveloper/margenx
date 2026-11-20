@@ -43,6 +43,8 @@ function renderPage() {
 // Al salir del campo se vuelve a montar con la cantidad vigente: siempre se busca de nuevo
 const campoLevadura = () => screen.getByLabelText('Cantidad de Levadura fresca')
 const cantidadEnReceta = () => useRecipeStore.getState().items[0]?.quantity
+// El aviso de la línea y el aviso flotante ("agregado a la receta") son los dos role="status".
+const avisoDeLinea = (texto: string) => screen.getAllByRole('status').find((el) => el.textContent?.includes(texto))
 
 async function agregarLevadura() {
   const user = userEvent.setup()
@@ -68,9 +70,7 @@ describe('NewProductPage - edición de cantidades en la lista de receta', () => 
     await user.type(campoLevadura(), '0,3')
     await user.tab()
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Es menor al mínimo que se puede guardar (0,001 kg). Se mantiene 100 gr.'
-    )
+    expect(avisoDeLinea('Es menor al mínimo que se puede guardar (0,001 kg). Se mantiene 100 gr.')).toBeDefined()
     expect(campoLevadura()).toHaveValue('100')
     expect(cantidadEnReceta()).toBe(0.1)
   })
@@ -82,7 +82,7 @@ describe('NewProductPage - edición de cantidades en la lista de receta', () => 
     await user.type(campoLevadura(), '0,5')
     await user.tab()
 
-    expect(screen.getByRole('status')).toHaveTextContent('Se guarda como 1 gr (0,001 kg): hasta 3 decimales en kg.')
+    expect(avisoDeLinea('Se guarda como 1 gr (0,001 kg): hasta 3 decimales en kg.')).toBeDefined()
     expect(campoLevadura()).toHaveValue('1')
     expect(cantidadEnReceta()).toBe(0.001)
   })
@@ -204,5 +204,22 @@ describe('NewProductPage - barra de abajo en mobile y zona segura de iOS (#406)'
 
     // Barra de guardado (90 px) + BottomNav (50 px + max(12 px, zona segura)) entran en 11rem + zona segura
     expect(screen.getByRole('main')).toHaveClass('pb-[calc(11rem+env(safe-area-inset-bottom))]')
+  })
+})
+
+describe('NewProductPage - avisos de error (#364)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('si no cargan los insumos, el error se anuncia como alerta y se puede cerrar con la X', async () => {
+    const user = userEvent.setup()
+    vi.mocked(ingredientService.getAll).mockRejectedValue(new Error('Failed to fetch'))
+    renderPage()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron cargar los insumos.')
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+    await vi.waitFor(() => expect(screen.queryByText('No se pudieron cargar los insumos.')).not.toBeInTheDocument())
   })
 })

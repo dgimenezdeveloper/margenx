@@ -45,6 +45,8 @@ Copiá la plantilla de pruebas a tu entorno local:
 ```bash
 cp frontend/.env.test.example frontend/.env.test
 ```
+`TC-RBAC-08` (issue #364) abre como colaborador `/insumos`, `/proveedores/cuarentena` y `/productos/nuevo`, comprueba que vuelve a `/productos` con el aviso "Esa pantalla es solo para el administrador" (`role="status"`) y que recargar el catálogo no lo repite.
+
 Completá `E2E_CLERK_COLLAB_EMAIL` además de las variables ya existentes (ver `.env.test.example`) para poder correr `rbac-security.spec.ts`. Completá `INTERNAL_WEBHOOK_SECRET` con el mismo valor que tengas en `backend/.env` para poder correr `quarantine-queue.spec.ts`.
 
 ### Secret Nuevo en CI (issue #127)

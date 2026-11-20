@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus, ShieldAlert, Truck } from 'lucide-react'
 
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useToast } from '@/hooks/useToast'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { buildIngestAddress } from '@/lib/ingestAddress'
@@ -13,7 +14,7 @@ import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
-import { ToastAlert, type ToastType } from '@/components/ToastAlert'
+import { ToastAlert } from '@/components/ToastAlert'
 import { ApiError } from '@/services/api'
 import { supplierService, type Supplier, type SupplierSummary } from '@/services/supplierService'
 import { IngestAddressCard } from './IngestAddressCard'
@@ -22,17 +23,8 @@ import { SupplierFormDialog, type SupplierSaveMode } from './SupplierFormDialog'
 import { SuppliersList, SuppliersListSkeleton } from './SuppliersList'
 import { SuppliersTabs } from './SuppliersTabs'
 
-const TOAST_MS = 3500
-
 const sortByName = (suppliers: SupplierSummary[]) =>
   [...suppliers].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
-
-interface Toast {
-  id: number
-  title: string
-  description?: string
-  type: ToastType
-}
 
 type FormState = { open: false } | { open: true; supplier: SupplierSummary | null }
 
@@ -48,8 +40,7 @@ export default function SuppliersPageContent() {
   const [reloadKey, setReloadKey] = useState(0)
   const [form, setForm] = useState<FormState>({ open: false })
   const [toDelete, setToDelete] = useState<SupplierSummary | null>(null)
-  const [toast, setToast] = useState<Toast | null>(null)
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { toast, notify, dismiss: dismissToast } = useToast()
 
   useEffect(() => {
     let active = true
@@ -73,16 +64,6 @@ export default function SuppliersPageContent() {
       active = false
     }
   }, [getToken, reloadKey])
-
-  useEffect(() => () => {
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-  }, [])
-
-  const notify = (title: string, type: ToastType = 'success', description?: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    setToast({ id: Date.now(), title, description, type })
-    toastTimer.current = setTimeout(() => setToast(null), TOAST_MS)
-  }
 
   const retry = () => {
     setIsLoading(true)
@@ -146,7 +127,7 @@ export default function SuppliersPageContent() {
           title={toast.title}
           description={toast.description}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={dismissToast}
         />
       )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Building2,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useToast } from '@/hooks/useToast'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -94,14 +95,7 @@ export default function PurchasesPage() {
   const [isSettingDefault, setIsSettingDefault] = useState(false)
 
   // Notificaciones Toast
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const notify = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    setToast({ message, type })
-    toastTimerRef.current = setTimeout(() => setToast(null), 3500)
-  }
+  const { toast, notify, dismiss: dismissToast } = useToast()
 
   useEffect(() => {
     let active = true
@@ -135,12 +129,6 @@ export default function PurchasesPage() {
       active = false
     }
   }, [getToken, reloadKey])
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    }
-  }, [])
 
   const reloadData = () => {
     setIsLoading(true)
@@ -251,7 +239,7 @@ export default function PurchasesPage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
         <div className="print:hidden">
-          <ToastAlert message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+          <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismissToast} />
         </div>
       )}
 

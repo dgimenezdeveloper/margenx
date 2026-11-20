@@ -76,6 +76,30 @@ Cada pantalla que pide datos distingue tres estados y nunca los mezcla (DoD §5)
 
 Lo usan `/dashboard`, `/insumos`, `/proveedores` y `/proveedores/cuarentena`. En todas el mensaje es el de `ApiError` (lo arma la API en español); ante cualquier otro error, por ejemplo un fallo de red, se muestra un texto genérico de la pantalla y nunca el mensaje técnico del navegador.
 
+### Avisos (`ToastAlert` y `useToast`)
+
+Los avisos flotantes de una pantalla se arman con `src/hooks/useToast.ts`, que devuelve `toast`, `notify(título, tipo, descripción)` y `dismiss`, y se muestran con `src/components/ToastAlert.tsx`:
+
+- **Duración por tipo** (`TOAST_DURATION_MS` en `src/lib/toast.ts`): éxito e información 4 s; error y advertencia 8 s, porque hay que leerlos y a veces actuar. No se escriben temporizadores sueltos en las pantallas.
+- **Un aviso nuevo cancela el temporizador del anterior**, así un aviso viejo nunca acorta al siguiente.
+- **Siempre se pueden cerrar** antes de tiempo: se pasa `onClose={dismiss}` y `ToastAlert` muestra la X ("Cerrar notificación") y permite deslizarlo en el celular.
+- **Lector de pantalla:** error y advertencia se anuncian con `role="alert"`; éxito e información, con `role="status"` (`aria-live="polite"`).
+
+`/insumos` encola varios avisos seguidos (por ejemplo, el guardado y las recetas afectadas) y usa la misma `TOAST_DURATION_MS` para cada uno.
+
+**Colaborador redirigido.** `AdminOnlyRoute` devuelve al `COLLABORATOR` a `/productos` con el estado `{ adminOnlyFrom: <ruta> }` (`src/lib/adminOnlyRedirect.ts`). El catálogo muestra el aviso "Esa pantalla es solo para el administrador" y limpia ese estado del historial para que recargar no lo repita.
+
+### Cambios sin guardar
+
+`src/hooks/useUnsavedChangesWarning.ts` recibe `true` mientras haya cambios sin guardar y:
+
+1. Registra `beforeunload`: al cerrar o recargar la pestaña, el navegador pide confirmación.
+2. Usa `useBlocker` de React Router: navegar dentro de la app (enlaces, barra inferior, botón o gesto "atrás") queda en espera y la pantalla muestra `UnsavedChangesDialog` con **Seguir editando** y **Descartar**.
+
+Lo usan la ficha y el alta de producto, la ficha de insumo abierta en `/insumos` y el diálogo de alta y edición de proveedor. Cerrar el propio panel o diálogo con cambios también pide descartarlos, con el mismo `UnsavedChangesDialog`.
+
+`useBlocker` solo funciona dentro de un router de datos (`createBrowserRouter` en la app). En las pruebas, las pantallas que usan el hook se montan con `renderWithDataRouter` (`src/test-utils/renderWithDataRouter.tsx`) o con `createMemoryRouter`, no con `MemoryRouter`.
+
 ### Paginación y búsqueda de listados
 
 Los listados largos (`/insumos`, `/productos` y las presentaciones de `/proveedores/:id`) piden una página por vez a la API (`page`, `limit` y `search`; contrato en `docs/api.md`) y nunca filtran en memoria:

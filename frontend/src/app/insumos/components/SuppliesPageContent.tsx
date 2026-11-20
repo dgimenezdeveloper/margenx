@@ -22,7 +22,9 @@ import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogD
 import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
 import { formatMoney, formatUnit } from '@/lib/format'
 import { formatNumeroAR, parseNumeroAR } from '@/lib/numericFormat'
+import { TOAST_DURATION_MS } from '@/lib/toast'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import type { PageParams } from '@/services/pagination'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
@@ -148,9 +150,10 @@ export default function SuppliesPageContent() {
   useEffect(() => {
     if (!currentToast) return
 
+    // Los errores y advertencias quedan más tiempo que los éxitos (#364).
     const timer = setTimeout(() => {
       setCurrentToast(null)
-    }, 3000)
+    }, TOAST_DURATION_MS[currentToast.type])
 
     return () => clearTimeout(timer)
   }, [currentToast])
@@ -197,6 +200,14 @@ export default function SuppliesPageContent() {
     mode: 'onChange',
     defaultValues: { name: '', unit: 'kg', currentCost: '' },
   })
+
+  // Con la ficha abierta y cambios sin guardar, salir de la pantalla o cerrar la pestaña pide confirmación (#364).
+  const isSheetOpen = selected !== null || newOpen
+  const {
+    showDialog: showLeaveConfirm,
+    confirmNavigation: confirmLeave,
+    cancelNavigation: cancelLeave,
+  } = useUnsavedChangesWarning(isSheetOpen && isDirty)
 
   const selectedUnit = useWatch({ control, name: 'unit' })
 
@@ -674,6 +685,7 @@ export default function SuppliesPageContent() {
         }}
         onCancel={() => setShowDiscardConfirm(false)}
       />
+      <UnsavedChangesDialog open={showLeaveConfirm} onConfirm={confirmLeave} onCancel={cancelLeave} />
       <Dialog open={showUnitConfirm} onOpenChange={(open) => { if (!open) setShowUnitConfirm(false) }}>
         <DialogPortal>
           <DialogBackdrop className="z-80" />
