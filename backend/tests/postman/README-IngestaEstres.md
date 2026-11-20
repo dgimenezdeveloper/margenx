@@ -39,6 +39,16 @@ Sin token, el script avisa y no corre. Después del token acepta overrides de Ne
 ./run-tests-ingesta-estres.sh <token_panaderia_admin> --env-var "internalWebhookSecret=<secreto real>"
 ```
 
+Para tomar el secreto y el token sin mostrarlos en pantalla, desde `backend/` y seguido, porque el token dura ~60 s:
+
+```bash
+SECRET=$(node -e "require('dotenv').config({ quiet: true });process.stdout.write(process.env.INTERNAL_WEBHOOK_SECRET || '')")
+TOKEN=$(npx tsx scripts/get-test-token.ts panaderia-admin | grep -E '^eyJ')
+cd tests/postman && ./run-tests-ingesta-estres.sh "$TOKEN" --env-var "internalWebhookSecret=$SECRET"
+```
+
+`quiet: true` hace falta: sin esa opción, `dotenv` 17 escribe en la salida un aviso ("injected env…") que queda pegado al secreto, y Newman rechaza la cabecera con `Invalid character in header content`.
+
 Salida esperada: **0 failures**. El script guarda la evidencia de la corrida (exigida por el DoD de la issue) en `reports/`:
 
 - `ingesta-estres-<timestamp>.cli.log` — salida CLI completa de Newman.
