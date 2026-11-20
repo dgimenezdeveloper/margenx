@@ -85,6 +85,16 @@ describe('DashboardKpiCards en el celular (#362)', () => {
     expect(screen.getByTestId('average-margin')).toHaveTextContent('38,5 %')
   })
 
+  it('un margen largo (por ejemplo "-12,4 %") baja de renglón dentro de la tarjeta en lugar de desbordarla', () => {
+    render(<DashboardKpiCards metrics={{ ...metricas, averageMarginPercent: -12.4 }} isLoading={false} />)
+    for (const id of ['critical-count', 'active-ingredients', 'average-margin']) {
+      expect(screen.getByTestId(id).className.split(/\s+/)).toEqual(expect.arrayContaining(['wrap-anywhere', 'text-lg']))
+    }
+    for (const tarjeta of screen.getAllByTestId('kpi-card')) {
+      expect(tarjeta.className.split(/\s+/)).toContain('min-w-0')
+    }
+  })
+
   it('cada tarjeta tiene un rótulo corto para el celular y el completo desde la tableta', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
     expect(screen.getByText('Debajo de su mínimo').className).toMatch(/md:hidden/)

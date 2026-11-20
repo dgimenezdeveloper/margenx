@@ -43,7 +43,8 @@ const TILE_CLASSES = 'min-w-0 rounded-2xl p-3 md:flex md:items-center md:gap-3.5
 const NEUTRAL_DESKTOP_CLASSES =
   'md:border md:border-gray-100 md:bg-white md:dark:border-gray-800 md:dark:bg-gray-900'
 const LABEL_CLASSES = 'text-[11px] font-semibold leading-tight md:text-xs'
-const VALUE_CLASSES = 'mt-1 text-xl font-black md:text-2xl'
+/** A 360 px cada tarjeta tiene unos 77 px útiles: un margen como "-12,4 %" baja de renglón antes que desbordar. */
+const VALUE_CLASSES = 'mt-1 text-lg font-black leading-tight wrap-anywhere md:text-2xl'
 /** Aclaración que en el celular no entra en la tarjeta: queda para el lector de pantalla. */
 const NOTE_CLASSES = 'sr-only text-[11px] font-medium md:not-sr-only md:mt-0.5'
 const ICON_CLASSES = 'hidden size-11 shrink-0 items-center justify-center rounded-xl md:flex'
