@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 
 import { ApiError } from '@/services/api'
 import { supplierService, type SupplierSummary } from '@/services/supplierService'
+import { renderWithDataRouter } from '@/test-utils/renderWithDataRouter'
 import { SupplierFormDialog } from './SupplierFormDialog'
 
 const getToken = vi.fn().mockResolvedValue('token')
@@ -35,8 +36,11 @@ const molino: SupplierSummary = {
 const renderDialog = (props: Partial<React.ComponentProps<typeof SupplierFormDialog>> = {}) => {
   const onClose = vi.fn()
   const onSaved = vi.fn()
-  render(<SupplierFormDialog open supplier={null} onClose={onClose} onSaved={onSaved} {...props} />)
-  return { onClose, onSaved }
+  const { router } = renderWithDataRouter(
+    <SupplierFormDialog open supplier={null} onClose={onClose} onSaved={onSaved} {...props} />,
+    '/proveedores'
+  )
+  return { onClose, onSaved, router }
 }
 
 describe('SupplierFormDialog', () => {
@@ -178,5 +182,67 @@ describe('SupplierFormDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     await user.click(screen.getByRole('button', { name: 'Descartar' }))
     expect(onClose).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('SupplierFormDialog - cambios sin guardar al salir de la pantalla (#364)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('con datos cargados, salir de la pantalla pide confirmación y "Seguir editando" conserva lo escrito', async () => {
+    const user = userEvent.setup()
+    const { router } = renderDialog()
+    await user.type(screen.getByLabelText('Nombre'), 'Distribuidora Química del Sur')
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+
+    expect(await screen.findByRole('dialog', { name: '¿Descartar cambios?' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/proveedores')
+
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '¿Descartar cambios?' })).not.toBeInTheDocument())
+    expect(router.state.location.pathname).toBe('/proveedores')
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Distribuidora Química del Sur')
+  })
+
+  it('"Descartar" deja salir de la pantalla', async () => {
+    const user = userEvent.setup()
+    const { router } = renderDialog()
+    await user.type(screen.getByLabelText('Nombre'), 'Distribuidora Química del Sur')
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Otra pantalla' })).toBeInTheDocument()
+  })
+
+  it('con datos cargados, cerrar o recargar la pestaña pide confirmación; sin cambios, no', async () => {
+    const user = userEvent.setup()
+    renderDialog({ supplier: molino })
+
+    const sinCambios = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(sinCambios)
+    expect(sinCambios.defaultPrevented).toBe(false)
+
+    await user.clear(screen.getByLabelText(/Teléfono/))
+    await user.type(screen.getByLabelText(/Teléfono/), '+54 9 2284 41-7788')
+    const conCambios = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(conCambios)
+    expect(conCambios.defaultPrevented).toBe(true)
+  })
+
+  it('con el diálogo cerrado no bloquea la salida', async () => {
+    const { router } = renderDialog({ open: false })
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Otra pantalla' })).toBeInTheDocument()
   })
 })

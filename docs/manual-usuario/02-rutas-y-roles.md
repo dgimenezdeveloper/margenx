@@ -22,6 +22,8 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y del reporte semanal (con su descarga) y Colaboradores | Consulta de cuenta (sin alertas, reporte ni Colaboradores) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
+**Colaborador en una pantalla del administrador.** Las rutas marcadas como **Bloqueado** devuelven al colaborador a `/productos` y el catálogo muestra el aviso "Esa pantalla es solo para el administrador", que se cierra solo o con la X. Recargar `/productos` no lo repite. Detalle en [Rol Colaborador](03-colaborador.md).
+
 **Pantallas públicas con la sesión iniciada.** Las pantallas públicas reconocen la sesión: `/instalar` y `/privacidad` ofrecen **Ir al panel** en lugar de **Ingresar** o **Volver a la web**. Al abrir `/` con la sesión iniciada (por ejemplo, escribiendo el dominio a mano), la app va directo al dashboard sin mostrar antes la landing. Mientras se verifica la sesión, la pantalla queda con el fondo vacío; si la verificación tarda más de 1,5 s (red lenta o un bloqueador), se muestra la versión sin sesión.
 
 En `/login`, los enlaces **Política de privacidad** y **Guía de instalación** están al pie, debajo del formulario.

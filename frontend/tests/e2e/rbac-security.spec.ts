@@ -248,3 +248,27 @@ test.describe('TC-RBAC-07: Intercepción de ruta administrativa /compras (issue 
     await expect(page.getByTestId('bottom-nav-compras')).toHaveCount(0)
   })
 })
+
+test.describe('TC-RBAC-08: Aviso al colaborador redirigido desde una ruta del administrador (issue #364)', () => {
+  const AVISO = 'Esa pantalla es solo para el administrador'
+
+  for (const ruta of ['/insumos', '/proveedores/cuarentena', '/productos/nuevo']) {
+    test(`abrir ${ruta} vuelve a /productos con el aviso de que la pantalla es del administrador`, async ({ page }) => {
+      await page.goto(ruta)
+
+      await expect(page).toHaveURL(/\/productos$/)
+      // El aviso es informativo: se anuncia como role="status", no como alerta.
+      await expect(page.getByRole('status').filter({ hasText: AVISO })).toBeVisible()
+    })
+  }
+
+  test('el aviso no se repite al recargar /productos', async ({ page }) => {
+    await page.goto('/insumos')
+    await expect(page.getByRole('status').filter({ hasText: AVISO })).toBeVisible()
+
+    await page.reload()
+    // Control positivo: el catálogo cargó, así que la ausencia del aviso no es por una página en blanco.
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    await expect(page.getByText(AVISO)).toHaveCount(0)
+  })
+})

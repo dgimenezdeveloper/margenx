@@ -16,13 +16,14 @@ import {
 
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useToast } from '@/hooks/useToast'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
 import { Pagination } from '@/components/pagination'
-import { ToastAlert, type ToastType } from '@/components/ToastAlert'
+import { ToastAlert } from '@/components/ToastAlert'
 import { ApiError } from '@/services/api'
 import { fetchAllPages, type PageParams } from '@/services/pagination'
 import {
@@ -76,12 +77,7 @@ export default function SupplierDetailPage() {
   const [editingPresentation, setEditingPresentation] = useState<SupplierPresentation | null>(null)
   const [deletingPresentation, setDeletingPresentation] = useState<SupplierPresentation | null>(null)
 
-  const [toast, setToast] = useState<{ id: number; title: string; description?: string; type: ToastType } | null>(null)
-
-  const notify = (title: string, type: ToastType = 'success', description?: string) => {
-    setToast({ id: Date.now(), title, description, type })
-    setTimeout(() => setToast(null), 3500)
-  }
+  const { toast, notify, dismiss: dismissToast } = useToast()
 
   // Presentaciones paginadas y filtradas en la API; la ficha del proveedor llega en la misma respuesta.
   const fetchPresentations = useCallback(
@@ -208,7 +204,7 @@ export default function SupplierDetailPage() {
           title={toast.title}
           description={toast.description}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={dismissToast}
         />
       )}
 

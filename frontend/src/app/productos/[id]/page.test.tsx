@@ -227,3 +227,93 @@ describe('ProductDetailPage - lugar para las barras de abajo en mobile (#406)', 
     expect(screen.getByRole('main')).toHaveClass('pb-[calc(13rem+env(safe-area-inset-bottom))]')
   })
 })
+
+describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(productService.getById).mockResolvedValue(mockProduct)
+    vi.mocked(ingredientService.getAll).mockResolvedValue([])
+  })
+
+  const cambiarPrecio = async (user: ReturnType<typeof userEvent.setup>) => {
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+    // Hay un campo de precio en el panel de escritorio y otro en la hoja del simulador mobile.
+    const precio = screen.getAllByLabelText('Precio de Venta al Público ($)')[0]
+    await user.clear(precio)
+    await user.type(precio, '1800')
+  }
+
+  it('Escenario Gherkin "Cambios sin guardar": con el precio modificado, salir pide confirmación y "Seguir editando" se queda', async () => {
+    const user = userEvent.setup()
+    const router = renderPage()
+    await cambiarPrecio(user)
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+
+    expect(await screen.findByText('¿Descartar cambios?')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/productos/prod-1')
+
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }))
+
+    await waitFor(() => expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument())
+    expect(router.state.location.pathname).toBe('/productos/prod-1')
+    // El borrador sigue en el campo (NumericInput lo muestra con separador de miles es-AR).
+    expect((screen.getAllByLabelText('Precio de Venta al Público ($)')[0] as HTMLInputElement).value).toMatch(/^1\.?800$/)
+  })
+
+  it('Escenario Gherkin "Cambios sin guardar": "Descartar" deja salir de la ficha', async () => {
+    const user = userEvent.setup()
+    const router = renderPage()
+    await cambiarPrecio(user)
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Catálogo de productos' })).toBeInTheDocument()
+  })
+
+  it('Escenario Gherkin "Cambios sin guardar": cerrar o recargar la pestaña pide confirmación al navegador', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await cambiarPrecio(user)
+
+    const evento = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(evento)
+
+    expect(evento.defaultPrevented).toBe(true)
+  })
+
+  it('sin cambios, salir de la ficha no pide confirmación', async () => {
+    const router = renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    const evento = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(evento)
+    expect(evento.defaultPrevented).toBe(false)
+
+    await act(async () => {
+      await router.navigate('/productos')
+    })
+    expect(await screen.findByRole('heading', { name: 'Catálogo de productos' })).toBeInTheDocument()
+    expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument()
+  })
+
+  it('el error al guardar se anuncia como alerta y se puede cerrar con la X', async () => {
+    const user = userEvent.setup()
+    vi.mocked(productService.update).mockRejectedValue(new ApiError('Error al actualizar el producto.', 500))
+    renderPage()
+    await cambiarPrecio(user)
+
+    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+
+    const alerta = await screen.findByRole('alert')
+    expect(alerta).toHaveTextContent('Error al actualizar el producto.')
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+    await waitFor(() => expect(screen.queryByText('Error al actualizar el producto.')).not.toBeInTheDocument())
+  })
+})
