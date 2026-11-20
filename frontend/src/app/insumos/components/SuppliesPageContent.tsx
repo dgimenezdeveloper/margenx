@@ -25,6 +25,7 @@ import { formatNumeroAR, parseNumeroAR } from '@/lib/numericFormat'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import type { PageParams } from '@/services/pagination'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient, type IngredientProductUsage } from '@/services/ingredientService'
@@ -33,6 +34,9 @@ import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
+
+/** "Cargar desde planilla" (escritorio y celular): respuesta visible al pasar el mouse y foco canónico (#362). */
+const BULK_BUTTON_HOVER_CLASSES = `transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-700 dark:hover:bg-gray-700 dark:hover:text-indigo-300 ${CANONICAL_FOCUS_CLASSES}`
 
 const MAX_INGREDIENT_COST = 99_999_999.99
 const money = (val: number) => formatMoney(val)
@@ -459,18 +463,7 @@ export default function SuppliesPageContent() {
                   className="h-11 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>
-              {canBulkUpload && (
-                <button
-                  type="button"
-                  onClick={openBulkModal}
-                  aria-label="Cargar desde planilla"
-                  className="hidden md:inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
-                  <span className="lg:hidden">Planilla</span>
-                  <span className="hidden lg:inline">Cargar desde planilla</span>
-                </button>
-              )}
+              {/* Orden del encabezado (#362): Cuarentena es navegación; las dos altas van juntas y la principal al final. */}
               {!isCollaborator && (
                 <button
                   type="button"
@@ -484,6 +477,18 @@ export default function SuppliesPageContent() {
                       {quarantineCount}
                     </span>
                   )}
+                </button>
+              )}
+              {canBulkUpload && (
+                <button
+                  type="button"
+                  onClick={openBulkModal}
+                  aria-label="Cargar desde planilla"
+                  className={`hidden md:inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm dark:text-gray-200 ${BULK_BUTTON_HOVER_CLASSES}`}
+                >
+                  <FileSpreadsheet className="size-4 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+                  <span className="lg:hidden">Planilla</span>
+                  <span className="hidden lg:inline">Cargar desde planilla</span>
                 </button>
               )}
               <button
@@ -522,7 +527,7 @@ export default function SuppliesPageContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/60">
                   <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
                   <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{catalogTotal ?? 0}</p>
@@ -530,14 +535,6 @@ export default function SuppliesPageContent() {
                 <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
                   <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
                   <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">{quarantineCount}</p>
-                </div>
-                <div className="hidden rounded-2xl bg-emerald-50 p-4 md:block dark:bg-emerald-950/60">
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Recálculo</p>
-                  <p className="mt-1 text-2xl font-black text-emerald-950 dark:text-emerald-100">Activo</p>
-                </div>
-                <div className="hidden rounded-2xl bg-slate-100 p-4 md:block dark:bg-slate-900">
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Afectan a</p>
-                  <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Catálogo general</p>
                 </div>
               </div>
 
@@ -551,7 +548,7 @@ export default function SuppliesPageContent() {
                         onClick={openBulkModal}
                         aria-label="Cargar desde planilla"
                         title="Cargar desde planilla"
-                        className="flex size-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-indigo-600 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-indigo-400"
+                        className={`flex size-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-indigo-600 shadow-sm dark:text-indigo-400 ${BULK_BUTTON_HOVER_CLASSES}`}
                       >
                         <FileSpreadsheet className="size-5" aria-hidden="true" />
                       </button>
