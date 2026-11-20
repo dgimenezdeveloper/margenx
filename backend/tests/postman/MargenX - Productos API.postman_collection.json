@@ -542,6 +542,72 @@
       "name": "03 - Limpieza (deja el catálogo como estaba)",
       "item": [
         {
+          "name": "DELETE Borrar el producto creado (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Borra lo que creó la corrida (#312): DELETE /api/products/:id responde 200 con { success: true }.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Se borró \"Producto QA\"', function () {",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Borrar el producto a $0 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Borra lo que creó la corrida (#312): DELETE /api/products/:id responde 200 con { success: true }.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Se borró \"Producto Precio Cero\"', function () {",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA_precioCero}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA_precioCero}}"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "GET Los productos de la corrida ya no existen (404)",
           "event": [
             {
