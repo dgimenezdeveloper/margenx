@@ -24,6 +24,7 @@ La issue #176 pide 10 `supplierCode` reales, pero el seed de #178 solo había ca
    npx tsx scripts/get-test-token.ts panaderia-admin
    ```
    Los dos requests que lo usan corren después de la ráfaga y la concurrencia. Si la corrida tarda más de un minuto en llegar ahí, el token vence: esos dos requests dan `401` (el nombre de la prueba lo indica) y el resto de la colección sigue.
+   El token tiene que salir de la misma instancia de Clerk que valida el backend contra el que se corre: `get-test-token.ts` usa el `CLERK_SECRET_KEY` del `.env` de `backend/` y los IDs de usuario de esa instancia. Para correr contra la VPS (por ejemplo, para medir `docker stats`), generarlo con la clave de la instancia de ese entorno; con un token de otra instancia, esos dos requests también dan `401`.
 
 ## Ejecutar
 
