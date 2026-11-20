@@ -10,6 +10,8 @@ import { DesktopFooter } from '@/components/desktop-footer'
 import { SupportDocsModal } from '@/components/support-docs-modal'
 import { LogoutDialog } from '@/components/logout-dialog'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { USER_MANUAL_URL } from '@/lib/userManual'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
 import { clearSessionCaches } from '@/lib/serviceWorkerCache'
@@ -276,8 +278,21 @@ export default function ProfilePage() {
           <div className="flex items-center gap-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
             <Link to="/privacidad" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Política</Link>
             <Link to="/instalar" className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Instalar</Link>
-            <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Soporte</button>
-            <button type="button" onClick={() => setIsModalOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer">Documentación</button>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className={`cursor-pointer rounded hover:text-indigo-600 dark:hover:text-indigo-400 ${CANONICAL_FOCUS_CLASSES}`}
+            >
+              Soporte
+            </button>
+            <a
+              href={USER_MANUAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`rounded hover:text-indigo-600 dark:hover:text-indigo-400 ${CANONICAL_FOCUS_CLASSES}`}
+            >
+              Documentación<span className="sr-only"> (se abre en una pestaña nueva)</span>
+            </a>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800 text-gray-600 dark:text-gray-300">
             <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>

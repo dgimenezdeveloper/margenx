@@ -94,9 +94,9 @@ Un producto puede crearse **sin insumos**, para que el comercio cargue su lista 
 - Costo del producto = suma de `cantidad × costo actual del insumo`. Margen sobre el precio de venta, con `Prisma.Decimal` y redondeo a 2 decimales (ADR-004).
 - Cada producto tiene su margen mínimo (`minMarginPercent`); la cuenta tiene un margen mínimo por defecto (`defaultMinMarginPercent`, 30 %).
 
-### Alta de insumo desde la receta ("+ Crear nuevo insumo") · *Propuesta*
+### Alta de insumo desde la receta ("+ Crear nuevo insumo") · *Disponible*
 
-Mientras se arma una receta en `/productos/nuevo` o `/productos/:id`, la última opción del selector de insumos permitiría crear un insumo en un modal secundario (nombre, unidad, costo) y dejarlo seleccionado sin abandonar la pantalla. Hoy no existe: hay que crear el insumo en **Insumos** y volver a la receta.
+Mientras se arma una receta en `/productos/nuevo` o `/productos/:id`, la última opción del selector de insumos (`+ Crear nuevo insumo`) abre un modal secundario (nombre, unidad y costo) y deja el insumo elegido sin abandonar la pantalla ni perder los cambios de la receta. Los insumos que ya forman parte de la receta figuran marcados como "Ya en la receta" y no pueden volver a elegirse.
 
 ---
 
@@ -385,7 +385,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Plantilla oficial CSV/Excel (camino B) | Disponible |
 | Starter pack por rubro (camino C) | Propuesta |
 | Productos en borrador y recetas | Disponible |
-| Alta de insumo desde la receta | Propuesta |
+| Alta de insumo desde la receta | Disponible |
 | Proveedores y presentaciones desde la ficha del insumo, proveedor predeterminado | Disponible |
 | Vista de proveedores (`/proveedores`): lista con cantidad de insumos y de precios en cuarentena, alta, edición, desactivación y baja con confirmación | Disponible |
 | Detalle de proveedor (`/proveedores/:id`) con sus presentaciones | Disponible |
