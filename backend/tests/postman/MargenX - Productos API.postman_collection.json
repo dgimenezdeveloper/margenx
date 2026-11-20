@@ -111,7 +111,10 @@
                   "",
                   "pm.test('El producto se crea con salePrice en 0', function () {",
                   "    pm.expect(pm.response.json().product.salePrice).to.eql('0');",
-                  "});"
+                  "});",
+                  "",
+                  "// Guarda el id para borrarlo en \"03 - Limpieza\" (#312).",
+                  "pm.environment.set('productId_cuentaA_precioCero', pm.response.json().product.id);"
                 ]
               }
             }
@@ -529,6 +532,59 @@
               "raw": "{{baseUrl}}/products",
               "host": ["{{baseUrl}}"],
               "path": ["products"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Limpieza (deja el catálogo como estaba)",
+      "item": [
+        {
+          "name": "GET Los productos de la corrida ya no existen (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Control final (#312): la corrida no deja productos en el catálogo de Panadería Central.",
+                  "const idProducto = pm.environment.get('productId_cuentaA');",
+                  "const idPrecioCero = pm.environment.get('productId_cuentaA_precioCero');",
+                  "",
+                  "pm.test('La corrida guardó los ids de los dos productos que creó', function () {",
+                  "    pm.expect(idProducto, 'id de \"Producto QA\"').to.be.a('string').and.not.be.empty;",
+                  "    pm.expect(idPrecioCero, 'id de \"Producto Precio Cero\"').to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "",
+                  "pm.test('\"Producto QA\" de la corrida ya no existe (404)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/products/' + idPrecioCero,",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.variables.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('\"Producto Precio Cero\" de la corrida ya no existe (404)', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(404);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA}}"]
             }
           },
           "response": []
