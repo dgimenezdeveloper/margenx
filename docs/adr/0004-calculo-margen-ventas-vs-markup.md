@@ -67,6 +67,10 @@ Implementación vigente:
   * El frontend calcula y muestra el margen con 1 decimal mientras el backend lo liquida con 2 (hallazgo §5 de `reporte-precision-sprint2.md`, diferencia máxima de 0,05 puntos porcentuales). *Mitigación:* es una **deuda conocida**: la unificación a 2 decimales se trata en el Sprint 5 (fuera del alcance de este ADR); hasta entonces la fuente de verdad es el valor del backend.
   * Los productos sin ingredientes muestran `0.00 %` aunque tengan precio; se interpreta como "sin costo cargado", no como rentabilidad nula.
 
+## Nota posterior: volumen de ventas (ADR-010)
+
+Desde el ADR-010 (22/11/2026), MargenX registra ventas en las cuentas que tienen el módulo de ventas. Cada renglón de venta guarda el precio, el costo y el margen del momento, calculados con la misma fórmula de este ADR (margen sobre el precio de venta). Eso permite un **margen ponderado por lo vendido** (ganancia / ventas), que hasta ahora no se podía calcular por falta de volumen de ventas. La decisión de este ADR no cambia: el margen teórico de cada producto sigue siendo el de la fórmula de arriba, y la ganancia real lo complementa.
+
 ## Revisión
 
 | Concepto | Detalle |
