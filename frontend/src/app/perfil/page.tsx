@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
+import { Bell, Building2, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -238,25 +238,9 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Sin accesos duplicados (#429): en el celular, Política e Instalación están en el pie de abajo
-              y Cerrar sesión solo está acá; en escritorio, Cerrar sesión está en el navbar ("Salir")
-              y Política e Instalación solo acá, porque el pie de escritorio no los tiene. */}
-          <div className="pt-2 md:flex md:items-center md:justify-between md:pt-6">
-            <div className="hidden flex-wrap gap-3 md:flex">
-              <Link
-                to="/privacidad"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <ShieldCheck className="size-4" /> Política de privacidad
-              </Link>
-              <Link
-                to="/instalar"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <Smartphone className="size-4" /> Guía de instalación
-              </Link>
-            </div>
-
+          {/* Sin accesos duplicados (#429): Política e Instalación están en el pie (el móvil de abajo
+              y el DesktopFooter); Cerrar sesión, en el celular acá y en escritorio en "Salir" del navbar. */}
+          <div className="pt-2 md:hidden">
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}

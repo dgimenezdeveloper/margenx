@@ -254,26 +254,26 @@ describe('ProfilePage (/perfil): textos y accesos sin duplicar (#429)', () => {
     expect(screen.queryByText(/n8n/)).toBeNull()
   })
 
-  it('en el celular, Política e Instalación quedan solo en el pie: los botones grandes se ocultan a 360 px', () => {
+  it('Política e Instalación salen de Perfil y quedan en los dos pies (móvil y escritorio)', () => {
     render(<ProfilePage />)
 
-    const botonPrivacidad = screen.getByRole('link', { name: 'Política de privacidad' })
-    const botonInstalacion = screen.getByRole('link', { name: 'Guía de instalación' })
-    // El contenedor de los botones solo se muestra en escritorio, donde el pie no los tiene.
-    expect(botonPrivacidad.parentElement).toBe(botonInstalacion.parentElement)
-    expect(botonPrivacidad.parentElement).toHaveClass('hidden', 'md:flex')
+    expect(screen.queryByRole('link', { name: 'Política de privacidad' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Guía de instalación' })).toBeNull()
 
-    // El pie móvil (md:hidden) los sigue ofreciendo.
-    const pieMovil = screen.getByRole('link', { name: 'Política' }).closest('div.md\\:hidden')
-    expect(pieMovil).not.toBeNull()
-    expect(screen.getByRole('link', { name: 'Instalar' })).toHaveAttribute('href', '/instalar')
+    // Pie móvil (md:hidden) y DesktopFooter (hidden md:flex).
+    const politica = screen.getAllByRole('link', { name: 'Política' })
+    const instalar = screen.getAllByRole('link', { name: 'Instalar' })
+    expect(politica).toHaveLength(2)
+    expect(instalar).toHaveLength(2)
+    for (const enlace of politica) expect(enlace).toHaveAttribute('href', '/privacidad')
+    for (const enlace of instalar) expect(enlace).toHaveAttribute('href', '/instalar')
   })
 
   it('en escritorio, Cerrar sesión queda solo en el navbar: el botón de Perfil se muestra únicamente en el celular', () => {
     render(<ProfilePage />)
 
     const botonPerfil = screen.getByRole('button', { name: /Cerrar Sesión/i })
-    expect(botonPerfil).toHaveClass('md:hidden')
+    expect(botonPerfil.parentElement).toHaveClass('md:hidden')
     // El "Salir" del navbar es el acceso de escritorio (hidden md:inline-flex).
     expect(screen.getByRole('button', { name: 'Salir' })).toHaveClass('hidden', 'md:inline-flex')
   })

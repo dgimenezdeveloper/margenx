@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { SupportDocsModal } from './support-docs-modal'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { USER_MANUAL_URL } from '@/lib/userManual'
@@ -13,6 +14,13 @@ export function DesktopFooter() {
       <footer className="hidden md:flex mt-auto w-full items-center justify-between border-t border-gray-200/60 py-6 text-sm text-gray-500 dark:border-gray-800/60 dark:text-gray-400">
         <p>© {new Date().getFullYear()} MargenX. Todos los derechos reservados.</p>
         <div className="flex items-center gap-6">
+          {/* Política e Instalar, igual que el pie móvil de Perfil (#429). */}
+          <Link href="/privacidad" className={`rounded transition-colors hover:text-gray-900 dark:hover:text-gray-100 ${CANONICAL_FOCUS_CLASSES}`}>
+            Política
+          </Link>
+          <Link href="/instalar" className={`rounded transition-colors hover:text-gray-900 dark:hover:text-gray-100 ${CANONICAL_FOCUS_CLASSES}`}>
+            Instalar
+          </Link>
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
