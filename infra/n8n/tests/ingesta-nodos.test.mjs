@@ -215,5 +215,11 @@ const run = (file, ctx) => {
  const plantilla=fs.readFileSync(path.join(dir,'../plantillas/mail-margenx.js'),'utf8').trim();
  assert.ok(wf.nodes.find((n)=>n.name==='Generar Resumen al Dueño').parameters.jsCode.includes(plantilla),'plantilla desincronizada: correr node infra/n8n/plantillas/sincronizar.mjs');
  assert.ok(html.includes('MARGEN<span')&&html.includes('#4f46e5')); // encabezado y color de marca
+ // Soporte: el mismo correo que la app en el pie del mail (RC-06, #435)
+ {
+   const codigo = wf.nodes.map((n) => n.parameters?.jsCode ?? '').join('\n');
+   assert.ok(codigo.includes('Soporte: soporte@margenx.tech'), 'el pie del mail usa soporte@margenx.tech');
+   assert.ok(!codigo.includes('contacto@margenx.tech'), 'no queda contacto@margenx.tech');
+ }
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});

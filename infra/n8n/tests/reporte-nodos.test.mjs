@@ -134,6 +134,18 @@ const descarga = (body, headers = { 'x-margenx-webhook-secret': 'secreto' }) =>
   assert.ok(pdf.includes('Aumento &gt; 50%'));
   assert.ok(pdf.includes('53 días'));
 
+  // 3b Columna Estado sin cortar la palabra (RC-05, #435): "Pérdida" no se parte en "Pérdid/a"
+  assert.ok(/\.mx-nowrap\s*\{[^}]*white-space:\s*nowrap/.test(pdf), 'la hoja A4 define la clase mx-nowrap');
+  const encabezadosEstado = pdf.match(/<th[^>]*>Estado<\/th>/g) ?? [];
+  assert.equal(encabezadosEstado.length, 2, 'las dos tablas con columna Estado');
+  for (const th of encabezadosEstado) assert.ok(th.includes('class="mx-nowrap"'), `encabezado sin mx-nowrap: ${th}`);
+  assert.ok(pdf.includes('<td class="mx-nowrap">Pérdida</td>'), 'la celda Pérdida no se corta');
+  assert.ok(pdf.includes('<td class="mx-nowrap">En riesgo</td>'), 'la celda En riesgo no se corta');
+
+  // 3c Soporte: el mismo correo que la app (RC-06, #435)
+  assert.ok(pdf.includes('soporte@margenx.tech') && !pdf.includes('contacto@margenx.tech'));
+  assert.ok(r.json.emailText.includes('Soporte: soporte@margenx.tech') && !r.json.emailText.includes('contacto@'), 'el texto plano del mail también');
+
   // 4 Se avisa cuando el backend manda solo una parte (tope de 20 productos)
   assert.ok(pdf.includes('Se muestran 2 de 23'));
 

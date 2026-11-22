@@ -90,6 +90,12 @@ const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   [r] = await run(alerta([conId]));
   assert.equal(r.json.emailSubject, '[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central');
 
+  // Soporte: el mismo correo que la app en el pie del mail (RC-06, #435)
+  {
+    const codigo = wf.nodes.map((n) => n.parameters?.jsCode ?? '').join('\n');
+    assert.ok(codigo.includes('Soporte: soporte@margenx.tech'), 'el pie del mail usa soporte@margenx.tech');
+    assert.ok(!codigo.includes('contacto@margenx.tech'), 'no queda contacto@margenx.tech');
+  }
   console.log('alertas-nodos: OK');
 })().catch((e) => {
   console.error(e);
