@@ -1,0 +1,67 @@
+# Issue #312 — MargenX - Alertas de margen (Insumos)
+# Fecha: 22/11/2026. Entorno: el mismo de 01-newman-productos-corrida-1.txt.
+# Comando, desde backend/:
+#   TOKEN_ADMIN=$(npx tsx scripts/get-test-token.ts panaderia-admin | grep -E '^eyJ')
+#   TOKEN_COLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab | grep -E '^eyJ')
+#   (cd tests/postman && ./run-tests-alertas-margen.sh "$TOKEN_ADMIN" "$TOKEN_COLAB") 2>&1 | grep -v 'eyJ'
+# 00 guarda nombre, unidad y costo de "Harina de trigo 000 Olavarriense"; 05 controla que queden igual.
+# Salida de consola de Newman, sin cambios.
+
+newman
+
+MargenX - Alertas de margen (Insumos)
+
+→ 00 - Guarda el insumo como estaba antes de la corrida
+  GET http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [200 OK, 2.46kB, 36ms]
+  ✓  Status 200
+  ✓  El costo de partida no es el 9500 que fija 01: así 01 y 04 son cambios reales
+
+→ 01 - Cambio real: affectedProductsCount total + criticalProducts subset
+  PUT http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [200 OK, 2.97kB, 128ms]
+  ✓  Status 200
+  ✓  El payload expone affectedProductsCount total
+  ✓  criticalProducts contiene solo los críticos
+  ✓  La respuesta tiene la forma que consume el frontend
+
+→ 02 - Sin cambio real: affectedProductsCount = 0 y criticalProducts = []
+  PUT http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [200 OK, 1.11kB, 11ms]
+  ✓  Status 200
+  ✓  No hubo cambio real
+
+→ 03 - Colaborador: 403 Forbidden
+  PUT http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [403 Forbidden, 965B, 7ms]
+  ✓  Status 403
+  ✓  Se bloquea la mutación por RBAC
+
+→ 04 - Alert dispatch: payload enviado por n8n usa el total real y la lista crítica
+  PUT http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [200 OK, 2.17kB, 24ms]
+  ✓  Status 200
+  ✓  El total real queda en affectedProductsCount
+  ✓  La lista crítica es un subconjunto del total
+  ✓  La respuesta sigue el contrato esperado por el frontend
+
+→ 05 - El insumo quedó como estaba antes de la corrida
+  GET http://localhost:3000/api/ingredients/30b00001-0000-4000-8000-000000000001 [200 OK, 2.46kB, 9ms]
+  ✓  Status 200
+  ✓  El costo vuelve al de antes de la corrida
+  ✓  El nombre y la unidad no cambian
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                 6 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                 6 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                 0 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │                17 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 356ms                                      │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 6.68kB (approx)                           │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 35ms [min: 7ms, max: 128ms, s.d.: 42ms] │
+└────────────────────────────────────────────────────────────────┘
