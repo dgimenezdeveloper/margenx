@@ -11,10 +11,11 @@ export const SURPLUS_MARGIN_THRESHOLD = 60
 
 export interface HealthBucketConfig {
   key: HealthBucket
-  /** Nombre canónico y unificado en toda la plataforma: Borrador, Pérdida, En riesgo, En objetivo, Superávit */
+  /**
+   * Nombre canónico y unificado en toda la plataforma: Borrador, Pérdida, En riesgo, En objetivo, Superávit.
+   * No hay versión corta: en pantallas angostas el rótulo pasa a dos líneas, sin abreviar.
+   */
   label: string
-  /** Versión corta para botones estrechos o filtros móviles */
-  shortLabel: string
   /** Explicación de la condición de negocio */
   description: string
   /** Clases Tailwind para el badge (borde, fondo, texto en claro y oscuro con contraste WCAG AA) */
@@ -35,7 +36,6 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
   draft: {
     key: 'draft',
     label: 'Borrador',
-    shortLabel: 'Borrador',
     description: 'Producto en borrador sin receta técnica cargada.',
     badgeClassName:
       'border-gray-200 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
@@ -48,7 +48,6 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
   loss: {
     key: 'loss',
     label: 'Pérdida',
-    shortLabel: 'Pérdida',
     description: 'Venta a pérdida: el precio de venta no cubre los costos de los insumos.',
     badgeClassName:
       'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/70 dark:text-rose-200',
@@ -61,7 +60,6 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
   risk: {
     key: 'risk',
     label: 'En riesgo',
-    shortLabel: 'Riesgo',
     description: 'Rentabilidad positiva pero por debajo del margen mínimo esperado.',
     badgeClassName:
       'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/70 dark:text-rose-300',
@@ -74,7 +72,6 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
   target: {
     key: 'target',
     label: 'En objetivo',
-    shortLabel: 'Objetivo',
     description: 'Cumple el margen mínimo objetivo establecido.',
     badgeClassName:
       'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/70 dark:text-emerald-200',
@@ -87,7 +84,6 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
   surplus: {
     key: 'surplus',
     label: 'Superávit',
-    shortLabel: 'Superávit',
     description: 'Margen superior al 60 % y por encima del mínimo objetivo.',
     badgeClassName:
       'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/70 dark:text-emerald-200',

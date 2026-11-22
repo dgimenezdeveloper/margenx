@@ -114,3 +114,13 @@ describe('una sola regla para el panel, la lista y la ficha (#358)', () => {
     expect(resolveProductHealthBucket({ ingredientsCount: 0, marginPercent: 80, minMarginPercent: 35 })).toBe('draft')
   })
 })
+
+describe('HEALTH_BUCKET_META: un solo nombre por estado (#358, #430)', () => {
+  it('usa los cinco nombres de la especificación funcional §6 y ninguna versión corta', () => {
+    const nombres = Object.values(HEALTH_BUCKET_META).map((meta) => meta.label)
+    expect(nombres).toEqual(['Borrador', 'Pérdida', 'En riesgo', 'En objetivo', 'Superávit'])
+    for (const meta of Object.values(HEALTH_BUCKET_META)) {
+      expect(meta).not.toHaveProperty('shortLabel')
+    }
+  })
+})

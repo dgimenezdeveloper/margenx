@@ -10,6 +10,20 @@ import { formatMoney, formatPercent } from '@/lib/format'
 
 const money = (val: number) => formatMoney(val)
 
+/**
+ * Aviso de "Liberar" con los nombres de estado del glosario (especificación funcional §6).
+ * `belowMinimum` son los productos que este cambio dejó debajo de su mínimo: En riesgo o Pérdida.
+ */
+function releaseSummary(affected: number, belowMinimum: number): string {
+  if (affected === 0) return 'Precio liberado: no cambia el costo de ningún producto.'
+  const affectedText = affected === 1 ? '1 producto afectado' : `${affected} productos afectados`
+  const belowText =
+    belowMinimum === 0
+      ? 'ninguno queda en riesgo ni en pérdida'
+      : `${belowMinimum} ${belowMinimum === 1 ? 'queda' : 'quedan'} en riesgo o en pérdida`
+  return `Precio liberado: ${affectedText}, ${belowText}.`
+}
+
 interface QuarantineListProps {
   items: QuarantinedItem[]
   onShowToast: (msg: string, type: 'success' | 'error') => void
@@ -38,10 +52,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
     try {
       if (actionType === 'release') {
         const res = await supplierService.releaseQuarantine(getToken, selectedItem.id)
-        onShowToast(
-          `Precio liberado. Recálculo: ${res.affectedProductsCount} afectados, ${res.criticalProducts.length} críticos.`,
-          'success'
-        )
+        onShowToast(releaseSummary(res.affectedProductsCount, res.criticalProducts.length), 'success')
       } else {
         await supplierService.rejectQuarantine(getToken, selectedItem.id)
         onShowToast('Precio rechazado. Se mantiene el costo anterior.', 'success')

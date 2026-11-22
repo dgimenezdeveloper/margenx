@@ -4,7 +4,7 @@ import { formatPercent } from '@/lib/format'
 import { HEALTH_BUCKET_META } from '@/lib/healthBucket'
 
 /**
- * El color del margen promedio sigue su signo: un margen negativo nunca se pinta en verde.
+ * El color del margen mediano sigue su signo: un margen negativo nunca se pinta en verde.
  * `tile` es el fondo de la tarjeta en el celular, donde se ve como las de Proveedores.
  */
 function marginTone(value: number) {
@@ -127,12 +127,15 @@ export function DashboardKpiCards({ metrics, isLoading }: DashboardKpiCardsProps
         </div>
         <div className="min-w-0">
           <p className={`${LABEL_CLASSES} text-gray-700 md:text-gray-600 dark:text-gray-300 md:dark:text-gray-400`}>
-            Margen promedio
+            Margen mediano
           </p>
           <p data-testid="average-margin" className={`${VALUE_CLASSES} ${margin.text}`}>
             {formatPercent(metrics.averageMarginPercent)}
           </p>
-          <p className={`${NOTE_CLASSES} text-gray-600 dark:text-gray-400`}>Mediana de los productos con receta</p>
+          {/* Es la mediana de los productos con receta (especificación funcional, métricas del panel), no un promedio. */}
+          <p className={`${NOTE_CLASSES} text-gray-600 dark:text-gray-400`}>
+            La mitad de tus productos gana más que esto y la mitad menos.
+          </p>
         </div>
       </section>
     </div>
