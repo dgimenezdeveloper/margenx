@@ -7,7 +7,7 @@ El reporte semanal resume en un PDF cómo están los márgenes de tu comercio en
 El PDF que llega por mail y el que descargás son el mismo: salen del mismo generador y con los mismos números que el panel.
 
 1. **Para revisar:** productos por debajo de su margen mínimo, con el precio sugerido; precios en cuarentena y costos que no se actualizan hace más de 30 días.
-2. **Salud del catálogo:** cuántos productos hay en Venta a Pérdida, En Riesgo, En Objetivo, Superávit y en borrador, y el margen promedio (la mediana), igual que en el [panel](06-panel.md).
+2. **Salud del catálogo:** cuántos productos hay en Pérdida, En riesgo, En objetivo, Superávit y en borrador, y el **margen mediano** (la mitad de tus productos gana más que ese valor y la mitad menos), igual que en el [panel](06-panel.md).
 3. **Cambios de costo** de la semana.
 4. **Oportunidades de ahorro** en tus proveedores (ver [Compras sugeridas](07-compras-sugeridas.md)).
 
