@@ -21,6 +21,9 @@ model Account {
   ingredients Ingredient[]
   products    Product[]
   suppliers   Supplier[]
+  features    AccountFeature[]
+  cashShifts  CashShift[]
+  sales       Sale[]
 }
 
 enum Role {
@@ -36,6 +39,11 @@ model User {
   authProviderId String   @unique
   createdAt      DateTime @default(now())
   account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  openedCashShifts CashShift[] @relation("CashShiftOpenedBy")
+  closedCashShifts CashShift[] @relation("CashShiftClosedBy")
+  sales            Sale[]      @relation("SaleSoldBy")
+  voidedSales      Sale[]      @relation("SaleVoidedBy")
 }
 
 model Ingredient {
@@ -117,6 +125,7 @@ model Product {
   updatedAt        DateTime            @updatedAt
   account          Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   ingredients      ProductIngredient[]
+  saleItems        SaleItem[]
   cost             Decimal             @default(0) @db.Decimal(10, 2)
   marginAmount     Decimal             @default(0) @db.Decimal(10, 2)
   marginPercent    Decimal             @default(0) @db.Decimal(8, 2)
@@ -137,4 +146,115 @@ model ProductIngredient {
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
   @@unique([productId, ingredientId])
+}
+
+// ------------------------------------------------------------------
+// Módulo de ventas (ADR-010). Tablas nuevas: la migración es solo aditiva.
+// Las rutas que las usan responden 404 si la cuenta no tiene el módulo.
+// ------------------------------------------------------------------
+
+// Excepción por cuenta del control de módulos: prende o apaga un módulo
+// para un comercio puntual, por encima de lo que trae su plan (lib/features.ts).
+model AccountFeature {
+  id        String   @id @default(uuid())
+  accountId String
+  feature   String // "sales"
+  enabled   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, feature])
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  MERCADO_PAGO
+}
+
+enum CashShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+// Turno de caja. Un solo turno abierto por cuenta: lo garantiza el índice
+// parcial único registrado en la migración SQL:
+// CREATE UNIQUE INDEX "CashShift_accountId_open_key" ON "CashShift"("accountId") WHERE "status" = 'OPEN';
+// Los montos esperados, contados y la diferencia se completan al cerrar.
+// Si se da de baja al usuario (ADR-008), el turno queda sin usuario y no se pierde.
+model CashShift {
+  id                  String          @id @default(uuid())
+  accountId           String
+  status              CashShiftStatus @default(OPEN)
+  openedById          String?
+  openedAt            DateTime        @default(now())
+  openingAmount       Decimal         @db.Decimal(12, 2)
+  closedById          String?
+  closedAt            DateTime?
+  expectedCash        Decimal?        @db.Decimal(12, 2)
+  expectedTransfer    Decimal?        @db.Decimal(12, 2)
+  expectedMercadoPago Decimal?        @db.Decimal(12, 2)
+  countedCash         Decimal?        @db.Decimal(12, 2)
+  countedTransfer     Decimal?        @db.Decimal(12, 2)
+  countedMercadoPago  Decimal?        @db.Decimal(12, 2)
+  difference          Decimal?        @db.Decimal(12, 2) // contado total − esperado total
+  account             Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  openedBy            User?           @relation("CashShiftOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy            User?           @relation("CashShiftClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  sales               Sale[]
+
+  @@index([accountId, openedAt])
+}
+
+// Venta con ticket no fiscal. El número de ticket es correlativo por cuenta.
+// Una venta no se borra: se anula (VOIDED) con su motivo.
+model Sale {
+  id            String        @id @default(uuid())
+  accountId     String
+  cashShiftId   String
+  soldById      String?
+  ticketNumber  Int
+  soldAt        DateTime      @default(now())
+  paymentMethod PaymentMethod
+  total         Decimal       @db.Decimal(12, 2)
+  status        SaleStatus    @default(COMPLETED)
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  cashShift     CashShift     @relation(fields: [cashShiftId], references: [id], onDelete: Cascade)
+  soldBy        User?         @relation("SaleSoldBy", fields: [soldById], references: [id], onDelete: SetNull)
+  voidedBy      User?         @relation("SaleVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  items         SaleItem[]
+
+  @@unique([accountId, ticketNumber])
+  @@index([accountId, soldAt])
+  @@index([cashShiftId])
+}
+
+// Renglón de la venta: precio, costo y margen DEL MOMENTO de la venta, para que
+// la ganancia histórica no cambie cuando cambian los costos (ADR-010, ADR-005).
+// El nombre del producto también queda copiado: si el producto se borra, el renglón queda.
+model SaleItem {
+  id            String   @id @default(uuid())
+  saleId        String
+  productId     String?
+  productName   String
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  unitCost      Decimal  @db.Decimal(10, 2)
+  marginPercent Decimal  @db.Decimal(8, 2)
+  lineTotal     Decimal  @db.Decimal(12, 2)
+  lineCost      Decimal  @db.Decimal(12, 2)
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([saleId])
+  @@index([productId])
 }

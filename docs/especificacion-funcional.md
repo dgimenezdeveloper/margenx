@@ -1,7 +1,7 @@
 # Especificación funcional y diseño de dominio — MargenX
 
 **Documento:** catálogo de insumos, recetas, proveedores, ingesta de listas de precios y roles.
-**Versión:** 2.2 · **Fecha:** 18/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
+**Versión:** 2.3 · **Fecha:** 22/11/2026 · **Responsable:** Darío Giménez (Tech Lead)
 **Reemplaza a:** `especificacion-funcional-abastecimiento.md` y `Diseño-Dominio-Arquitectura-Gestion-Insumos-Multi‐Proveedor-Automatización-Operativa.md` (versión 1.0). Este documento los unifica y los corrige contra el código de `develop` al 26/10/2026.
 
 ## Cómo leer este documento
@@ -353,6 +353,10 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Esta sección resume solo
 | `PriceHistory` | Historial de cambios de costo de un insumo | Costo anterior, costo nuevo y fecha. |
 | `Product` | Producto terminado | Nombre único por cuenta con índice funcional case-insensitive (`lower(name)`) en la base; `salePrice`, `minMarginPercent`; `cost`, `marginAmount` y `marginPercent` calculados (`marginPercent` admite valores negativos). La regla de negocio exige `salePrice > 0` cuando el producto tiene receta; un producto sin receta puede quedar en borrador con `salePrice = 0` para cálculo transitorio de margen. |
 | `ProductIngredient` | Línea de receta | Única por par producto-insumo; `quantity` en la unidad del insumo. |
+| `AccountFeature` | Excepción del control de módulos | Única por par cuenta-módulo; `enabled` manda sobre lo que trae el plan (§13). |
+| `CashShift` | Turno de caja | Un solo turno `OPEN` por cuenta; monto inicial y, al cierre, esperado y contado por medio de pago (§13). |
+| `Sale` | Venta con ticket no fiscal | `ticketNumber` correlativo y único por cuenta; `COMPLETED` o `VOIDED` (se anula, no se borra) (§13). |
+| `SaleItem` | Renglón de la venta | Precio, costo y margen del momento de la venta, y copia del nombre del producto (§13). |
 
 **Aislamiento entre cuentas:** toda consulta se filtra por el `accountId` del usuario autenticado, que sale del JWT de Clerk y nunca del cliente (`docs/definition-of-done.md` §6). Los proveedores y las presentaciones heredan la cuenta de su insumo.
 
@@ -404,6 +408,14 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
 | Compras inteligentes (API y UI: sugerencias y cálculo de pedido en /compras) | Disponible |
+| Control de módulos por plan y por cuenta, y módulos de la cuenta en `GET /api/auth/me` | Disponible |
+| Módulo de ventas: modelo de ventas y caja, y ventas de prueba en la cuenta Demo | Disponible (solo la cuenta Demo de staging tiene el módulo) |
+| Venta rápida con ticket no fiscal | Planificado |
+| Turnos y cierre de caja | Planificado |
+| Ganancia real en el panel y en el reporte semanal | Planificado |
+| Qué módulos trae cada plan (Basic, Pro y Business) | Propuesta (v1.2) |
+| Stock de insumos, compras con pedido y reposición con cantidades | Fase 2 (v1.1) |
+| Facturación electrónica de ARCA | Fase 2 |
 
 ## 12. Decisiones pendientes
 
@@ -411,3 +423,35 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 2. ¿Rechazar un precio en cuarentena debe avisar al dueño? Hoy no avisa.
 3. ~~¿Qué pasa al quitar la presentación predeterminada de un insumo?~~ **Resuelta** por ADR-005 §1 y §4: con otras presentaciones, la API responde 409 y pide elegir otra predeterminada; si es la única, se borra (§4, "Reglas vigentes", y `docs/api.md` §6).
 4. ¿Entra el camino C (starter packs) en el alcance del proyecto?
+
+---
+
+## 13. Ventas, caja y ganancia real (módulo opcional)
+
+**Fuente:** ADR-010. **Estado:** el control de módulos y el modelo de datos están *Disponibles*. La venta, la caja y la ganancia real están *Planificadas* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
+
+### El problema
+
+MargenX calcula el margen **teórico** de cada producto (precio contra costo de la receta), pero no sabe cuánto se vendió ni cuánto se ganó de verdad. Los comercios piloto anotan las ventas a mano.
+
+### Control de módulos por plan y por cuenta · *Disponible*
+
+- Un módulo está prendido para una cuenta si tiene una **excepción** que lo prende (`AccountFeature`), o si no tiene excepción y su **plan** lo trae. La excepción manda en los dos sentidos.
+- Hoy ningún plan trae módulos. Qué plan incluye las ventas se decide en la v1.2, con los planes pagos: es una *propuesta* abierta. Mientras tanto, las excepciones se cargan con el seed de la Demo (`docs/runbook-operacion.md`).
+- Con el módulo apagado, las rutas `/api/sales` y `/api/cash-shifts` responden **404**, como si no existieran.
+- `GET /api/auth/me` informa los módulos en `user.features` (`docs/api.md` §3). El frontend los lee con el hook `useFeatures`, que usa el menú "Ventas" de la venta rápida (*Planificado*) para mostrarse solo con el módulo prendido.
+
+### Reglas del módulo de ventas
+
+- **Ticket no fiscal:** número correlativo por cuenta y la leyenda **"Comprobante no válido como factura"**. No reemplaza a la factura.
+- **Medio de pago:** efectivo, transferencia o Mercado Pago, **solo registrado**. MargenX no cobra ni se conecta con ningún medio de pago.
+- **Precio, costo y margen congelados:** cada renglón guarda los valores del momento de la venta. Si mañana sube la harina, la ganancia de las ventas de ayer no cambia. El margen es sobre el precio de venta (ADR-004).
+- **Caja por turnos:** un solo turno abierto por cuenta. Para vender hace falta un turno abierto. Al cierre se comparan lo esperado y lo contado por medio de pago.
+- **Anulación:** una venta no se borra. Se anula, con su motivo, y queda en el historial.
+- **Baja de un colaborador** (ADR-008): sus ventas y turnos quedan, sin usuario.
+- **Colaborador:** vende y ve los montos de venta y el arqueo de su turno, pero **nunca costos ni márgenes** (§8).
+- **Ganancia real:** ventas menos costo congelado, y el margen ponderado por lo vendido (ganancia / ventas), sin las ventas anuladas.
+
+### Fuera del módulo (Fase 2)
+
+Stock de insumos descontado por receta, compras con pedido a proveedores, reposición con cantidades y facturación electrónica de ARCA (ADR-010, SAD §1).
