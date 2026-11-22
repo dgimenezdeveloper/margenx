@@ -75,13 +75,13 @@ export function argentinaToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: ARGENTINA_TIMEZONE }).format(now)
 }
 
-/** Texto del ticket para compartir (WhatsApp usa *negrita*). */
 /** Firma de MargenX al pie de cada ticket, impreso o compartido. */
 export const TICKET_BRAND_SIGNATURE = 'Emitido con MargenX · margenx.tech'
 
 /** Lema de la marca, el mismo de los reportes PDF. */
 export const BRAND_TAGLINE = 'Control de rentabilidad en tiempo real'
 
+/** Texto del ticket para compartir (WhatsApp usa *negrita*). */
 export function buildTicketText(sale: Sale): string {
   const lines = [
     `*${sale.businessName}*`,
