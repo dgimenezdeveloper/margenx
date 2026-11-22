@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -39,16 +39,19 @@ import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import { cn } from '@/lib/utils'
 import { HEALTH_BUCKET_META, resolveProductHealthBucket } from '@/lib/healthBucket'
+import { productNoticeState } from '@/lib/productNotice'
 
 const money = (val: number) => formatMoney(val)
 
 export default function NewProductPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
   const { toast, notify, dismiss: dismissToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Aviso de producto creado que espera a que la pantalla quede sin cambios para ir a la lista (#432).
+  const [savedNotice, setSavedNotice] = useState<string | null>(null)
   const submitLockRef = useRef(false)
   const isNavigatingAfterSaveRef = useRef(false)
 
@@ -109,6 +112,15 @@ export default function NewProductPage() {
 
   useBodyScrollLock(isDropdownOpen)
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
+
+  // Se navega recién cuando el formulario ya se limpió: si se navegara en el mismo paso que el
+  // guardado, la protección de cambios sin guardar todavía estaría activa y frenaría la salida.
+  // El aviso viaja a la lista, porque mostrado acá se perdía al redirigir (#432).
+  useEffect(() => {
+    if (savedNotice && !hasUnsavedChanges) {
+      navigate('/productos', { state: productNoticeState(savedNotice) })
+    }
+  }, [savedNotice, hasUnsavedChanges, navigate])
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
@@ -282,15 +294,14 @@ export default function NewProductPage() {
     try {
       await productService.create(getToken, payload)
 
-      notify(
+      const createdNotice =
         items.length === 0
           ? `Producto guardado en estado ${HEALTH_BUCKET_META.draft.label} (sin receta).`
           : 'Producto creado exitosamente con receta vinculada.'
-      )
       isNavigatingAfterSaveRef.current = true
       reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
-      setTimeout(() => router.push('/productos'), 800)
+      setSavedNotice(createdNotice)
     } catch (error: unknown) {
       isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -224,3 +224,35 @@ describe('NewProductPage - avisos de error (#364)', () => {
     await vi.waitFor(() => expect(screen.queryByText('No se pudieron cargar los insumos.')).not.toBeInTheDocument())
   })
 })
+
+describe('NewProductPage - Escenario "Aviso al crear" (#432)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  it('al guardar vuelve a la lista con el aviso de producto creado, sin esperar a que se pierda', async () => {
+    vi.mocked(productService.create).mockResolvedValue({ id: 'prod-nuevo' } as never)
+    const router = createMemoryRouter(
+      [
+        { path: '/productos/nuevo', element: <NewProductPage /> },
+        { path: '/productos', element: <h1>Catálogo de productos</h1> },
+      ],
+      { initialEntries: ['/productos/nuevo'] }
+    )
+    render(<RouterProvider router={router} />)
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText(/Nombre del producto/), 'Bizcochitos de grasa — 1 kg')
+    await user.type(screen.getByLabelText('Precio de Venta'), '3200')
+    await user.click(screen.getAllByRole('button', { name: /Guardar Producto/i })[0]!)
+
+    await waitFor(() => expect(productService.create).toHaveBeenCalled())
+    await waitFor(() => expect(router.state.location.pathname).toBe('/productos'))
+    expect(router.state.location.state).toEqual({
+      productNotice: { title: 'Producto guardado en estado Borrador (sin receta).', type: 'success' },
+    })
+    expect(screen.queryByRole('dialog', { name: /Descartar cambios/ })).toBeNull()
+  })
+})
+

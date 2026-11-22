@@ -182,3 +182,27 @@ describe('ProductsPage - aviso al colaborador redirigido (#364)', () => {
     expect(screen.queryByText('Esa pantalla es solo para el administrador')).not.toBeInTheDocument()
   })
 })
+
+describe('ProductsPage - Escenario "Aviso al crear" (#432)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentUser.role = 'ADMIN'
+    vi.mocked(productService.list).mockResolvedValue({
+      items: [producto(1)],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    })
+  })
+
+  it('muestra en la lista el aviso que llega de crear o eliminar un producto, una sola vez', async () => {
+    const router = createMemoryRouter([{ path: '/productos', element: <ProductsPage /> }], {
+      initialEntries: [
+        { pathname: '/productos', state: { productNotice: { title: 'Producto creado exitosamente con receta vinculada.', type: 'success' } } },
+      ],
+    })
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Producto creado exitosamente con receta vinculada.')
+    await waitFor(() => expect(router.state.location.state).toBeNull())
+  })
+})
+
