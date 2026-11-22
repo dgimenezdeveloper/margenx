@@ -13,7 +13,7 @@ Colección `MargenX - Ventas API.postman_collection.json` y script `run-tests-ve
 El módulo está apagado por defecto: con el módulo apagado, todas las rutas responden 404. En la base **local** del devcontainer, desde `backend/`:
 
 ```bash
-npx prisma db execute --stdin <<'SQL'
+npx prisma db execute --schema prisma/schema.prisma --stdin <<'SQL'
 INSERT INTO "AccountFeature" ("id", "accountId", "feature", "enabled", "updatedAt")
 SELECT gen_random_uuid(), "id", 'sales', true, now() FROM "Account" WHERE "slug" = 'panaderia-central'
 ON CONFLICT ("accountId", "feature") DO UPDATE SET "enabled" = true, "updatedAt" = now();
