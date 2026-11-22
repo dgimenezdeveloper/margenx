@@ -146,6 +146,14 @@ const descarga = (body, headers = { 'x-margenx-webhook-secret': 'secreto' }) =>
   assert.ok(pdf.includes('soporte@margenx.tech') && !pdf.includes('contacto@margenx.tech'));
   assert.ok(r.json.emailText.includes('Soporte: soporte@margenx.tech') && !r.json.emailText.includes('contacto@'), 'el texto plano del mail también');
 
+  // 3d Margen mediano (RC-03, #430): el PDF y el mail lo llaman por su nombre y explican qué es
+  assert.ok(pdf.includes('Margen mediano: <strong>34,50%</strong>'), 'el PDF dice "Margen mediano"');
+  assert.ok(pdf.includes('La mitad de tus productos gana más que esto y la mitad menos.'), 'el PDF explica la mediana');
+  assert.ok(r.json.emailText.includes('Margen mediano: 34,50%') && r.json.emailHtml.includes('Margen mediano'), 'el mail usa el mismo rótulo');
+  for (const texto of [pdf, r.json.emailHtml, r.json.emailText]) {
+    assert.ok(!/margen promedio|cr[ií]tic[oa]s?\b|saludable/i.test(texto), 'queda un rótulo viejo en el reporte');
+  }
+
   // 4 Se avisa cuando el backend manda solo una parte (tope de 20 productos)
   assert.ok(pdf.includes('Se muestran 2 de 23'));
 

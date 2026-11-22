@@ -134,11 +134,46 @@ describe('QuarantineList', () => {
     await waitFor(() => {
       expect(supplierService.releaseQuarantine).toHaveBeenCalledWith(expect.anything(), 'q1')
       expect(onShowToast).toHaveBeenCalledWith(
-        'Precio liberado. Recálculo: 3 afectados, 1 críticos.',
+        'Precio liberado: 3 productos afectados, 1 queda en riesgo o en pérdida.',
         'success'
       )
     })
   })
+
+  it.each([
+    [1, 0, 'Precio liberado: 1 producto afectado, ninguno queda en riesgo ni en pérdida.'],
+    [4, 2, 'Precio liberado: 4 productos afectados, 2 quedan en riesgo o en pérdida.'],
+    [0, 0, 'Precio liberado: no cambia el costo de ningún producto.'],
+  ])(
+    'el aviso de liberar usa los nombres de estado vigentes: %i afectados y %i debajo de su mínimo (#430)',
+    async (afectados, debajoDelMinimo, aviso) => {
+      const onShowToast = vi.fn()
+      vi.mocked(supplierService.releaseQuarantine).mockResolvedValueOnce({
+        supplierIngredient: {
+          id: 'q1',
+          supplierId: 'sup1',
+          ingredientId: 'ing1',
+          packageSize: 25,
+          packageUnit: 'kg',
+          packagePrice: 50000,
+          isDefault: true,
+        },
+        unitCost: 2000,
+        affectedProductsCount: afectados,
+        affectedProducts: [],
+        criticalProducts: Array.from({ length: debajoDelMinimo }, (_, i) => ({ id: `medialuna-${i}` })),
+      })
+
+      render(<QuarantineList items={mockItems} onShowToast={onShowToast} />)
+      fireEvent.click(screen.getAllByText('Liberar')[0])
+      fireEvent.click(screen.getByRole('button', { name: /sí, liberar/i }))
+
+      await waitFor(() => {
+        expect(onShowToast).toHaveBeenCalledWith(aviso, 'success')
+      })
+      expect(onShowToast.mock.calls[0][0]).not.toMatch(/cr[ií]tic/i)
+    }
+  )
 
   it('muestra diálogo aclaratorio al liberar una presentación que no es predeterminada', () => {
     render(<QuarantineList items={mockItems} onShowToast={vi.fn()} />)

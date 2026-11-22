@@ -160,7 +160,7 @@ test.describe('TC-QUA: Liberar y rechazar precios en la bandeja de cuarentena (i
       await releaseButton.click()
       await page.getByRole('button', { name: 'Sí, liberar' }).click()
 
-      await expect(page.getByText(/Precio liberado\. Recálculo:/i)).toBeVisible({ timeout: 8000 })
+      await expect(page.getByText(/^Precio liberado: .*(afectados?|ningún producto)/i)).toBeVisible({ timeout: 8000 })
       await expect(page.getByText(INGREDIENT_NAME)).toHaveCount(0)
 
       await page.screenshot({ path: 'test-results/evidencia-360px/quarantine-liberar.png', fullPage: true })

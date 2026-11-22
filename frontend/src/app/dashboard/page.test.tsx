@@ -274,7 +274,7 @@ describe('DashboardPage sobre todo el catálogo (#351)', () => {
     expect(dashboardService.getMetrics).not.toHaveBeenCalled()
     expect(screen.queryByText(/distribución de salud financiera/i)).toBeNull()
     expect(screen.queryByText(/productos? debajo de su mínimo/i)).toBeNull()
-    expect(screen.queryByText(/margen promedio/i)).toBeNull()
+    expect(screen.queryByText(/margen mediano/i)).toBeNull()
   })
 })
 

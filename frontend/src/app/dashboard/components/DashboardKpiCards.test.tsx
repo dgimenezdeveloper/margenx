@@ -22,7 +22,7 @@ function margenPromedio() {
   return screen.getByTestId('average-margin')
 }
 
-describe('DashboardKpiCards: margen promedio (#351)', () => {
+describe('DashboardKpiCards: margen mediano (#351, #430)', () => {
   it('un margen positivo se muestra en verde', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
     expect(margenPromedio()).toHaveTextContent('38,5 %')
@@ -43,9 +43,11 @@ describe('DashboardKpiCards: margen promedio (#351)', () => {
     expect(margenPromedio().className).not.toMatch(/emerald|rose/)
   })
 
-  it('aclara que el valor es la mediana de los productos con receta', () => {
+  it('se llama "Margen mediano" y explica qué significa la mediana (#430)', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
-    expect(screen.getByText(/mediana de los productos con receta/i)).toBeInTheDocument()
+    expect(screen.getByText('Margen mediano')).toBeInTheDocument()
+    expect(screen.getByText('La mitad de tus productos gana más que esto y la mitad menos.')).toBeInTheDocument()
+    expect(screen.queryByText(/margen promedio/i)).toBeNull()
   })
 
   it('la tarjeta suma Pérdida y En riesgo de todo el catálogo sin usar el nombre de un estado (#358)', () => {
@@ -100,12 +102,12 @@ describe('DashboardKpiCards en el celular (#362)', () => {
     expect(screen.getByText('Debajo de su mínimo').className).toMatch(/md:hidden/)
     expect(screen.getByText('Productos debajo de su mínimo').className).toMatch(/hidden md:inline/)
     expect(screen.getByText('Insumos activos')).toBeInTheDocument()
-    expect(screen.getByText('Margen promedio')).toBeInTheDocument()
+    expect(screen.getByText('Margen mediano')).toBeInTheDocument()
   })
 
   it('las aclaraciones largas no se pierden para el lector de pantalla en el celular', () => {
     render(<DashboardKpiCards metrics={metricas} isLoading={false} />)
-    for (const texto of ['Pérdida o En riesgo', 'Mediana de los productos con receta']) {
+    for (const texto of ['Pérdida o En riesgo', 'La mitad de tus productos gana más que esto y la mitad menos.']) {
       const clases = screen.getByText(texto).className
       expect(clases).toMatch(/\bsr-only\b/)
       expect(clases).toMatch(/md:not-sr-only/)
