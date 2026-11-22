@@ -55,13 +55,44 @@ El detalle por issue, con su PR y su commit, está en `docs/entregables/entrega-
 
 ## 4. Retrospectiva (Start / Stop / Continue)
 
-**Recorte aplicado** (previsto en `#273`): la retrospectiva se completa en el primer Planning del Sprint 6. Esta sección se llena en esa sesión, con los aportes de todo el equipo.
+**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. Se hace fuera de término: el recorte previsto en `#273` la dejó para el Planning del Sprint 6 y no se hizo ahí (ver "Dejar de hacer", punto 4). El borrador lo preparó el Scrum Master con la evidencia del repositorio. Validada por el equipo (Darío Giménez, Federico Paal, Mauricio Barreras y Leandro Herrera) el 21/11/2026. La validación fue en persona, en la clase del 21/11, después de que cada integrante leyó las dos actas. El 22/11/2026 el Tech Lead decidió no pedir además la confirmación por escrito en el PR que preveía la estrategia de QA de `#396`, y lo dejó registrado acá y en la issue.
 
-| Categoría | Puntos |
+### Cumplimiento de los compromisos del Sprint 4 (acta del Sprint 4, §4)
+
+| Compromiso | Resultado en el Sprint 5 |
 |---|---|
-| 🟢 Continuar | Pendiente del Planning del Sprint 6 |
-| 🔴 Dejar de hacer | Pendiente del Planning del Sprint 6 |
-| 🟡 Empezar | Pendiente del Planning del Sprint 6 |
+| Backups diarios y ensayo de restauración | Cumplido (`#239`) |
+| Separar las instancias de Clerk | Cumplido (`#238`). La rotación de credenciales queda para el cierre de la cursada, como estaba previsto |
+| Colecciones de Postman al contrato vigente | Cumplido (`#264`). En la regresión corrieron 3 de 6 colecciones (`#270`, ver "Dejar de hacer", punto 3) |
+| Sugerencias de las revisiones en issues `review-followup` | Cumplido (`#265` → `#311` a `#314`) |
+| Pendientes del release v0.5.0 | Cumplido (`#240`, `#268`) |
+| Smart Purchasing (RF-15) | **No cumplido**: pasó al Sprint 6 |
+| Reporte semanal en PDF | **No cumplido**: pasó al Sprint 6 |
+| Lighthouse > 90 | **No cumplido**: pasó al Sprint 6 y después al 7 |
+
+### 🟢 Continuar
+
+1. **Revisión de PRs con formato normalizado** (`#274`, `/revisar-pr`), con hallazgos B, I y M y la cosecha de sugerencias como issues. El sprint cerró con 0 defectos graves abiertos (`docs/qa/reporte-calidad-sprint5.md` §3.7).
+2. **Pruebas por rol en dispositivos reales** (`#255`): aparecieron 3 defectos menores que las pruebas automáticas no mostraban: el `%` duplicado en Perfil, la terminología del estado de margen y las capturas faltantes en `/instalar`. Los tres se corrigieron en el Sprint 6 (`#356`, `#358` y `#365`).
+3. **Operar producción con red de seguridad:** backup diario con restauración ensayada (`#239`) y el primer release con copia previa, ensayo de migraciones y vuelta atrás preparada (`#271`).
+4. **Cobertura del 90 %** en backend y frontend (`#276`, `#277`). El CI la exige en el frontend (job `Frontend Unit Tests`); en el backend se mide con `npm run test:coverage` y se adjunta en el PR (`docs/process/revision-de-prs.md` §5).
+
+### 🔴 Dejar de hacer
+
+1. **Volver a postergar el core.** Smart Purchasing, el reporte PDF y Lighthouse estaban comprometidos en el acta del Sprint 4 y se postergaron por segunda vez. La deuda de la Entrega 5 y la PWA ocuparon el sprint, y el Planning del 25/10 no reservó capacidad para el core.
+2. **Títulos de PR fuera de Conventional Commits:** 24 de los 44 PRs mergeados a `develop` en el sprint, sin contar Dependabot (por ejemplo, `pwa instalable`, `250 sprint5 fe 09 detalle de proveedor` y `Título: ci(devops): …`). Además hubo un merge a `develop` sin PR (`Merge 238-sprint5-devops-02-clerk-de-produccion into develop`) y un commit `fix:ci`. Fuente: `git log --first-parent` sobre `develop` del 25/10 al 07/11.
+3. **Depender de una sola instancia de Clerk para QA:** no tenía los usuarios de Química GyJ y dejó 3 de 6 colecciones sin correr en la regresión (`docs/qa/reporte-calidad-sprint5.md` §3.4 y §3.7).
+4. **Recortar la retrospectiva al cierre:** quedó pendiente dos semanas y perdió inmediatez.
+
+### 🟡 Empezar
+
+| Acción | Responsable | Cómo se mide | Seguimiento en el Sprint 6 |
+|---|---|---|---|
+| Planificar primero el core y después la deuda | Darío Giménez (SM) | El core del sprint cierra dentro del sprint | Cumplido: compras (`#388`, `#389`), reporte PDF (`#390`, `#391`, `#392`) e invitaciones (`#395`) |
+| Título de PR en Conventional Commits, corregido antes de mergear: el squash usa el título | Cada autor de PR; el revisor lo marca | PRs fuera de la convención por sprint | Mejoró: de 24 de 44 a 7 de 35 |
+| Crear en Clerk de QA los usuarios de Química GyJ | Leandro Herrera | Todas las colecciones de `backend/tests/postman/` corridas en la regresión | Pasa como precondición de la regresión final (`#399`) |
+| Repartir mejor la carga: horas del Sprint 5 de 68 / 44 / 42 / 27 h (Darío, Leandro, Mauricio y Federico, `docs/entregables/entrega-pps-sprint-5.md` §6) | Darío Giménez (SM) | Core asignado a los cuatro roles | En el Sprint 6 el core se repartió entre los cuatro (pantalla de compras: Federico; APIs de compras y reporte: Mauricio; workflow del reporte e invitaciones: Darío; QA en dispositivos: Leandro) |
+| Probar la usabilidad con un catálogo grande antes de cerrar funcionalidades | Leandro Herrera | Recorrido con el seed de volumen | Cumplido del 06 al 10/11 (seed `f0f16c8`): salieron las issues `#350` a `#364` |
 
 ## 5. Lo que pasa al Sprint 6
 
