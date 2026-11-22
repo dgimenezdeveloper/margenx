@@ -110,6 +110,14 @@ describe('LandingPage', () => {
       expect(texto).toContain('Pensada para el celular')
     })
 
+    it('en el celular las tres marcas van una por línea, sin el separador colgando al final', () => {
+      textoVisible()
+      const marca = screen.getByText('Cada empleado ve solo lo que le corresponde')
+      const separadores = Array.from(marca.parentElement?.querySelectorAll('span') ?? []).filter((s) => s.textContent === '·')
+      expect(separadores).toHaveLength(2)
+      for (const separador of separadores) expect(separador).toHaveClass('hidden', 'sm:inline')
+    })
+
     it('muestra la dirección real de la ingesta por correo (precios-<comercio>@margenx.tech)', () => {
       const texto = textoVisible()
       expect(texto).toContain('precios-panaderia-central@margenx.tech')

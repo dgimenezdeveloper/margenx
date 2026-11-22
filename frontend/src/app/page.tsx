@@ -251,11 +251,11 @@ export default function LandingPage() {
             <span className="flex items-center gap-1.5">
               <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Tus datos, solo para tu comercio
             </span>
-            <span>·</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
             <span className="flex items-center gap-1.5">
               <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Cada empleado ve solo lo que le corresponde
             </span>
-            <span>·</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
             <span className="flex items-center gap-1.5">
               <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Pensada para el celular
             </span>
