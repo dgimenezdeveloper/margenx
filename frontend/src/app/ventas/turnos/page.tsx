@@ -20,7 +20,7 @@ import { cashShiftService, type CashShift } from '@/services/cashShiftService'
 
 /**
  * Historial de turnos de caja (ADR-010), el más reciente primero, con lo vendido y la
- * diferencia del arqueo. El ADMIN ve todos; el colaborador, el abierto y los que abrió o cerró.
+ * diferencia del arqueo. El ADMIN ve todos; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
  */
 export default function CashShiftsPage() {
   const getToken = useTokenGetter()

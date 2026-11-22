@@ -226,9 +226,12 @@ describe('POST /api/cash-shifts/:id/close', () => {
     expect(db.cashShift.update).not.toHaveBeenCalled();
   });
 
-  it('al colaborador, un turno cerrado de otra persona le responde 404', async () => {
-    db.cashShift.findFirst.mockResolvedValueOnce({ id: SHIFT_ID, status: 'CLOSED', openingAmount: D('10000'), openedById: ADMIN.id, closedById: ADMIN.id });
+  it('al colaborador, un turno cerrado donde no trabajó le responde 404; uno donde vendió, 409', async () => {
+    db.cashShift.findFirst.mockResolvedValueOnce({ id: SHIFT_ID, status: 'CLOSED', openingAmount: D('10000'), openedById: ADMIN.id, closedById: ADMIN.id, _count: { sales: 0 } });
     expect((await request(buildApp()).post(`/api/cash-shifts/${SHIFT_ID}/close`).send(contado)).status).toBe(404);
+
+    db.cashShift.findFirst.mockResolvedValueOnce({ id: SHIFT_ID, status: 'CLOSED', openingAmount: D('10000'), openedById: ADMIN.id, closedById: ADMIN.id, _count: { sales: 3 } });
+    expect((await request(buildApp()).post(`/api/cash-shifts/${SHIFT_ID}/close`).send(contado)).status).toBe(409);
   });
 
   it('sin lo contado de los tres medios responde 400; un turno inexistente o un id inválido, 404', async () => {
@@ -271,7 +274,7 @@ describe('GET /api/cash-shifts y GET /api/cash-shifts/:id', () => {
     expect(db.sale.groupBy.mock.calls[0]![0].where).toEqual({ accountId: ACCOUNT, cashShiftId: { in: [SHIFT_ID] } });
   });
 
-  it('el colaborador ve el turno abierto y los que abrió o cerró', async () => {
+  it('el colaborador ve el turno abierto y los que abrió, cerró o en los que vendió', async () => {
     db.cashShift.count.mockResolvedValue(0);
     db.cashShift.findMany.mockResolvedValue([]);
 
@@ -280,7 +283,7 @@ describe('GET /api/cash-shifts y GET /api/cash-shifts/:id', () => {
     expect(res.body).toEqual({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } });
     expect(db.cashShift.findMany.mock.calls[0]![0].where).toEqual({
       accountId: ACCOUNT,
-      OR: [{ status: 'OPEN' }, { openedById: CAJERA.id }, { closedById: CAJERA.id }],
+      OR: [{ status: 'OPEN' }, { openedById: CAJERA.id }, { closedById: CAJERA.id }, { sales: { some: { soldById: CAJERA.id } } }],
     });
     expect(db.sale.groupBy).not.toHaveBeenCalled();
   });

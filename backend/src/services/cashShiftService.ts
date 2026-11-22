@@ -205,12 +205,20 @@ export function serializeShift(shift: ShiftWithUsers, summary: SalesSummary) {
 
 export type ShiftSummary = ReturnType<typeof serializeShift>;
 
-/** El ADMIN ve todos los turnos; el colaborador, el abierto y los que abrió o cerró. */
+/**
+ * El ADMIN ve todos los turnos; el colaborador, "el arqueo de su turno" (especificación §13):
+ * el abierto y los que abrió, cerró o en los que vendió.
+ */
 function visibleShiftsWhere(actor: SaleActor): Prisma.CashShiftWhereInput {
   if (actor.role === 'ADMIN') return { accountId: actor.accountId };
   return {
     accountId: actor.accountId,
-    OR: [{ status: 'OPEN' }, { openedById: actor.id }, { closedById: actor.id }],
+    OR: [
+      { status: 'OPEN' },
+      { openedById: actor.id },
+      { closedById: actor.id },
+      { sales: { some: { soldById: actor.id } } },
+    ],
   };
 }
 
@@ -284,14 +292,25 @@ export async function closeShift(actor: SaleActor, shiftId: string, counted: ByM
   return prisma.$transaction(async (tx) => {
     const shift = await tx.cashShift.findFirst({
       where: { id: shiftId, accountId: actor.accountId },
-      select: { id: true, status: true, openingAmount: true, openedById: true, closedById: true },
+      select: {
+        id: true,
+        status: true,
+        openingAmount: true,
+        openedById: true,
+        closedById: true,
+        _count: { select: { sales: { where: { soldById: actor.id } } } },
+      },
     });
     if (!shift) {
       throw new AppError(SHIFT_NOT_FOUND_MESSAGE, 404);
     }
     if (shift.status === 'CLOSED') {
       // Al colaborador, un turno cerrado ajeno le responde igual que uno que no existe.
-      const visible = actor.role === 'ADMIN' || shift.openedById === actor.id || shift.closedById === actor.id;
+      const visible =
+        actor.role === 'ADMIN' ||
+        shift.openedById === actor.id ||
+        shift.closedById === actor.id ||
+        shift._count.sales > 0;
       throw new AppError(visible ? SHIFT_ALREADY_CLOSED_MESSAGE : SHIFT_NOT_FOUND_MESSAGE, visible ? 409 : 404);
     }
 
