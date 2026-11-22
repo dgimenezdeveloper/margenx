@@ -157,7 +157,7 @@ Además, `#400` (release) queda bloqueada por `#450`, por la decisión del 28/11
 
 En la clase del 21/11, la docente propuso ofrecer al emprendedor una solución inmediata (vender con ticket) como puerta de entrada al control de margen. El 22/11 el equipo acordó:
 
-- **Entra en la v1.0.0, detrás de un control de módulos por plan y por cuenta:** ventas con ticket no fiscal, caja por turnos y ganancia real (`#447` a `#450`). Queda prendido solo en la cuenta Demo de staging. El 28/11 se decide si se prende en la cuenta Demo de producción (`#450`). En los dos casos, el release v1.0.0 sale el 02/12.
+- **Entra en la v1.0.0, detrás de un control de módulos por plan y por cuenta:** ventas con ticket no fiscal, caja por turnos y ganancia real (`#447` a `#450`). Se prende solo en la cuenta Demo de staging. El 28/11 se decide si se prende en la cuenta Demo de producción (`#450`). En los dos casos, el release v1.0.0 sale el 02/12.
 - **Compras sugeridas mide el impacto en el margen** (`#445` y `#446`). Se quitan la calculadora de bultos y el pedido semanal, que suponían cantidades sin stock (RC-16 a RC-19).
 - **Pasan a la Fase 2:** stock de insumos, compras con pedido a proveedores, reposición con cantidades y facturación de ARCA. El monitor de disponibilidad (`#394`) se sacó del Sprint 7 y quedó en el milestone v1.1, porque el SM toma el módulo de ventas.
 - La decisión y sus motivos quedan en el **ADR-010** (`docs/adr/0010-modulo-de-ventas-y-control-de-modulos.md`, `#447`). La hoja de ruta posterior a la cursada es `#451`.
@@ -165,7 +165,7 @@ En la clase del 21/11, la docente propuso ofrecer al emprendedor una solución i
 
 ## 6. Retrospectiva (Start / Stop / Continue)
 
-**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. El borrador lo preparó el Scrum Master con la evidencia del repositorio. Validada por el equipo (Darío Giménez, Federico Paal, Mauricio Barreras y Leandro Herrera) el 21/11/2026.
+**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. El borrador lo preparó el Scrum Master con la evidencia del repositorio. Validada por el equipo (Darío Giménez, Federico Paal, Mauricio Barreras y Leandro Herrera) el 21/11/2026. La validación fue en persona, en la clase del 21/11, después de que cada integrante leyó las dos actas. El 22/11/2026 el Tech Lead decidió no pedir además la confirmación por escrito en el PR que preveía la estrategia de QA de `#396`, y lo dejó registrado acá y en la issue.
 
 ### Cumplimiento de las acciones de la retrospectiva del Sprint 5
 

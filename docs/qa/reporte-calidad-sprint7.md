@@ -90,7 +90,7 @@ Tipo: **D** defecto, **U** usabilidad.
 | RC-05 | La columna Estado del PDF corta "Pérdid/a" | D | Menor | `reporte-semanal.json`, nodo "Generar Reporte HTML", línea 272 | [captura](evidencias/recorrido-cliente/04-pdf-estado-cortado.png) | #435 |
 | RC-06 | Soporte en `contacto@` en mails y PDF; la app dice `soporte@` | D | Menor | `mail-margenx.js:96, 151` y copias en los workflows | — | #435 |
 | RC-07 | "Documentación" del pie lleva al repositorio de GitHub | U | Menor | `userManual.ts` | — | Not planned (§1.8) |
-| RC-08 | "Se usa en" muestra el precio de venta sin rótulo | U | Menor | `IngredientUpsertSheet.tsx:317-319` | [captura](evidencias/recorrido-cliente/06-insumo-se-usa-en.jpg) | #433 |
+| RC-08 | "Se usa en" muestra el precio de venta sin rótulo | U | Menor | `IngredientUpsertSheet.tsx:317-319` | [captura](evidencias/recorrido-cliente/06-insumo-se-usa-en.jpg): muestra la ficha con "Se usa en" plegado, no el precio sin rótulo; verificado en el código | #433 |
 | RC-09 | El modal se titula "Actualizar Costo" aunque edita nombre y unidad; el historial compara kg contra litro sin la unidad | U | Menor | `IngredientUpsertSheet.tsx` | [captura](evidencias/recorrido-cliente/05-insumo-historial-kg-a-litro.jpg) | #433 |
 | RC-10 | ↓ + Enter antes de que lleguen los resultados abre "Crear nuevo insumo" | D | Menor | `recipe-ingredient-combobox.tsx:60-64, 103-111, 149` | — | #432 |
 | RC-11 | "+ + Crear nuevo insumo" | D | Menor | `recipe-ingredient-combobox.tsx:277-278` | [captura](evidencias/recorrido-cliente/09b-crear-nuevo-insumo-doble-mas.png) | #432 |
@@ -106,10 +106,10 @@ Tipo: **D** defecto, **U** usabilidad.
 | RC-21 | "tu margen global de ." vacío mientras carga | D | Menor | `productos/nuevo/page.tsx:430-431` | — | #431 |
 | RC-22 | "Proveedo…" cortado en el menú inferior a 360 px | U | Menor | `bottom-nav.tsx:17, 40` | [captura](evidencias/recorrido-cliente/15-panel-360-nav-truncada.jpg) | #437 |
 | RC-23 | El histograma a 360 px dice "Riesgo" y "Objetivo" | U | Menor | `healthBucket.ts:64, 77` | [captura](evidencias/recorrido-cliente/18-panel-360-claro-histograma.jpg) | #430 |
-| RC-24 | El colaborador ve 14 productos en borrador con "Precio: $0,00" | D | Importante | `products.ts:128`, `MonitoredCatalogGrid.tsx:~208`, `productos/page.tsx:~202` | [captura](evidencias/recorrido-cliente/20-colaborador-panel.jpg) | #428 |
+| RC-24 | El colaborador ve 14 productos en borrador con "Precio: $0,00" | D | Importante | `products.ts:128`, `MonitoredCatalogGrid.tsx:~208`, `productos/page.tsx:~202` | [captura](evidencias/recorrido-cliente/20-colaborador-panel.jpg): muestra el panel del colaborador, no los borradores a $0,00 (quedan más abajo en la lista); verificado en el código | #428 |
 | RC-25 | El 409 de invitación no distingue invitación pendiente de cuenta existente | U | Menor | `collaborators.ts:65-72` | — | #437 |
 | RC-26 | La confirmación de Liberar de cuarentena no dice costo ni margen; el aviso dice "críticos" | U | Menor | `QuarantineList.tsx:42` | [captura](evidencias/recorrido-cliente/21-cuarentena-liberar.jpg) | #430 |
-| RC-27 | Se puede cambiar la unidad de un insumo con recetas y presentaciones: las cantidades y los bultos quedan en la unidad vieja | D | **Grave** | `ingredients.ts:516-566` | [captura](evidencias/recorrido-cliente/05-insumo-historial-kg-a-litro.jpg) | #426 |
+| RC-27 | Se puede cambiar la unidad de un insumo con recetas y presentaciones: las cantidades y los bultos quedan en la unidad vieja | D | **Grave** | `ingredients.ts:516-566` | Sin captura del defecto: verificado en el código y no reproducido (§1.2). [Historial sin unidad](evidencias/recorrido-cliente/05-insumo-historial-kg-a-litro.jpg), relacionado | #426 |
 | RC-28 | Un costo manual deja la presentación predeterminada con otro precio; las tarjetas de proveedores desaparecen hasta recargar | D | Importante | `ingredients.ts:516-566`, `IngredientUpsertSheet.tsx` | — | #427 |
 
 **Resumen:** 1 grave, 3 importantes y 24 menores. 11 defectos y 17 de

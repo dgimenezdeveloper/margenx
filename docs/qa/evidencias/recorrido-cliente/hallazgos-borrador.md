@@ -1,5 +1,7 @@
 # Hallazgos recorrido cliente (borrador)
 
+> **Notas de trabajo del 21/11/2026, reemplazadas.** La versión revisada, con severidad, evidencia e issue de cada hallazgo, está en `docs/qa/reporte-calidad-sprint7.md` §1.
+
 RC-01 /privacidad — jerga técnica (ADMIN/COLLABORATOR, slug, tenant). privacidad/page.tsx:11,17. Menor, usabilidad.
 RC-02 Landing — jerga para dueño (RBAC estricto, multi-tenant, Mobile-First 360px, Zero-Click n8n, Anti-Polución). page.tsx (verificar líneas). Menor, usabilidad.
 RC-03 Panel — "Margen promedio" muestra mediana. DashboardKpiCards.tsx:130-135; también PDF "Margen promedio: ... (la mediana)". Menor, usabilidad.
