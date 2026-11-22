@@ -40,7 +40,7 @@ export function ProductMobileSimulatorSheet({
                     : 'text-rose-700 dark:text-rose-400'
               }`}
             >
-              Ganancia: {!simulatorProps.hasRecipe ? '$0' : money(gain)}
+              Ganancia: {money(simulatorProps.hasRecipe ? gain : 0)}
             </span>
           </div>
           <ProductSimulatorPanel {...simulatorProps} isMobile={true} onCancel={onClose} />
