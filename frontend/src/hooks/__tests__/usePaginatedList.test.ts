@@ -145,4 +145,46 @@ describe('usePaginatedList', () => {
     await waitFor(() => expect(result.current.page).toBe(1))
     await waitFor(() => expect(result.current.items).toHaveLength(20))
   })
+
+  it('Escenario "Respuesta vieja descartada": si la respuesta de "sem" llega después de la de "semillas", gana "semillas"', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const semola: Insumo = { id: 'ing-semola', name: 'Sémola de trigo candeal' }
+    const pagina = (items: Insumo[]): PageResult<Insumo> => ({
+      items,
+      meta: { total: items.length, page: 1, limit: 20, totalPages: 1 },
+    })
+    // Cada búsqueda queda pendiente hasta que la prueba decide resolverla.
+    const pendientes = new Map<string, (resultado: PageResult<Insumo>) => void>()
+    const fetchPage = vi.fn((params: PageParams) =>
+      params.search
+        ? new Promise<PageResult<Insumo>>((resolve) => pendientes.set(params.search ?? '', resolve))
+        : apiSimulada(params)
+    )
+    const { result } = renderHook(() => usePaginatedList(fetchPage))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => result.current.setSearch('sem'))
+    act(() => {
+      vi.advanceTimersByTime(310)
+    })
+    act(() => result.current.setSearch('semillas'))
+    act(() => {
+      vi.advanceTimersByTime(310)
+    })
+    await waitFor(() => expect(pendientes.has('semillas')).toBe(true))
+    expect(pendientes.has('sem')).toBe(true)
+
+    await act(async () => {
+      pendientes.get('semillas')!(pagina([catalogo[150]!]))
+    })
+    await waitFor(() => expect(result.current.items).toEqual([catalogo[150]]))
+
+    // La respuesta vieja llega última: no tiene que pisar la lista ni volver a "cargando".
+    await act(async () => {
+      pendientes.get('sem')!(pagina([semola]))
+    })
+    expect(result.current.items).toEqual([catalogo[150]])
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.appliedSearch).toBe('semillas')
+  })
 })
