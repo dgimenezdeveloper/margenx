@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 3.1 (Cierre del Sprint 6)
-**Fecha de Actualización:** 20 de Noviembre de 2026
+**Versión:** 3.2 (Sprint 7: módulo de ventas y control de módulos)
+**Fecha de Actualización:** 22 de Noviembre de 2026
 
 ---
 
@@ -85,6 +85,8 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 - Pasarela de cobros o pasarelas de pago de suscripción SaaS real.
 - Notificaciones mediante la API comercial de WhatsApp Business (Meta) — descartada en la fase de MVP debido a su modelo tarifario por conversación; la comunicación crítica se resuelve a costo $0 mediante relay SMTP autenticado vía Brevo, notificaciones In-App y Web Push Notifications.
 - Multi-sucursal dentro de una misma cuenta de comercio.
+- Facturación electrónica (ARCA): el módulo de ventas emite un ticket **no fiscal** con la leyenda "Comprobante no válido como factura" (ADR-010).
+- Stock de insumos, compras con pedido a proveedores y reposición con cantidades: quedan para la Fase 2, porque exigen una carga inicial de stock por comercio y cambian el dominio de insumos y recetas (ADR-010).
 - Historial exhaustivo de auditoría de modificaciones de usuarios (más allá de la trazabilidad de costos e historial de precios).
 
 ### Alcance de la cursada y Fase 2
@@ -105,8 +107,13 @@ La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/
 | Reporte semanal de márgenes en PDF por correo y descarga desde la app | Cursada (Sprint 6) | §2, §6 |
 | Documentación interactiva de la API (Swagger / OpenAPI) | Cursada (Sprint 7) | §6 |
 | Lighthouse > 90 a 360 px (RNF-01, RNF-02) | Cursada (Sprint 7) | §6 |
-| Monitor de disponibilidad de producción y staging | Cursada (Sprint 7) | §2 |
+| Módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos por plan y por cuenta (prendido solo en la cuenta Demo; el 28/11 se decide si se muestra en producción) | Cursada (Sprint 7) | ADR-010, especificación §13 |
+| Compras sugeridas por impacto en el margen (sin calculadora de bultos ni pedido semanal) | Cursada (Sprint 7) | ADR-010, especificación §7 |
 | Release `v1.0.0` | Cursada (Sprint 7) | §6, `docs/runbook-release.md` |
+| Monitor de disponibilidad de producción y staging | Fase 2 (v1.1) | §2 |
+| Stock de insumos descontado por receta desde las ventas, compras con pedido y reposición con cantidades | Fase 2 (v1.1) | ADR-010 |
+| Planes pagos sobre el control de módulos (qué módulos trae cada plan) | Fase 2 (v1.2) | ADR-010 |
+| Facturación electrónica de ARCA | Fase 2 | ADR-010 |
 | Permisos granulares y roles intermedios; invitar a otro `ADMIN` y cambiar roles | Fase 2 | ADR-007, ADR-008 |
 | Backoffice interno de cuentas (mientras tanto, Concierge MVP) | Fase 2 | `docs/propuesta-proyecto.md` §13.1, ADR-008 |
 | Moneda y cotización ARS/USD | Fase 2 | `docs/retrospectivas/acta-cierre-sprint-5.md` §5 |
@@ -146,7 +153,7 @@ Para mitigar el riesgo de saturación de memoria RAM en el servidor ante proceso
 - Si supera el umbral del **85%**, ejecuta `docker stats --no-stream` para identificar los contenedores que más demandan memoria.
 - Construye y despacha un mensaje Embed enriquecido a Discord con mención a DevOps, incorporando un periodo de bloqueo de 30 minutos para evitar saturación de notificaciones.
 
-**Monitor de disponibilidad** · *Planificado (Sprint 7)*: un workflow de n8n consulta cada 5 minutos el healthcheck de la API y el frontend de producción y de staging, y avisa a Discord la caída después de 2 fallas seguidas y la recuperación. Guarda su estado en los datos estáticos del workflow, sin escribir en la base.
+**Monitor de disponibilidad** · *Fase 2 (v1.1)*, pasado del Sprint 7 el 22/11/2026 porque el Scrum Master toma el módulo de ventas (ADR-010): un workflow de n8n consulta cada 5 minutos el healthcheck de la API y el frontend de producción y de staging, y avisa a Discord la caída después de 2 fallas seguidas y la recuperación. Guarda su estado en los datos estáticos del workflow, sin escribir en la base.
 
 ---
 
@@ -165,12 +172,17 @@ erDiagram
     INGREDIENT ||--o{ PRICE_HISTORY : "audita"
     SUPPLIER ||--o{ SUPPLIER_INGREDIENT : "ofrece"
     INGREDIENT ||--o{ SUPPLIER_INGREDIENT : "se_adquiere_como"
+    ACCOUNT ||--o{ ACCOUNT_FEATURE : "excepciones_de_modulo"
+    ACCOUNT ||--o{ CASH_SHIFT : "abre_turnos"
+    CASH_SHIFT ||--o{ SALE : "registra"
+    SALE ||--o{ SALE_ITEM : "detalla"
+    PRODUCT |o--o{ SALE_ITEM : "se_vende_como"
 
     ACCOUNT {
         string id PK "uuid"
         string businessName "Nombre comercial"
         string slug UK "Identificador URL para correos"
-        string subscriptionPlan "FREE | PRO"
+        string subscriptionPlan "FREE | BASIC | PRO | BUSINESS (módulos por plan: ADR-010)"
         datetime trialEndsAt "Vencimiento freemium (opcional)"
         boolean isActive "Estado de cuenta"
         decimal defaultMinMarginPercent "Decimal(5,2) Margen global inicial"
@@ -249,7 +261,54 @@ erDiagram
         string ingredientId FK "uuid (UK con productId)"
         decimal quantity "Decimal(10,3) Cantidad usada en receta"
     }
+
+    ACCOUNT_FEATURE {
+        string id PK "uuid"
+        string accountId FK "uuid (UK con feature)"
+        string feature "sales"
+        boolean enabled "Excepción: manda sobre el plan"
+    }
+
+    CASH_SHIFT {
+        string id PK "uuid"
+        string accountId FK "uuid (un solo turno OPEN por cuenta: índice parcial único)"
+        string status "OPEN | CLOSED"
+        string openedById FK "uuid (null si se da de baja al usuario)"
+        decimal openingAmount "Decimal(12,2) Monto inicial"
+        decimal expectedCash "Decimal(12,2) Esperado al cierre (también transferencia y Mercado Pago)"
+        decimal countedCash "Decimal(12,2) Contado al cierre (también transferencia y Mercado Pago)"
+        decimal difference "Decimal(12,2) Contado total menos esperado total"
+        datetime openedAt
+        datetime closedAt
+    }
+
+    SALE {
+        string id PK "uuid"
+        string accountId FK "uuid"
+        string cashShiftId FK "uuid"
+        string soldById FK "uuid (null si se da de baja al usuario)"
+        int ticketNumber "Correlativo por cuenta (UK con accountId)"
+        string paymentMethod "CASH | TRANSFER | MERCADO_PAGO (solo registrado)"
+        decimal total "Decimal(12,2)"
+        string status "COMPLETED | VOIDED (no se borra: se anula con motivo)"
+        datetime soldAt
+    }
+
+    SALE_ITEM {
+        string id PK "uuid"
+        string saleId FK "uuid"
+        string productId FK "uuid (null si se borra el producto)"
+        string productName "Copia del nombre al vender"
+        int quantity
+        decimal unitPrice "Decimal(10,2) Precio del momento"
+        decimal unitCost "Decimal(10,2) Costo del momento"
+        decimal marginPercent "Decimal(8,2) Margen del momento"
+        decimal lineTotal "Decimal(12,2)"
+        decimal lineCost "Decimal(12,2)"
+    }
 ```
+
+**Módulo de ventas (ADR-010).** `ACCOUNT_FEATURE`, `CASH_SHIFT`, `SALE` y `SALE_ITEM` son tablas nuevas, con una migración solo aditiva. Cada renglón de venta congela el precio, el costo y el margen del momento, para que la ganancia histórica no cambie cuando cambian los costos (ADR-005). El control de módulos (`backend/src/lib/features.ts`) resuelve primero la excepción de la cuenta y después el plan. Hoy ningún plan trae módulos: se prenden por cuenta. Con el módulo apagado, `/api/sales` y `/api/cash-shifts` responden 404.
 
 ---
 
@@ -778,10 +837,14 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 * **Hito Cátedra:** Entrega final de la cursada (05/12/2026). Entre el 21/11 y el 05/12 la revisión de la cátedra es en línea.
 * **Congelamiento de funcionalidades:** 28/11/2026. Desde ese día `develop` solo recibe correcciones de defectos de la regresión y documentación.
 * **Entregable:** Release `v1.0.0` en producción, documentación interactiva de la API, regresión completa con matriz de trazabilidad, documentos finales actualizados, video demo comercial de 3 minutos y defensa ensayada.
+* **Cambio de alcance del 22/11/2026:** entra el módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos (ADR-010). El 28/11 se decide si se muestra en producción. El monitor de disponibilidad pasa a la Fase 2 (v1.1).
 * **Backend:**
   * [BE] Documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
+  * [BE] Compras sugeridas por impacto en el margen (sin calculadora de bultos ni pedido semanal).
+* **Full stack (módulo de ventas, ADR-010):**
+  * [BE] Control de módulos por plan y por cuenta, modelo de ventas y caja (migración aditiva) y seed de ventas de la cuenta Demo.
+  * [FS] Venta rápida con ticket no fiscal; turnos y cierre de caja; ganancia real en el panel y en el reporte semanal.
 * **DevOps / n8n:**
-  * [N8N] Monitor de disponibilidad de producción y staging con aviso a Discord.
   * [DEVOPS] Release `v1.0.0`: congelamiento, merge a `main`, etiqueta, rotación de credenciales y runbook de release corregido.
 * **QA / PO:**
   * [QA] Auditoría de Lighthouse > 90 a 360 px (RNF-01, RNF-02). *Reprogramado desde el Sprint 6.*
