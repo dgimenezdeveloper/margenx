@@ -1,0 +1,181 @@
+# Reporte de Calidad — Sprint 7
+
+Este documento empieza con el recorrido de cliente en staging del 21/11/2026,
+que dio origen a las issues de arreglos del Sprint 7 (`[SPRINT7-QA7-nn]`) y al
+reenfoque de Compras sugeridas (`[SPRINT7-R-0n]`). Las demás issues de QA del
+Sprint 7 suman sus propias secciones más abajo cuando se ejecuten: axe (#442),
+tiempos de búsqueda (#444), Lighthouse (#398) y la regresión final (#399).
+
+## 1. Recorrido de cliente en staging (21/11/2026)
+
+**Estado de esta sección: completa.** Los 28 hallazgos (RC-01 a RC-28) tienen
+issue o una decisión de not planned con su motivo (§1.8).
+
+### 1.1 Objetivo
+
+Usar MargenX como lo usaría el dueño de un comercio y como lo usaría su
+empleado, de la portada al reporte semanal, para encontrar lo que las pruebas
+automáticas y las revisiones de PR no ven: textos que confunden, flujos
+partidos y datos que se contradicen. Es la última revisión antes del
+congelamiento del 28/11.
+
+### 1.2 Método
+
+- **Ambiente:** `dev.margenx.tech`, con `develop` al 21/11/2026 (Sprint 6
+  completo), cuenta **Demo MargenX**, con los roles Administrador y Colaborador.
+- **Vistas:** escritorio y emulación a 360 px, en modo claro y oscuro.
+- **Contraste con el código:** cada hallazgo se verificó leyendo el componente
+  o la ruta responsable en `develop` y se registra con su archivo y línea.
+  RC-27 se verificó en el código y no se reprodujo sobre un insumo usado: su
+  issue (#426) lo reproduce primero con datos de prueba creados para eso.
+- **Fuentes unificadas en la clasificación:**
+  - **RC:** este recorrido.
+  - **U:** la revisión de usabilidad del equipo del 20/11, en las
+    "NOTAS DE REVISION" del tablero.
+  - **RV:** los hallazgos importantes (I) de las revisiones de PR del Sprint 6
+    que quedaron como condición.
+  - **H2:** el defecto del simulador del reporte del Sprint 6
+    ([§1.7](reporte-calidad-sprint6.md#17-matriz-de-defectos-fechada)).
+- **Capturas:** en [`evidencias/recorrido-cliente/`](evidencias/recorrido-cliente/),
+  con el criterio de la issue #365: sin barra de estado, sin fotos de perfil,
+  sin correos ni otros datos personales. Las direcciones `.example` de los
+  proveedores son ficticias.
+- **Reproducciones posteriores:** toda reproducción en staging que pidan las
+  issues se hace con datos creados y borrados en la misma prueba, sin modificar
+  los datos existentes de la cuenta Demo.
+
+### 1.3 Qué funcionó
+
+Sin hallazgos en:
+
+- ingreso, política de privacidad e instalación;
+- 360 px sin scroll horizontal en todas las pantallas recorridas
+  ([insumos](evidencias/recorrido-cliente/16-insumos-360.jpg),
+  [producto](evidencias/recorrido-cliente/17-producto-360.jpg));
+- carga por planilla con válidas, repetidas y con error
+  ([captura](evidencias/recorrido-cliente/07-planilla-revision.jpg));
+- 409 al borrar un insumo que está en recetas
+  ([captura](evidencias/recorrido-cliente/08-insumo-borrar-en-receta-409.jpg));
+- alta rápida de insumo desde la receta, con el nombre duplicado bloqueado
+  ([captura](evidencias/recorrido-cliente/09-alta-rapida-insumo.jpg));
+- simulador de precio (salvo el formato de H2 y el centavo de RC-12);
+- aviso de cambios sin guardar;
+- recálculo al hacer predeterminada una presentación;
+- baja de proveedor con el detalle de lo afectado;
+- invitar y revocar colaboradores;
+- colaborador sin costos, en la interfaz y en la API;
+- redirección del colaborador con aviso cuando abre una pantalla del
+  administrador ([captura](evidencias/recorrido-cliente/19-colaborador-redirigido.jpg)).
+
+### 1.4 No cubierto
+
+| Qué | Por qué | Dónde se cubre |
+|---|---|---|
+| Uso sin red real | No se pudo cortar la red desde el navegador usado. `offline.html` respondió bien | Regresión final (#399), en dispositivo |
+| Aviso de versión nueva de la PWA | Requiere un despliegue durante la prueba | Regresión final (#399) |
+| `/api/docs` | No estaba desplegado (#393) | #393 y regresión final |
+
+### 1.5 Matriz de hallazgos del recorrido
+
+Severidad: la escala del
+[reporte del Sprint 5, §2.6](reporte-calidad-sprint5.md#26-matriz-de-defectos-fechada).
+Tipo: **D** defecto, **U** usabilidad.
+
+| ID | Hallazgo | Tipo | Sev. | Dónde | Evidencia | Issue |
+|---|---|---|---|---|---|---|
+| RC-01 | Jerga técnica en la política de privacidad (ADMIN/COLLABORATOR, slug, tenant) | U | Menor | `privacidad/page.tsx:11, 17` | [captura](evidencias/recorrido-cliente/02-privacidad-jerga.jpg) | #436 |
+| RC-02 | Jerga en la portada (RBAC estricto, multi-tenant, Mobile-First 360px, Zero-Click n8n, Anti-Polución) | U | Menor | `app/page.tsx` | [captura](evidencias/recorrido-cliente/01-landing-escritorio.jpg) | #436 |
+| RC-03 | "Margen promedio" muestra la mediana; el PDF dice "Margen promedio: … (la mediana)" | U | Menor | `DashboardKpiCards.tsx:130-135` | [captura](evidencias/recorrido-cliente/03-panel-margen-promedio-mediana.jpg) | #430 |
+| RC-04 | Tú y vos mezclados ("Aquí tienes", "Haz clic"); Clerk con "¿Has olvidado…?" y "Regístrese" | U | Menor | `dashboard/page.tsx:125`, `HealthDistributionHistogram.tsx:230`, Clerk | [captura](evidencias/recorrido-cliente/15-panel-360-nav-truncada.jpg) | #436 |
+| RC-05 | La columna Estado del PDF corta "Pérdid/a" | D | Menor | `reporte-semanal.json`, nodo "Generar Reporte HTML", línea 272 | [captura](evidencias/recorrido-cliente/04-pdf-estado-cortado.png) | #435 |
+| RC-06 | Soporte en `contacto@` en mails y PDF; la app dice `soporte@` | D | Menor | `mail-margenx.js:96, 151` y copias en los workflows | — | #435 |
+| RC-07 | "Documentación" del pie lleva al repositorio de GitHub | U | Menor | `userManual.ts` | — | Not planned (§1.8) |
+| RC-08 | "Se usa en" muestra el precio de venta sin rótulo | U | Menor | `IngredientUpsertSheet.tsx:317-319` | [captura](evidencias/recorrido-cliente/06-insumo-se-usa-en.jpg) | #433 |
+| RC-09 | El modal se titula "Actualizar Costo" aunque edita nombre y unidad; el historial compara kg contra litro sin la unidad | U | Menor | `IngredientUpsertSheet.tsx` | [captura](evidencias/recorrido-cliente/05-insumo-historial-kg-a-litro.jpg) | #433 |
+| RC-10 | ↓ + Enter antes de que lleguen los resultados abre "Crear nuevo insumo" | D | Menor | `recipe-ingredient-combobox.tsx:60-64, 103-111, 149` | — | #432 |
+| RC-11 | "+ + Crear nuevo insumo" | D | Menor | `recipe-ingredient-combobox.tsx:277-278` | [captura](evidencias/recorrido-cliente/09b-crear-nuevo-insumo-doble-mas.png) | #432 |
+| RC-12 | Simulador $2.086,54 contra lista $2.086,55 (el frontend no redondea por renglón) | D | Menor | `useRecipeStore.ts:124-129` contra `marginCalculator.ts:51-53` | — | #431 |
+| RC-13 | Con mínimo ≥ 60 %, un producto en su mínimo se ve "Superávit" | U | Menor | `marginCalculator.ts:120-139` | [captura](evidencias/recorrido-cliente/10-producto-superavit-en-minimo.jpg) | Not planned (§1.8) |
+| RC-14 | Flujo de presentaciones partido en dos pantallas, sin código de artículo en el alta desde el insumo y con nombres distintos para lo mismo | U | Menor | `proveedores/[id]/page.tsx:248`, `PresentationEditDialog.tsx:196` | [captura](evidencias/recorrido-cliente/11-proveedor-detalle-sin-alta.jpg) | #434 |
+| RC-15 | "Hacer predeterminado" en la ficha del insumo cambia el costo sin confirmar; en Compras sí confirma | U | Menor | ficha del insumo | — | #434 |
+| RC-16 | La confirmación de Compras no dice cuántos productos cambian ni cómo queda el margen | U | Menor | `compras/page.tsx` | [captura](evidencias/recorrido-cliente/13-compras-confirmar-predeterminada.jpg) | #445, #446 |
+| RC-17 | La calculadora arranca con 1 bulto por insumo: "Pedido Semanal" de $1.501.131,23 con 28 "producto(s)" que son insumos | U | Menor | `compras/page.tsx:515-518` | [captura](evidencias/recorrido-cliente/14-compras-pedido-1-bulto-c-u.jpg) | #446 |
+| RC-18 | "Ahorro potencial por bulto" suma bultos de insumos distintos | U | Menor | `compras/page.tsx:383` | [captura](evidencias/recorrido-cliente/14-compras-pedido-1-bulto-c-u.jpg) | #446 |
+| RC-19 | Los botones "Hacer predeterminada" no tienen un nombre accesible distinto por insumo | D | Menor | `compras/page.tsx:~460-467` | — | #446 |
+| RC-20 | Perfil dice que el margen global "determinará el umbral de alerta", y las alertas usan el mínimo de cada producto; "Alertas Automáticas (n8n)" | D | Importante | `perfil/page.tsx:163, 202` | — | #429 |
+| RC-21 | "tu margen global de ." vacío mientras carga | D | Menor | `productos/nuevo/page.tsx:430-431` | — | #431 |
+| RC-22 | "Proveedo…" cortado en el menú inferior a 360 px | U | Menor | `bottom-nav.tsx:17, 40` | [captura](evidencias/recorrido-cliente/15-panel-360-nav-truncada.jpg) | #437 |
+| RC-23 | El histograma a 360 px dice "Riesgo" y "Objetivo" | U | Menor | `healthBucket.ts:64, 77` | [captura](evidencias/recorrido-cliente/18-panel-360-claro-histograma.jpg) | #430 |
+| RC-24 | El colaborador ve 14 productos en borrador con "Precio: $0,00" | D | Importante | `products.ts:128`, `MonitoredCatalogGrid.tsx:~208`, `productos/page.tsx:~202` | [captura](evidencias/recorrido-cliente/20-colaborador-panel.jpg) | #428 |
+| RC-25 | El 409 de invitación no distingue invitación pendiente de cuenta existente | U | Menor | `collaborators.ts:65-72` | — | #437 |
+| RC-26 | La confirmación de Liberar de cuarentena no dice costo ni margen; el aviso dice "críticos" | U | Menor | `QuarantineList.tsx:42` | [captura](evidencias/recorrido-cliente/21-cuarentena-liberar.jpg) | #430 |
+| RC-27 | Se puede cambiar la unidad de un insumo con recetas y presentaciones: las cantidades y los bultos quedan en la unidad vieja | D | **Grave** | `ingredients.ts:516-566` | [captura](evidencias/recorrido-cliente/05-insumo-historial-kg-a-litro.jpg) | #426 |
+| RC-28 | Un costo manual deja la presentación predeterminada con otro precio; las tarjetas de proveedores desaparecen hasta recargar | D | Importante | `ingredients.ts:516-566`, `IngredientUpsertSheet.tsx` | — | #427 |
+
+**Resumen:** 1 grave, 3 importantes y 24 menores. 11 defectos y 17 de
+usabilidad. Ningún hallazgo de pérdida de datos en lo que ya está guardado.
+RC-27 es grave porque cambia el significado de datos existentes sin aviso.
+
+### 1.6 Revisión de usabilidad del equipo (U)
+
+Fuente: "NOTAS DE REVISION" del tablero (20/11/2026). Cada punto quedó dentro
+de una issue:
+
+| Sección de las notas | Puntos | Issue |
+|---|---|---|
+| Insumos: editar la unidad de medida | 1 | #426 |
+| Insumos: costo manual con proveedor y tarjetas que desaparecen | 1 | #427 |
+| Insumos: modo oscuro (hovers, input de nombre, desplegable de proveedor, paginación) y aviso de la planilla | 6 | #433 |
+| Productos: cursor de la cruz, hovers en oscuro y aviso de crear o eliminar | 4 | #432 |
+| Proveedores: tabla, columna Acciones, estrella con tooltip, confirmación, modal de quitar presentación y texto de baja | 5 | #434 |
+| Proveedores: impedir la baja con insumos predeterminados | 1 | Not planned (§1.8) |
+| Compras: tabla, información poco entendible y hover de "Ver cuarentena" | 3 | #446 |
+| Perfil: botones duplicados y "(n8n)" | 2 | #429 |
+| Login: error en inglés de Clerk | 1 | #436 |
+
+### 1.7 Hallazgos de revisión de PR y del Sprint 6 (RV y H2)
+
+| ID | Qué falta | Issue |
+|---|---|---|
+| `[RV371-I2]` | La prueba de integración de unidades no corre en el CI | #438 |
+| `[RV374-I1]` | La cobertura del backend no se mide en el CI | #438 |
+| `[RV375-I1]` | Tiempo de respuesta con y sin búsqueda en staging | #444 |
+| `[RV381-I1]` | Fuente equivocada del margen ponderado en la especificación | #443 |
+| `[RV385-I1]` | "Variaciones recientes" en 0 para el colaborador y ante un error | #433 |
+| `[RV386-I1]` | Prueba del estado de margen con mínimo distinto de 30 % | #440 |
+| `[RV387-I1]` | Pruebas automáticas de accesibilidad con axe | #442 |
+| `[RV410-I1]` | Prueba de respuestas fuera de orden en la lista paginada | #441 |
+| `[RV415-I1]` | Cuerpo del JSON del reporte semanal en `docs/api.md` | #443 |
+| `[RV419-I1]` | Nombres de estado viejos fuera de los componentes del PR | #430 |
+| `[RV422-I1]` | El webhook compara el precio sin redondear | #439 |
+| `[RV371-I3]` | Unidades y `PUT` de costo verificados en staging | Caso nuevo de #399 |
+| `[RV376-I1]` | Pantalla completa en los bottom sheets | Not planned (§1.8) |
+| H2 | Simulador fuera del formato es-AR | #431 |
+
+### 1.8 Not planned, con su motivo
+
+| Origen | Tema | Motivo |
+|---|---|---|
+| `[RV376-I1]` | Pantalla completa en los bottom sheets | El diálogo ya se adaptó, y cambiarlo es riesgo antes del congelamiento |
+| U | Impedir la baja de un proveedor con insumos predeterminados | El diálogo actual informa y el insumo conserva su costo. El texto se simplifica en #434 |
+| RC-13 | "Superávit" con mínimo ≥ 60 % | Es la regla acordada en #367. Se aclara en el manual |
+| RC-07 | "Documentación" lleva a GitHub | El manual se entrega en #401 y el enlace apunta a esa versión |
+| `[RV371-I3]` | Verificación en staging | Sin issue propia: es un caso nuevo de la regresión final (#399) |
+| Datos | Restos de pruebas en la cuenta Demo de staging | Sin issue propia: el reseed se suma a #400, antes de la defensa |
+
+### 1.9 Datos de staging
+
+La cuenta Demo de `dev.margenx.tech` tiene restos de pruebas anteriores:
+"Medialunas rellenas" a $13 (margen −84.768 %), "Champinión" con 12 y 12.000 y
+"CAJADEBONOBON". No son defectos de la app. Se vuelve a cargar la cuenta antes
+de la defensa (#400), y desde ahora las reproducciones usan datos propios que se
+borran al terminar (§1.2).
+
+### 1.10 Reenfoque de Compras sugeridas
+
+RC-16 a RC-19 muestran que Compras calcula cantidades que MargenX no puede
+saber sin stock: el pedido semanal sale de suponer 1 bulto por insumo y el
+ahorro suma bultos que no se comparan. El equipo decidió el 22/11 que Compras
+mida **el impacto en el margen** de cambiar de proveedor (#445 en el backend,
+#446 en el frontend), y que la reposición con cantidades llegue en la Fase 2,
+con el stock. La regla queda escrita en el ADR-010 (#447).
