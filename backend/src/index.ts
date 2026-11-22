@@ -11,6 +11,7 @@ import purchasingRoutes from './routes/purchasing';
 import webhooksRoutes from './routes/webhooks';
 import internalReportsRoutes from './routes/internalReports';
 import reportsRoutes from './routes/reports';
+import { salesRouter, cashShiftsRouter } from './routes/salesModule';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Carga las variables de entorno desde el archivo .env.
@@ -32,6 +33,8 @@ app.use('/api/purchasing', purchasingRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/internal/reports', internalReportsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/sales', salesRouter); // Módulo de ventas: 404 si la cuenta no lo tiene (ADR-010).
+app.use('/api/cash-shifts', cashShiftsRouter);
 /*
   Health check de la API.
   Permite comprobar rápidamente si el servidor

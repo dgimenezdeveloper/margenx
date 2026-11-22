@@ -86,10 +86,23 @@ const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   assert.ok(r.json.emailText.includes('1 producto quedó debajo de su margen mínimo'));
   [r] = await run(alerta([conId, { ...conId, productName: 'Medialunas' }]));
   assert.ok(r.json.emailText.includes('2 productos quedaron debajo de su margen mínimo'));
-  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Productos con margen bajo detectados - Panadería Central');
+  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Productos debajo de su margen mínimo - Panadería Central');
   [r] = await run(alerta([conId]));
-  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Producto con margen bajo detectado - Panadería Central');
+  assert.equal(r.json.emailSubject, '[MargenX ALERTA] Producto debajo de su margen mínimo - Panadería Central');
 
+  // Nombres de estado vigentes (RV419-I1, #430): ni "crítico" ni "margen bajo" en el asunto, el título, la etiqueta ni el nombre del workflow
+  [r] = await run(alerta([conId, { ...conId, productName: 'Medialunas' }]));
+  assert.ok(r.json.emailHtml.includes('Alerta de margen mínimo'), 'título del mail');
+  for (const texto of [r.json.emailSubject, r.json.emailHtml, r.json.emailText, wf.name, node.parameters.jsCode]) {
+    assert.ok(!/cr[ií]tic[oa]s?\b|margen bajo|saludable/i.test(texto), `queda un nombre viejo de estado: ${texto.slice(0, 80)}`);
+  }
+
+  // Soporte: el mismo correo que la app en el pie del mail (RC-06, #435)
+  {
+    const codigo = wf.nodes.map((n) => n.parameters?.jsCode ?? '').join('\n');
+    assert.ok(codigo.includes('Soporte: soporte@margenx.tech'), 'el pie del mail usa soporte@margenx.tech');
+    assert.ok(!codigo.includes('contacto@margenx.tech'), 'no queda contacto@margenx.tech');
+  }
   console.log('alertas-nodos: OK');
 })().catch((e) => {
   console.error(e);

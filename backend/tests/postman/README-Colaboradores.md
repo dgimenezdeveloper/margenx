@@ -6,9 +6,10 @@ Colección `MargenX - Colaboradores API.postman_collection.json`. Cubre el equip
 
 | Carpeta | Casos |
 |---|---|
-| 01 - Preparación | `GET /api/auth/me` con el token del ADMIN y guarda su id. |
+| 01 - Preparación | `GET /api/auth/me` con el token del ADMIN y guarda su id. Verifica que informe los módulos de la cuenta (`user.features`, ADR-010) y que Panadería Central no tenga el módulo de ventas. |
 | 02 - El colaborador no gestiona el equipo | Los cinco endpoints responden **403** al COLLABORATOR. |
 | 03 - Validaciones del ADMIN | Correo inválido (400); el cliente no puede mandar `accountId` ni `role` (400); lista de usuarios sin `authProviderId`; lista de invitaciones; revocar una invitación inexistente (404); auto-baja (422); baja de un usuario inexistente (404). |
+| 04 - Módulo de ventas apagado | `GET /api/sales` (ADMIN) y `GET /api/cash-shifts/current` (COLLABORATOR) responden **404** con `"Recurso no encontrado."`: la cuenta no tiene el módulo (`docs/api.md` §12). |
 
 **No crea invitaciones reales:** cada alta manda un mail desde Clerk. El alta de punta a punta se prueba a mano en staging (ver abajo). La lógica completa, incluidos los metadatos manipulados, la baja en Clerk y los errores de Clerk, la cubren las pruebas de Vitest con Clerk simulado: `backend/src/routes/collaborators.test.ts`, `backend/src/services/invitedUserProvisioning.test.ts` y `backend/src/middlewares/auth.test.ts`.
 

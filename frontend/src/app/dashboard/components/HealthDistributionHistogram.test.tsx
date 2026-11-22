@@ -67,6 +67,24 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)
     expect(screen.getByText(/cada producto se compara con su propio margen mínimo/i)).toBeInTheDocument()
   })
 
+  it('cada columna muestra el nombre completo del estado en todos los anchos, sin abreviar (#430)', () => {
+    renderHistograma(catalogoDemo)
+
+    const nombres = {
+      loss: 'Pérdida',
+      risk: 'En riesgo',
+      target: 'En objetivo',
+      surplus: 'Superávit',
+    }
+    for (const nombre of Object.values(nombres)) {
+      const columna = screen.getByRole('button', { name: new RegExp(`^${nombre}:`, 'i') })
+      // Un solo rótulo visible por columna: el mismo a 360 px y en escritorio.
+      expect(within(columna).getByText(nombre, { exact: true })).toBeInTheDocument()
+    }
+    expect(screen.queryByText('Riesgo', { exact: true })).toBeNull()
+    expect(screen.queryByText('Objetivo', { exact: true })).toBeNull()
+  })
+
   it('al tocar una columna avisa qué bucket filtrar', () => {
     const onSelect = renderHistograma(catalogoDemo)
     fireEvent.click(screen.getByRole('button', { name: /en riesgo: 107 productos/i }))

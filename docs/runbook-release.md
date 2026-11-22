@@ -210,7 +210,7 @@ Con la cuenta Demo MargenX, nunca con la cuenta de un comercio (DoD §4).
    ```
 3. **Inicio de sesión y productos:** en `https://margenx.tech`, desde un celular o a 360 px, entrar con el administrador Demo: el listado de productos carga y muestra costos y márgenes. Entrar con el colaborador Demo: ve productos y precios de venta, sin costos ni márgenes. Las contraseñas están en Bitwarden.
 4. **Ingesta de prueba:** los dos `curl` del webhook `supplier-prices` de `docs/runbook-operacion.md` §5: `401` sin secreto y, con el secreto y el mismo precio del seed, `"unchanged": 1`.
-5. **Envío de una alerta:** el recorrido "Alerta de margen crítico" de `docs/runbook-operacion.md` §5 (subir "Manteca (demo)" un 10 %, verificar el mail y que "Ajustar" abra `https://margenx.tech`). Al terminar, resembrar la Demo para dejarla como estaba: `infra/scripts/seed-remoto.sh prod demo --confirmar margenx_prod`, desde `main` y con las variables del §3 de ese runbook.
+5. **Envío de una alerta:** el recorrido "Alerta de margen mínimo" de `docs/runbook-operacion.md` §5 (subir "Manteca (demo)" un 10 %, verificar el mail y que "Ajustar" abra `https://margenx.tech`). Al terminar, resembrar la Demo para dejarla como estaba: `infra/scripts/seed-remoto.sh prod demo --confirmar margenx_prod`, desde `main` y con las variables del §3 de ese runbook.
 
 Si falla cualquiera de los pasos, aplicar el §5. La excepción es un fallo fuera de la versión publicada (por ejemplo, n8n o el reenvío de correo de Cloudflare): se trata como incidente aparte y se anota en la issue.
 
