@@ -14,9 +14,13 @@ import SuppliersListPage from './app/proveedores/page'
 import SupplierDetailPage from './app/proveedores/[id]/page'
 import QuarantinePage from './app/proveedores/cuarentena/page'
 import PurchasesPage from './app/compras/page'
+import SalesHistoryPage from './app/ventas/page'
+import NewSalePage from './app/ventas/nueva/page'
+import SaleTicketPage from './app/ventas/[id]/ticket/page'
 import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
+import { FeatureRoute } from './components/feature-route'
 
 export const router = createBrowserRouter([
   {
@@ -106,6 +110,36 @@ export const router = createBrowserRouter([
   {
     path: '/productos/:id',
     element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute>,
+  },
+  {
+    path: '/ventas',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <SalesHistoryPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/nueva',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <NewSalePage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/:id/ticket',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <SaleTicketPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/perfil',
