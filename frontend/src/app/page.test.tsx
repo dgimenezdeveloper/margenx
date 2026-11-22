@@ -118,7 +118,7 @@ describe('LandingPage', () => {
       for (const separador of separadores) expect(separador).toHaveClass('hidden', 'sm:inline')
     })
 
-    it('muestra la dirección real de la ingesta por correo (precios-<comercio>@margenx.tech)', () => {
+    it('muestra la dirección recomendada de la ingesta por correo, la misma de Proveedores (precios-<comercio>@margenx.tech)', () => {
       const texto = textoVisible()
       expect(texto).toContain('precios-panaderia-central@margenx.tech')
       expect(texto).not.toContain('precios+panaderia-central@margenx.tech')
