@@ -28,4 +28,10 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 
 En `/login`, los enlaces **Política de privacidad** y **Guía de instalación** están al pie, debajo del formulario.
 
+En **Perfil**:
+
+- El **margen objetivo global** es el margen que MargenX te sugiere al crear un producto nuevo. Cada producto tiene su propio margen mínimo, y las alertas usan el mínimo de cada producto, no el global.
+- **Cerrar sesión:** en el celular, con el botón **Cerrar Sesión** al final de Perfil. En la computadora, con **Salir**, arriba a la derecha en todas las pantallas.
+- **Política de privacidad e instalación:** en el pie, con **Política** e **Instalar**. En la computadora están en el pie de todas las pantallas con sesión; en el celular, en el pie de Perfil.
+
 <!-- [CAPTURA 360PX SUGERIDA: 02-rutas-bottom-nav-comparativa.webp | Comparativa visual de la barra de navegación inferior móvil: 6 pestañas para ADMIN vs 3 pestañas para COLLABORATOR] -->

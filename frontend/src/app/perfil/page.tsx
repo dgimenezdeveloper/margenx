@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Bell, Building2, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Smartphone, Target } from 'lucide-react'
+import { Bell, Building2, Clock, LoaderCircle, LogOut, Save, ShieldCheck, Target } from 'lucide-react'
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
@@ -160,7 +160,7 @@ export default function ProfilePage() {
                     <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed">
-                    Este porcentaje se usará como sugerencia inicial al crear nuevos productos y determinará el umbral de alerta en tu negocio.
+                    Es el margen que te sugerimos al crear un producto nuevo. Cada producto tiene su propio mínimo, y las alertas usan ese mínimo.
                   </p>
 
                   <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
@@ -199,7 +199,7 @@ export default function ProfilePage() {
                 <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                   <div className="flex items-center gap-2">
                     <Bell className="size-5 text-indigo-600" />
-                    <h3 className="font-bold text-sm">Alertas Automáticas (n8n)</h3>
+                    <h3 className="font-bold text-sm">Alertas automáticas</h3>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 pt-1">
@@ -238,26 +238,13 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="pt-2 md:flex md:items-center md:justify-between md:pt-6">
-            <div className="mb-4 flex flex-wrap gap-3 md:mb-0">
-              <Link
-                to="/privacidad"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <ShieldCheck className="size-4" /> Política de privacidad
-              </Link>
-              <Link
-                to="/instalar"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <Smartphone className="size-4" /> Guía de instalación
-              </Link>
-            </div>
-
+          {/* Sin accesos duplicados (#429): Política e Instalación están en el pie (el móvil de abajo
+              y el DesktopFooter); Cerrar sesión, en el celular acá y en escritorio en "Salir" del navbar. */}
+          <div className="pt-2 md:hidden">
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950 md:w-auto md:px-8"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950 md:hidden"
             >
               <LogOut className="size-4" />
               Cerrar Sesión

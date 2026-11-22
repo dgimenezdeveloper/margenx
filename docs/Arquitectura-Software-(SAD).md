@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software
 
 ## Proyecto: MargenX — Control de Márgenes en Tiempo Real
-**Versión:** 3.0 (Alcance de la cursada contra la Fase 2 y calendario con el Sprint 7)
-**Fecha de Actualización:** 17 de Noviembre de 2026
+**Versión:** 3.1 (Cierre del Sprint 6)
+**Fecha de Actualización:** 20 de Noviembre de 2026
 
 ---
 
@@ -744,9 +744,9 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [QA] Recorrido por rol en dispositivos reales y regresión del sprint con matriz de defectos.
   * [DOCS] ADR del costo vigente, la cuarentena y el canal de ingesta; especificación funcional unificada; convención de docs como código; documentos históricos; READMEs, runbook y manual de usuario.
 
-#### Sprint 6: Smart Purchasing, Reporte PDF, Invitación de Colaboradores y Pulido de la App (07/11 al 20/11) — [En curso]
+#### Sprint 6: Smart Purchasing, Reporte PDF, Invitación de Colaboradores y Pulido de la App (07/11 al 20/11) — [Completado]
 * **Hito Cátedra:** Clase de pre-entrega (21/11), con la Sprint Review.
-* **Entregable:** Compras inteligentes (API y pantalla), reporte semanal de márgenes en PDF por correo y descarga desde la app, invitación de colaboradores desde Perfil, búsqueda y paginación de todo el catálogo, métricas del panel sobre todo el catálogo, y correcciones de usabilidad, formato y accesibilidad. El estado de cada tarea está en el tablero.
+* **Entregable:** Compras inteligentes (API y pantalla), reporte semanal de márgenes en PDF por correo y descarga desde la app, invitación de colaboradores desde Perfil, búsqueda y paginación de todo el catálogo, métricas del panel sobre todo el catálogo, retoques visuales, avisos y pie de página, y correcciones de usabilidad, formato y accesibilidad. El detalle está en `docs/retrospectivas/acta-cierre-sprint-6.md`.
 * **Frontend:**
   * [FE] Pantalla de compras sugeridas en `/compras` (RF-15). *Reprogramado desde el Sprint 5.*
   * [FE] Descarga del reporte en PDF y estado real del reporte en Perfil. *Reprogramado desde el Sprint 5.*
@@ -756,6 +756,8 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
   * [FE] Cantidades de receta en gramos o mililitros; formato es-AR en importes, porcentajes, cantidades y plantilla Excel.
   * [FE] Selector de insumos de la receta, un solo nombre para cada estado de margen y accesibilidad de los campos de producto.
   * [FE] Modales y barras fijas en mobile, Perfil sin interruptores que no guardan y pantallas públicas con sesión iniciada.
+  * [FE] Retoques visuales en panel, insumos y proveedores; pie de página con Soporte y Documentación; avisos de error, de cambios sin guardar y de colaborador redirigido.
+  * [FE] Zona segura de iOS en la app instalada.
 * **Backend:**
   * [BE] API de compras sugeridas y vista previa de pedido, agrupadas por proveedor más conveniente (RF-15). *Reprogramado desde el Sprint 5.*
   * [BE] API del reporte semanal de márgenes: endpoints internos para n8n y descarga desde la app. *Reprogramado desde el Sprint 5.*
@@ -776,8 +778,6 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 * **Hito Cátedra:** Entrega final de la cursada (05/12/2026). Entre el 21/11 y el 05/12 la revisión de la cátedra es en línea.
 * **Congelamiento de funcionalidades:** 28/11/2026. Desde ese día `develop` solo recibe correcciones de defectos de la regresión y documentación.
 * **Entregable:** Release `v1.0.0` en producción, documentación interactiva de la API, regresión completa con matriz de trazabilidad, documentos finales actualizados, video demo comercial de 3 minutos y defensa ensayada.
-* **Frontend:**
-  * [FE] Retoques visuales en panel, insumos y proveedores; pie de página con Soporte y Documentación; avisos de error, de cambios sin guardar y de colaborador redirigido.
 * **Backend:**
   * [BE] Documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
 * **DevOps / n8n:**
