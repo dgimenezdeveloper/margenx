@@ -33,16 +33,16 @@ test.describe('Landing Page — Casos Reales y Reglas de Negocio', () => {
     await expect(page.getByText(/Suavizante \(Vivere/i)).toBeVisible()
     await expect(page.getByText(/539,28/i)).toBeVisible()
 
-    // 5. Sección de valor diferencial: Ingesta Zero-Click con patrón de casilla virtual
-    await expect(page.getByText(/precios\+panaderia-central@margenx\.tech/i)).toBeVisible()
-    await expect(page.getByText(/Filtro Anti-Polución/i)).toBeVisible()
+    // 5. Sección de valor diferencial: listas de precios por correo, con la dirección real del comercio (#436)
+    await expect(page.getByText(/precios-panaderia-central@margenx\.tech/i)).toBeVisible()
+    await expect(page.getByText(/Solo lo tuyo/i)).toBeVisible()
 
-    // 6. Sección de valor diferencial: Seguridad RBAC (Dueño vs. Colaborador)
-    await expect(page.getByText(/Dueño \(Admin\)/i)).toBeVisible()
-    await expect(page.getByText(/Colaborador \(Caja\)/i)).toBeVisible()
+    // 6. Sección de valor diferencial: cada uno ve lo suyo (dueño contra empleado), sin jerga (#436)
+    await expect(page.getByText(/Dueño \(administrador\)/i)).toBeVisible()
+    await expect(page.getByText(/Empleado \(colaborador\)/i)).toBeVisible()
 
-    // 7. Sección de valor diferencial: Calculadora de empaques mayoristas
-    await expect(page.getByText(/Calculadora de empaques mayoristas/i)).toBeVisible()
+    // 7. Sección de valor diferencial: calculadora de bultos mayoristas
+    await expect(page.getByText(/Calculadora de bultos mayoristas/i)).toBeVisible()
     await expect(page.getByText(/720,00/i)).toBeVisible()
   })
 })
