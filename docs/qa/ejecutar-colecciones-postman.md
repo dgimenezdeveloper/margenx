@@ -1,6 +1,6 @@
 # Cómo ejecutar las 12 colecciones de Postman
 
-Issue #264 (Colaboradores se sumó en #395, Compras en #388, Reportes en #390 y Ventas en #448). Las 12 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264 (Colaboradores se sumó en #395, Compras en #388, Reportes en #390 y Ventas en #448, con la caja en #449). Las 12 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -67,7 +67,7 @@ Salida esperada: **0 failures** en las 12.
 - Proveedores, Webhooks, Colaborador RBAC y Colaboradores no modifican datos que haga falta restaurar. Colaboradores no crea invitaciones reales (cada una manda un mail): el alta de punta a punta se prueba en staging, como explica `README-Colaboradores.md`.
 - Compras API es una colección de solo lectura que no requiere restaurar datos ni resembrar la cuenta.
 - Reportes API valida endpoints internos, permisos de ADMIN y el contrato del reporte. Para la prueba local, configurar el mismo `INTERNAL_WEBHOOK_SECRET` del backend.
-- Ventas API no modifica datos: sin turno de caja abierto, la venta responde 409 y no se registra nada.
+- Ventas API **modifica datos**: cada corrida deja en Panadería Central un turno cerrado, una venta y una venta anulada. Correrla solo contra la base local; se puede repetir (`README-Ventas.md`).
 
 ## Para cada README específico
 

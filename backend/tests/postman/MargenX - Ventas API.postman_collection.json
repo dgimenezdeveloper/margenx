@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MargenX - Ventas API",
-    "description": "Contrato, roles y validaciones de /api/sales (ADR-010, docs/api.md §12). No modifica datos: la cuenta no tiene turno abierto, así que la venta responde 409. Preparación en README-Ventas.md.",
+    "description": "Contrato, roles y validaciones de /api/sales y /api/cash-shifts (ADR-010, docs/api.md §12 y §13). Recorre el día de caja: abre un turno, vende, anula y cierra con arqueo. Modifica datos: deja en la cuenta un turno cerrado, una venta y una venta anulada (una venta no se borra). Correrla solo contra la base local. Preparación en README-Ventas.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "4b8e2f1a-6c3d-4e5f-9a7b-8c1d2e3f4a5b"
   },
@@ -18,7 +18,7 @@
               "const productos = pm.response.json().data || [];",
               "const vendible = productos.find(function (p) { return Number(p.salePrice) > 0 && Array.isArray(p.ingredients) && p.ingredients.length > 0; });",
               "pm.test('La cuenta tiene un producto con receta y precio', function () { pm.expect(vendible, 'producto vendible').to.be.an('object'); });",
-              "if (vendible) pm.collectionVariables.set('productId', vendible.id);"
+              "if (vendible) { pm.collectionVariables.set('productId', vendible.id); pm.collectionVariables.set('productPrice', String(vendible.salePrice)); }"
             ]
           }
         }
@@ -352,14 +352,137 @@
       "response": []
     },
     {
-      "name": "10 - POST /api/sales sin turno abierto → 409",
+      "name": "10 - POST /api/cash-shifts/open con monto negativo → 400",
       "event": [
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 409 (la cuenta no tiene turno de caja abierto)', function () { pm.response.to.have.status(409); });",
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Pide el monto inicial', function () { pm.expect(pm.response.json().error).to.include('monto inicial'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "open"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"openingAmount\": -100\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11 - GET /api/cash-shifts/current (anota si quedó un turno abierto)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const shift = pm.response.json().shift;",
+              "pm.test('Contrato { shift }', function () { pm.expect(pm.response.json()).to.have.property('shift'); });",
+              "pm.collectionVariables.set('staleShiftId', shift ? shift.id : '00000000-0000-4000-8000-000000000000');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/current",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "current"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "12 - POST /api/cash-shifts/:id/close de un turno de antes (200 si había, 404 si no)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 (cerró un turno que quedó abierto) o 404 (no había)', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/{{staleShiftId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "{{staleShiftId}}",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"countedCash\": 0,\n  \"countedTransfer\": 0,\n  \"countedMercadoPago\": 0\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "13 - POST /api/sales sin turno abierto → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
               "pm.test('Mensaje del turno', function () { pm.expect(pm.response.json().error).to.include('turno de caja abierto'); });"
             ]
           }
@@ -394,7 +517,231 @@
       "response": []
     },
     {
-      "name": "11 - POST /api/sales/:id/void sin motivo → 400",
+      "name": "14 - POST /api/cash-shifts/open (COLLABORATOR) con $10.000 → 201",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.test('Turno abierto con el monto inicial', function () {",
+              "  pm.expect(body.status).to.eql('OPEN');",
+              "  pm.expect(body.openingAmount).to.eql('10000.00');",
+              "  pm.expect(body.expectedTotal).to.eql('10000.00');",
+              "});",
+              "pm.collectionVariables.set('shiftId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "open"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"openingAmount\": 10000\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "15 - POST /api/cash-shifts/open con un turno abierto → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
+              "pm.test('Un turno por vez', function () { pm.expect(pm.response.json().error).to.include('Ya hay un turno de caja abierto'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "open"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"openingAmount\": 5000\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "16 - POST /api/sales (COLLABORATOR): 2 unidades en efectivo → 201, sin costos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.test('Ticket con número, comercio, ítems y total', function () {",
+              "  pm.expect(body.ticketNumber).to.be.a('number');",
+              "  pm.expect(body.businessName).to.be.a('string').and.not.empty;",
+              "  pm.expect(body.items[0].quantity).to.eql(2);",
+              "  pm.expect(body.cashShiftId).to.eql(pm.collectionVariables.get('shiftId'));",
+              "});",
+              "pm.collectionVariables.set('saleId', body.id);",
+              "const texto = JSON.stringify(pm.response.json());",
+              "pm.test('Sin costos ni márgenes para el colaborador', function () {",
+              "  ['unitCost', 'lineCost', 'marginPercent', 'totalCost'].forEach(function (campo) { pm.expect(texto).to.not.include(campo); });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"CASH\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "17 - GET /api/sales/:id (ADMIN): el ticket con costo y margen congelados",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('El ADMIN recibe costo y margen de cada renglón', function () {",
+              "  pm.expect(body.items[0]).to.include.all.keys('unitCost', 'lineCost', 'marginPercent');",
+              "  pm.expect(body).to.have.property('totalCost');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/{{saleId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "{{saleId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "18 - GET /api/sales?cashShiftId= (ventas del turno)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "pm.test('Incluye la venta del turno', function () { pm.expect(pm.response.json().data.map(function (s) { return s.id; })).to.include(pm.collectionVariables.get('saleId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales?cashShiftId={{shiftId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ],
+          "query": [
+            {
+              "key": "cashShiftId",
+              "value": "{{shiftId}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "19 - POST /api/sales/:id/void sin motivo → 400",
       "event": [
         {
           "listen": "test",
@@ -411,7 +758,7 @@
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{adminToken}}"
+            "value": "Bearer {{collaboratorToken}}"
           },
           {
             "key": "Content-Type",
@@ -419,13 +766,13 @@
           }
         ],
         "url": {
-          "raw": "{{baseUrl}}/sales/00000000-0000-4000-8000-000000000000/void",
+          "raw": "{{baseUrl}}/sales/{{saleId}}/void",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "sales",
-            "00000000-0000-4000-8000-000000000000",
+            "{{saleId}}",
             "void"
           ]
         },
@@ -437,14 +784,66 @@
       "response": []
     },
     {
-      "name": "12 - POST /api/sales/:id/void de una venta inexistente → 404",
+      "name": "20 - POST /api/sales/:id/void (COLLABORATOR, su venta del turno abierto) → 200",
       "event": [
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 404', function () { pm.response.to.have.status(404); });"
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Queda anulada con el motivo, sin borrarse', function () {",
+              "  pm.expect(body.status).to.eql('VOIDED');",
+              "  pm.expect(body.voidReason).to.eql('Cobré dos veces la misma venta');",
+              "});",
+              "const texto = JSON.stringify(pm.response.json());",
+              "pm.test('Sin costos ni márgenes para el colaborador', function () {",
+              "  ['unitCost', 'lineCost', 'marginPercent', 'totalCost'].forEach(function (campo) { pm.expect(texto).to.not.include(campo); });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/{{saleId}}/void",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "{{saleId}}",
+            "void"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Cobré dos veces la misma venta\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "21 - POST /api/sales/:id/void de una venta ya anulada → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
             ]
           }
         }
@@ -462,19 +861,440 @@
           }
         ],
         "url": {
-          "raw": "{{baseUrl}}/sales/00000000-0000-4000-8000-000000000000/void",
+          "raw": "{{baseUrl}}/sales/{{saleId}}/void",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "sales",
-            "00000000-0000-4000-8000-000000000000",
+            "{{saleId}}",
             "void"
           ]
         },
         "body": {
           "mode": "raw",
           "raw": "{\n  \"reason\": \"Cobré dos veces la misma venta\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "22 - POST /api/sales (COLLABORATOR): 1 unidad en efectivo → 201",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+              "pm.collectionVariables.set('saleTotal', pm.response.json().total);",
+              "pm.collectionVariables.set('validSaleId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"CASH\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "23 - GET /api/cash-shifts/current (COLLABORATOR): lo esperado sin la anulada",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const shift = pm.response.json().shift;",
+              "const cash = shift.methods.find(function (m) { return m.paymentMethod === 'CASH'; });",
+              "const expected = (10000 + Number(pm.collectionVariables.get('saleTotal'))).toFixed(2);",
+              "pm.test('1 venta, 1 anulada y el efectivo esperado = inicial + la venta válida', function () {",
+              "  pm.expect(shift.salesCount).to.eql(1);",
+              "  pm.expect(shift.voidedCount).to.eql(1);",
+              "  pm.expect(cash.expected).to.eql(expected);",
+              "});",
+              "pm.collectionVariables.set('countedCash', (Number(cash.expected) - 500).toFixed(2));",
+              "pm.test('Sin costos ni márgenes', function () { pm.expect(JSON.stringify(shift)).to.not.match(/cost|margin/i); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/current",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "current"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "24 - POST /api/cash-shifts/:id/close sin lo contado de los tres medios → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/{{shiftId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "{{shiftId}}",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"countedCash\": 1000\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "25 - POST /api/cash-shifts/:id/close (COLLABORATOR) contando $500 menos → diferencia −500",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Arqueo con diferencia: −500 en efectivo y en el total', function () {",
+              "  pm.expect(body.status).to.eql('CLOSED');",
+              "  pm.expect(body.methods[0].difference).to.eql('-500.00');",
+              "  pm.expect(body.difference).to.eql('-500.00');",
+              "  pm.expect(body.voidedCount).to.eql(1);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/{{shiftId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "{{shiftId}}",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"countedCash\": \"{{countedCash}}\",\n  \"countedTransfer\": 0,\n  \"countedMercadoPago\": 0\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "26 - POST /api/cash-shifts/:id/close de un turno cerrado → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/{{shiftId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "{{shiftId}}",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"countedCash\": 0,\n  \"countedTransfer\": 0,\n  \"countedMercadoPago\": 0\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "27 - POST /api/sales (venta con el turno cerrado) → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"CASH\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "28 - POST /api/sales/:id/void (ADMIN) de una venta válida con el turno cerrado → 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('El arqueo cerrado no cambia', function () { pm.expect(pm.response.json().error).to.include('turno abierto'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/{{validSaleId}}/void",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "{{validSaleId}}",
+            "void"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Anulación después del cierre\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "29 - GET /api/cash-shifts (ADMIN): historial con el turno cerrado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Contrato { data, meta } con el turno', function () {",
+              "  pm.expect(body.meta).to.include.all.keys('total', 'page', 'limit', 'totalPages');",
+              "  pm.expect(body.data.map(function (s) { return s.id; })).to.include(pm.collectionVariables.get('shiftId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "30 - GET /api/cash-shifts/:id: resumen imprimible con el comercio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Cerrado, con el nombre del comercio y el arqueo guardado', function () {",
+              "  pm.expect(body.status).to.eql('CLOSED');",
+              "  pm.expect(body.businessName).to.be.a('string').and.not.empty;",
+              "  pm.expect(body.difference).to.eql('-500.00');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/{{shiftId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "{{shiftId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "31 - GET /api/cash-shifts/:id inexistente → 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Mensaje', function () { pm.expect(pm.response.json().error).to.eql('El turno no existe.'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cash-shifts/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cash-shifts",
+            "00000000-0000-4000-8000-000000000000"
+          ]
         }
       },
       "response": []
@@ -495,6 +1315,34 @@
     },
     {
       "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "productPrice",
+      "value": ""
+    },
+    {
+      "key": "staleShiftId",
+      "value": ""
+    },
+    {
+      "key": "shiftId",
+      "value": ""
+    },
+    {
+      "key": "saleId",
+      "value": ""
+    },
+    {
+      "key": "validSaleId",
+      "value": ""
+    },
+    {
+      "key": "saleTotal",
+      "value": ""
+    },
+    {
+      "key": "countedCash",
       "value": ""
     }
   ]
