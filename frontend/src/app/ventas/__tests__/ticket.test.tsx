@@ -66,6 +66,25 @@ describe('Ticket de la venta (/ventas/:id/ticket)', () => {
     expect(saleService.getById).toHaveBeenCalledWith(expect.any(Function), venta.id)
   })
 
+  it('lleva el logo completo de MargenX y la firma, en pantalla y al imprimir', async () => {
+    const { container } = renderPage()
+
+    const ticket = await screen.findByRole('article', { name: 'Ticket N.º 000008' })
+    expect(within(ticket).getByRole('img', { name: 'MargenX' })).toHaveAttribute('src', '/logo.png')
+    expect(within(ticket).getByText('Control de rentabilidad en tiempo real')).toBeInTheDocument()
+    expect(within(ticket).getByText('Emitido con MargenX · margenx.tech')).toBeInTheDocument()
+
+    // Ticketera: logo en negro puro (la impresora térmica no tiene color) y sin el lema.
+    const css = () => container.querySelector('style')?.textContent ?? ''
+    expect(css()).toContain('.mx-ticket-logo { filter: grayscale(1) brightness(0) !important;')
+    expect(css()).toContain('.mx-ticket-tagline { display: none; }')
+
+    // A4 (y el PDF): logo en color y con el lema.
+    fireEvent.change(screen.getByLabelText('Formato de impresión'), { target: { value: 'A4' } })
+    expect(css()).toMatch(/\.mx-ticket-logo \{[^}]*filter: none !important;/)
+    expect(css()).not.toContain('.mx-ticket-tagline { display: none; }')
+  })
+
   it('Compartir por WhatsApp abre wa.me con el texto del ticket', async () => {
     renderPage()
     const enlace = await screen.findByRole('link', { name: 'Compartir por WhatsApp' })
@@ -74,6 +93,7 @@ describe('Ticket de la venta (/ventas/:id/ticket)', () => {
     const texto = decodeURIComponent(href.replace('https://wa.me/?text=', ''))
     expect(texto).toContain('Ticket N.º 000008')
     expect(texto).toContain('Comprobante no válido como factura')
+    expect(texto).toContain('Emitido con MargenX · margenx.tech')
     expect(enlace).toHaveAttribute('target', '_blank')
     expect(enlace).toHaveAttribute('rel', 'noopener noreferrer')
   })

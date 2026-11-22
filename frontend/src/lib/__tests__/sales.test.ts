@@ -95,6 +95,7 @@ describe('ticket', () => {
       'Pago: Efectivo',
       '',
       'Comprobante no válido como factura',
+      'Emitido con MargenX · margenx.tech',
     ])
   })
 

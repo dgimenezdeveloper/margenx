@@ -26,7 +26,7 @@ Solo aparecen los productos que se pueden vender: los que tienen receta y precio
 
 ## El ticket
 
-El ticket muestra el nombre del comercio, el número (por ejemplo, **N.º 000008**; es correlativo en tu comercio), la fecha y la hora, cada producto con su cantidad y su importe, el total, el medio de pago y la leyenda **"Comprobante no válido como factura"**.
+El ticket muestra el nombre del comercio, el número (por ejemplo, **N.º 000008**; es correlativo en tu comercio), la fecha y la hora, cada producto con su cantidad y su importe, el total, el medio de pago y la leyenda **"Comprobante no válido como factura"**. Arriba lleva el logo de MargenX y al pie, "Emitido con MargenX · margenx.tech". En la ticketera el logo sale en negro; en A4 y en el PDF, en color.
 
 - **Imprimir:** elegí el formato (**Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4**) y tocá **Imprimir**. Se imprime solo el ticket, sin el menú.
 - **Descargar PDF:** abre la ventana de impresión en tamaño A4. Ahí elegí **Guardar como PDF**.
