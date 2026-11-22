@@ -6,7 +6,7 @@
     "_postman_id": "56b100bc-1d1e-4a67-bb39-8ed6b2d05640"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3021", "type": "string" },
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
     { "key": "COLLAB_TOKEN", "value": "", "type": "string" },
     { "key": "productId", "value": "product-test-1", "type": "string" },
     { "key": "ingredientId", "value": "ingredient-test-1", "type": "string" }
