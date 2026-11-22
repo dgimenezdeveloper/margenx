@@ -31,6 +31,18 @@ describe('isNavLinkVisible', () => {
   })
 })
 
+describe('isNavLinkVisible: Ventas depende del módulo de la cuenta (ADR-010, #448)', () => {
+  it('se muestra a los dos roles solo con el módulo de ventas prendido', () => {
+    expect(isNavLinkVisible('/ventas', admin, { sales: true })).toBe(true)
+    expect(isNavLinkVisible('/ventas', collaborator, { sales: true })).toBe(true)
+    expect(isNavLinkVisible('/ventas', admin, { sales: false })).toBe(false)
+  })
+
+  it('sin módulos informados (mientras carga /me) queda oculto', () => {
+    expect(isNavLinkVisible('/ventas', admin)).toBe(false)
+  })
+})
+
 describe('isNavLinkActive', () => {
   it('marca la sección exacta y sus subrutas', () => {
     expect(isNavLinkActive('/proveedores', '/proveedores')).toBe(true)
