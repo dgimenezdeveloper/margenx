@@ -4,7 +4,7 @@
 * **Fecha:** 2026-11-22
 * **Decisores:** Darío Giménez (Tech Lead). Lo propuso la docente en la clase del 21/11/2026 y el equipo acordó el alcance el 22/11/2026 (acta del Sprint 6, §5.4).
 * **Issue:** #447 (SPRINT7-SALES-00). Lo implementan #448 (venta y ticket), #449 (turnos y caja) y #450 (ganancia real).
-* **Relacionado con:** ADR-004 (margen sobre ventas), ADR-005 (costo vigente), ADR-007 (roles fijos), ADR-008 (alta de colaboradores), ADR-009 (reporte semanal), `docs/especificacion-funcional.md` §13, `docs/roadmap.md` (hoja de ruta posterior a la cursada)
+* **Relacionado con:** ADR-004 (margen sobre ventas), ADR-005 (costo vigente), ADR-007 (roles fijos), ADR-008 (alta de colaboradores), ADR-009 (reporte semanal), `docs/especificacion-funcional.md` §13; la hoja de ruta posterior a la cursada la publica #451
 
 ---
 
@@ -43,7 +43,7 @@ Se adopta la **opción 3**.
   * `GET /api/auth/me` informa los módulos de la cuenta en `user.features`, y el frontend los lee con un solo hook (`useFeatures`) para mostrar u ocultar el menú.
   * En la v1.0.0, el módulo está prendido solo en la cuenta Demo de staging. El 28/11 se decide si se prende en la cuenta Demo de producción (#450).
 * **Compras sugeridas mide el impacto en el margen** de cambiar de proveedor. Sin stock no hay cantidades reales, así que la reposición con cantidades llega en la Fase 2, cuando exista el stock. La calculadora de bultos y el pedido semanal se quitan (#445, #446), y `POST /api/purchasing/order-preview` queda deprecado: se reutiliza para la reposición con stock o se elimina en la v1.1.
-* **Pasan a la Fase 2** (hoja de ruta en `docs/roadmap.md`):
+* **Pasan a la Fase 2** (la hoja de ruta con las versiones la publica #451):
   * **stock de insumos** descontado por receta desde las ventas, con carga inicial e ingreso de mercadería: exige datos iniciales por comercio y cambia el dominio de insumos y recetas;
   * **compras con pedido** a proveedores y **reposición** con cantidades: dependen del stock;
   * **facturación electrónica de ARCA**: trámites fiscales (certificados y puntos de venta) que no dependen del equipo.
