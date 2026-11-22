@@ -41,6 +41,6 @@ test('muestra estado de error con botón reintentar en /dashboard si la API fall
   await expect(alert.getByRole('button', { name: /reintentar/i })).toBeVisible()
 
   // Verifica que NO se muestren indicadores engañosos en cero
-  await expect(page.getByText(/0 productos debajo de su mínimo/i)).toHaveCount(0)
-  await expect(page.getByText(/0 insumos/i)).toHaveCount(0)
+  await expect(page.getByTestId('critical-count')).toHaveCount(0)
+  await expect(page.getByTestId('active-ingredients')).toHaveCount(0)
 })
