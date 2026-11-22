@@ -1133,7 +1133,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '40000', isDefault: false });
 
     expect(res.status).toBe(422);
-    expect(res.body.error).toMatch(/No puedes quitar el proveedor predeterminado sin asignar otro/);
+    expect(res.body.error).toMatch(/No podés quitar el proveedor predeterminado sin asignar otro/);
     expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -1496,7 +1496,7 @@ describe('DELETE /api/suppliers/:id/ingredients/:ingredientId', () => {
     const res = await request(buildApp()).delete('/api/suppliers/s-1/ingredients/ing-1');
 
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/No puedes eliminar la presentación predeterminada/i);
+    expect(res.body.error).toMatch(/No podés eliminar la presentación predeterminada/i);
     expect(supplierIngredientDeleteMock).not.toHaveBeenCalled();
   });
 

@@ -676,7 +676,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
 
   if (!isDefault) {
     if (existingAssociation && existingAssociation.isDefault) {
-      throw new AppError('No puedes quitar el proveedor predeterminado sin asignar otro. Marca otro proveedor como predeterminado para reemplazarlo.', 422);
+      throw new AppError('No podés quitar el proveedor predeterminado sin asignar otro. Marcá otro proveedor como predeterminado para reemplazarlo.', 422);
     }
     const supplierIngredient = existingAssociation
       ? await prisma.supplierIngredient.update({
@@ -862,7 +862,7 @@ router.delete('/:id/ingredients/:ingredientId', async (req: AuthenticatedRequest
 
     if (otherCount > 0) {
       throw new AppError(
-        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.',
+        'No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero.',
         409
       );
     }

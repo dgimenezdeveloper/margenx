@@ -461,7 +461,7 @@ Elimina la presentación comercial de un insumo.
 - **Protección de Referencia (409):** Si es la presentación predeterminada y el insumo cuenta con otras presentaciones alternativas, la API rechaza el borrado:
   ```json
   {
-    "error": "No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero."
+    "error": "No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero."
   }
   ```
 - **Respuesta 200:** `{ "message": "Presentación eliminada correctamente." }`.
