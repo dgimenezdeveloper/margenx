@@ -17,6 +17,9 @@ vi.mock('../lib/prisma', () => ({
   },
 }));
 
+const features = vi.hoisted(() => ({ getAccountFeatures: vi.fn() }));
+vi.mock('../lib/features', () => ({ getAccountFeatures: features.getAccountFeatures }));
+
 let mockUser: any = {
   id: 'user-1',
   accountId: 'acc-1',
@@ -42,6 +45,7 @@ describe('Routes: Auth (/api/auth)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    features.getAccountFeatures.mockResolvedValue({ sales: false });
     mockUser = {
       id: 'user-1',
       accountId: 'acc-1',
@@ -91,6 +95,47 @@ describe('Routes: Auth (/api/auth)', () => {
       expect(res.body.user.account.businessName).toBe('Panadería Central');
       expect(res.body.user.account.defaultMinMarginPercent).toBeUndefined();
       expect(res.body.user.account.slug).toBeUndefined();
+      expect(res.body.user.features).toEqual({ sales: false });
+    });
+
+    it('informa features.sales = false para una cuenta sin el módulo de ventas (ADR-010)', async () => {
+      const res = await request(app).get('/api/auth/me');
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.features).toEqual({ sales: false });
+      expect(features.getAccountFeatures).toHaveBeenCalledWith('acc-1');
+    });
+
+    it('informa features.sales = true para la cuenta Demo con la excepción prendida', async () => {
+      mockUser = {
+        id: '31d00001-0000-4000-8000-000000000001',
+        accountId: '31a00000-0000-4000-8000-000000000001',
+        email: 'demo-admin@margenx.tech',
+        role: 'ADMIN',
+        account: {
+          id: '31a00000-0000-4000-8000-000000000001',
+          businessName: 'Demo MargenX',
+          defaultMinMarginPercent: 30,
+          slug: 'demo-margenx',
+        },
+      };
+      features.getAccountFeatures.mockResolvedValue({ sales: true });
+
+      const res = await request(app).get('/api/auth/me');
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.features).toEqual({ sales: true });
+      expect(features.getAccountFeatures).toHaveBeenCalledWith('31a00000-0000-4000-8000-000000000001');
+    });
+
+    it('el colaborador recibe los módulos de su cuenta: vende aunque no vea costos', async () => {
+      mockUser = { ...mockUser, id: 'user-2', role: 'COLLABORATOR', email: 'colab@test.com' };
+      features.getAccountFeatures.mockResolvedValue({ sales: true });
+
+      const res = await request(app).get('/api/auth/me');
+
+      expect(res.body.user.features).toEqual({ sales: true });
+      expect(res.body.user.account.defaultMinMarginPercent).toBeUndefined();
     });
   });
 
