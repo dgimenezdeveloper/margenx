@@ -40,6 +40,8 @@
                   "pm.test('status 200', function () { pm.response.to.have.status(200); });",
                   "const user = pm.response.json().user;",
                   "pm.test('el token es de un ADMIN', function () { pm.expect(user.role).to.eql('ADMIN'); });",
+                  "pm.test('informa los módulos de la cuenta (ADR-010)', function () { pm.expect(user.features).to.be.an('object'); pm.expect(user.features.sales).to.be.a('boolean'); });",
+                  "pm.test('Panadería Central no tiene el módulo de ventas', function () { pm.expect(user.features.sales).to.eql(false); });",
                   "pm.collectionVariables.set('adminUserId', user.id);"
                 ],
                 "type": "text/javascript"
@@ -562,6 +564,82 @@
                 "exec": [
                   "pm.test('status 404', function () { pm.response.to.have.status(404); });",
                   "pm.test('mensaje', function () { pm.expect(pm.response.json().error).to.eql('El usuario no existe.'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Módulo de ventas apagado (ADR-010)",
+      "item": [
+        {
+          "name": "GET /api/sales - ADMIN de una cuenta sin el módulo (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sales"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 404: el módulo de ventas está apagado para la cuenta', function () { pm.response.to.have.status(404); });",
+                  "pm.test('mensaje de recurso inexistente', function () { pm.expect(pm.response.json().error).to.eql('Recurso no encontrado.'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/cash-shifts/current - COLLABORATOR de una cuenta sin el módulo (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{COLLAB_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-shifts/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-shifts",
+                "current"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 404: el módulo de ventas está apagado para la cuenta', function () { pm.response.to.have.status(404); });",
+                  "pm.test('mensaje de recurso inexistente', function () { pm.expect(pm.response.json().error).to.eql('Recurso no encontrado.'); });"
                 ],
                 "type": "text/javascript"
               }

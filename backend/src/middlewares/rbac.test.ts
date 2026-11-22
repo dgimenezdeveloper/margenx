@@ -45,6 +45,8 @@ vi.mock('../lib/prisma', () => ({
     },
     account: {
       update: (...args: unknown[]) => accountUpdateMock(...args),
+      // GET /api/auth/me consulta los módulos de la cuenta (ADR-010): sin excepciones.
+      findUnique: () => Promise.resolve({ subscriptionPlan: 'FREE', features: [] }),
     },
   },
 }));
@@ -325,6 +327,7 @@ describe('rbac middleware', () => {
     expect(collaboratorRes.status).toBe(200);
     expect(collaboratorRes.body.user.account).toEqual({ id: 'account-1', businessName: 'Panadería Central' });
     expect(collaboratorRes.body.user.account).not.toHaveProperty('defaultMinMarginPercent');
+    expect(collaboratorRes.body.user.features).toEqual({ sales: false });
   });
 
   it('PATCH /api/auth/account/margin rechaza COLLABORATOR y no invoca Prisma', async () => {

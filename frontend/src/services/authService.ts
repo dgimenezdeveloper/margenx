@@ -1,5 +1,10 @@
 import { fetchApi, type TokenGetter } from './api'
 
+/** Módulos que se prenden por cuenta (ADR-010). */
+export type Feature = 'sales'
+
+export type FeatureFlags = Record<Feature, boolean>
+
 export interface AuthUser {
   id: string
   accountId: string
@@ -12,6 +17,8 @@ export interface AuthUser {
     /** Solo llega para el ADMIN: base de la dirección de ingesta (`docs/api.md`, GET /api/auth/me). */
     slug?: string
   }
+  /** Módulos prendidos para la cuenta (`docs/api.md`, GET /api/auth/me). */
+  features?: FeatureFlags
 }
 
 export const authService = {

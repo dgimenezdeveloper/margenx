@@ -3,25 +3,31 @@ import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
 import { requireRole } from '../middlewares/rbac';
+import { getAccountFeatures } from '../lib/features';
 import collaboratorsRouter from './collaborators';
 
 const router = Router();
 
 /*
   GET /api/auth/me
+  Incluye `features`: los módulos prendidos para la cuenta (ADR-010). El colaborador
+  también los recibe, porque usa el módulo de ventas aunque no vea costos.
 */
-router.get('/me', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
-  const user = req.user && req.user.role === 'COLLABORATOR' && req.user.account
+router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const authUser = req.user!;
+  const features = await getAccountFeatures(authUser.accountId);
+
+  const user = authUser.role === 'COLLABORATOR' && authUser.account
     ? {
-        ...req.user,
+        ...authUser,
         account: {
-          id: req.user.account.id,
-          businessName: req.user.account.businessName,
+          id: authUser.account.id,
+          businessName: authUser.account.businessName,
         },
       }
-    : req.user;
+    : authUser;
 
-  res.status(200).json({ user });
+  res.status(200).json({ user: { ...user, features } });
 });
 
 /*
