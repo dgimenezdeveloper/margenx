@@ -17,7 +17,7 @@ La sección tiene dos pestañas, arriba de todo:
 
 ## Tu dirección para listas de precios
 
-Debajo de las pestañas está la **dirección de tu comercio** para recibir listas de precios. Tiene la forma `precios-<slug>@margenx.tech`, donde `<slug>` es el identificador de tu comercio. Por ejemplo, para Panadería Central es `precios-panaderia-central@margenx.tech`.
+Debajo de las pestañas está la **dirección de tu comercio** para recibir listas de precios. Tiene la forma `precios-<tu-comercio>@margenx.tech`, donde `<tu-comercio>` es el nombre corto de tu comercio. Por ejemplo, para Panadería Central es `precios-panaderia-central@margenx.tech`.
 
 1. Tocá **Copiar**. El botón pasa a decir **Copiada** y abajo aparece el aviso "Dirección copiada. Pasásela a tu proveedor."
 2. Pegala donde la necesites: en un mail o un WhatsApp a tu proveedor para que mande ahí sus listas, o como destinatario cuando reenvíes una lista que te llegó a vos.
