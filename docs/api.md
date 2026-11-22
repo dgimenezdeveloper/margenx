@@ -741,4 +741,63 @@ Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). 
 - **Módulo apagado:** cualquier ruta de `/api/sales` o `/api/cash-shifts` responde `404 Not Found` con `{ "error": "Recurso no encontrado." }`, para los dos roles, como si no existiera. La cuenta sale de `req.user`, nunca del cliente.
 - **Sin sesión:** `401 Unauthorized`, antes de consultar el módulo.
 - **Cómo saber si está prendido:** `GET /api/auth/me` → `user.features.sales` (§3).
-- **Rutas:** se documentan acá cuando se implementan: la venta y el ticket (`/api/sales`) y los turnos y el cierre de caja (`/api/cash-shifts`).
+- **Rutas de turnos y cierre de caja (`/api/cash-shifts`):** se documentan acá cuando se implementan.
+- **Montos:** todos los importes van como texto con dos decimales (`"3300.00"`), calculados con `Prisma.Decimal` y `ROUND_HALF_UP`. Las fechas, en ISO 8601 (UTC).
+- **Colaborador:** vende, ve sus ventas y su ticket, pero **nunca** recibe `unitCost`, `lineCost`, `marginPercent` ni `totalCost`. La respuesta se arma por rol en el servicio de ventas (no con `sanitizeFinancialData`, que también quitaría la `quantity` de cada renglón). Todas las respuestas llevan `Cache-Control: private, no-store`.
+
+### `POST /api/sales` — Registrar una venta (ADMIN y COLLABORATOR)
+
+- **Body:**
+  ```json
+  {
+    "paymentMethod": "CASH",
+    "items": [
+      { "productId": "<uuid>", "quantity": 2 },
+      { "productId": "<uuid>", "quantity": 1 }
+    ]
+  }
+  ```
+  - `paymentMethod`: `CASH` (efectivo), `TRANSFER` (transferencia) o `MERCADO_PAGO`. Solo se registra: no hay integración de cobro.
+  - `items`: de 1 a 50 productos distintos; `quantity` entera de 1 a 999. Un producto repetido suma sus cantidades. Cualquier otro campo (precio, costo, total, `accountId`) se ignora: el precio y el costo salen de la base.
+- **Regla:** en **una transacción**: exige un turno de caja abierto en la cuenta, toma el precio de venta y el costo vigentes de cada producto, calcula el margen de cada renglón (misma fórmula que el producto, ADR-004) y asigna el **número de ticket correlativo por cuenta** (el siguiente al mayor; si dos ventas toman el mismo número a la vez, el índice único rechaza una y se reintenta con el siguiente, hasta 3 veces). Precio, costo y margen quedan **congelados** en cada renglón: si mañana cambia un costo, la venta no cambia (ADR-005, ADR-010).
+- **Respuesta 201 Created:**
+  ```json
+  {
+    "id": "<uuid>",
+    "ticketNumber": 8,
+    "businessName": "Panadería Central",
+    "soldAt": "2026-11-24T12:30:00.000Z",
+    "paymentMethod": "CASH",
+    "total": "3300.00",
+    "totalCost": "1015.20",
+    "status": "COMPLETED",
+    "cashShiftId": "<uuid>",
+    "voidedAt": null,
+    "voidReason": null,
+    "items": [
+      { "productId": "<uuid>", "productName": "Medialuna de manteca", "quantity": 2, "unitPrice": "900.00", "lineTotal": "1800.00", "unitCost": "301.35", "lineCost": "602.70", "marginPercent": "66.52" }
+    ]
+  }
+  ```
+  Para el colaborador, sin `totalCost` y sin `unitCost`, `lineCost` ni `marginPercent` en los renglones.
+- **Errores:** `400` (medio de pago, productos o cantidades inválidos) · `404` `"Uno de los productos de la venta no existe."` (también si es de otra cuenta) · `409` `"No hay un turno de caja abierto. Abrí el turno para empezar a cobrar."` · `422` si un producto está en borrador (sin receta) o no tiene precio de venta.
+
+### `GET /api/sales` — Historial de ventas
+
+- **Query:** `page` (por defecto 1), `limit` (por defecto 20, máximo 100), `date` (`AAAA-MM-DD`, día calendario de Argentina: de 00:00 a 24:00 en UTC−3) y `cashShiftId` (uuid del turno). Orden: la más reciente primero.
+- **Alcance:** el ADMIN ve las ventas de toda la cuenta; el colaborador, solo las que registró él.
+- **Respuesta 200 OK:** `{ "data": [{ "id", "ticketNumber", "soldAt", "paymentMethod", "total", "status", "cashShiftId", "itemsCount" }], "meta": { "total", "page", "limit", "totalPages" } }`. Sin costos para ningún rol.
+- **Errores:** `400` `"La fecha tiene que tener el formato AAAA-MM-DD."` · `400` `"El turno indicado no es válido."`
+
+### `GET /api/sales/:id` — Detalle y ticket
+
+- Mismo cuerpo que la respuesta de `POST /api/sales`, con los renglones ordenados por nombre. El colaborador solo puede ver sus ventas.
+- **Errores:** `404` `"La venta no existe."` (también si es de otra cuenta, de otro colaborador o el id no es válido).
+
+### `POST /api/sales/:id/void` — Anular una venta
+
+- **Body:** `{ "reason": "Cobré dos veces la misma venta" }` (de 3 a 200 caracteres).
+- **Regla:** no se borra nada: la venta pasa a `VOIDED` con la fecha, quién la anuló y el motivo, y sigue en el historial. El ADMIN anula cualquier venta de la cuenta. El colaborador, solo las suyas y mientras el turno de la venta siga abierto.
+- **Respuesta 200 OK:** la venta anulada, con el mismo cuerpo que el detalle.
+- **Errores:** `400` `"Escribí el motivo de la anulación."` · `403` `"Solo podés anular ventas del turno abierto. Pedile la anulación a un administrador."` (colaborador, turno cerrado) · `404` `"La venta no existe."` (también la venta de otro colaborador) · `409` `"La venta ya está anulada."`
+- **Pruebas:** colección `MargenX - Ventas API` (`backend/tests/postman/README-Ventas.md`) y `backend/src/routes/salesRoutes.test.ts`.

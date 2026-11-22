@@ -1,0 +1,501 @@
+{
+  "info": {
+    "name": "MargenX - Ventas API",
+    "description": "Contrato, roles y validaciones de /api/sales (ADR-010, docs/api.md §12). No modifica datos: la cuenta no tiene turno abierto, así que la venta responde 409. Preparación en README-Ventas.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "4b8e2f1a-6c3d-4e5f-9a7b-8c1d2e3f4a5b"
+  },
+  "item": [
+    {
+      "name": "01 - GET /api/products (toma un producto con receta de la cuenta)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const productos = pm.response.json().data || [];",
+              "const vendible = productos.find(function (p) { return Number(p.salePrice) > 0 && Array.isArray(p.ingredients) && p.ingredients.length > 0; });",
+              "pm.test('La cuenta tiene un producto con receta y precio', function () { pm.expect(vendible, 'producto vendible').to.be.an('object'); });",
+              "if (vendible) pm.collectionVariables.set('productId', vendible.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/products?limit=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "02 - GET /api/sales sin token → 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - GET /api/sales (ADMIN): listado paginado de la cuenta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK (si es 404, el módulo está apagado: ver README-Ventas.md)', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Contrato { data, meta }', function () {",
+              "  pm.expect(body.data).to.be.an('array');",
+              "  pm.expect(body.meta).to.include.all.keys('total', 'page', 'limit', 'totalPages');",
+              "  pm.expect(body.meta.limit).to.eql(20);",
+              "});",
+              "pm.test('Cache-Control: private, no-store', function () { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('private, no-store'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "04 - GET /api/sales (COLLABORATOR): solo sus ventas y sin costos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+              "const texto = JSON.stringify(pm.response.json());",
+              "pm.test('Sin costos ni márgenes para el colaborador', function () {",
+              "  ['unitCost', 'lineCost', 'marginPercent', 'totalCost'].forEach(function (campo) { pm.expect(texto).to.not.include(campo); });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - GET /api/sales?date=24-11-2026 → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Mensaje del formato', function () { pm.expect(pm.response.json().error).to.include('AAAA-MM-DD'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales?date=24-11-2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ],
+          "query": [
+            {
+              "key": "date",
+              "value": "24-11-2026"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "06 - GET /api/sales?date=2026-11-24 (día de Argentina)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales?date=2026-11-24",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ],
+          "query": [
+            {
+              "key": "date",
+              "value": "2026-11-24"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "07 - GET /api/sales/:id inexistente → 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Mensaje', function () { pm.expect(pm.response.json().error).to.eql('La venta no existe.'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "00000000-0000-4000-8000-000000000000"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "08 - POST /api/sales sin productos → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"CASH\",\n  \"items\": []\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "09 - POST /api/sales con medio de pago inválido → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Pide el medio de pago', function () { pm.expect(pm.response.json().error).to.include('medio de pago'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"TARJETA\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10 - POST /api/sales sin turno abierto → 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409 (la cuenta no tiene turno de caja abierto)', function () { pm.response.to.have.status(409); });",
+              "pm.test('Mensaje del turno', function () { pm.expect(pm.response.json().error).to.include('turno de caja abierto'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{collaboratorToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"CASH\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11 - POST /api/sales/:id/void sin motivo → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/00000000-0000-4000-8000-000000000000/void",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "00000000-0000-4000-8000-000000000000",
+            "void"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "12 - POST /api/sales/:id/void de una venta inexistente → 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404', function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sales/00000000-0000-4000-8000-000000000000/void",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "sales",
+            "00000000-0000-4000-8000-000000000000",
+            "void"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Cobré dos veces la misma venta\"\n}"
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "collaboratorToken",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    }
+  ]
+}
