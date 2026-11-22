@@ -19,13 +19,16 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |
-| `/ventas` | Historial de ventas (módulo opcional) | Redirige a `/login` | Todas las ventas del comercio | Solo sus ventas |
+| `/ventas` | Turno de caja (abrir o ir al cierre) e historial de ventas (módulo opcional) | Redirige a `/login` | Todas las ventas del comercio; abre el turno | Solo sus ventas; abre el turno |
 | `/ventas/nueva` | Venta rápida: productos, total, medio de pago y Cobrar (módulo opcional) | Redirige a `/login` | Acceso | Acceso |
-| `/ventas/:id/ticket` | Ticket no fiscal: imprimir, PDF, WhatsApp y anulación (módulo opcional) | Redirige a `/login` | Cualquier venta, con anulación | Solo sus ventas; anula con el turno abierto |
+| `/ventas/:id/ticket` | Ticket no fiscal: imprimir, PDF, WhatsApp y anulación (módulo opcional) | Redirige a `/login` | Cualquier venta; anula con el turno abierto | Solo sus ventas; anula las suyas con el turno abierto |
+| `/ventas/turnos` | Historial de turnos de caja con la diferencia de cada cierre (módulo opcional) | Redirige a `/login` | Todos los turnos | El abierto y los que abrió o cerró |
+| `/ventas/turnos/:id` | Resumen imprimible del turno y del cierre (módulo opcional) | Redirige a `/login` | Cualquier turno | El abierto y los que abrió o cerró |
+| `/ventas/turnos/:id/cerrar` | Cierre de caja: lo esperado, lo contado y la diferencia (módulo opcional) | Redirige a `/login` | Cierra el turno abierto | Cierra el turno abierto |
 | `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y del reporte semanal (con su descarga) y Colaboradores | Consulta de cuenta (sin alertas, reporte ni Colaboradores) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
-**Módulo de ventas.** Las rutas `/ventas` existen solo si la cuenta tiene el módulo prendido: si no, muestran la página 404 y el menú no tiene **Ventas**. Detalle en [Ventas y ticket](09-ventas.md).
+**Módulo de ventas.** Las rutas `/ventas` existen solo si la cuenta tiene el módulo prendido: si no, muestran la página 404 y el menú no tiene **Ventas**. Detalle en [Ventas, ticket y caja](09-ventas.md).
 
 **Colaborador en una pantalla del administrador.** Las rutas marcadas como **Bloqueado** devuelven al colaborador a `/productos` y el catálogo muestra el aviso "Esa pantalla es solo para el administrador", que se cierra solo o con la X. Recargar `/productos` no lo repite. Detalle en [Rol Colaborador](03-colaborador.md).
 

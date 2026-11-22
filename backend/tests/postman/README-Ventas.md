@@ -1,6 +1,6 @@
 # QA — Colección Postman/Newman: API de Ventas y caja
 
-Colección `MargenX - Ventas API.postman_collection.json` y script `run-tests-ventas.sh`. Valida `/api/sales` y `/api/cash-shifts` (ADR-010, `docs/api.md` §12 y §13) recorriendo un día de caja: abre un turno, vende, anula y cierra con arqueo.
+Colección `MargenX - Ventas API.postman_collection.json` y script `run-tests-ventas.sh`. Valida `/api/sales` y `/api/cash-shifts` (ADR-010, `docs/api.md` §12) recorriendo un día de caja: abre un turno, vende, anula y cierra con arqueo.
 
 ## Qué cubre
 

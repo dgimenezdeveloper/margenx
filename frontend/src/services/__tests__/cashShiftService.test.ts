@@ -10,7 +10,7 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-describe('cashShiftService: contrato de /api/cash-shifts (docs/api.md §13)', () => {
+describe('cashShiftService: contrato de /api/cash-shifts (docs/api.md §12)', () => {
   const fetchMock = vi.fn()
 
   beforeEach(() => {

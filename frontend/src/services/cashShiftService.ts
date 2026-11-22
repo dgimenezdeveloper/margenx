@@ -1,7 +1,7 @@
 import { fetchApi, type TokenGetter } from './api'
 import type { PaymentMethod } from './saleService'
 
-/** Contrato de `/api/cash-shifts` (docs/api.md §13). Los importes llegan como texto con dos decimales. */
+/** Contrato de `/api/cash-shifts` (docs/api.md §12). Los importes llegan como texto con dos decimales. */
 export type CashShiftStatus = 'OPEN' | 'CLOSED'
 
 export interface CashShiftMethod {
