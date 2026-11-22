@@ -9,6 +9,7 @@ import { BottomNav } from '@/components/bottom-nav'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { ToastAlert } from '@/components/ToastAlert'
+import { PrintBrandHeader, PrintBrandSignature } from '@/components/print-brand'
 import {
   Dialog,
   DialogBackdrop,
@@ -23,40 +24,17 @@ import { useToast } from '@/hooks/useToast'
 import { CANONICAL_FOCUS_CLASSES, CANONICAL_INPUT_CLASSES } from '@/lib/accessibility'
 import { formatMoney } from '@/lib/format'
 import {
-  BRAND_TAGLINE,
   NON_FISCAL_LEGEND,
   PAYMENT_METHOD_LABELS,
-  TICKET_BRAND_SIGNATURE,
   buildTicketText,
   formatSaleDateTime,
   formatTicketNumber,
   whatsappShareUrl,
 } from '@/lib/sales'
+import { PRINT_CSS, PRINT_FORMATS, type PrintFormat } from '@/lib/print'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/services/api'
 import { saleService, type Sale } from '@/services/saleService'
-
-type PrintFormat = '58' | '80' | 'A4'
-
-const PRINT_FORMATS: Array<{ value: PrintFormat; label: string }> = [
-  { value: '58', label: 'Ticketera 58 mm' },
-  { value: '80', label: 'Ticketera 80 mm' },
-  { value: 'A4', label: 'Hoja A4' },
-]
-
-/**
- * Tamaño de página y ancho del ticket impreso para cada formato. En la ticketera el logo
- * sale en negro puro (la impresora térmica no tiene color y el violeta saldría gris) y sin
- * el lema, para ahorrar papel. En A4 y en el PDF, el logo va en color y con el lema.
- * El `!important` gana sobre el logo invertido del modo oscuro.
- */
-const THERMAL_BRAND_CSS = '.mx-ticket-logo { filter: grayscale(1) brightness(0) !important; } .mx-ticket-tagline { display: none; }'
-
-const PRINT_CSS: Record<PrintFormat, string> = {
-  '58': `@page { size: 58mm auto; margin: 2mm; } .mx-ticket { width: 54mm; font-size: 11px; } .mx-ticket-logo { width: 34mm; } ${THERMAL_BRAND_CSS}`,
-  '80': `@page { size: 80mm auto; margin: 3mm; } .mx-ticket { width: 74mm; font-size: 12px; } .mx-ticket-logo { width: 44mm; } ${THERMAL_BRAND_CSS}`,
-  A4: '@page { size: A4; margin: 15mm; } .mx-ticket { width: 100mm; font-size: 13px; } .mx-ticket-logo { width: 56mm; filter: none !important; }',
-}
 
 const BUTTON_CLASSES =
   'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50'
@@ -167,16 +145,7 @@ function SaleTicket({ id }: { id: string }) {
                 className="mx-ticket mx-auto w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 font-mono text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 print:rounded-none print:border-0 print:bg-white print:p-0 print:text-black print:shadow-none"
               >
                 <header className="border-b border-dashed border-gray-300 pb-3 text-center dark:border-gray-600 print:border-black">
-                  <img
-                    src="/logo.png"
-                    alt="MargenX"
-                    width={644}
-                    height={249}
-                    className="mx-ticket-logo mx-auto h-auto w-40 dark:brightness-0 dark:invert"
-                  />
-                  <p className="mx-ticket-tagline mb-3 font-sans text-[11px] text-gray-500 dark:text-gray-400 print:text-black">
-                    {BRAND_TAGLINE}
-                  </p>
+                  <PrintBrandHeader />
                   <p className="text-base font-black">{sale.businessName}</p>
                   <p>Ticket {formatTicketNumber(sale.ticketNumber)}</p>
                   <p>{formatSaleDateTime(sale.soldAt)}</p>
@@ -216,7 +185,7 @@ function SaleTicket({ id }: { id: string }) {
                 <p className="border-t border-dashed border-gray-300 pt-3 text-center text-xs font-bold uppercase dark:border-gray-600 print:border-black">
                   {NON_FISCAL_LEGEND}
                 </p>
-                <p className="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400 print:text-black">{TICKET_BRAND_SIGNATURE}</p>
+                <PrintBrandSignature />
               </article>
 
               <section aria-label="Acciones del ticket" className="mx-auto flex w-full max-w-sm flex-col gap-3 print:hidden">
