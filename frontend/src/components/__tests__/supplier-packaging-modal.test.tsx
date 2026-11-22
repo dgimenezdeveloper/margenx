@@ -129,7 +129,7 @@ describe('SupplierPackagingModal', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /No puedes quitar el proveedor predeterminado sin asignar otro/i
+          /No podés quitar el proveedor predeterminado sin asignar otro/i
         )
       ).toBeInTheDocument()
     })
@@ -319,10 +319,10 @@ describe('SupplierPackagingModal', () => {
     // Los mensajes deben aparecer en el DOM con semántica alert
     await waitFor(() => {
       expect(
-        screen.getByText(/Ingresa una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
+        screen.getByText(/Ingresá una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Ingresa un precio válido|El precio del empaque debe ser mayor a 0/i)
+        screen.getByText(/Ingresá un precio válido|El precio del empaque debe ser mayor a 0/i)
       ).toBeInTheDocument()
     })
 

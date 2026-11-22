@@ -148,7 +148,7 @@ export default function ProductsPage() {
             {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Package className="size-6" />}
-                title="Aún no tienes productos cargados"
+                title="Aún no tenés productos cargados"
                 description={
                   isCollaborator
                     ? 'No hay productos disponibles en el catálogo.'

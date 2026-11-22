@@ -169,7 +169,7 @@ export function MonitoredCatalogGrid({
               </button>
             </>
           ) : (
-            'Aún no tienes productos registrados en el catálogo.'
+            'Aún no tenés productos registrados en el catálogo.'
           )}
         </div>
       ) : (

@@ -109,7 +109,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     vi.mocked(productService.list).mockResolvedValue({ items: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } })
     renderPage()
 
-    expect(await screen.findByText('Aún no tienes productos cargados')).toBeInTheDocument()
+    expect(await screen.findByText('Aún no tenés productos cargados')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Paginación de productos' })).toBeNull()
   })
 

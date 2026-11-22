@@ -36,7 +36,7 @@ describe('supplierPackagingSchema', () => {
     });
     expect(noSupplier.success).toBe(false);
     if (!noSupplier.success) {
-      expect(noSupplier.error.issues[0].message).toBe('Debes seleccionar un proveedor');
+      expect(noSupplier.error.issues[0].message).toBe('Seleccioná un proveedor');
     }
   });
 

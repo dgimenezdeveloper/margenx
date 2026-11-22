@@ -122,7 +122,7 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {isCollaborator
                   ? 'Consulta los precios de venta al público para atención de salón.'
-                  : 'Aquí tienes el resumen de rentabilidad de tu negocio en tiempo real.'}
+                  : 'Acá tenés el resumen de rentabilidad de tu negocio en tiempo real.'}
               </p>
             </div>
 

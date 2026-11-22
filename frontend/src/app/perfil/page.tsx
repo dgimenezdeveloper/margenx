@@ -46,7 +46,7 @@ export default function ProfilePage() {
     const numericMargin = Number(currentMarginValue)
 
     if (isNaN(numericMargin) || currentMarginValue.trim() === '') {
-      setMarginError('Ingresa un valor numérico válido.')
+      setMarginError('Ingresá un valor numérico válido.')
       return
     }
 
