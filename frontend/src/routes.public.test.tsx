@@ -109,4 +109,22 @@ describe('Páginas públicas y enlaces de privacidad', () => {
     expect(router.routes.some((route) => route.path === '/privacidad')).toBe(true)
     expect(router.routes.some((route) => route.path === '/instalar')).toBe(true)
   })
+
+  it('Escenario Gherkin "Sin jerga" (#436): la política de privacidad no usa términos técnicos', () => {
+    const privacyRouter = createMemoryRouter([{ path: '/privacidad', element: <PrivacyPage /> }], {
+      initialEntries: ['/privacidad'],
+    })
+
+    render(<RouterProvider router={privacyRouter} />)
+
+    const texto = document.body.textContent ?? ''
+    for (const termino of [/RBAC/, /tenant/i, /\bslug\b/i, /\bADMIN\b/, /COLLABORATOR/]) {
+      expect(texto, `aparece ${termino}`).not.toMatch(termino)
+    }
+    // Los roles con las palabras de la app, y los proveedores que tratan datos, con su nombre.
+    expect(texto).toMatch(/administrador o colaborador/i)
+    expect(texto).toMatch(/Clerk/)
+    expect(texto).toMatch(/Brevo/)
+  })
 })
+

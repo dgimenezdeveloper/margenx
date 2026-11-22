@@ -558,7 +558,7 @@ export default function NewProductPage() {
 
                 {items.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
-                    Aún no has sumado insumos a esta receta. El producto se guardará en estado{' '}
+                    Todavía no sumaste insumos a esta receta. El producto se guardará en estado{' '}
                     <strong>{HEALTH_BUCKET_META.draft.label}</strong> (sin receta).
                   </div>
                 ) : (

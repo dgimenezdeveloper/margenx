@@ -206,7 +206,7 @@ export function SupplierPackagingModal({
 
   const onSubmit = async (data: SupplierPackagingFormValues) => {
     if (existingConnection?.isDefault && !data.isDefault) {
-      setErrorBanner('No puedes quitar el proveedor predeterminado sin asignar otro. Marca otro proveedor como predeterminado para reemplazarlo.')
+      setErrorBanner('No podés quitar el proveedor predeterminado sin asignar otro. Marcá otro proveedor como predeterminado para reemplazarlo.')
       return
     }
 
@@ -364,7 +364,7 @@ export function SupplierPackagingModal({
                     </div>
                   ) : suppliers.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-gray-200 p-3.5 text-center dark:border-gray-800">
-                      <p className="text-xs text-gray-500">No tienes proveedores disponibles para este insumo.</p>
+                      <p className="text-xs text-gray-500">No tenés proveedores disponibles para este insumo.</p>
                       {!existingConnection && (
                         <button
                           type="button"
@@ -558,7 +558,7 @@ export function SupplierPackagingModal({
                     </div>
                   ) : (
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Ingresa el tamaño del bulto y su precio para calcular el costo por{' '}
+                      Ingresá el tamaño del bulto y su precio para calcular el costo por{' '}
                       {unitReadableLabel} automáticamente.
                     </p>
                   )}
@@ -576,14 +576,14 @@ export function SupplierPackagingModal({
                     </span>
                     <p className="mt-0.5 text-gray-500 dark:text-gray-400">
                       {existingConnection?.isDefault && !watchedIsDefault
-                        ? <span className="text-rose-500 font-bold">No puedes quitar el predeterminado. Marca otro proveedor para reemplazarlo.</span>
+                        ? <span className="text-rose-500 font-bold">No podés quitar el predeterminado. Marcá otro proveedor para reemplazarlo.</span>
                         : watchedIsDefault
                         ? `Se actualizará el costo unitario de "${ingredient.name}" al valor calculado (${
                             calculatedUnitCost !== null
                               ? money(calculatedUnitCost)
                               : '$0.00'
                           }) y se recalcularán los productos.`
-                        : 'Registra la presentación sin modificar el costo activo de recetas.'}
+                        : 'Se registra la presentación sin cambiar el costo de las recetas.'}
                     </p>
                   </div>
                 </label>

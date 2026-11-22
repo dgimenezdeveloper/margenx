@@ -50,7 +50,7 @@ const guideSections: GuideSection[] = [
     title: 'iPhone · Safari',
     steps: [
       {
-        text: 'Abre la web en Safari y toca el botón de compartir en la parte inferior.',
+        text: 'Abrí la web en Safari y tocá el botón de compartir en la parte inferior.',
         image: '/guia-instalacion/iphone-1-safari-compartir.png',
         imageAlt: 'Landing de MargenX en Safari con el botón de compartir resaltado en la barra inferior',
       },

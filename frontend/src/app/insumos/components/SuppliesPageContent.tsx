@@ -582,7 +582,7 @@ export default function SuppliesPageContent() {
                   <EmptyState
                     icon={<Boxes className="size-6" />}
                     title="Sin insumos en la despensa"
-                    description="Agrega tus materias primas para poder armar las recetas y calcular los costos de tus productos."
+                    description="Agregá tus materias primas para poder armar las recetas y calcular los costos de tus productos."
                     actionLabel="Crear nuevo insumo"
                     onAction={handleOpenNew}
                   />

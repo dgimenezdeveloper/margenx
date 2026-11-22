@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import LandingPage from './page'
@@ -73,6 +73,55 @@ describe('LandingPage', () => {
       })
 
       expect(getByText(/Control de costos/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Escenario Gherkin "Sin jerga" (#436)', () => {
+    // Términos técnicos que el dueño no tiene por qué conocer: no van en el texto visible de la portada.
+    const JERGA = [
+      /RBAC/, /tenant/i, /\bslug\b/i, /\bADMIN\b/, /\(Admin\)/, /Zero-Click/i, /Anti-Polución/i, /Prisma/,
+      /ROUND_HALF_UP/, /middleware/i, /\bExpress\b/, /\bDOM\b/, /server-side/i, /\bAPI\b/, /\bn8n\b/,
+      /Mobile-First/i, /\bB2B\b/, /dataset/i, /\bseed\b/i, /punto flotante/i, /ingeniería de costos/i, /satélite/i,
+      /sanitizad/i, /censurad/i, /mapead/i,
+    ]
+
+    // Texto visible de la portada con cada pregunta frecuente abierta (se abre una por vez).
+    const textoVisible = () => {
+      vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: true, isSignedIn: false } as unknown as ReturnType<typeof useAuth>)
+      render(<LandingPage />)
+      const partes = [document.body.textContent ?? '']
+      for (const pregunta of screen.getAllByRole('button', { name: /\?$/ })) {
+        fireEvent.click(pregunta)
+        partes.push(document.body.textContent ?? '')
+      }
+      return partes.join('\n')
+    }
+
+    it('la portada no usa términos técnicos, ni en las preguntas frecuentes', () => {
+      const texto = textoVisible()
+      for (const termino of JERGA) expect(texto, `aparece ${termino}`).not.toMatch(termino)
+    })
+
+    it('nombra lo que hace MargenX con palabras del dueño', () => {
+      const texto = textoVisible()
+      expect(texto).toContain('Cada empleado ve solo lo que le corresponde')
+      expect(texto).toContain('Tus datos, solo para tu comercio')
+      expect(texto).toContain('Pensada para el celular')
+    })
+
+    it('en el celular las tres marcas van una por línea, sin el separador colgando al final', () => {
+      textoVisible()
+      const marca = screen.getByText('Cada empleado ve solo lo que le corresponde')
+      const separadores = Array.from(marca.parentElement?.querySelectorAll('span') ?? []).filter((s) => s.textContent === '·')
+      expect(separadores).toHaveLength(2)
+      for (const separador of separadores) expect(separador).toHaveClass('hidden', 'sm:inline')
+    })
+
+    it('muestra la dirección recomendada de la ingesta por correo, la misma de Proveedores (precios-<comercio>@margenx.tech)', () => {
+      const texto = textoVisible()
+      expect(texto).toContain('precios-panaderia-central@margenx.tech')
+      expect(texto).not.toContain('precios+panaderia-central@margenx.tech')
     })
   })
 

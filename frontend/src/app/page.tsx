@@ -40,7 +40,7 @@ const benefits = [
   ],
   [
     RefreshCw,
-    'Recálculo automático en cascada',
+    'Todo se recalcula solo',
     'Cuando sube el precio de una materia prima clave (harina, manteca, etoxilado o soda cáustica), todos los productos que la contienen se actualizan al instante.',
   ],
   [
@@ -59,31 +59,31 @@ const steps = [
   {
     number: '02',
     title: 'Definí tus recetas técnicas',
-    desc: 'Indicá las cantidades exactas por tanda o unidad elaborada (Panadería Central o Química GyJ) para liquidar el costo total sin errores de punto flotante.',
+    desc: 'Indicá cuánto lleva cada producto, por tanda o por unidad, y MargenX calcula el costo total al centavo.',
   },
   {
     number: '03',
     title: 'Monitoreá y ajustá en vivo',
-    desc: 'Reenviá las listas del distribuidor o cargá nuevos costos: el motor recalcula tus márgenes y te sugiere el precio de venta ideal para proteger tu ganancia.',
+    desc: 'Reenviá las listas del distribuidor o cargá los costos nuevos: MargenX recalcula tus márgenes y te sugiere el precio de venta para cuidar tu ganancia.',
   },
 ]
 
 const faqs = [
   {
     q: '¿Qué diferencia a MargenX de un sistema de facturación o punto de venta?',
-    a: 'MargenX no gestiona tickets ni cobros de caja. Se enfoca exclusivamente en la ingeniería de costos: calcular cuánto te cuesta producir cada producto y proteger tu porcentaje de ganancia real frente a la inflación de insumos.',
+    a: 'MargenX no emite facturas ni cobra. Se enfoca en tus costos: calcula cuánto te cuesta hacer cada producto y cuida tu ganancia cuando suben los insumos.',
   },
   {
-    q: '¿Cómo funciona la ingesta de precios desatendida "Zero-Click"?',
-    a: 'Cada comercio registrado recibe un alias virtual único (ej. precios+panaderia-central@margenx.tech). Al recibir un correo o WhatsApp de un distribuidor con un archivo Excel o CSV, simplemente lo reenviás a esa casilla. Nuestro satélite lee el archivo, actualiza en segundo plano los artículos vinculados y descarta el resto sin contaminar tu catálogo.',
+    q: '¿Cómo se cargan las listas de precios de mis proveedores?',
+    a: 'Cada comercio tiene su propia dirección de correo (por ejemplo, precios-panaderia-central@margenx.tech). Cuando un distribuidor te manda su lista en Excel o CSV, por correo o por WhatsApp, la reenviás a esa dirección. MargenX lee el archivo, actualiza los insumos que usás y deja el resto afuera, sin tocar tu catálogo.',
   },
   {
     q: '¿Mis colaboradores pueden ver cuánto gano o el costo de las recetas?',
-    a: 'No. El rol Colaborador está sanitizado server-side a nivel de API: el personal en salón o mostrador solo puede consultar los nombres de los productos y sus precios de venta vigentes para atender y cobrar al público, manteniendo los márgenes, costos y proveedores totalmente confidenciales.',
+    a: 'No. Quien atiende el salón o el mostrador solo ve el nombre de los productos y su precio de venta, para atender y cobrar. Tus costos, márgenes y proveedores nunca le llegan: el servidor no se los manda.',
   },
   {
     q: '¿Cómo resuelve MargenX las compras por bulto mayorista?',
-    a: 'A través de la Calculadora de Empaques integrada. Si tu proveedor te vende una bolsa de 25 kg de harina a $18.000, MargenX calcula automáticamente $720,00/kg con precisión bancaria Prisma.Decimal y redondeo oficial ROUND_HALF_UP.',
+    a: 'Con la calculadora de bultos. Si tu proveedor te vende una bolsa de 25 kg de harina a $18.000, MargenX calcula solo que el kilo te sale $720,00, redondeado al centavo.',
   },
 ]
 
@@ -232,7 +232,7 @@ export default function LandingPage() {
             Control de costos <span className="text-indigo-600">en tiempo real.</span>
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-600 sm:text-lg sm:leading-8 dark:text-slate-300">
-            La plataforma de precisión financiera para comercios de manufactura y panificados. Recalcula márgenes ante subas de insumos, ingiere listas por correo y oculta datos sensibles en salón.
+            Para panaderías, químicas de limpieza y comercios que elaboran lo que venden. Recalcula tus márgenes cuando suben los insumos, lee las listas de precios que te llegan por correo y no le muestra tus costos a quien atiende.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -250,15 +250,15 @@ export default function LandingPage() {
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Aislamiento multi-tenant
+              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Tus datos, solo para tu comercio
             </span>
-            <span>·</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> RBAC estricto
+              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Cada empleado ve solo lo que le corresponde
             </span>
-            <span>·</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
             <span className="flex items-center gap-1.5">
-              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Mobile-First (360px)
+              <Check className="size-4 text-emerald-600 dark:text-emerald-400" /> Pensada para el celular
             </span>
           </div>
         </div>
@@ -405,7 +405,7 @@ export default function LandingPage() {
             </div>
 
             <p className="mt-3 text-[10px] text-center text-slate-400 dark:text-slate-500">
-              * Costos unitarios y márgenes liquidados con Prisma.Decimal contra el dataset oficial de producción (seed post-#178).
+              * Costos y márgenes calculados por MargenX con los datos de los comercios piloto.
             </p>
           </div>
         </div>
@@ -419,7 +419,7 @@ export default function LandingPage() {
               Valor Diferencial
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-.04em] sm:text-4xl text-slate-900 dark:text-white">
-              Automatización e higiene de datos pensadas para la PyME real
+              Automatización pensada para el comercio de todos los días
             </h2>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               No obligamos al dueño a pasar facturas a mano ni exponemos la ganancia neta en la caja registradora.
@@ -427,7 +427,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {/* Pilar 1: Ingesta Zero-Click */}
+            {/* Pilar 1: listas de precios por correo */}
             <article className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50/60 p-6 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -435,28 +435,28 @@ export default function LandingPage() {
                     <Mail className="size-5" />
                   </div>
                   <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/50">
-                    Zero-Click n8n
+                    Sin cargar a mano
                   </span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Ingesta automática por correo
+                  Listas de precios por correo
                 </h3>
                 <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">
-                  Reenviá la lista que te envía el molino o mayorista a tu dirección virtual propia:
+                  Reenviá la lista que te manda el molino o el mayorista a la dirección de tu comercio:
                 </p>
                 <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-2.5 font-mono text-[11px] font-bold text-indigo-700 dark:border-indigo-900/60 dark:bg-slate-900 dark:text-indigo-300 break-all">
-                  precios+panaderia-central@margenx.tech
+                  precios-panaderia-central@margenx.tech
                 </div>
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
                   <FileSpreadsheet className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
                   <p>
-                    <strong>Filtro Anti-Polución:</strong> Si el proveedor envía 5.000 filas, MargenX actualiza únicamente tus materias primas mapeadas y descarta el resto sin ensuciar la base.
+                    <strong>Solo lo tuyo:</strong> si la lista trae 5.000 artículos, MargenX actualiza solo los insumos que usás y deja el resto afuera.
                   </p>
                 </div>
               </div>
             </article>
 
-            {/* Pilar 2: Seguridad RBAC */}
+            {/* Pilar 2: cada uno ve lo suyo */}
             <article className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50/60 p-6 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -464,26 +464,26 @@ export default function LandingPage() {
                     <Users className="size-5" />
                   </div>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50">
-                    Seguridad RBAC
+                    Cada uno ve lo suyo
                   </span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Doble capa de control de roles
+                  El empleado no ve tus costos
                 </h3>
                 <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">
-                  Protección estricta validada tanto en la interfaz como en el middleware de Express:
+                  La app y el servidor controlan qué ve cada uno:
                 </p>
                 <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
                     <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                      <Eye className="size-3.5" /> Dueño (Admin)
+                      <Eye className="size-3.5" /> Dueño (administrador)
                     </span>
                     <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Ve margen real (73,2%)</span>
                   </div>
                   <hr className="border-slate-100 dark:border-slate-800" />
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <EyeOff className="size-3.5" /> Colaborador (Caja)
+                      <EyeOff className="size-3.5" /> Empleado (colaborador)
                     </span>
                     <span className="text-[11px] text-slate-500">Solo precio al público ($13.500)</span>
                   </div>
@@ -491,7 +491,7 @@ export default function LandingPage() {
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
                   <Lock className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                   <p>
-                    Costos de materia prima, proveedores y rentabilidad neta están censurados en la red y en el DOM.
+                    Los costos, los proveedores y la ganancia nunca le llegan al celular del empleado.
                   </p>
                 </div>
               </div>
@@ -505,29 +505,29 @@ export default function LandingPage() {
                     <Scale className="size-5" />
                   </div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50">
-                    Multi-Proveedor
+                    Varios proveedores
                   </span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Calculadora de empaques mayoristas
+                  Calculadora de bultos mayoristas
                 </h3>
                 <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">
                   El mayorista vende por bulto cerrado; tus recetas pesan en gramos o mililitros:
                 </p>
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs dark:border-emerald-900/60 dark:bg-slate-900">
                   <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                    <span>Bulto Distribuidora:</span>
-                    <strong className="text-slate-700 dark:text-slate-300">Bolsa 25 kg @ $18.000</strong>
+                    <span>Bulto del distribuidor:</span>
+                    <strong className="text-slate-700 dark:text-slate-300">Bolsa de 25 kg a $18.000</strong>
                   </div>
                   <div className="mt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-1.5 font-bold">
-                    <span className="text-indigo-600 dark:text-indigo-400">Costo unitario receta:</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">Costo por kg para la receta:</span>
                     <strong className="text-sm font-black text-emerald-700 dark:text-emerald-300">$720,00 / kg</strong>
                   </div>
                 </div>
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
                   <Truck className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
                   <p>
-                    Asociá múltiples presentaciones por insumo y conmutá el proveedor predeterminado con recálculo automático.
+                    Cargá varios proveedores por insumo y elegí cuál usás: MargenX recalcula todo solo.
                   </p>
                 </div>
               </div>
@@ -593,7 +593,7 @@ export default function LandingPage() {
               Adaptado a la realidad del mostrador y el taller
             </h2>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Desarrollado y probado junto a <strong>Panadería Central</strong> y <strong>Química GyJ</strong> para soportar unidades fraccionarias, conversión de empaques y resguardo de datos en salón.
+              Desarrollado y probado junto a <strong>Panadería Central</strong> y <strong>Química GyJ</strong> para trabajar con gramos y litros, bultos mayoristas y costos que el personal no ve.
             </p>
           </div>
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:mt-0">
@@ -670,7 +670,7 @@ export default function LandingPage() {
 
       {/* FOOTER */}
       <footer className="border-t border-slate-200 px-5 py-6 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        © 2026 MargenX — Software B2B de Control de Márgenes en Tiempo Real (Panadería Central & Química GyJ).
+        © 2026 MargenX — Control de márgenes en tiempo real para comercios.
       </footer>
     </main>
   )
