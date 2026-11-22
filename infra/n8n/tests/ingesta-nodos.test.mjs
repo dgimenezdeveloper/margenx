@@ -205,10 +205,12 @@ const run = (file, ctx) => {
  // sin decisiones pendientes: se dice que no hay nada para revisar
  assert.ok(r[0].json.text.includes('No hay nada para revisar')&&!r[0].json.text.includes('PARA REVISAR'));
  assert.equal(r[0].json.subject,'[MargenX] Resumen de tu lista de precios');
- // productos en margen crítico: plural correcto y enlace "Ajustar" al producto en el entorno de la lista
+ // productos debajo de su mínimo: plural correcto y enlace "Ajustar" al producto en el entorno de la lista
  r=await resumen({received:5,updated:5,discarded:0,criticalProductsAlerts:[{productId:'3f2c1a9e-7b4d',productName:'Pan francés',currentMarginPercent:'18.00',minMarginPercent:'30.00',newCost:'820.00'}]},{isDev:true});
  ({text,html,subject}=r[0].json);
- assert.ok(text.includes('1 producto quedó debajo de su margen mínimo')&&subject.includes('1 producto en margen crítico'));
+ assert.ok(text.includes('1 producto quedó debajo de su margen mínimo')&&subject.includes('1 producto debajo de su mínimo'));
+ // nombres de estado vigentes (RV419-I1, #430): sin "crítico" en el asunto, el texto ni el HTML
+ for(const t of [subject,text,html]) assert.ok(!/cr[ií]tic[oa]s?\b/i.test(t),'queda "crítico" en el mail de ingesta');
  assert.ok(html.includes('href="https://dev.margenx.tech/productos/3f2c1a9e-7b4d"'));
  assert.ok(!subject.includes('(s)'));
  // Plantilla compartida: el resumen usa el bloque de infra/n8n/plantillas/mail-margenx.js tal cual
