@@ -166,7 +166,8 @@ describe('NewProductPage - selector de la receta: repetidos y alta rápida (#357
 
     await user.click(await screen.findByRole('combobox', { name: /Levadura fresca/ }))
     await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'Azafrán en hebras')
-    await user.click(screen.getByRole('option', { name: '+ Crear nuevo insumo' }))
+    // "Crear" aparece recién cuando termina la búsqueda (#432).
+    await user.click(await screen.findByRole('option', { name: '+ Crear nuevo insumo' }))
 
     expect(await screen.findByRole('dialog', { name: 'Nuevo insumo' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Azafrán en hebras')

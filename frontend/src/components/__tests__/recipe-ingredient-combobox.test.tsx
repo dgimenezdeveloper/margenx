@@ -8,7 +8,9 @@ import { RecipeIngredientCombobox } from '@/components/recipe-ingredient-combobo
 import type { Ingredient } from '@/services/ingredientService'
 
 vi.mock('@clerk/clerk-react', () => ({ useAuth: () => ({ getToken: vi.fn().mockResolvedValue('token') }) }))
-vi.mock('@/hooks/useIngredientSearch', () => ({ useIngredientSearch: () => ({ results: null, isSearching: false }) }))
+// Búsqueda remota simulada: cada prueba decide si está pendiente o qué devolvió.
+const busqueda = vi.hoisted(() => ({ estado: { results: null as unknown[] | null, isSearching: false } }))
+vi.mock('@/hooks/useIngredientSearch', () => ({ useIngredientSearch: () => busqueda.estado }))
 
 const HARINA = { id: 'harina', name: 'Harina 000', unit: 'kg', currentCost: 850 } as Ingredient
 const MANTECA = { id: 'manteca', name: 'Manteca', unit: 'kg', currentCost: 9500 } as Ingredient
@@ -25,7 +27,10 @@ function Harness({ existing = [] as string[], onCreate = vi.fn() }) {
 }
 
 describe('RecipeIngredientCombobox (#357)', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    busqueda.estado = { results: null, isSearching: false }
+  })
 
   it('expone combobox, listbox y options y navega con teclado', async () => {
     const user = userEvent.setup()
@@ -73,4 +78,58 @@ describe('RecipeIngredientCombobox (#357)', () => {
     await user.click(screen.getByRole('option', { name: '+ Crear nuevo insumo' }))
     expect(onCreate).toHaveBeenCalledWith('Cacao')
   })
+
+  describe('teclado y opción de crear con la búsqueda remota (#432)', () => {
+    it('Escenario "Teclado antes de los resultados": con la búsqueda pendiente, ↓ y Enter no abren "Crear nuevo insumo"', async () => {
+      const onCreate = vi.fn()
+      const user = userEvent.setup()
+      render(<Harness onCreate={onCreate} />)
+      await user.click(screen.getByRole('combobox'))
+      busqueda.estado = { results: null, isSearching: true }
+      await user.keyboard('har')
+
+      expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
+      expect(screen.queryByRole('option', { name: /Crear nuevo insumo/ })).toBeNull()
+
+      await user.keyboard('{ArrowDown}{Enter}')
+      expect(onCreate).not.toHaveBeenCalled()
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+
+    it('con los resultados, ↓ y Enter eligen el primer insumo que coincide', async () => {
+      const onCreate = vi.fn()
+      const user = userEvent.setup()
+      busqueda.estado = { results: [HARINA], isSearching: false }
+      render(<Harness onCreate={onCreate} />)
+      await user.click(screen.getByRole('combobox'))
+      await user.keyboard('har{ArrowDown}{Enter}')
+
+      expect(onCreate).not.toHaveBeenCalled()
+      expect(screen.getByRole('combobox')).toHaveTextContent('Harina 000')
+    })
+
+    it('Escenario "Un solo signo": sin coincidencia exacta ofrece "+ Crear nuevo insumo" con un solo "+"', async () => {
+      const user = userEvent.setup()
+      busqueda.estado = { results: [HARINA], isSearching: false }
+      render(<Harness />)
+      await user.click(screen.getByRole('combobox'))
+      await user.keyboard('har')
+
+      const crear = screen.getByRole('option', { name: '+ Crear nuevo insumo' })
+      expect(crear.textContent).toBe('+ Crear nuevo insumo')
+      expect(crear.querySelector('svg')).toBeNull()
+    })
+
+    it('si la búsqueda encontró el insumo con el mismo nombre (sin tildes ni mayúsculas), no ofrece crearlo de nuevo', async () => {
+      const user = userEvent.setup()
+      busqueda.estado = { results: [HARINA], isSearching: false }
+      render(<Harness />)
+      await user.click(screen.getByRole('combobox'))
+      await user.keyboard('HARINA 000')
+
+      expect(screen.getByRole('option', { name: /Harina 000/ })).toBeInTheDocument()
+      expect(screen.queryByRole('option', { name: /Crear nuevo insumo/ })).toBeNull()
+    })
+  })
 })
+

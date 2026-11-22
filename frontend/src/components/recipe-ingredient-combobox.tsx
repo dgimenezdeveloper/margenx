@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@clerk/clerk-react'
-import { ChevronDown, Plus, Search, X } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 
 import { useIngredientSearch } from '@/hooks/useIngredientSearch'
@@ -25,6 +25,11 @@ export interface RecipeIngredientComboboxProps {
   labelClassName?: string
   triggerClassName?: string
   triggerRef?: RefObject<HTMLButtonElement | null>
+}
+
+/** Sin tildes ni mayúsculas, como busca la API: "harina 000" coincide con "Harina 000". */
+function normalizeName(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
 export function RecipeIngredientCombobox({
@@ -61,8 +66,14 @@ export function RecipeIngredientCombobox({
     () => (searchQuery.trim() ? (remoteResults ?? []) : supplies),
     [searchQuery, remoteResults, supplies]
   )
-  const createOptionIndex = filteredSupplies.length
-  const totalOptions = filteredSupplies.length + 1
+  const term = searchQuery.trim()
+  // Mientras la búsqueda espera o consulta la API no hay resultados que elegir: ofrecer "Crear"
+  // haría que ↓ + Enter abriera el alta con el texto tipeado (#432).
+  const searchPending = term !== '' && isSearching
+  const hasExactMatch = term !== '' && filteredSupplies.some((supply) => normalizeName(supply.name) === normalizeName(term))
+  const showCreateOption = !searchPending && !hasExactMatch
+  const createOptionIndex = showCreateOption ? filteredSupplies.length : -1
+  const totalOptions = filteredSupplies.length + (showCreateOption ? 1 : 0)
   const safeActiveIndex = activeIndex >= 0 && activeIndex < totalOptions ? activeIndex : -1
   const activeOptionId = isOpen && safeActiveIndex >= 0 ? `${baseId}-option-${safeActiveIndex}` : undefined
 
@@ -71,7 +82,7 @@ export function RecipeIngredientCombobox({
     filteredSupplies.forEach((supply, index) => {
       if (!existingSet.has(supply.id)) indices.push(index)
     })
-    indices.push(createOptionIndex)
+    if (createOptionIndex >= 0) indices.push(createOptionIndex)
     return indices
   }, [filteredSupplies, existingSet, createOptionIndex])
 
@@ -112,7 +123,7 @@ export function RecipeIngredientCombobox({
 
   const activateIndex = (index: number) => {
     if (index < 0 || index >= totalOptions) return
-    if (index === createOptionIndex) {
+    if (createOptionIndex >= 0 && index === createOptionIndex) {
       const initialName = searchQuery.trim()
       closeDropdown(false)
       onOpenQuickCreate(initialName)
@@ -264,6 +275,7 @@ export function RecipeIngredientCombobox({
               )
             })}
 
+            {showCreateOption && (
             <button
               id={`${baseId}-option-${createOptionIndex}`}
               type="button"
@@ -274,9 +286,9 @@ export function RecipeIngredientCombobox({
               onClick={() => activateIndex(createOptionIndex)}
               className={cn('flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl px-3.5 py-2.5 text-left text-xs font-bold text-indigo-700 transition hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/50', safeActiveIndex === createOptionIndex && 'bg-indigo-100/80 dark:bg-indigo-900/60')}
             >
-              <Plus className="size-3.5 shrink-0" aria-hidden="true" />
               <span>+ Crear nuevo insumo</span>
             </button>
+            )}
           </div>
         </div>
       )}
