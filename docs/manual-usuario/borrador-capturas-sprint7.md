@@ -27,6 +27,12 @@
 
 Texto sugerido para "Borrar un insumo usado": *Si el insumo está en alguna receta, MargenX no te deja borrarlo y te avisa. Primero sacalo de las recetas que lo usan (las ves en "Se usa en").*
 
+## 02 · Rutas y roles (`02-rutas-y-roles.md`)
+
+| Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
+|---|---|---|---|
+| `02-rutas-bottom-nav-comparativa` | `15-panel-360-nav-truncada.jpg` (solo admin) | Rehacer después de QA7-12 (#437) ("Proveedo…" cortado) y sumar la del colaborador | Menú inferior del administrador con seis pestañas y el del colaborador con tres |
+
 ## 03 · Rol colaborador (`03-colaborador.md`)
 
 | Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
@@ -34,12 +40,6 @@ Texto sugerido para "Borrar un insumo usado": *Si el insumo está en alguna rece
 | `03-colaborador-productos` | `20-colaborador-panel.jpg` | Rehacer después de QA7-03 (#428) (hoy muestra productos en borrador a $0,00) | Panel del colaborador con el catálogo y solo el precio de venta de cada producto |
 | `03-colaborador-detalle-producto` | — | Falta | Ficha de producto vista por el colaborador, con el precio de venta y la receta sin cantidades |
 | (sección "Aviso al abrir una pantalla del administrador") | `19-colaborador-redirigido.jpg` | Lista | Catálogo de productos con el aviso "Esa pantalla es solo para el administrador. Te trajimos al catálogo de productos." |
-
-## 02 · Rutas y roles (`02-rutas-y-roles.md`)
-
-| Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
-|---|---|---|---|
-| `02-rutas-bottom-nav-comparativa` | `15-panel-360-nav-truncada.jpg` (solo admin) | Rehacer después de QA7-12 (#437) ("Proveedo…" cortado) y sumar la del colaborador | Menú inferior del administrador con seis pestañas y el del colaborador con tres |
 
 ## 04 · Proveedores y listas (`04-proveedores-y-listas.md`)
 
@@ -51,6 +51,14 @@ Texto sugerido para "Borrar un insumo usado": *Si el insumo está en alguna rece
 | `02-detalle-proveedor-presentaciones` | `11-proveedor-detalle-sin-alta.jpg` (sin presentaciones) | Rehacer después de QA7-09 (#434), con un proveedor que tenga presentaciones | Ficha del proveedor con sus presentaciones, código de artículo y la marca de predeterminada |
 | `02-bandeja-cuarentena` | `21-cuarentena-liberar.jpg` (confirmación de Liberar) | Rehacer con un precio retenido visible en la bandeja (hoy está vacía) | Bandeja de cuarentena con el precio actual tachado, el propuesto, la variación y los botones Liberar y Rechazar |
 
+## 05 · Colaboradores (`05-colaboradores.md`)
+
+| Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
+|---|---|---|---|
+| `05-colaboradores-invitar` | — | Falta, después de QA7-12 (#437) (cambia el mensaje del 409 de la invitación) | Sección Colaboradores en Perfil con el campo de correo, una invitación pendiente y un colaborador activo |
+
+Cuando se cierre #437, revisar también la tabla de mensajes de la sección "Invitar a un colaborador": tiene que coincidir con los mensajes del 409 que deje esa issue.
+
 ## 06 · Panel (`06-panel.md`)
 
 | Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
@@ -61,7 +69,7 @@ Texto sugerido para "Borrar un insumo usado": *Si el insumo está en alguna rece
 
 ## 07 · Compras sugeridas (`07-compras-sugeridas.md`)
 
-> El reenfoque se aprobó el 22/11/2026: Compras pasa a medir el impacto en el margen (#445 y #446) y se quitan la calculadora y el pedido semanal (ADR-010, #447). Las capturas de este capítulo esperan a que se cierre #446.
+> El reenfoque se aprobó el 22/11/2026: Compras pasa a medir el impacto en el margen (#445 y #446) y se quitan la calculadora y el pedido semanal. La decisión queda escrita en ADR-010, que se suma con #447. Con #446, la pantalla pasa a llamarse "Impacto en el margen" (la ruta `/compras` no cambia), así que el capítulo cambia de nombre y de texto, no solo de capturas. Las capturas de este capítulo esperan a que se cierre #446.
 
 | Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
 |---|---|---|---|
@@ -73,7 +81,7 @@ Texto sugerido para "Borrar un insumo usado": *Si el insumo está en alguna rece
 
 | Marcador | Captura del recorrido | Estado | Texto alternativo propuesto |
 |---|---|---|---|
-| `08-reporte-descarga` | — | Falta | Panel a 360 px con el botón "Descargar reporte (PDF)" |
+| `08-reporte-descarga` | — (`15-panel-360-nav-truncada.jpg` tiene el botón, pero no el aviso de error que pide el marcador) | Falta | Panel a 360 px con el botón "Descargar reporte (PDF)" y el aviso de error debajo |
 | (sección "Qué trae el PDF") | `04-pdf-estado-cortado.png` | Rehacer después de QA7-10 (#435) (columna Estado cortada) | Primera página del reporte semanal con los productos debajo de su margen mínimo y el precio sugerido |
 
 ## Capítulo nuevo propuesto: crear un producto y su receta
@@ -90,7 +98,7 @@ Hoy el manual no tiene un capítulo para el flujo más usado. Borrador de texto,
 ### Armar la receta
 
 1. En **Composición / Receta**, elegí el insumo. Podés escribir parte del nombre y moverte con las flechas.
-2. Escribí la cantidad y elegí la unidad: gramos o kilos para los insumos en kg, mililitros o litros para los insumos en litro.
+2. Escribí la cantidad y elegí la unidad: gramos o kilos para los insumos en kg, mililitros o litros para los insumos en litro. Los insumos por unidad se cargan en unidades.
 3. Tocá **Agregar Insumo a la Receta**. Un mismo insumo no se puede agregar dos veces.
 4. Si el insumo no existe, tocá **Crear nuevo insumo** sin salir de la receta.
 
@@ -117,7 +125,8 @@ Hoy el manual no tiene un capítulo para el flujo más usado. Borrador de texto,
 
 ## Pendientes para completar el manual
 
-- [ ] Capturas a 360 px que faltan: portada, alta de insumo desde Insumos, lista y alta de proveedores, ficha del producto para el colaborador, botón de descarga del reporte.
+- [ ] Capturas a 360 px que faltan: portada, alta de insumo desde Insumos, lista y alta de proveedores, ficha del producto para el colaborador, invitación de colaboradores en Perfil, botón de descarga del reporte con el aviso de error.
 - [ ] Rehacer las capturas marcadas cuando se cierren QA7-01 (#426), QA7-03 (#428), QA7-05 (#430), QA7-06 (#431), QA7-08 (#433), QA7-09 (#434), QA7-10 (#435) y QA7-12 (#437).
-- [ ] Decidir el capítulo 07 cuando se resuelva la ADR "MargenX no gestiona stock ni compras".
+- [ ] Reescribir el capítulo 07 como "Impacto en el margen" cuando se cierre #446 (reenfoque del 22/11, ADR-010 en #447).
+- [ ] Si el módulo de ventas (#448, #449 y #450) entra antes del congelamiento del 28/11: sumar un capítulo de ventas y caja, y rehacer las capturas del panel (06) y del reporte (08), que suman la ganancia real con #450.
 - [ ] Unificar el trato en vos en todo el manual (hoy mezcla "te ayudará" con "Entrá" y "Tocá").
