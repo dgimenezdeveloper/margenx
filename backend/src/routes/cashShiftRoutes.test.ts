@@ -86,7 +86,13 @@ function buildApp() {
 beforeEach(() => {
   vi.clearAllMocks();
   currentUser = CAJERA;
-  db.account.findUnique.mockResolvedValue({ subscriptionPlan: 'FREE', features: [{ feature: 'sales', enabled: true }] });
+  db.account.findUnique.mockImplementation(({ select }: { select: Record<string, unknown> }) =>
+    Promise.resolve(
+      select.businessName
+        ? { businessName: 'Panadería Central' }
+        : { subscriptionPlan: 'FREE', features: [{ feature: 'sales', enabled: true }] }
+    )
+  );
   db.sale.groupBy.mockResolvedValue(ventasDelTurno);
 });
 
@@ -279,14 +285,15 @@ describe('GET /api/cash-shifts y GET /api/cash-shifts/:id', () => {
     expect(db.sale.groupBy).not.toHaveBeenCalled();
   });
 
-  it('el resumen de un turno cerrado usa lo guardado al cierre', async () => {
+  it('el resumen de un turno cerrado usa lo guardado al cierre y lleva el nombre del comercio para imprimirlo', async () => {
     currentUser = ADMIN;
     db.cashShift.findFirst.mockResolvedValue(cerrado);
 
     const res = await request(buildApp()).get(`/api/cash-shifts/${SHIFT_ID}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ expectedTotal: '43400.00', countedTotal: '42900.00', difference: '-500.00' });
+    expect(res.body).toMatchObject({ businessName: 'Panadería Central', expectedTotal: '43400.00', countedTotal: '42900.00', difference: '-500.00' });
+    expect(db.account.findUnique).toHaveBeenCalledWith({ where: { id: ACCOUNT }, select: { businessName: true } });
     expect(db.cashShift.findFirst.mock.calls[0]![0].where).toEqual({ id: SHIFT_ID, accountId: ACCOUNT });
   });
 

@@ -114,7 +114,12 @@ cashShiftsRouter.get('/:id', async (req: AuthenticatedRequest, res: Response) =>
   if (!shift) {
     throw new AppError('El turno no existe.', 404);
   }
-  return res.status(200).json(shift);
+  // El resumen imprimible del cierre lleva el nombre del comercio, como el ticket.
+  const account = await prisma.account.findUnique({
+    where: { id: actor.accountId },
+    select: { businessName: true },
+  });
+  return res.status(200).json({ ...shift, businessName: account?.businessName ?? '' });
 });
 
 cashShiftsRouter.post('/:id/close', async (req: AuthenticatedRequest, res: Response) => {
