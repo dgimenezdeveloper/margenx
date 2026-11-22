@@ -111,8 +111,9 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     const switches = screen.queryAllByRole('switch')
     expect(switches).toHaveLength(0)
 
-    // La alerta crítica se visualiza como "Activa"
-    expect(screen.getByText('Alerta de Margen Crítico')).toBeInTheDocument()
+    // La alerta de margen mínimo se visualiza como "Activa", sin el nombre viejo "crítico" (#430)
+    expect(screen.getByText('Alerta de margen mínimo')).toBeInTheDocument()
+    expect(screen.queryByText(/cr[ií]tic/i)).toBeNull()
     expect(screen.getByText('Activa')).toBeInTheDocument()
 
     // El reporte semanal en PDF ya está activo (#392); dejó de ser "Próximamente"
