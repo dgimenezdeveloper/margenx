@@ -55,7 +55,7 @@ El detalle por issue, con su PR y su commit, está en `docs/entregables/entrega-
 
 ## 4. Retrospectiva (Start / Stop / Continue)
 
-**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. Se hace fuera de término: el recorte previsto en `#273` la dejó para el Planning del Sprint 6 y no se hizo ahí (ver "Dejar de hacer", punto 4). El borrador lo preparó el Scrum Master con la evidencia del repositorio; queda pendiente de validación del equipo en la clase del 21/11.
+**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. Se hace fuera de término: el recorte previsto en `#273` la dejó para el Planning del Sprint 6 y no se hizo ahí (ver "Dejar de hacer", punto 4). El borrador lo preparó el Scrum Master con la evidencia del repositorio. Validada por el equipo (Darío Giménez, Federico Paal, Mauricio Barreras y Leandro Herrera) el 21/11/2026.
 
 ### Cumplimiento de los compromisos del Sprint 4 (acta del Sprint 4, §4)
 

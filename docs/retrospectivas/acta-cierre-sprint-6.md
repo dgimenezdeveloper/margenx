@@ -4,7 +4,7 @@
 **Materia:** Prácticas Profesionales Supervisadas (PPS) / Metodologías Ágiles
 **Período del sprint:** 07/11/2026 al 20/11/2026
 **Sprint Review:** 21/11/2026, en la clase de pre-entrega
-**Fecha de sesión:** 21/11/2026, en la clase presencial (retrospectiva pendiente de validación del equipo, §6)
+**Fecha de sesión:** 21/11/2026, en la clase presencial (retrospectiva validada por el equipo el 21/11/2026, §6)
 **Facilitador / Scrum Master:** Darío Giménez (sigue hasta la entrega final: acta del Sprint 4, §5)
 **Participantes:** Darío Giménez (Scrum Master y DevOps), Federico Paal (Lead Frontend), Mauricio Barreras (Lead Backend), Leandro Herrera (QA y enlace con los comercios piloto)
 
@@ -77,11 +77,95 @@ La docente reorganizó el cierre de la cursada (aviso del 12/11/2026): la clase 
 
 ## 5. Hallazgos de las revisiones de PR
 
-Se completa con la clasificación de los hallazgos de revisión y de la revisión de usabilidad del 20/11.
+La clasificación se hizo el 22/11/2026, con la planificación del Sprint 7. Junta cuatro fuentes:
+
+- los 13 hallazgos I de las revisiones de PR del Sprint 6 que llegaron al cierre sin issue (§6, "Dejar de hacer", punto 1);
+- el defecto H2 del reporte de calidad;
+- la revisión de usabilidad del equipo del 20/11 ("NOTAS DE REVISION" del tablero);
+- el recorrido de cliente en staging del 21/11, RC-01 a RC-28 (`docs/qa/reporte-calidad-sprint7.md` §1).
+
+Las issues nuevas usan `[SPRINT7-QA7-nn]` (arreglos), `[SPRINT7-R-0n]` (reenfoque de Compras), `[SPRINT7-SALES-0n]` (módulo de ventas) y `[SPRINT7-DOCS-02]`, para no chocar con los IDs `[SPRINT7-*]` que ya existían. Las de los hallazgos RV llevan la etiqueta `review-followup`.
+
+### 5.1 Hallazgos I de las revisiones de PR y H2
+
+| Hallazgo | Qué falta | Destino |
+|---|---|---|
+| `[RV371-I2]` | La prueba de integración de unidades no corre en el CI | `#438` |
+| `[RV371-I3]` | Unidades y `PUT` de costo verificados en staging | Caso nuevo de la regresión final (`#399`) |
+| `[RV374-I1]` | La cobertura del backend no se mide en el CI | `#438` |
+| `[RV375-I1]` | Tiempo de respuesta con y sin búsqueda en staging | `#444` |
+| `[RV376-I1]` | Pantalla completa en los bottom sheets | Not planned (§5.3) |
+| `[RV381-I1]` | Fuente equivocada del margen ponderado en la especificación | `#443` |
+| `[RV385-I1]` | "Variaciones recientes" en 0 para el colaborador y ante un error | `#433` |
+| `[RV386-I1]` | Prueba del estado de margen con mínimo distinto de 30 % | `#440` |
+| `[RV387-I1]` | Pruebas automáticas de accesibilidad con axe | `#442` |
+| `[RV410-I1]` | Prueba de respuestas fuera de orden en la lista paginada | `#441` |
+| `[RV415-I1]` | Cuerpo del JSON del reporte semanal en `docs/api.md` | `#443` |
+| `[RV419-I1]` | Nombres de estado viejos fuera de los componentes del PR | `#430` |
+| `[RV422-I1]` | El webhook compara el precio sin redondear | `#439` |
+| H2 | Simulador fuera del formato es-AR | `#431` |
+
+La revisión de usabilidad y el recorrido de cliente se clasifican en `docs/qa/reporte-calidad-sprint7.md` §1.5 y §1.6. Cada punto tiene issue o un motivo de not planned.
+
+### 5.2 Mapa de ID a número de issue
+
+Todas están en el Sprint 7 del tablero, con prioridad, tamaño, estimación en SP y fechas. Las dependencias se cargaron como relaciones "Blocked by".
+
+| ID | Issue | Responsable | Prioridad | Depende de |
+|---|---|---|---|---|
+| QA7-01 | `#426` Bloquear el cambio de unidad de un insumo con recetas o presentaciones | Mauricio Barreras | P1 | — |
+| QA7-02 | `#427` Costo manual con proveedor predeterminado | Mauricio Barreras y Federico Paal | P1 | `#426` |
+| QA7-03 | `#428` No mostrar al colaborador productos en borrador a $0,00 | Mauricio Barreras | P1 | — |
+| QA7-04 | `#429` Perfil: margen global, "(n8n)" y botones duplicados | Federico Paal | P1 | — |
+| QA7-05 | `#430` Nombres de estado viejos, margen mediano y rótulos a 360 px | Darío Giménez | P2 | — |
+| QA7-06 | `#431` Simulador en formato es-AR | Federico Paal | P2 | — |
+| QA7-07 | `#432` Productos: selector con teclado, "+ +", cursor y hovers | Federico Paal | P2 | — |
+| QA7-08 | `#433` Insumos: modo oscuro, "Se usa en", historial y "Variaciones recientes" | Federico Paal | P2 | — |
+| QA7-09 | `#434` Proveedores: tabla, confirmación, baja y nombres unificados | Federico Paal | P2 | — |
+| QA7-10 | `#435` PDF y mails: columna Estado y correo de soporte | Darío Giménez | P2 | — |
+| QA7-11 | `#436` Textos para el dueño y Clerk en español rioplatense | Leandro Herrera | P2 | — |
+| QA7-12 | `#437` Menú inferior a 360 px y 409 de invitación | Mauricio Barreras | P3 | — |
+| QA7-13 | `#438` CI del backend: cobertura e integración con PostgreSQL | Leandro Herrera (revisa Darío Giménez) | P2 | — |
+| QA7-14 | `#439` Webhook: precio redondeado a 2 decimales | Mauricio Barreras | P2 | — |
+| QA7-15 | `#440` Prueba del estado de margen con mínimo propio | Mauricio Barreras | P3 | — |
+| QA7-16 | `#441` Prueba de respuestas fuera de orden | Federico Paal | P3 | — |
+| QA7-17 | `#442` Pruebas automáticas de accesibilidad con axe | Leandro Herrera y Federico Paal | P2 | `#398` |
+| QA7-18 | `#443` Especificación funcional y contrato del reporte en `api.md` | Mauricio Barreras (revisa Leandro Herrera) | P3 | — |
+| QA7-19 | `#444` Tiempo de respuesta con y sin búsqueda | Leandro Herrera | P3 | — |
+| R-01 | `#445` Compras sugeridas: impacto en el margen (backend) | Mauricio Barreras | P1 | `#447` (solo el texto del ADR-010) |
+| R-02 | `#446` Compras sugeridas como "Impacto en el margen" (frontend) | Federico Paal | P1 | `#445` |
+| SALES-00 | `#447` ADR-010, control de módulos y modelo de ventas | Darío Giménez | P1 | — |
+| SALES-01 | `#448` Venta rápida con ticket no fiscal | Darío Giménez | P1 | `#447` |
+| SALES-02 | `#449` Turnos y cierre de caja | Darío Giménez | P1 | `#447` |
+| SALES-03 | `#450` Ganancia real en el panel y en el reporte semanal | Darío Giménez | P1 | `#448` |
+| DOCS-02 | `#451` Hoja de ruta de la Fase 2 y milestones | Darío Giménez | P2 | — |
+
+Además, `#400` (release) queda bloqueada por `#450`, por la decisión del 28/11 sobre el módulo de ventas.
+
+### 5.3 Not planned, con su motivo
+
+| Origen | Tema | Motivo |
+|---|---|---|
+| `[RV376-I1]` | Pantalla completa en los bottom sheets | El diálogo ya se adaptó, y cambiarlo es riesgo antes del congelamiento |
+| Revisión de usabilidad | Impedir la baja de un proveedor con insumos predeterminados | El diálogo actual informa y el insumo conserva su costo. El texto se simplifica en `#434` |
+| RC-13 | "Superávit" con mínimo ≥ 60 % | Es la regla acordada en `#367`. Se aclara en el manual |
+| RC-07 | "Documentación" del pie lleva a GitHub | El manual se entrega en `#401` |
+| `[RV371-I3]` | Verificación en staging | Sin issue propia: caso nuevo de `#399` |
+| Datos de staging | Restos de pruebas en la cuenta Demo (Medialunas a $13, Champinión) | Sin issue propia: reseed antes de la defensa, sumado a `#400` |
+
+### 5.4 Cambio de alcance del 22/11/2026: módulo de ventas y Fase 2
+
+En la clase del 21/11, la docente propuso ofrecer al emprendedor una solución inmediata (vender con ticket) como puerta de entrada al control de margen. El 22/11 el equipo acordó:
+
+- **Entra en la v1.0.0, detrás de un control de módulos por plan y por cuenta:** ventas con ticket no fiscal, caja por turnos y ganancia real (`#447` a `#450`). Queda prendido solo en la cuenta Demo de staging. El 28/11 se decide si se prende en la cuenta Demo de producción (`#450`). En los dos casos, el release v1.0.0 sale el 02/12.
+- **Compras sugeridas mide el impacto en el margen** (`#445` y `#446`). Se quitan la calculadora de bultos y el pedido semanal, que suponían cantidades sin stock (RC-16 a RC-19).
+- **Pasan a la Fase 2:** stock de insumos, compras con pedido a proveedores, reposición con cantidades y facturación de ARCA. El monitor de disponibilidad (`#394`) se sacó del Sprint 7 y quedó en el milestone v1.1, porque el SM toma el módulo de ventas.
+- La decisión y sus motivos quedan en el **ADR-010** (`docs/adr/0010-modulo-de-ventas-y-control-de-modulos.md`, `#447`). La hoja de ruta posterior a la cursada es `#451`.
+- **Orden de corte:** cada integrante trabaja por prioridad (P1, P2, P3). Lo que no esté mergeado el 28/11 se trata así: P3 se cierra como not planned con su motivo, P2 se decide en la daily del 28/11 y el módulo de ventas sigue la decisión de `#450`. El módulo nunca desplaza al release (`#400`) ni a los entregables (`#401`).
 
 ## 6. Retrospectiva (Start / Stop / Continue)
 
-**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. El borrador lo preparó el Scrum Master con la evidencia del repositorio; queda pendiente de validación del equipo en la clase del 21/11.
+**Sesión:** 21/11/2026, en la clase presencial, con los cuatro integrantes. El borrador lo preparó el Scrum Master con la evidencia del repositorio. Validada por el equipo (Darío Giménez, Federico Paal, Mauricio Barreras y Leandro Herrera) el 21/11/2026.
 
 ### Cumplimiento de las acciones de la retrospectiva del Sprint 5
 
@@ -122,12 +206,13 @@ Se completa con la clasificación de los hallazgos de revisión y de la revisió
 
 | Issue | Motivo |
 |---|---|
-| Issues de seguimiento de §5 | Hallazgos de las revisiones de PR y de la revisión de usabilidad del 20/11, con severidad y prioridad. |
-| H2 del reporte de calidad (formato es-AR en el simulador de precio) | Defecto menor informado el 16/11 (`docs/qa/reporte-calidad-sprint6.md` §1.7). Se clasifica con §5. |
+| `#426` a `#446` | Arreglos y reenfoque de Compras: hallazgos de las revisiones de PR, de la revisión de usabilidad del 20/11 y del recorrido de cliente del 21/11, con severidad y prioridad (§5.2). |
+| `#431` (H2 del reporte de calidad) | Formato es-AR en el simulador de precio, defecto menor informado el 16/11 (`docs/qa/reporte-calidad-sprint6.md` §1.7). |
+| `#447` a `#451` | Módulo de ventas y hoja de ruta, por el cambio de alcance del 22/11 (§5.4). |
 | Verificación de `#406` en iPhone con la app instalada | Pendiente después del despliegue en `dev.margenx.tech` (`docs/qa/reporte-calidad-sprint6.md` §1.7, H1). |
 | `#312` Colecciones Newman con datos que se restauran | Seguimiento del Sprint 5; ya está en el Sprint 7, en curso. |
 
-Las issues del Sprint 7 ya están en el tablero: `#393` (Swagger), `#394` (monitor de disponibilidad), `#398` (Lighthouse), `#399` (regresión final), `#400` (release `v1.0.0`), `#401` (entregables finales) y `#402` (defensa). Las funcionalidades cierran el 28/11; desde ese día `develop` solo recibe correcciones y documentación (SAD §6).
+Las issues del Sprint 7 que ya estaban en el tablero: `#393` (Swagger, con el vencimiento adelantado al 24/11 porque los PRs de ventas suman sus rutas), `#398` (Lighthouse), `#399` (regresión final), `#400` (release `v1.0.0`), `#401` (entregables finales) y `#402` (defensa). `#394` (monitor de disponibilidad) pasó al milestone v1.1 (§5.4). Las funcionalidades cierran el 28/11; desde ese día `develop` solo recibe correcciones y documentación (SAD §6).
 
 ## 8. Traspaso al Sprint 7
 
@@ -135,5 +220,5 @@ Darío Giménez sigue como Scrum Master hasta la entrega final (acta del Sprint 
 
 - [ ] **Tablero limpio:** 34 de 35 issues del Sprint 6 en `Done`; `#396` pasa a `Done` al mergear su PR.
 - [x] **Sin release en el Sprint 6:** producción en v0.6.0; el release `v1.0.0` es `#400`, con el congelamiento del 28/11.
-- [ ] **Backlog del Sprint 7 refinado:** las issues `[SPRINT7-*]` están en el tablero y su alcance se ajustó a la consigna de la entrega final; faltan las de seguimiento de §5, H2 incluido.
+- [x] **Backlog del Sprint 7 refinado:** las issues `[SPRINT7-*]` están en el tablero y su alcance se ajustó a la consigna de la entrega final. El 22/11 se sumaron las de seguimiento de §5, H2 incluido (`#426` a `#446`), y las del módulo de ventas y la hoja de ruta (`#447` a `#451`). Ese mismo día pasaron a `Done` en el tablero los ítems `#3`, `#4`, `#226` y `#228`, que ya estaban cerrados o mergeados en GitHub.
 - [x] **Ambientes operativos:** el 20/11/2026 a las 20:23 (hora de Argentina), `https://api.margenx.tech/api/health` (production) y `https://api-dev.margenx.tech/api/health` (development) respondieron HTTP 200 con `status: ok`, y `https://margenx.tech` y `https://dev.margenx.tech`, HTTP 200.
