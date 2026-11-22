@@ -507,7 +507,7 @@ export default function NewProductPage() {
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
                         className={cn(
-                          'min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500',
+                          'min-h-11 h-11 w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:[color-scheme:dark] dark:hover:bg-gray-700 outline-none focus:border-indigo-600 dark:focus:border-indigo-500',
                           CANONICAL_FOCUS_CLASSES
                         )}
                       >

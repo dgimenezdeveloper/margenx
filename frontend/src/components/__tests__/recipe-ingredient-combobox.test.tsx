@@ -130,6 +130,15 @@ describe('RecipeIngredientCombobox (#357)', () => {
       expect(screen.getByRole('option', { name: /Harina 000/ })).toBeInTheDocument()
       expect(screen.queryByRole('option', { name: /Crear nuevo insumo/ })).toBeNull()
     })
+
+    it('la cruz para limpiar la búsqueda muestra el cursor de mano', async () => {
+      const user = userEvent.setup()
+      busqueda.estado = { results: [HARINA], isSearching: false }
+      render(<Harness />)
+      await user.click(screen.getByRole('combobox'))
+      await user.keyboard('har')
+
+      expect(screen.getByRole('button', { name: 'Limpiar búsqueda' })).toHaveClass('cursor-pointer')
+    })
   })
 })
-

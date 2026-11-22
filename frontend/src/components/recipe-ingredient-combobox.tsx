@@ -232,7 +232,7 @@ export function RecipeIngredientCombobox({
                 className={cn('min-h-10 h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-8 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white', CANONICAL_FOCUS_CLASSES)}
               />
               {searchQuery && (
-                <button type="button" tabIndex={-1} aria-label="Limpiar búsqueda" onClick={() => { setSearchQuery(''); setActiveIndex(-1); searchInputRef.current?.focus() }} className="absolute right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <button type="button" tabIndex={-1} aria-label="Limpiar búsqueda" onClick={() => { setSearchQuery(''); setActiveIndex(-1); searchInputRef.current?.focus() }} className="absolute right-2 cursor-pointer p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                   <X className="size-4" aria-hidden="true" />
                 </button>
               )}
