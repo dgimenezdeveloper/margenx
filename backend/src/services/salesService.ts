@@ -27,6 +27,8 @@ const ARGENTINA_OFFSET = '-03:00';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const NO_OPEN_SHIFT_MESSAGE = 'No hay un turno de caja abierto. Abrí el turno para empezar a cobrar.';
+export const CLOSED_SHIFT_VOID_MESSAGE =
+  'Solo se pueden anular ventas del turno abierto. El turno de esta venta ya se cerró y su arqueo no cambia.';
 
 export interface SaleItemInput {
   productId: string;
@@ -258,10 +260,14 @@ export async function createSale(actor: SaleActor, input: SaleInput): Promise<Sa
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await prisma.$transaction(async (tx) => {
-        const shift = await tx.cashShift.findFirst({
-          where: { accountId: actor.accountId, status: 'OPEN' },
-          select: { id: true },
-        });
+        // Bloqueo compartido sobre la fila del turno hasta el fin de la transacción: el cierre
+        // (que actualiza esa fila) espera a que termine la venta, y una venta que llega
+        // durante un cierre espera y encuentra el turno cerrado. Así ninguna venta queda
+        // afuera de un arqueo ya calculado.
+        const [shift] = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id" FROM "CashShift"
+          WHERE "accountId" = ${actor.accountId} AND "status" = 'OPEN'
+          FOR SHARE`;
         if (!shift) {
           throw new AppError(NO_OPEN_SHIFT_MESSAGE, 409);
         }
@@ -368,8 +374,9 @@ export async function findSale(actor: SaleActor, saleId: string) {
 }
 
 /**
- * Anula una venta con su motivo; no borra nada. El ADMIN anula cualquier venta de la cuenta.
- * El colaborador, solo las suyas y mientras el turno de la venta siga abierto.
+ * Anula una venta con su motivo; no borra nada. Solo mientras el turno de la venta siga
+ * abierto, para que el arqueo de un turno cerrado no cambie nunca. El ADMIN anula
+ * cualquier venta del turno; el colaborador, solo las suyas.
  */
 export async function voidSale(actor: SaleActor, saleId: string, reason: string) {
   if (!UUID_REGEX.test(saleId)) {
@@ -379,7 +386,7 @@ export async function voidSale(actor: SaleActor, saleId: string, reason: string)
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findFirst({
       where: { id: saleId, accountId: actor.accountId },
-      select: { id: true, status: true, soldById: true, cashShift: { select: { status: true } } },
+      select: { id: true, status: true, soldById: true, cashShiftId: true },
     });
     // A un colaborador, la venta de otro usuario le responde igual que una que no existe.
     if (!sale || (actor.role !== 'ADMIN' && sale.soldById !== actor.id)) {
@@ -388,8 +395,13 @@ export async function voidSale(actor: SaleActor, saleId: string, reason: string)
     if (sale.status === 'VOIDED') {
       throw new AppError('La venta ya está anulada.', 409);
     }
-    if (actor.role !== 'ADMIN' && sale.cashShift.status !== 'OPEN') {
-      throw new AppError('Solo podés anular ventas del turno abierto. Pedile la anulación a un administrador.', 403);
+    // Mismo bloqueo compartido que la venta: un cierre en curso espera a la anulación.
+    const [shift] = await tx.$queryRaw<Array<{ status: string }>>`
+      SELECT "status" FROM "CashShift"
+      WHERE "id" = ${sale.cashShiftId} AND "accountId" = ${actor.accountId}
+      FOR SHARE`;
+    if (shift?.status !== 'OPEN') {
+      throw new AppError(CLOSED_SHIFT_VOID_MESSAGE, 403);
     }
 
     const updated = await tx.sale.updateMany({
