@@ -859,12 +859,12 @@ Un solo turno abierto por cuenta (índice parcial único `CashShift_accountId_op
 
   La venta y la anulación toman un bloqueo compartido (`FOR SHARE`) sobre la fila del turno, así que el paso 1 espera a las que están en curso. Una venta que llega durante el cierre espera y responde 409: ninguna venta queda afuera de un arqueo ya calculado.
 - **Respuesta 200 OK:** el resumen del turno cerrado.
-- **Errores:** `400` (falta lo contado de algún medio o es inválido) · `404` `"El turno no existe."` (también de otra cuenta, o un turno cerrado ajeno para el colaborador) · `409` `"El turno ya está cerrado."` (también si otra persona lo cerró a la vez).
+- **Errores:** `400` (falta lo contado de algún medio o es inválido) · `404` `"El turno no existe."` (también de otra cuenta o, para el colaborador, un turno cerrado en el que no trabajó) · `409` `"El turno ya está cerrado."` (también si otra persona lo cerró a la vez).
 
 #### `GET /api/cash-shifts` — Historial de turnos
 
 - **Query:** `page` (por defecto 1) y `limit` (por defecto 20, máximo 100). Orden: el más reciente primero.
-- **Alcance:** el ADMIN ve todos los turnos de la cuenta; el colaborador, el abierto y los que abrió o cerró.
+- **Alcance:** el ADMIN ve todos los turnos de la cuenta; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
 - **Respuesta 200 OK:** `{ "data": [<resumen>], "meta": { "total", "page", "limit", "totalPages" } }`.
 
 #### `GET /api/cash-shifts/:id` — Resumen del turno

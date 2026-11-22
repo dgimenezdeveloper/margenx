@@ -22,8 +22,8 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/ventas` | Turno de caja (abrir o ir al cierre) e historial de ventas (módulo opcional) | Redirige a `/login` | Todas las ventas del comercio; abre el turno | Solo sus ventas; abre el turno |
 | `/ventas/nueva` | Venta rápida: productos, total, medio de pago y Cobrar (módulo opcional) | Redirige a `/login` | Acceso | Acceso |
 | `/ventas/:id/ticket` | Ticket no fiscal: imprimir, PDF, WhatsApp y anulación (módulo opcional) | Redirige a `/login` | Cualquier venta; anula con el turno abierto | Solo sus ventas; anula las suyas con el turno abierto |
-| `/ventas/turnos` | Historial de turnos de caja con la diferencia de cada cierre (módulo opcional) | Redirige a `/login` | Todos los turnos | El abierto y los que abrió o cerró |
-| `/ventas/turnos/:id` | Resumen imprimible del turno y del cierre (módulo opcional) | Redirige a `/login` | Cualquier turno | El abierto y los que abrió o cerró |
+| `/ventas/turnos` | Historial de turnos de caja con la diferencia de cada cierre (módulo opcional) | Redirige a `/login` | Todos los turnos | El abierto y los que abrió, cerró o en los que vendió |
+| `/ventas/turnos/:id` | Resumen imprimible del turno y del cierre (módulo opcional) | Redirige a `/login` | Cualquier turno | El abierto y los que abrió, cerró o en los que vendió |
 | `/ventas/turnos/:id/cerrar` | Cierre de caja: lo esperado, lo contado y la diferencia (módulo opcional) | Redirige a `/login` | Cierra el turno abierto | Cierra el turno abierto |
 | `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y del reporte semanal (con su descarga) y Colaboradores | Consulta de cuenta (sin alertas, reporte ni Colaboradores) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |

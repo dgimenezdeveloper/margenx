@@ -468,10 +468,12 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Cerrar** (`/ventas/turnos/:id/cerrar`): por cada medio de pago se ve lo esperado y se carga lo contado. Lo esperado en efectivo es el monto inicial más las ventas en efectivo; en transferencia y Mercado Pago, solo sus ventas; las anuladas no suman. Transferencia y Mercado Pago vienen precargados con lo esperado y el efectivo se cuenta. La diferencia (contado − esperado) se resalta por medio de pago y en total: **Falta** (negativa), **Sobra** (positiva) o **Justo**, con el rótulo además del color. Cerrar pide confirmación y es definitivo: después no se vende ni se anula en ese turno.
 - **Arqueo guardado:** al cierre se guardan lo esperado y lo contado por medio de pago y la diferencia total. Una venta que llega mientras se cierra el turno no queda afuera del arqueo: espera y la API responde que no hay turno abierto.
 - **Resumen del cierre** (`/ventas/turnos/:id`): comercio, quién abrió y cerró y cuándo, monto inicial, ventas, anuladas, lo vendido, el arqueo por medio de pago y la diferencia total, con el logo de MargenX. Se imprime en ticketera de 58 u 80 mm o en A4, y enlaza a las ventas del turno (`/ventas?turno=<id>`).
-- **Historial de turnos** (`/ventas/turnos`): el más reciente primero, con lo vendido y la diferencia. El ADMIN ve todos; el colaborador, el abierto y los que abrió o cerró.
+- **Historial de turnos** (`/ventas/turnos`): el más reciente primero, con lo vendido y la diferencia. El ADMIN ve todos; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
 - **Historial de ventas:** suma el filtro **Del turno** cuando hay un turno abierto.
 - **Colaborador:** ve los montos de venta y el arqueo de su turno; el arqueo no tiene costos ni márgenes.
-- **Fase 2:** el mail con el resumen del cierre al dueño (n8n).
+- **Varios vendedores:** todos los usuarios de la cuenta venden en el único turno abierto, y el arqueo es del turno (la caja), no de cada vendedor. Para un arqueo por persona, cada una abre y cierra su propio turno, uno después del otro.
+- **Planificado para la v1.1:** movimientos de caja (gastos y retiros con su motivo, que entran en lo esperado) y el fondo del turno siguiente precargado con lo que quedó. Hasta entonces, un gasto pagado con la caja aparece como faltante en el arqueo.
+- **Fase 2:** el mail con el resumen del cierre al dueño (n8n), y el arqueo por cajero o varias cajas abiertas a la vez si los comercios piloto lo piden.
 
 ### Fuera del módulo (Fase 2)
 

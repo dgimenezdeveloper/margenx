@@ -72,6 +72,12 @@ Al terminar el turno, contá la plata y cerrá la caja. Lo puede hacer el Admini
 
 Por ejemplo: si abriste con **$10.000**, vendiste **$25.000** en efectivo y al cerrar contás **$34.500**, lo esperado es $35.000 y la diferencia es **Falta −$500,00**.
 
+**Tené en cuenta:**
+
+- **El fondo es parte de lo contado.** Al cerrar contás toda la plata de la caja, también el fondo con el que abriste. Si vas a dejar un fondo para el turno siguiente, contalo igual: después, quien abre el turno nuevo lo escribe como monto inicial.
+- **Varios vendedores, una caja.** Si en un turno venden varias personas, todas cobran en el mismo turno y el arqueo es de la caja entera, no de cada una. Para tener un arqueo por persona, que cada una abra y cierre su propio turno, uno después del otro.
+- **Gastos pagados con la caja.** Si sacás plata de la caja durante el turno (por ejemplo, para pagarle al proveedor), por ahora no hay dónde anotarlo y va a aparecer como **Falta** en el arqueo. Anotá el gasto aparte. Registrar gastos y retiros está planificado para la v1.1.
+
 <!-- [CAPTURA 360PX SUGERIDA: 09-ventas-cierre.webp | Cierre de caja a 360 px con lo esperado y lo contado por medio de pago, y la diferencia "Falta −$500,00" resaltada] -->
 
 ### El resumen del cierre
@@ -81,7 +87,7 @@ Al cerrar se abre el **resumen del turno** con el comercio, quién abrió y cerr
 - **Imprimir:** elegí **Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4** y tocá **Imprimir** (o guardalo como PDF desde la ventana de impresión).
 - **Ver las ventas del turno:** abre el historial con solo las ventas de ese turno.
 
-En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más reciente primero, con lo vendido y la diferencia de cada cierre. El Administrador ve todos; el Colaborador, el turno abierto y los que abrió o cerró él.
+En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más reciente primero, con lo vendido y la diferencia de cada cierre. El Administrador ve todos; el Colaborador, el turno abierto y los que abrió, cerró o en los que vendió.
 
 ## Qué ve cada rol
 
@@ -91,7 +97,7 @@ En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más
 | Historial | Todas las ventas del comercio | Solo las suyas |
 | Anular (solo con el turno abierto) | Cualquier venta del turno | Las suyas |
 | Abrir y cerrar la caja | Sí | Sí |
-| Historial de turnos | Todos | El abierto y los que abrió o cerró |
+| Historial de turnos | Todos | El abierto y los que abrió, cerró o en los que vendió |
 | Costo y margen de cada venta | Los guarda MargenX para la ganancia real | **Nunca** los ve |
 
 El precio y el costo de cada producto quedan **guardados en la venta**: si mañana cambia el precio de un insumo, el ticket y la ganancia de las ventas de hoy no cambian.
