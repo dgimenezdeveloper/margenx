@@ -147,7 +147,7 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 
     // Secciones restringidas no deben montarse
     expect(screen.queryByText('Margen Objetivo Global')).toBeNull()
-    expect(screen.queryByText('Alertas Automáticas (n8n)')).toBeNull()
+    expect(screen.queryByText('Alertas automáticas')).toBeNull()
     expect(screen.queryByLabelText('Margen Mínimo Sugerido')).toBeNull()
   })
 
@@ -228,6 +228,54 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     fireEvent.click(logoutButtons[0])
 
     expect(await screen.findByRole('dialog', { name: '¿Cerrar sesión?' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage (/perfil): textos y accesos sin duplicar (#429)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    mockIsLoading = false
+  })
+
+  it('Escenario Gherkin "Texto del margen global": es la sugerencia para productos nuevos y las alertas usan el mínimo de cada producto', () => {
+    render(<ProfilePage />)
+
+    expect(
+      screen.getByText('Es el margen que te sugerimos al crear un producto nuevo. Cada producto tiene su propio mínimo, y las alertas usan ese mínimo.')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/determinará el umbral de alerta/)).toBeNull()
+  })
+
+  it('Escenario Gherkin "Sin duplicados": el título de las alertas no nombra la herramienta interna', () => {
+    render(<ProfilePage />)
+
+    expect(screen.getByRole('heading', { name: 'Alertas automáticas' })).toBeInTheDocument()
+    expect(screen.queryByText(/n8n/)).toBeNull()
+  })
+
+  it('en el celular, Política e Instalación quedan solo en el pie: los botones grandes se ocultan a 360 px', () => {
+    render(<ProfilePage />)
+
+    const botonPrivacidad = screen.getByRole('link', { name: 'Política de privacidad' })
+    const botonInstalacion = screen.getByRole('link', { name: 'Guía de instalación' })
+    // El contenedor de los botones solo se muestra en escritorio, donde el pie no los tiene.
+    expect(botonPrivacidad.parentElement).toBe(botonInstalacion.parentElement)
+    expect(botonPrivacidad.parentElement).toHaveClass('hidden', 'md:flex')
+
+    // El pie móvil (md:hidden) los sigue ofreciendo.
+    const pieMovil = screen.getByRole('link', { name: 'Política' }).closest('div.md\\:hidden')
+    expect(pieMovil).not.toBeNull()
+    expect(screen.getByRole('link', { name: 'Instalar' })).toHaveAttribute('href', '/instalar')
+  })
+
+  it('en escritorio, Cerrar sesión queda solo en el navbar: el botón de Perfil se muestra únicamente en el celular', () => {
+    render(<ProfilePage />)
+
+    const botonPerfil = screen.getByRole('button', { name: /Cerrar Sesión/i })
+    expect(botonPerfil).toHaveClass('md:hidden')
+    // El "Salir" del navbar es el acceso de escritorio (hidden md:inline-flex).
+    expect(screen.getByRole('button', { name: 'Salir' })).toHaveClass('hidden', 'md:inline-flex')
   })
 })
 
