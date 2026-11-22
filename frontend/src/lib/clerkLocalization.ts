@@ -10,6 +10,14 @@ import { esUY } from '@clerk/localizations'
 */
 const DEMASIADOS_INTENTOS = 'Hiciste demasiados intentos. Esperá un momento y probá de nuevo.'
 
+// Códigos de error que Clerk devuelve y que su tipo de traducciones todavía no lista. Clerk busca el
+// texto por el código (`unstable__errors.<código>`); si no lo encuentra, muestra el mensaje del
+// servidor en inglés. Este salió en el recorrido del 22/11 al pedir varios códigos seguidos en la
+// recuperación de la contraseña (429, "Too many verification code requests").
+const ERRORES_SIN_TIPO: Record<string, string> = {
+  verification_code_rate_limit_exceeded: 'Pediste demasiados códigos. Esperá un momento y probá de nuevo.',
+}
+
 export const clerkLocalization = {
   ...esUY,
   formFieldInputPlaceholder__signUpPassword: 'Creá una contraseña',
@@ -43,6 +51,7 @@ export const clerkLocalization = {
   },
   unstable__errors: {
     ...esUY.unstable__errors,
+    ...ERRORES_SIN_TIPO,
     too_many_requests: DEMASIADOS_INTENTOS,
     signup_rate_limit_exceeded: DEMASIADOS_INTENTOS,
     action_blocked:

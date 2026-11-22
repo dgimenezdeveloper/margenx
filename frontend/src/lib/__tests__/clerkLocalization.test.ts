@@ -41,6 +41,11 @@ describe('Clerk en español rioplatense (#436)', () => {
     for (const clave of ['unstable__errors.too_many_requests', 'unstable__errors.signup_rate_limit_exceeded']) {
       expect(textos[clave], clave).toBe('Hiciste demasiados intentos. Esperá un momento y probá de nuevo.')
     }
+    // El que devolvió Clerk en el recorrido del 22/11 al tocar "Reenviar" varias veces en la
+    // recuperación de la contraseña: 429 con este código y "Too many verification code requests".
+    expect(textos['unstable__errors.verification_code_rate_limit_exceeded']).toBe(
+      'Pediste demasiados códigos. Esperá un momento y probá de nuevo.'
+    )
   })
 
   it('ningún texto del login queda en inglés', () => {
