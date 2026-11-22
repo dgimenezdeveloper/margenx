@@ -242,9 +242,10 @@ Qué demuestra cada una:
   colecciones de Insumos y de Proveedores tienen el mismo bloqueo. Esta
   corrida no verifica el aislamiento: no es una falla de la API ni de los
   cambios de #312.
-- **El script de esa prueba tira un `TypeError`** cuando la respuesta no es
-  200, porque busca `data` en el cuerpo. Es menor, y se ve recién cuando falta
-  el token. Se puede hacer más robusto cuando se arregle el bloqueo anterior.
+- **El script de esa prueba tiraba un `TypeError`** cuando la respuesta no era
+  200, porque buscaba `data` en el cuerpo (se ve en los archivos 01 y 02).
+  Quedó corregido en la revisión del PR: sin 200 falla solo el control del
+  status.
 - **Staging:** las corridas fueron locales. No se corrieron contra
   `dev.margenx.tech`.
 
