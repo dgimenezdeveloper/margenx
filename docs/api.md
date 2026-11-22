@@ -44,6 +44,7 @@ Esta especificación constituye la fuente única de verdad para el Frontend, las
 Retorna el perfil del usuario autenticado y su cuenta asociada.
 - **Roles:** `ADMIN` o `COLLABORATOR`.
 - **Sanitización RBAC:** Si el usuario es `COLLABORATOR`, el objeto `account` omite `slug` y `defaultMinMarginPercent`.
+- **Módulos de la cuenta (ADR-010):** `user.features` trae un booleano por módulo (hoy, solo `sales`). Lo reciben los dos roles: el colaborador usa el módulo de ventas aunque no vea costos. Primero manda la excepción de la cuenta (`AccountFeature`) y después el plan; hoy ningún plan trae módulos. Ver §12.
 - **Respuesta 200 (ADMIN):**
   ```json
   {
@@ -57,7 +58,8 @@ Retorna el perfil del usuario autenticado y su cuenta asociada.
         "businessName": "Panadería Central",
         "defaultMinMarginPercent": "30.00",
         "slug": "panaderia-central"
-      }
+      },
+      "features": { "sales": false }
     }
   }
   ```
@@ -731,3 +733,12 @@ Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 For
 - `GET /api/reports/weekly.pdf`: envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día en `America/Argentina/Buenos_Aires`. También envía `Cache-Control: private, no-store` y `Access-Control-Expose-Headers: Content-Disposition`: la app y la API se publican en orígenes distintos, y sin esa cabecera el navegador no deja que la app lea el nombre del archivo. Si n8n no está configurado, falla, expira o devuelve un PDF vacío, responde `503` con un mensaje genérico, sin detalles internos.
 
 El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
+
+## 12. Módulo de Ventas y Caja (`/api/sales` y `/api/cash-shifts`)
+
+Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). Todas las rutas exigen `Authorization: Bearer <JWT de Clerk>` y el módulo prendido para la cuenta del usuario autenticado.
+
+- **Módulo apagado:** cualquier ruta de `/api/sales` o `/api/cash-shifts` responde `404 Not Found` con `{ "error": "Recurso no encontrado." }`, para los dos roles, como si no existiera. La cuenta sale de `req.user`, nunca del cliente.
+- **Sin sesión:** `401 Unauthorized`, antes de consultar el módulo.
+- **Cómo saber si está prendido:** `GET /api/auth/me` → `user.features.sales` (§3).
+- **Rutas:** se documentan acá cuando se implementan: la venta y el ticket (`/api/sales`) y los turnos y el cierre de caja (`/api/cash-shifts`).

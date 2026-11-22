@@ -29,6 +29,7 @@ import {
   X,
 } from 'lucide-react'
 import { usePublicSession } from '@/hooks/usePublicSession'
+import { HEALTH_BUCKET_META } from '@/lib/healthBucket'
 import { useTheme } from '@/hooks/useTheme'
 
 const benefits = [
@@ -309,14 +310,14 @@ export default function LandingPage() {
               </div>
               <div className="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/40">
                 <BarChart3 className="size-5 text-emerald-700 dark:text-emerald-400" />
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Margen promedio</p>
+                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Margen mediano</p>
                 <p className="mt-1 text-2xl font-black text-emerald-800 dark:text-emerald-300">
-                  {activePilot === 'panaderia' ? '60.6%' : '40.8%'}
+                  {activePilot === 'panaderia' ? '60,6%' : '40,8%'}
                 </p>
               </div>
             </div>
 
-            {/* Ficha 1: Caso Saludable Real (Datos de Seed verificados) */}
+            {/* Ficha 1 (datos del seed): estado con la regla de la especificación funcional §6 y el nombre del glosario. */}
             <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -332,7 +333,9 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-emerald-200/80 px-2.5 py-1 text-xs font-black text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-200">
-                  {activePilot === 'panaderia' ? '73,2% Saludable' : '51,3% Saludable'}
+                  {activePilot === 'panaderia'
+                    ? `73,2% ${HEALTH_BUCKET_META.surplus.label}`
+                    : `51,3% ${HEALTH_BUCKET_META.target.label}`}
                 </span>
               </div>
               <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
@@ -342,7 +345,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Ficha 2: Segundo Producto Real (Bizcochitos Saludable / Suavizante Crítico) */}
+            {/* Ficha 2 (datos del seed): bizcochitos En objetivo y suavizante En riesgo. */}
             <div
               className={`rounded-2xl border p-3.5 ${
                 activePilot === 'panaderia'
@@ -383,7 +386,9 @@ export default function LandingPage() {
                   }`}
                 >
                   {activePilot === 'quimica' && <AlertTriangle className="size-3" />}
-                  {activePilot === 'panaderia' ? '48,0% Saludable' : '28,1% Crítico'}
+                  {activePilot === 'panaderia'
+                    ? `48,0% ${HEALTH_BUCKET_META.target.label}`
+                    : `28,1% ${HEALTH_BUCKET_META.risk.label}`}
                 </span>
               </div>
               <p

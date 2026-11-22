@@ -204,7 +204,7 @@ export default function ProfilePage() {
 
                   <div className="flex items-center justify-between gap-4 pt-1">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Alerta de Margen Crítico</p>
+                      <p className="text-sm font-semibold">Alerta de margen mínimo</p>
                       <p className="text-xs text-gray-500">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
@@ -230,7 +230,7 @@ export default function ProfilePage() {
                   </div>
 
                   <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                    Las alertas por email se envían automáticamente al administrador ante variaciones críticas de costos.
+                    Las alertas por email se envían automáticamente al administrador cuando cambia el costo de un insumo.
                   </p>
                 </section>
 

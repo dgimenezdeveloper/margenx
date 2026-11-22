@@ -124,4 +124,35 @@ describe('LandingPage', () => {
       expect(texto).not.toContain('precios+panaderia-central@margenx.tech')
     })
   })
+
+  describe('Fichas de ejemplo con los nombres de estado vigentes (#430)', () => {
+    function renderLanding() {
+      vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: true, isSignedIn: false } as unknown as ReturnType<typeof useAuth>)
+      return render(<LandingPage />)
+    }
+
+    it('Panadería Central: medialunas en Superávit y bizcochitos En objetivo, con el margen mediano', () => {
+      const { getByText, queryByText } = renderLanding()
+
+      // 73,2 % con mínimo de 65 %: cumple su mínimo y pasa el 60 % (especificación funcional §6).
+      expect(getByText('73,2% Superávit')).toBeInTheDocument()
+      expect(getByText('48,0% En objetivo')).toBeInTheDocument()
+      expect(getByText('Margen mediano')).toBeInTheDocument()
+      expect(getByText('60,6%')).toBeInTheDocument()
+      expect(queryByText(/saludable|cr[ií]tico/i)).toBeNull()
+      expect(queryByText('Margen promedio')).toBeNull()
+    })
+
+    it('Química GyJ: detergente En objetivo y suavizante En riesgo', () => {
+      const { getByRole, getByText, queryByText } = renderLanding()
+
+      fireEvent.click(getByRole('button', { name: /química/i }))
+
+      expect(getByText('51,3% En objetivo')).toBeInTheDocument()
+      expect(getByText('28,1% En riesgo')).toBeInTheDocument()
+      expect(getByText('40,8%')).toBeInTheDocument()
+      expect(queryByText(/saludable|cr[ií]tico/i)).toBeNull()
+    })
+  })
 })

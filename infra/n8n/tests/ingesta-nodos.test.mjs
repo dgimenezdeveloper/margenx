@@ -205,15 +205,23 @@ const run = (file, ctx) => {
  // sin decisiones pendientes: se dice que no hay nada para revisar
  assert.ok(r[0].json.text.includes('No hay nada para revisar')&&!r[0].json.text.includes('PARA REVISAR'));
  assert.equal(r[0].json.subject,'[MargenX] Resumen de tu lista de precios');
- // productos en margen crítico: plural correcto y enlace "Ajustar" al producto en el entorno de la lista
+ // productos debajo de su mínimo: plural correcto y enlace "Ajustar" al producto en el entorno de la lista
  r=await resumen({received:5,updated:5,discarded:0,criticalProductsAlerts:[{productId:'3f2c1a9e-7b4d',productName:'Pan francés',currentMarginPercent:'18.00',minMarginPercent:'30.00',newCost:'820.00'}]},{isDev:true});
  ({text,html,subject}=r[0].json);
- assert.ok(text.includes('1 producto quedó debajo de su margen mínimo')&&subject.includes('1 producto en margen crítico'));
+ assert.ok(text.includes('1 producto quedó debajo de su margen mínimo')&&subject.includes('1 producto debajo de su mínimo'));
+ // nombres de estado vigentes (RV419-I1, #430): sin "crítico" en el asunto, el texto ni el HTML
+ for(const t of [subject,text,html]) assert.ok(!/cr[ií]tic[oa]s?\b/i.test(t),'queda "crítico" en el mail de ingesta');
  assert.ok(html.includes('href="https://dev.margenx.tech/productos/3f2c1a9e-7b4d"'));
  assert.ok(!subject.includes('(s)'));
  // Plantilla compartida: el resumen usa el bloque de infra/n8n/plantillas/mail-margenx.js tal cual
  const plantilla=fs.readFileSync(path.join(dir,'../plantillas/mail-margenx.js'),'utf8').trim();
  assert.ok(wf.nodes.find((n)=>n.name==='Generar Resumen al Dueño').parameters.jsCode.includes(plantilla),'plantilla desincronizada: correr node infra/n8n/plantillas/sincronizar.mjs');
  assert.ok(html.includes('MARGEN<span')&&html.includes('#4f46e5')); // encabezado y color de marca
+ // Soporte: el mismo correo que la app en el pie del mail (RC-06, #435)
+ {
+   const codigo = wf.nodes.map((n) => n.parameters?.jsCode ?? '').join('\n');
+   assert.ok(codigo.includes('Soporte: soporte@margenx.tech'), 'el pie del mail usa soporte@margenx.tech');
+   assert.ok(!codigo.includes('contacto@margenx.tech'), 'no queda contacto@margenx.tech');
+ }
  console.log('ingesta-listas: todos los nodos OK');
 })().catch(e=>{console.error(e);process.exit(1)});

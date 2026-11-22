@@ -4,7 +4,7 @@ n8n **nunca escribe en la base de datos**: solo lee/escribe a través de la API 
 
 | Archivo | Qué hace | Issues |
 |---|---|---|
-| `workflows/alertas-margen.json` | Recibe el webhook del backend y envía el correo de margen crítico. | #172, #254 |
+| `workflows/alertas-margen.json` | Recibe el webhook del backend y envía el correo de los productos que quedaron debajo de su margen mínimo. | #172, #254 |
 | `workflows/ingesta-listas.json` | Lee la casilla central por IMAP, convierte la planilla adjunta, la despacha al backend y envía el resumen al dueño. | #170, #171, #253, #254 |
 | `workflows/invitacion-colaborador.json` | Recibe el webhook del backend y envía el mail de invitación de un colaborador. | #395 |
 | `workflows/reporte-semanal.json` | Los lunes a las 08:00 manda a cada cuenta su reporte de márgenes en PDF (Gotenberg), y genera el mismo PDF a pedido para la descarga desde la app (webhook `report-pdf`). | #391 |
@@ -34,7 +34,7 @@ Varios correos en una misma ejecución se procesan por separado: cada fila queda
 - El trigger IMAP usa IDLE (tiempo real) con reconexión forzada cada 5 minutos: Gmail corta las sesiones IDLE en silencio y, con 60 minutos, los correos quedaban sin leer hasta la reconexión o una ejecución manual.
 - **Orden del resumen:** primero "Para revisar", con lo que pide una decisión y su enlace: precios en cuarentena (`<app>/proveedores/cuarentena`), códigos sin mapear (`<app>/proveedores`) y productos debajo de su margen mínimo (botón "Ajustar" a `<app>/productos/<id>`). Después, el resumen en números. Si no hay nada para revisar, lo dice. `<app>` es `https://dev.margenx.tech` si la lista entró por staging y `https://margenx.tech` si no.
 - Si la API informa `discardedCodes` (contrato #208), los `NOT_FOUND` se informan como **códigos sin mapear** (todavía no están vinculados a una presentación; no son errores) y el resto (`AMBIGUOUS`, `INACTIVE_SUPPLIER`) como "No se aplicaron por…", con su motivo. Se listan hasta 20 códigos por grupo, con "y N más", y se avisa cuando la API no detalla todos (tope de 100). Sin detalle, solo se dice cuántas filas no se aplicaron.
-- Singular y plural según la cantidad ("1 fila", "2 filas", "1 precio quedó en cuarentena").
+- Singular y plural según la cantidad ("1 fila", "2 filas", "1 precio quedó en cuarentena"). El asunto cuenta los productos como "1 producto debajo de su mínimo", igual que la tarjeta del panel.
 - El resumen se envía solo al `account.ownerEmail` que devuelve la API (contrato de #200). Si la API no lo informa, no se envía nada: la lista nunca se responde a quien la mandó. Los correos propios, rebotes y respuestas automáticas se ignoran para evitar bucles.
 
 **Puesta en marcha**
@@ -49,9 +49,9 @@ Pruebas locales: `node infra/n8n/tests/ingesta-nodos.test.mjs`, `node infra/n8n/
 
 ## Alertas de margen (`alertas-margen.json`)
 
-El backend llama al webhook `margin-alert` con el secreto `x-margenx-webhook-secret` y `appBaseUrl` (`APP_BASE_URL` de cada backend). Un solo n8n atiende a producción y a staging: los enlaces del mail usan `appBaseUrl` si es `https://margenx.tech` o `https://dev.margenx.tech`, y si no, producción. Cada producto crítico lleva un botón "Ajustar" a `<appBase>/productos/<productId>`; si la alerta no trae el ID (o no queda nada al sanearlo), el enlace va al listado `<appBase>/productos`. El botón principal sigue la misma regla con el primer producto.
+El backend llama al webhook `margin-alert` con el secreto `x-margenx-webhook-secret` y `appBaseUrl` (`APP_BASE_URL` de cada backend). Un solo n8n atiende a producción y a staging: los enlaces del mail usan `appBaseUrl` si es `https://margenx.tech` o `https://dev.margenx.tech`, y si no, producción. El asunto es "[MargenX ALERTA] Productos debajo de su margen mínimo - <Comercio>" (en singular con un solo producto), el título "Alerta de margen mínimo" y la etiqueta "Para revisar": los mails no usan "crítico" ni "margen bajo", que no son nombres de estado (especificación funcional §6). Cada producto lleva un botón "Ajustar" a `<appBase>/productos/<productId>`; si la alerta no trae el ID (o no queda nada al sanearlo), el enlace va al listado `<appBase>/productos`. El botón principal sigue la misma regla con el primer producto.
 
-Para publicar un cambio: importar `workflows/alertas-margen.json` en n8n sobre el workflow existente, reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Despachar Alerta SMTP (Brevo)` y activarlo. Como es la misma instancia, se importa una sola vez para los dos entornos.
+Para publicar un cambio: importar `workflows/alertas-margen.json` en n8n sobre el workflow existente (desde el cambio de nombres de estado se llama "MargenX - Alertas de Margen Mínimo"), reasignar la credencial SMTP `Brevo MargenX SMTP Relay` del nodo `Despachar Alerta SMTP (Brevo)` y activarlo. Como es la misma instancia, se importa una sola vez para los dos entornos.
 
 ## Invitación de colaboradores (`invitacion-colaborador.json`)
 
@@ -98,7 +98,9 @@ Por qué en n8n y con Gotenberg: ADR-009. El backend calcula todo (`docs/api.md`
 
 ## Plantilla compartida de mails (`plantillas/mail-margenx.js`)
 
-El resumen de ingesta (`Generar Resumen al Dueño`), la alerta de margen (`Generar Plantilla Dinámica`), la invitación de colaboradores (`Generar Mail de Invitación`) y el reporte semanal (`Generar Reporte HTML`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte. `mxDocumentoA4` es la versión para imprimir del reporte semanal: mismo encabezado de marca, página A4 con `@page`, encabezados de tabla que se repiten en cada hoja y filas que no se cortan.
+El resumen de ingesta (`Generar Resumen al Dueño`), la alerta de margen (`Generar Plantilla Dinámica`), la invitación de colaboradores (`Generar Mail de Invitación`) y el reporte semanal (`Generar Reporte HTML`) usan la misma plantilla: encabezado de marca (fondo `#0f172a`, "MARGEN**X**" con la X en índigo), etiqueta de estado, avisos por tono (peligro, aviso, info, ok), botones en el índigo de MargenX (`#4f46e5`, el `theme_color` de la PWA), tabla de productos de tres columnas pensada para 360 px y pie con el soporte (`soporte@margenx.tech`, el mismo correo que muestra la app). `mxDocumentoA4` es la versión para imprimir del reporte semanal: mismo encabezado de marca, página A4 con `@page`, encabezados de tabla que se repiten en cada hoja y filas que no se cortan. Sus tablas usan tres clases: `mx-num` (montos a la derecha), `mx-sub` (segunda línea de una celda) y `mx-nowrap` (texto corto que no se parte, como la columna Estado, para que "Pérdida" no quede en dos líneas).
+
+El texto plano de cada mail (`emailText`) no sale de la plantilla: su pie con el soporte está en el propio nodo, y las pruebas de `tests/` verifican que use el mismo correo.
 
 Un nodo Code de n8n no puede importar archivos, así que la plantilla se **copia** dentro de cada nodo, entre los marcadores `// <plantilla-mail-margenx>` y `// </plantilla-mail-margenx>`. Para cambiarla:
 

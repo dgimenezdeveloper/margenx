@@ -8,9 +8,9 @@ El panel (**Inicio**, `/dashboard`) resume la salud de **todo tu catálogo**, no
 
 - **Productos debajo de su mínimo:** cuántos productos con receta quedaron por debajo de su margen mínimo. Suma las columnas **Pérdida** y **En riesgo** del histograma; por eso la tarjeta no usa el nombre de un estado.
 - **Insumos activos:** cuántos insumos tenés cargados.
-- **Margen promedio:** la **mediana** del margen de los productos con receta: la mitad de tus productos gana más que ese valor y la otra mitad, menos. Se usa la mediana y no un promedio simple para que un solo precio mal cargado (por ejemplo, un producto de $13 que cuesta $3.854) no arrastre el número. El color sigue el signo: verde si es positivo, rojo si es negativo y neutro si es 0 %.
+- **Margen mediano:** la **mediana** del margen de los productos con receta: la mitad de tus productos gana más que ese valor y la otra mitad, menos. La tarjeta lo dice así: "La mitad de tus productos gana más que esto y la mitad menos". Se usa la mediana y no un promedio simple para que un solo precio mal cargado (por ejemplo, un producto de $13 que cuesta $3.854) no arrastre el número. El color sigue el signo: verde si es positivo, rojo si es negativo y neutro si es 0 %.
 
-En el celular las tres tarjetas se ven en una fila, como las de Proveedores: cada una muestra el rótulo y el número, y la de productos se titula **Debajo de su mínimo**. Las aclaraciones ("Pérdida o En riesgo" y "Mediana de los productos con receta") aparecen desde la tableta, y en el celular las lee el lector de pantalla.
+En el celular las tres tarjetas se ven en una fila, como las de Proveedores: cada una muestra el rótulo y el número, y la de productos se titula **Debajo de su mínimo**. Las aclaraciones ("Pérdida o En riesgo" y la de la mediana) aparecen desde la tableta, y en el celular las lee el lector de pantalla.
 
 ## Los cinco estados de rentabilidad
 
@@ -26,7 +26,7 @@ Todos los listados, el panel y las fichas de producto usan exactamente el mismo 
 
 ## El histograma de salud
 
-Agrupa los productos que tienen receta en cuatro columnas (**Pérdida**, **En riesgo**, **En objetivo** y **Superávit**). **Cada producto se compara con su propio margen mínimo**, el que le pusiste en su ficha, y no con un valor fijo para todo el catálogo.
+Agrupa los productos que tienen receta en cuatro columnas (**Pérdida**, **En riesgo**, **En objetivo** y **Superávit**). Los nombres son los mismos en el celular: a 360 px "En riesgo" y "En objetivo" pasan a dos líneas en lugar de abreviarse. **Cada producto se compara con su propio margen mínimo**, el que le pusiste en su ficha, y no con un valor fijo para todo el catálogo.
 
 Debajo de cada número está el porcentaje sobre los productos con receta. Al pie se informan los productos en **borrador** (sin receta) y el **total del catálogo**: las cuatro columnas más los borradores dan ese total.
 

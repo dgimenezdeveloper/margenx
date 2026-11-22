@@ -3,7 +3,7 @@
 # MargenX — Sembrar o resembrar staging o producción desde la máquina del operador
 #
 # Uso:
-#   infra/scripts/seed-remoto.sh <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar> --confirmar <base>
+#   infra/scripts/seed-remoto.sh <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar|ventas|ventas-apagar> --confirmar <base>
 #
 #   piloto  backend/prisma/seed.ts       (Panadería Central y Química GyJ)
 #   demo    backend/prisma/seed-demo.ts  (Demo MargenX)
@@ -11,6 +11,10 @@
 #   volumen          backend/prisma/seed-volumen.ts: cientos de insumos y productos
 #                    en la cuenta Demo para pruebas de carga y usabilidad (solo dev)
 #   volumen-limpiar  borra lo que cargó "volumen" y deja la Demo como estaba (solo dev)
+#   ventas           backend/prisma/seed-ventas-demo.ts: 21 días de ventas y turnos de caja
+#                    en la Demo y prende su módulo de ventas (ADR-010); reinicia las ventas
+#                    de la Demo. Requiere la Demo ya sembrada
+#   ventas-apagar    apaga el módulo de ventas de la Demo sin borrar nada
 #
 # Variables:
 #   SSH_HOST                  alias de ~/.ssh/config hacia la VPS (por defecto vps-donweb)
@@ -32,7 +36,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Uso: $0 <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar> --confirmar <base>" >&2
+  echo "Uso: $0 <dev|prod> <piloto|demo|todo|volumen|volumen-limpiar|ventas|ventas-apagar> --confirmar <base>" >&2
   exit 2
 }
 
@@ -49,10 +53,13 @@ case "$QUE" in
   demo)   SEEDS=(seed-demo) ;;
   todo)   SEEDS=(seed seed-demo) ;;
   volumen|volumen-limpiar) SEEDS=(seed-volumen) ;;
+  ventas|ventas-apagar) SEEDS=(seed-ventas-demo) ;;
   *) usage ;;
 esac
 VOLUMEN_MODO="cargar"
 [[ "$QUE" == "volumen-limpiar" ]] && VOLUMEN_MODO="limpiar"
+VENTAS_MODO="cargar"
+[[ "$QUE" == "ventas-apagar" ]] && VENTAS_MODO="apagar"
 # El volumen es de prueba: nunca se carga en producción.
 if [[ "$ENTORNO" == "prod" && "$QUE" == volumen* ]]; then
   echo "El seed de volumen es solo para dev. No se hizo nada." >&2
@@ -145,7 +152,7 @@ for SEED in "${SEEDS[@]}"; do
   REMOTE_CMD="set -eu; IMAGE=\$(docker inspect -f '{{.Image}}' $BACKEND);"
   REMOTE_CMD+=" DATABASE_URL=\$(docker exec $BACKEND printenv DATABASE_URL); export DATABASE_URL;"
   REMOTE_CMD+=" docker run --rm -i --network $NETWORK -e DATABASE_URL -e NODE_PATH=/app/node_modules"
-  REMOTE_CMD+=" -e SEED_CONFIRM_TARGET=$TARGET -e SEED_DEMO_CONFIRM=$TARGET -e SEED_VOLUMEN_CONFIRM=$TARGET -e SEED_VOLUMEN_MODO=$VOLUMEN_MODO -e ALLOW_PRODUCTION_SEED=true"
+  REMOTE_CMD+=" -e SEED_CONFIRM_TARGET=$TARGET -e SEED_DEMO_CONFIRM=$TARGET -e SEED_VOLUMEN_CONFIRM=$TARGET -e SEED_VOLUMEN_MODO=$VOLUMEN_MODO -e SEED_VENTAS_MODO=$VENTAS_MODO -e ALLOW_PRODUCTION_SEED=true"
   REMOTE_CMD+=" -e SEED_DEMO_ADMIN_AUTH_ID=$ADMIN_ID -e SEED_DEMO_COLAB_AUTH_ID=$COLAB_ID"
   REMOTE_CMD+=" --entrypoint sh \"\$IMAGE\" -c 'mkdir -p /tmp/seed && tar xz -C /tmp/seed && node /tmp/seed/prisma/$SEED.js'"
   # El código compilado viaja por la entrada estándar; el comando, como argumento de sh.
