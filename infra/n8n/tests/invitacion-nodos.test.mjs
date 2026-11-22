@@ -151,6 +151,12 @@ const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   assert.equal(wf.active, false);
   assert.equal(wf.id, undefined);
 
+  // Soporte: el mismo correo que la app en el pie del mail (RC-06, #435)
+  {
+    const codigo = wf.nodes.map((n) => n.parameters?.jsCode ?? '').join('\n');
+    assert.ok(codigo.includes('Soporte: soporte@margenx.tech'), 'el pie del mail usa soporte@margenx.tech');
+    assert.ok(!codigo.includes('contacto@margenx.tech'), 'no queda contacto@margenx.tech');
+  }
   console.log('invitacion-nodos: todas las pruebas pasaron');
 })().catch((error) => {
   console.error(error);

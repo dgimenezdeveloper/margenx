@@ -93,7 +93,7 @@ function mxDocumento({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
           <tr>
             <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center;">
               ${pieHtml ? `<p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b;">${pieHtml}</p>` : ''}
-              <p style="margin: 0; font-size: 11px; color: #94a3b8;">MargenX &bull; Soporte: contacto@margenx.tech</p>
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">MargenX &bull; Soporte: soporte@margenx.tech</p>
             </td>
           </tr>
         </table>
@@ -105,7 +105,8 @@ function mxDocumento({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
 }
 // Versión para imprimir en A4 (reporte semanal en PDF, que convierte Gotenberg): mismo encabezado de marca,
 // página A4 con @page, encabezados de tabla que se repiten en cada hoja y filas que nunca se cortan.
-// Las tablas usan las clases mx-num (montos alineados a la derecha) y mx-sub (segunda línea de una celda).
+// Las tablas usan las clases mx-num (montos alineados a la derecha), mx-nowrap (texto corto que no se parte,
+// como la columna Estado) y mx-sub (segunda línea de una celda).
 function mxDocumentoA4({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
   const t = MX_TONOS[tono] || MX_TONOS.info;
   return `<!DOCTYPE html>
@@ -133,6 +134,7 @@ function mxDocumentoA4({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
     th { background-color: #f1f5f9; color: #334155; font-size: 8pt; font-weight: 700; text-transform: uppercase; text-align: left; padding: 6px; border-bottom: 1px solid #cbd5e1; }
     td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; overflow-wrap: anywhere; }
     .mx-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .mx-nowrap { white-space: nowrap; }
     .mx-sub { display: block; font-size: 8.5pt; color: #475569; }
     .mx-nota { font-size: 9pt; color: #475569; }
     .mx-pie { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #475569; break-inside: avoid; page-break-inside: avoid; }
@@ -148,7 +150,7 @@ function mxDocumentoA4({ titulo, etiqueta, tono, contenidoHtml, pieHtml }) {
   </main>
   <footer class="mx-pie">
     ${pieHtml ? `<p>${pieHtml}</p>` : ''}
-    <p>MargenX &bull; Soporte: contacto@margenx.tech</p>
+    <p>MargenX &bull; Soporte: soporte@margenx.tech</p>
   </footer>
 </body>
 </html>`;
