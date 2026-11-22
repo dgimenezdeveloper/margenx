@@ -2,11 +2,21 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect } from 'vitest'
 import '@testing-library/jest-dom'
-import { DesktopFooter } from '../desktop-footer'
+import { MemoryRouter } from 'react-router-dom'
+import { DesktopFooter as Footer } from '../desktop-footer'
 import { SupportDocsModal } from '../support-docs-modal'
 
 // Destino acordado en #363 hasta que #401 publique la v1.0.0 del manual.
 const MANUAL_EN_MAIN = 'https://github.com/dgimenezdeveloper/margenx/tree/main/docs/manual-usuario'
+
+// El pie usa enlaces del router para Política e Instalar (#429).
+function DesktopFooter() {
+  return (
+    <MemoryRouter>
+      <Footer />
+    </MemoryRouter>
+  )
+}
 
 describe('DesktopFooter: Soporte y Documentación (#363)', () => {
   it('Escenario Gherkin "Documentación": el enlace lleva al manual de usuario en una pestaña nueva', () => {
@@ -59,5 +69,28 @@ describe('SupportDocsModal: guía de usuario (#363)', () => {
     expect(guia).toHaveAttribute('rel', 'noopener noreferrer')
     expect(guia).toHaveAccessibleName(/se abre en una pestaña nueva/)
     expect(screen.queryByText(/Disponible en versión 1\.0/)).not.toBeInTheDocument()
+  })
+})
+
+describe('DesktopFooter: Política e Instalar (#429)', () => {
+  it('ofrece la política de privacidad y la guía de instalación, que salieron de los botones de Perfil', () => {
+    render(<DesktopFooter />)
+
+    expect(screen.getByRole('link', { name: 'Política' })).toHaveAttribute('href', '/privacidad')
+    expect(screen.getByRole('link', { name: 'Instalar' })).toHaveAttribute('href', '/instalar')
+  })
+
+  it('usa el mismo orden que el pie móvil de Perfil: Política, Instalar, Soporte y Documentación', () => {
+    render(<DesktopFooter />)
+
+    const nombres = screen
+      .getAllByRole('contentinfo')[0]
+      .querySelectorAll('a, button')
+    expect(Array.from(nombres, (el) => el.textContent?.replace(' (se abre en una pestaña nueva)', ''))).toEqual([
+      'Política',
+      'Instalar',
+      'Soporte',
+      'Documentación',
+    ])
   })
 })
