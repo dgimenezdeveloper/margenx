@@ -27,7 +27,7 @@ MargenX implementa un blindaje de doble capa:
 | **Proveedores (`/proveedores` y `/proveedores/:id`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Compras sugeridas (`/compras`)** | Sugerencias y pedidos a proveedores | **Bloqueado:** vuelve a `/productos` con aviso |
-| **Perfil (`/perfil`)** | Configuración de margen, estado de alertas n8n y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
+| **Perfil (`/perfil`)** | Configuración de margen, estado de las alertas automáticas y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
 
 ### Aviso al abrir una pantalla del administrador
 

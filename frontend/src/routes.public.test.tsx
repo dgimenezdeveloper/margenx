@@ -85,7 +85,10 @@ describe('Páginas públicas y enlaces de privacidad', () => {
         <ProfilePage />
       </MemoryRouter>,
     )
-    expect(screen.getByText(/política de privacidad|privacidad/i)).toBeInTheDocument()
+    // Desde #429 la política está en los pies de Perfil (móvil y escritorio), no en un botón aparte.
+    const enlaces = screen.getAllByRole('link', { name: 'Política' })
+    expect(enlaces.length).toBeGreaterThan(0)
+    for (const enlace of enlaces) expect(enlace).toHaveAttribute('href', '/privacidad')
   })
 
   it('documenta el flujo de instalación con pasos de iPhone y Android visibles', () => {
