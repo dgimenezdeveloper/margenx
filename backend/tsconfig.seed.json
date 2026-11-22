@@ -3,12 +3,19 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true
   },
-  "files": ["prisma/seed.ts", "prisma/seed-demo.ts", "prisma/seed-volumen.ts"]
+  "files": [
+    "prisma/seed.ts",
+    "prisma/seed-demo.ts",
+    "prisma/seed-volumen.ts",
+    "prisma/seed-ventas-demo.ts"
+  ]
 }
