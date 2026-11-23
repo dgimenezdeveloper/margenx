@@ -8,7 +8,8 @@ import { test, expect, type Page, type Response } from '@playwright/test'
  */
 const INGREDIENT_ID = '30b00001-0000-4000-8000-000000000001'
 const INGREDIENT_NAME = 'Harina de trigo 000 Olavarriense'
-const INGREDIENT_BASE_COST = '742.98'
+// El costo del seed (736,25 = 18.406,25 / 25 kg de HAR188): al volver a él, el bulto queda como en el seed (#427).
+const INGREDIENT_BASE_COST = '736.25'
 const INGREDIENT_CRITICAL_COST = '4500'
 const PRODUCT_NAME = 'Pan flauta — 1 kg'
 
