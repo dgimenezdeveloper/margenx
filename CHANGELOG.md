@@ -6,6 +6,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ### Added
 
+- **QA:** Medición del tiempo de respuesta con y sin búsqueda en staging (`[RV375-I1]`): con la cuenta Demo (225 insumos y 343 productos), la mediana con búsqueda es de 57,1 ms en `GET /api/ingredients` y de 55,9 ms en `GET /api/products`, unos 3 ms más que sin búsqueda y muy por debajo del umbral de 300 ms, así que no hace falta un índice antes del release. Script `backend/tests/rendimiento/medir-busqueda.js` con su prueba, resultado en `docs/qa/reporte-calidad-sprint7.md` §4 y salida en `docs/qa/evidencias/444/` (#444).
 - **Backend:** Endpoints `GET /api/purchasing/margin-impact` y `GET /api/purchasing/margin-impact/:ingredientId` para calcular el impacto proyectado en el margen por insumo al comprar a proveedores alternativos más baratos, con base en `Ingredient.currentCost`, proyección aislada producto por producto, detección de productos que salen de En riesgo o Pérdida y ordenamiento por efectividad (`#445`).
 
 - **CI / Frontend:** Lighthouse CI a 360 px sobre las páginas públicas (`frontend/lighthouserc.json`, job **Lighthouse CI (360 px, no bloquea)**, artefacto `lighthouse-360px`). Las metas de 90 van como advertencia hasta que la medición sea estable. Cómo correrlo: `frontend/README.md` (#398).

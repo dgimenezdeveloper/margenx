@@ -399,3 +399,78 @@ en las páginas con sesión.
   `evidencias/398/`).
 - [ ] Correcciones mergeadas, con el CI en verde (en el PR).
 - [x] Desvíos de la meta explicados con su causa (§3.5).
+
+## 4. Tiempo de respuesta con y sin búsqueda (issue #444)
+
+**Estado de esta sección: medición en staging completa (23/11/2026).**
+
+### 4.1 Objetivo
+
+Saber cuánto tarda la búsqueda por nombre con el catálogo grande, para
+decidir con datos si hace falta un índice (`[RV375-I1]`). Regla de la issue:
+si la mediana con búsqueda supera 300 ms, queda como candidata a un índice
+trigram en la Fase 2, sin cambiar código antes del release.
+
+### 4.2 Método
+
+- **Dónde:** `dev.margenx.tech`, con la sesión del administrador de la cuenta
+  Demo, el 23/11/2026 a las 16:38 (hora de Argentina). Solo lectura.
+- **Cómo:** el script `backend/tests/rendimiento/medir-busqueda.js`, pegado en
+  la consola del navegador de escritorio, sin limitación de red. Su prueba
+  está en `medir-busqueda.test.ts` y corre con el `npm test` del backend.
+- **Pedidos:** los mismos que hace la app, la primera página de 20 de
+  `GET /api/ingredients` y de `GET /api/products`:
+  - sin búsqueda y con `search=harina` (insumos) o `search=budin` (productos,
+    sin tilde, para que pase por la búsqueda sin acentos);
+  - las dos variantes alternadas, con 2 pedidos de calentamiento que no
+    cuentan y 20 medidos por variante.
+- **Qué se mide:** "respuesta" es hasta que llegan las cabeceras; "total",
+  hasta tener el cuerpo leído. Los dos incluyen la consulta previa de CORS que
+  el navegador hace antes de cada pedido con token, igual que en la app, y la
+  red de quien mide. Como pesan lo mismo con y sin búsqueda, la diferencia
+  entre las dos medianas es el costo de la búsqueda.
+- **Catálogo al medir:** 225 insumos y 343 productos (la issue preveía 218 y
+  339: la Demo creció desde entonces). La búsqueda encontró 23 insumos con
+  "harina" y 24 productos con "budin".
+- **Consulta medida:** cada búsqueda filtra por la cuenta y arma 2 condiciones
+  con `OR`: el nombre normalizado (`searchName`) o el nombre, las dos con
+  `contains` sin distinguir mayúsculas. El índice `(accountId, searchName)`
+  acota la cuenta pero no sirve para buscar texto en el medio del nombre. La
+  issue cita "hasta 12 condiciones", de una versión anterior del PR #375; la
+  que se mergeó (`eefd698`) ya arma 2.
+
+### 4.3 Resultados
+
+| Endpoint | Variante | Encontrados | Mediana hasta la respuesta | Mediana total | p90 total | Mínimo y máximo total |
+|---|---|---|---|---|---|---|
+| `/api/ingredients` | sin búsqueda | 225 | 52,9 ms | 54,1 ms | 58,1 ms | 51,9 y 63,1 ms |
+| `/api/ingredients` | `search=harina` | 23 | 56,1 ms | **57,1 ms** | 83,4 ms | 51,6 y 88,4 ms |
+| `/api/products` | sin búsqueda | 343 | 51,7 ms | 53,0 ms | 57,5 ms | 48,3 y 64,4 ms |
+| `/api/products` | `search=budin` | 24 | 54,9 ms | **55,9 ms** | 59,4 ms | 48,8 y 87,2 ms |
+
+La búsqueda suma 3,0 ms a la mediana total de insumos y 2,9 ms a la de
+productos.
+
+### 4.4 Conclusión
+
+- **Las dos medianas con búsqueda (57,1 y 55,9 ms) quedan muy por debajo de
+  300 ms:** la búsqueda no es candidata a índice trigram y no se cambia código.
+- El tiempo lo explica la base que comparten las dos variantes (red, CORS y
+  Express, unos 50 ms), no la búsqueda.
+- Hubo respuestas sueltas más lentas con búsqueda (máximos de 88,4 y 87,2 ms,
+  y p90 de 83,4 ms en insumos), también lejos del umbral.
+- **Límite de la medición:** es una sola corrida, desde una sola red y con
+  el catálogo de la Demo. Si un comercio llega a miles de insumos o
+  productos, conviene repetirla con el mismo script antes de decidir un
+  índice.
+
+### 4.5 Evidencia
+
+- Salida real del script: [`evidencias/444/01-medicion-staging-2026-11-23.json`](evidencias/444/01-medicion-staging-2026-11-23.json),
+  solo con tiempos y cantidades (sin el token ni datos de la cuenta).
+- El script: `backend/tests/rendimiento/medir-busqueda.js`.
+
+### 4.6 Definition of Done de #444
+
+- [x] Medición publicada en el reporte de calidad con su evidencia (§4.3 y
+  `evidencias/444/`).
