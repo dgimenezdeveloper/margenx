@@ -524,6 +524,62 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "PUT Aviso - costo manual distinto de la presentación predeterminada (409, #427)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// #427: Harina 000 tiene la presentación predeterminada HAR188. Un costo manual que no coincide con el de esa",
+                  "// presentación, sin elegir defaultPresentationAction, responde 409 y no guarda nada.",
+                  "pm.test('Status code es 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Devuelve DEFAULT_PRESENTATION_MISMATCH con los datos de la presentación predeterminada', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.eql('DEFAULT_PRESENTATION_MISMATCH');",
+                  "    pm.expect(body.defaultPresentation.supplierName).to.be.a('string').and.not.empty;",
+                  "    pm.expect(Number(body.defaultPresentation.unitCost)).to.be.above(1);",
+                  "    pm.expect(body.defaultPresentation.packageUnit).to.eql('kg');",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/ingredients/30b00001-0000-4000-8000-000000000001',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('El costo del insumo no fue modificado', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        pm.expect(Number(res.json().ingredient.currentCost)).to.not.eql(1);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"1.00\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/30b00001-0000-4000-8000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "30b00001-0000-4000-8000-000000000001"]
+            }
+          },
+          "response": []
         }
       ]
     },
