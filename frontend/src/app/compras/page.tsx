@@ -333,7 +333,7 @@ export default function PurchasesPage() {
               <div className="flex items-start gap-2.5 rounded-2xl bg-indigo-50/70 p-3.5 text-xs text-indigo-950 border border-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200 print:hidden">
                 <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
                 <p>
-                  <strong>Importante:</strong> Las sugerencias identifican la opción más económica entre tus distribuidores. Consultar esta pantalla <strong>no modifica tus costos vigentes ni tus recetas</strong> salvo que conmutes expresamente el proveedor predeterminado.
+                  <strong>Importante:</strong> Las sugerencias identifican la opción más económica entre tus distribuidores. Consultar esta pantalla <strong>no modifica tus costos vigentes ni tus recetas</strong> salvo que cambies la presentación predeterminada.
                 </p>
               </div>
 

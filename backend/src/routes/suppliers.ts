@@ -676,7 +676,7 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
 
   if (!isDefault) {
     if (existingAssociation && existingAssociation.isDefault) {
-      throw new AppError('No podés quitar el proveedor predeterminado sin asignar otro. Marcá otro proveedor como predeterminado para reemplazarlo.', 422);
+      throw new AppError('No podés quitar la presentación predeterminada sin elegir otra. Marcá otra como predeterminada para reemplazarla.', 422);
     }
     const supplierIngredient = existingAssociation
       ? await prisma.supplierIngredient.update({

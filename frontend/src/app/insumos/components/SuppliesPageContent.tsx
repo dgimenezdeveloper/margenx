@@ -407,7 +407,7 @@ export default function SuppliesPageContent() {
 
     if (newCost !== undefined) {
       setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
-      notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
+      notify(`Presentación vinculada y costo actualizado a ${money(newCost)} por ser la presentación predeterminada.`, 'success')
     } else {
       notify('Presentación mayorista asociada correctamente al proveedor.', 'success')
     }
@@ -466,7 +466,7 @@ export default function SuppliesPageContent() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Administra los costos de tus materias primas y empaques mayoristas.
+                Administra los costos de tus materias primas y sus presentaciones mayoristas.
               </p>
             </div>
             <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-end">
