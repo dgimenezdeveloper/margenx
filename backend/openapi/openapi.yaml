@@ -209,7 +209,9 @@ paths:
       tags: [Insumos]
       summary: Actualizar un insumo con recálculo en cascada y alerta (solo ADMIN)
       description: >-
-        Responde 409 si el nombre ya existe en la cuenta, o si cambia `unit` y el insumo está en al menos una
+        Responde 409 con code DEFAULT_PRESENTATION_MISMATCH si el costo cambia y no coincide con el costo unitario de
+        la presentación predeterminada, sin defaultPresentationAction (ADR-011). También responde 409 si el nombre ya
+        existe en la cuenta, o si cambia `unit` y el insumo está en al menos una
         receta o una presentación de proveedor. En ese caso no modifica nada y el mensaje dice cuántas recetas y
         presentaciones lo usan. El nombre y el costo se pueden editar si la unidad no cambia.
       security: [{ bearerAuth: [] }]
@@ -928,6 +930,10 @@ components:
         name: { type: string, minLength: 2, example: "Harina 000" }
         unit: { type: string, enum: [kg, l, u], example: "kg" }
         currentCost: { type: number, minimum: 0.01, example: 736.25 }
+        defaultPresentationAction:
+          type: string
+          enum: [update-presentation, clear-default]
+          description: Solo en el PUT. Qué hacer con la presentación predeterminada si el costo manual no coincide con el suyo (ADR-011).
     Ingredient:
       type: object
       properties:
