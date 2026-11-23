@@ -271,7 +271,8 @@ Actualización de costo o datos del insumo con recálculo en cascada y alertas.
         }
       }
       ```
-    - **`"update-presentation"`:** en la misma transacción, el precio del bulto pasa a `currentCost × packageSize` (`ROUND_HALF_UP`, 2 decimales; con $950 y 25 kg, `23750.00`) y la presentación sigue siendo la predeterminada.
+    - **`"update-presentation"`:** en la misma transacción, el precio del bulto pasa a `currentCost × packageSize` (`ROUND_HALF_UP`, 2 decimales; con $950 y 25 kg, `23750.00`) y la presentación sigue siendo la predeterminada. El insumo guarda el costo que da ese bulto (precio ÷ tamaño, 2 decimales), así los dos coinciden: con un bulto de tamaño con decimales puede diferir en centavos del enviado (con 0,5 kg y `12090.25`, el bulto queda en `6045.13` y el insumo en `12090.26`), y la respuesta trae el costo guardado.
+    - **Precio del bulto fuera de rango (`422`):** con `"update-presentation"`, si el precio del bulto superaría $99.999.999,99 o daría $0,00, responde `422` sin modificar nada: `"El precio del bulto no puede superar $99.999.999,99. Revisá el costo o dejá de usar esta presentación como predeterminada."`.
     - **`"clear-default"`:** en la misma transacción, la presentación deja de ser la predeterminada (`isDefault: false`) y el insumo queda con el costo manual.
     - Sin presentación predeterminada, con el mismo costo o con un costo igual al de la presentación, se guarda como siempre y la acción, si viene, no hace nada.
 - **Respuesta 200:**

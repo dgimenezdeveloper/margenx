@@ -30,7 +30,7 @@ ADR-005 también exige que todo insumo con proveedores conserve una presentació
 Cuando el administrador cambia el costo de un insumo, el insumo tiene una presentación predeterminada y el costo nuevo no coincide con el costo unitario de esa presentación, `PUT /api/ingredients/:id`:
 
 * **Sin decisión del dueño:** responde `409` con `code: "DEFAULT_PRESENTATION_MISMATCH"` y los datos de la presentación (proveedor, bulto, precio del bulto y costo unitario). No guarda nada.
-* **`defaultPresentationAction: "update-presentation"`:** en la misma transacción que el costo, el precio del bulto pasa a `costo × tamaño del bulto`, redondeado a 2 decimales con `ROUND_HALF_UP` (ADR-004). La presentación sigue siendo la predeterminada, así que el costo y la presentación vuelven a coincidir.
+* **`defaultPresentationAction: "update-presentation"`:** en la misma transacción que el costo, el precio del bulto pasa a `costo × tamaño del bulto`, redondeado a 2 decimales con `ROUND_HALF_UP` (ADR-004). La presentación sigue siendo la predeterminada, y el insumo guarda el costo unitario que da ese bulto (ADR-005), así que el costo y la presentación vuelven a coincidir. Con un bulto de tamaño con decimales, ese costo puede diferir en centavos del que cargó el dueño: con un pan de 0,5 kg, $12.090,25 dan un bulto de $6.045,13 y un costo de $12.090,26. Si el precio del bulto superaría $99.999.999,99 o daría $0,00, la API responde `422` y no guarda nada.
 * **`defaultPresentationAction: "clear-default"`:** en la misma transacción, la presentación deja de ser la predeterminada. El insumo queda con el costo manual y **sin presentación predeterminada** hasta que el dueño elija otra. Es la segunda excepción a la regla de ADR-005, junto con la baja de un proveedor.
 
 El override temporal de ADR-005 deja de existir para los insumos con presentación predeterminada. Sin presentación predeterminada, con el mismo costo o con un costo que coincide con el de la presentación, el costo se guarda como antes.
@@ -43,4 +43,5 @@ El override temporal de ADR-005 deja de existir para los insumos con presentaci�
 * **Negativas y deuda:**
   * Un insumo puede quedar sin presentación predeterminada aunque tenga proveedores. Hasta que el dueño elija otra, las listas de precios actualizan las presentaciones pero no el costo del insumo (ADR-005: solo la predeterminada mueve el costo).
   * El precio del bulto calculado con `update-presentation` puede diferir en centavos de la factura real del proveedor. Lo corrige la próxima lista.
+  * Con un bulto de tamaño con decimales, `update-presentation` puede guardar un costo unos centavos distinto del que cargó el dueño. La ficha muestra el costo guardado en el aviso de éxito.
   * El cliente que edita el costo tiene que manejar el `409` nuevo. Hoy es solo la ficha del insumo en `/insumos`.

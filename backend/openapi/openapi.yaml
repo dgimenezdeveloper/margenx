@@ -213,7 +213,9 @@ paths:
         la presentación predeterminada, sin defaultPresentationAction (ADR-011). También responde 409 si el nombre ya
         existe en la cuenta, o si cambia `unit` y el insumo está en al menos una
         receta o una presentación de proveedor. En ese caso no modifica nada y el mensaje dice cuántas recetas y
-        presentaciones lo usan. El nombre y el costo se pueden editar si la unidad no cambia.
+        presentaciones lo usan. El nombre y el costo se pueden editar si la unidad no cambia. Con
+        defaultPresentationAction "update-presentation", el insumo guarda el costo que da el bulto redondeado al
+        centavo, y responde 422 si ese precio del bulto supera $99.999.999,99 o da $0,00.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -229,6 +231,7 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
         '500': { $ref: '#/components/responses/InternalServerError' }
     delete:
       tags: [Insumos]
