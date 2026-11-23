@@ -131,7 +131,7 @@ En toda la app (Proveedores, Insumos y Compras) se usan los mismos nombres:
 
 ### Cambiar la presentación predeterminada
 
-Si le comprás el mismo insumo a varios proveedores, tocá la **estrella vacía** (**Usar como predeterminada**) de la presentación que querés que defina el costo. MargenX te pide confirmación y te muestra el costo por unidad que pasa a usar el insumo: recién al tocar **Confirmar cambio** se actualiza el costo y se recalculan las recetas que lo usan. Es la misma confirmación desde la ficha del proveedor, desde la ficha del insumo y desde **Compras**.
+Si le comprás el mismo insumo a varios proveedores, tocá la **estrella vacía** (**Usar como predeterminada**) de la presentación que querés que defina el costo. MargenX te pide confirmación y te muestra el costo por unidad que pasa a usar el insumo: recién al tocar **Confirmar cambio** se actualiza el costo y se recalculan las recetas que lo usan. Es la misma confirmación desde la ficha del proveedor y desde la ficha del insumo. En **Impacto en el margen**, el botón **Ya le compro a este proveedor** hace el mismo cambio, pero su confirmación muestra además cómo queda el margen de cada producto ([capítulo 7](07-compras-sugeridas.md)).
 
 ### Quitar una presentación
 
