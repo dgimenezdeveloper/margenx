@@ -40,9 +40,22 @@ const COUNTED_SUFFIX: Record<PaymentMethod, string> = {
 
 const INVALID_AMOUNT_MESSAGE = 'Escribí un monto, por ejemplo 34.500.'
 
+/** Medios que vienen precargados con lo esperado: el efectivo siempre se cuenta. */
+const PREFILLED_METHODS: PaymentMethod[] = ['TRANSFER', 'MERCADO_PAGO']
+
 /** "8400,00": como lo escribiría el comerciante, para precargar transferencia y Mercado Pago. */
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',')
+}
+
+/** Lo esperado de un medio de pago, tal como lo precarga la pantalla. */
+function expectedInput(shift: CashShift, method: PaymentMethod): string {
+  return centsToInput(moneyToCents(shift.methods.find((row) => row.paymentMethod === method)?.expected ?? '0'))
+}
+
+/** Lo que define el arqueo: si cambia, entraron o se anularon ventas desde que se abrió la pantalla. */
+function arqueoSnapshot(shift: CashShift): string {
+  return [shift.status, shift.salesCount, shift.voidedCount, ...shift.methods.map((row) => `${row.paymentMethod}:${row.expected}`)].join('|')
 }
 
 /**
@@ -67,6 +80,7 @@ function CloseCashShift({ id }: { id: string }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [closeError, setCloseError] = useState<string | null>(null)
+  const [expectedChanged, setExpectedChanged] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -75,9 +89,7 @@ function CloseCashShift({ id }: { id: string }) {
       .then((data) => {
         if (cancelled) return
         setShift(data)
-        const expected = (method: PaymentMethod) =>
-          moneyToCents(data.methods.find((row) => row.paymentMethod === method)?.expected ?? '0')
-        setCounted({ CASH: '', TRANSFER: centsToInput(expected('TRANSFER')), MERCADO_PAGO: centsToInput(expected('MERCADO_PAGO')) })
+        setCounted({ CASH: '', TRANSFER: expectedInput(data, 'TRANSFER'), MERCADO_PAGO: expectedInput(data, 'MERCADO_PAGO') })
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof ApiError && err.status === 404 ? 'not-found' : 'failed')
@@ -107,8 +119,30 @@ function CloseCashShift({ id }: { id: string }) {
     if (!shift || !allCounted || isClosing) return
     setIsClosing(true)
     setCloseError(null)
+    setExpectedChanged(false)
     const amount = (method: PaymentMethod) => (rows.find((row) => row.paymentMethod === method)?.countedCents ?? 0) / 100
     try {
+      // Con varios vendedores, una venta puede entrar mientras se cuenta la caja. Antes de cerrar
+      // se vuelve a pedir lo esperado: si cambió, se actualiza en pantalla y se pide revisar, para
+      // que la diferencia guardada sea la misma que se vio. Lo precargado que nadie tocó se
+      // actualiza; lo que la persona corrigió a mano se respeta.
+      const latest = await cashShiftService.getById(getToken, shift.id)
+      if (arqueoSnapshot(latest) !== arqueoSnapshot(shift)) {
+        setCounted((current) => {
+          const next = { ...current }
+          for (const method of PREFILLED_METHODS) {
+            if (current[method] === expectedInput(shift, method)) next[method] = expectedInput(latest, method)
+          }
+          return next
+        })
+        // Si otra persona ya lo cerró, el estado CLOSED lleva al resumen.
+        setShift(latest)
+        setShowConfirm(false)
+        setExpectedChanged(true)
+        setIsClosing(false)
+        return
+      }
+
       await cashShiftService.close(getToken, shift.id, {
         countedCash: amount('CASH'),
         countedTransfer: amount('TRANSFER'),
@@ -152,6 +186,16 @@ function CloseCashShift({ id }: { id: string }) {
                   {shift.voidedCount > 0 ? ` · ${shift.voidedCount} ${shift.voidedCount === 1 ? 'anulada' : 'anuladas'}` : ''}
                 </p>
               </div>
+
+              {expectedChanged && (
+                <p
+                  role="alert"
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100"
+                >
+                  Mientras contabas entraron o se anularon ventas. Ya actualizamos lo esperado: revisá lo contado y volvé a
+                  cerrar el turno.
+                </p>
+              )}
 
               {rows.map((row) => {
                 const inputId = `counted-${row.paymentMethod}`

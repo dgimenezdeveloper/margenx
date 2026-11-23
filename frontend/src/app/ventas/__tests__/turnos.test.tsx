@@ -99,7 +99,11 @@ describe('Cierre de caja (/ventas/turnos/:id/cerrar)', () => {
 
   it('confirma antes de cerrar, manda lo contado y va al resumen', async () => {
     vi.mocked(cashShiftService.close).mockResolvedValue(turnoCerrado())
-    vi.mocked(cashShiftService.getById).mockResolvedValueOnce(turnoAbierto()).mockResolvedValueOnce(turnoCerrado())
+    // Al entrar, al confirmar (vuelve a pedir lo esperado, sin cambios) y en el resumen.
+    vi.mocked(cashShiftService.getById)
+      .mockResolvedValueOnce(turnoAbierto())
+      .mockResolvedValueOnce(turnoAbierto())
+      .mockResolvedValueOnce(turnoCerrado())
     renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
 
     fireEvent.change(await screen.findByLabelText('Contado en efectivo'), { target: { value: '34500' } })
@@ -116,6 +120,82 @@ describe('Cierre de caja (/ventas/turnos/:id/cerrar)', () => {
       })
     )
     expect(await screen.findByRole('heading', { name: 'Cierre de caja' })).toBeInTheDocument()
+  })
+
+  /* [RV462-I1]: con varios vendedores, otra persona cobra $2.700 por transferencia mientras se cuenta la caja. */
+  function turnoConVentaNueva(): CashShift {
+    return turnoAbierto({
+      salesCount: 12,
+      salesTotal: '36100.00',
+      methods: [
+        { paymentMethod: 'CASH', salesTotal: '25000.00', expected: '35000.00', counted: null, difference: null },
+        { paymentMethod: 'TRANSFER', salesTotal: '11100.00', expected: '11100.00', counted: null, difference: null },
+        { paymentMethod: 'MERCADO_PAGO', salesTotal: '0.00', expected: '0.00', counted: null, difference: null },
+      ],
+      expectedTotal: '46100.00',
+    })
+  }
+
+  it('si entró una venta mientras se contaba, actualiza lo esperado y pide revisar antes de cerrar', async () => {
+    vi.mocked(cashShiftService.close).mockResolvedValue(turnoCerrado())
+    vi.mocked(cashShiftService.getById)
+      .mockResolvedValueOnce(turnoAbierto())
+      .mockResolvedValueOnce(turnoConVentaNueva())
+      .mockResolvedValueOnce(turnoConVentaNueva())
+      .mockResolvedValueOnce(turnoCerrado())
+    renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
+
+    fireEvent.change(await screen.findByLabelText('Contado en efectivo'), { target: { value: '35000' } })
+    expect(screen.getByTestId('total-difference')).toHaveTextContent('Justo $0,00')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar turno' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sí, cerrar' }))
+
+    // No cierra con lo esperado viejo: avisa, actualiza la transferencia precargada y la diferencia sigue en "Justo".
+    expect(await screen.findByRole('alert')).toHaveTextContent('Mientras contabas entraron o se anularon ventas')
+    expect(cashShiftService.close).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Transferencia' })).getByText('$11.100,00')).toBeInTheDocument()
+    expect(screen.getByLabelText('Contado por transferencia')).toHaveValue('11100,00')
+    expect(screen.getByTestId('total-difference')).toHaveTextContent('Justo $0,00')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar turno' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sí, cerrar' }))
+    await waitFor(() =>
+      expect(cashShiftService.close).toHaveBeenCalledWith(getToken, SHIFT_ID, {
+        countedCash: 35000,
+        countedTransfer: 11100,
+        countedMercadoPago: 0,
+      })
+    )
+  })
+
+  it('al actualizar lo esperado, respeta un monto que la persona ya corrigió a mano', async () => {
+    vi.mocked(cashShiftService.getById).mockResolvedValueOnce(turnoAbierto()).mockResolvedValueOnce(turnoConVentaNueva())
+    renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
+
+    fireEvent.change(await screen.findByLabelText('Contado en efectivo'), { target: { value: '35000' } })
+    fireEvent.change(screen.getByLabelText('Contado por transferencia'), { target: { value: '8.000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar turno' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sí, cerrar' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText('Contado por transferencia')).toHaveValue('8.000')
+    expect(cashShiftService.close).not.toHaveBeenCalled()
+  })
+
+  it('si otra persona cerró el turno mientras se contaba, va a su resumen sin volver a cerrarlo', async () => {
+    vi.mocked(cashShiftService.getById)
+      .mockResolvedValueOnce(turnoAbierto())
+      .mockResolvedValueOnce(turnoCerrado())
+      .mockResolvedValueOnce(turnoCerrado())
+    renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
+
+    fireEvent.change(await screen.findByLabelText('Contado en efectivo'), { target: { value: '35000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar turno' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sí, cerrar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Cierre de caja' })).toBeInTheDocument()
+    expect(cashShiftService.close).not.toHaveBeenCalled()
   })
 
   it('un monto inválido no deja cerrar y explica qué escribir', async () => {
