@@ -84,7 +84,7 @@ export function ProductSimulatorPanel({
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
               )}
             >
-              +5%
+              {formatPercent(5, { signed: true, minDecimals: 0 })}
             </button>
             <button
               type="button"
@@ -97,7 +97,7 @@ export function ProductSimulatorPanel({
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
               )}
             >
-              +10%
+              {formatPercent(10, { signed: true, minDecimals: 0 })}
             </button>
             <button
               type="button"

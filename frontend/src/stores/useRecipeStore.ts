@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { recipeTotalCost } from '@/lib/money'
+
 export interface RecipeItem {
   ingredientId: string
   name: string
@@ -121,13 +123,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     set({ items: [], salePrice: 0, minMarginPercent: 30 })
   },
 
-  totalCost: () => {
-    const { items } = get()
-    return items.reduce(
-      (sum: number, item: RecipeItem) => sum + item.quantity * item.unitCost,
-      0
-    )
-  },
+  // Cada renglón redondeado a centavos antes de sumar, como la lista del backend (#431).
+  totalCost: () => recipeTotalCost(get().items),
 
   // ✅ Corregido según regla de backend (marginCalculator.ts):
   // Solo se fuerza a 0 si no hay costo. Si hay receta pero salePrice es 0, da el negativo real.
@@ -161,11 +158,7 @@ export type RecipeSelectorState = Pick<
 >
 
 // Selectores puros
-export const selectTotalCost = (state: RecipeSelectorState) =>
-  state.items.reduce(
-    (sum: number, item: RecipeItem) => sum + item.quantity * item.unitCost,
-    0
-  )
+export const selectTotalCost = (state: RecipeSelectorState) => recipeTotalCost(state.items)
 
 export const selectMarginAmount = (state: RecipeSelectorState) => {
   const cost = selectTotalCost(state)

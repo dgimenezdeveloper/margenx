@@ -2,7 +2,7 @@ import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
@@ -18,8 +18,12 @@ vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken }),
 }))
 
+// Perfil del usuario: cada prueba puede simular que todavía está cargando.
+const usuario = vi.hoisted(() => ({
+  actual: { defaultMinMarginPercent: 30 as number | undefined, isLoading: false },
+}))
 vi.mock('@/lib/useCurrentUser', () => ({
-  useCurrentUser: () => ({ defaultMinMarginPercent: 30, isLoading: false }),
+  useCurrentUser: () => usuario.actual,
 }))
 
 vi.mock('@/services/productService', () => ({
@@ -253,6 +257,32 @@ describe('NewProductPage - Escenario "Aviso al crear" (#432)', () => {
       productNotice: { title: 'Producto guardado en estado Borrador (sin receta).', type: 'success' },
     })
     expect(screen.queryByRole('dialog', { name: /Descartar cambios/ })).toBeNull()
+  })
+})
+
+describe('NewProductPage - Escenario "Sin texto vacío" (RC-21, #431)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  afterEach(() => {
+    usuario.actual = { defaultMinMarginPercent: 30, isLoading: false }
+  })
+
+  it('mientras el perfil carga no muestra la frase del margen global a medias', async () => {
+    usuario.actual = { defaultMinMarginPercent: undefined, isLoading: true }
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    expect(screen.queryByText(/tu margen global de/i)).toBeNull()
+  })
+
+  it('con el perfil cargado muestra el margen global con su valor', async () => {
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    expect(screen.getByText(/tu margen global de/i).closest('p')).toHaveTextContent(/tu margen global de\s*30\s%/)
   })
 })
 
