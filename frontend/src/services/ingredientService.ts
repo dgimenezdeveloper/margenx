@@ -1,4 +1,4 @@
-import { fetchApi, type TokenGetter } from './api'
+import { ApiError, fetchApi, type TokenGetter } from './api'
 import { buildPageQuery, fetchAllPages, resolveMeta, type PageMeta, type PageParams, type PageResult } from './pagination'
 import { type SupplierIngredient } from './supplierService'
 
@@ -94,10 +94,45 @@ interface HistoryResponse {
   history: RawPriceHistory[]
 }
 
+/** Qué hacer con la presentación predeterminada si el costo manual no coincide con el suyo (#427, ADR-011). */
+export type DefaultPresentationAction = 'update-presentation' | 'clear-default'
+
 export interface IngredientInput {
   name: string
   unit: string
   currentCost: number
+  defaultPresentationAction?: DefaultPresentationAction
+}
+
+/** La presentación predeterminada que contradice el costo manual, tal como la devuelve el 409. */
+export interface DefaultPresentationConflict {
+  id: string
+  supplierName: string
+  packageSize: number
+  packageUnit: string
+  packagePrice: number
+  unitCost: number
+}
+
+/**
+ * Si el error es el 409 `DEFAULT_PRESENTATION_MISMATCH` del PUT del insumo, devuelve la presentación
+ * predeterminada para preguntarle al dueño qué hacer con ella; si no, `null`.
+ */
+export function defaultPresentationMismatch(error: unknown): DefaultPresentationConflict | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null
+  const body = error.body as
+    | { code?: unknown; defaultPresentation?: Record<string, unknown> }
+    | undefined
+  const presentation = body?.defaultPresentation
+  if (body?.code !== 'DEFAULT_PRESENTATION_MISMATCH' || !presentation) return null
+  return {
+    id: String(presentation.id),
+    supplierName: String(presentation.supplierName),
+    packageSize: Number(presentation.packageSize),
+    packageUnit: String(presentation.packageUnit),
+    packagePrice: Number(presentation.packagePrice),
+    unitCost: Number(presentation.unitCost),
+  }
 }
 
 function normalizeIngredient(ingredient: RawIngredient & { suppliers?: unknown[] }): Ingredient {

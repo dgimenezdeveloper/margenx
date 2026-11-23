@@ -43,7 +43,12 @@ describe('saleService: contrato de /api/sales (docs/api.md §12)', () => {
 
     await expect(
       saleService.create(getToken, { paymentMethod: 'CASH', items: [{ productId: 'p-cafe', quantity: 1 }] })
-    ).rejects.toEqual(new ApiError('No hay un turno de caja abierto. Abrí el turno para empezar a cobrar.', 409))
+    ).rejects.toEqual(
+      // ApiError conserva el cuerpo de la respuesta (#427).
+      new ApiError('No hay un turno de caja abierto. Abrí el turno para empezar a cobrar.', 409, {
+        error: 'No hay un turno de caja abierto. Abrí el turno para empezar a cobrar.',
+      })
+    )
   })
 
   it('list arma la query solo con los filtros presentes', async () => {

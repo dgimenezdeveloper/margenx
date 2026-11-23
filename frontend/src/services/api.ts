@@ -2,28 +2,32 @@ export type TokenGetter = () => Promise<string | null>
 
 export class ApiError extends Error {
   readonly status: number
+  /** Cuerpo JSON de la respuesta de error, si lo hubo: algunos 409 traen datos para resolver el conflicto (#427). */
+  readonly body?: unknown
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, body?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.body = body
   }
 }
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
-async function readErrorMessage(response: Response): Promise<string> {
+async function readError(response: Response): Promise<{ message: string; body?: unknown }> {
   try {
     const body: unknown = await response.json()
     if (typeof body === 'object' && body !== null && 'error' in body) {
       const error = body.error
-      if (typeof error === 'string') return error
+      if (typeof error === 'string') return { message: error, body }
     }
+    return { message: `La solicitud falló (${response.status}).`, body }
   } catch {
     // La respuesta puede no contener JSON legible.
   }
 
-  return `La solicitud falló (${response.status}).`
+  return { message: `La solicitud falló (${response.status}).` }
 }
 
 async function sendApiRequest(
@@ -46,9 +50,9 @@ async function sendApiRequest(
   const response = await fetch(`${apiUrl}${path}`, { ...init, headers })
 
   if (!response.ok) {
-    const message = await readErrorMessage(response)
+    const { message, body } = await readError(response)
     // Lanzamos la excepción para que la capture el llamador sin provocar bucles de navegación forzada
-    throw new ApiError(message, response.status)
+    throw new ApiError(message, response.status, body)
   }
 
   return response
