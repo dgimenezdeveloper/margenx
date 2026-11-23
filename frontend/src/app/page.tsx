@@ -269,7 +269,7 @@ export default function LandingPage() {
           <div className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Catálogo en Vivo</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Catálogo en Vivo</p>
                 <p className="text-base font-black text-slate-900 dark:text-white">
                   {activePilot === 'panaderia' ? 'Panadería Central' : 'Química GyJ'}
                 </p>
@@ -283,7 +283,7 @@ export default function LandingPage() {
                   className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                     activePilot === 'panaderia'
                       ? 'bg-white text-indigo-700 shadow-xs dark:bg-slate-900 dark:text-indigo-300'
-                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   🥖 Panadería
@@ -294,7 +294,7 @@ export default function LandingPage() {
                   className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                     activePilot === 'quimica'
                       ? 'bg-white text-indigo-700 shadow-xs dark:bg-slate-900 dark:text-indigo-300'
-                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   🧪 Química
@@ -305,12 +305,12 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-3 py-4">
               <div className="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/40">
                 <Boxes className="size-5 text-indigo-600 dark:text-indigo-400" />
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Materias primas</p>
+                <p className="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Materias primas</p>
                 <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">10 insumos</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/40">
                 <BarChart3 className="size-5 text-emerald-700 dark:text-emerald-400" />
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Margen mediano</p>
+                <p className="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Margen mediano</p>
                 <p className="mt-1 text-2xl font-black text-emerald-800 dark:text-emerald-300">
                   {activePilot === 'panaderia' ? '60,6%' : '40,8%'}
                 </p>
@@ -404,7 +404,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <p className="mt-3 text-[10px] text-center text-slate-400 dark:text-slate-500">
+            <p className="mt-3 text-[10px] text-center text-slate-600 dark:text-slate-400">
               * Costos y márgenes calculados por MargenX con los datos de los comercios piloto.
             </p>
           </div>
@@ -478,7 +478,7 @@ export default function LandingPage() {
                     <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                       <Eye className="size-3.5" /> Dueño (administrador)
                     </span>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Ve margen real (73,2%)</span>
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400">Ve margen real (73,2%)</span>
                   </div>
                   <hr className="border-slate-100 dark:border-slate-800" />
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
@@ -550,7 +550,12 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {steps.map((s) => (
               <div key={s.number} className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <span className="text-4xl font-black text-indigo-600/20 dark:text-indigo-400/20">{s.number}</span>
+                {/* Marca de agua decorativa: el número va en un pseudo-elemento, así no se lee ni se le exige contraste (#398). */}
+                <span
+                  aria-hidden="true"
+                  data-step={s.number}
+                  className="block text-4xl font-black text-indigo-600/20 before:content-[attr(data-step)] dark:text-indigo-400/20"
+                />
                 <h3 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">{s.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{s.desc}</p>
               </div>

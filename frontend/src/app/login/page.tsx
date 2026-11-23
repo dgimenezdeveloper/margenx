@@ -140,6 +140,9 @@ export default function LoginPage() {
           <img
             src="/logo.png"
             alt="MargenX"
+            width={644}
+            height={249}
+            fetchPriority="high"
             className="mx-auto h-20 w-auto object-contain transition-all duration-150 dark:brightness-0 dark:invert"
           />
           <h1 className="mt-4 text-base font-medium text-gray-500">
@@ -147,39 +150,43 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        {!isLoaded || isStaleSession ? (
-          <div className="flex h-64 items-center justify-center">
-            <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
-          </div>
-        ) : isClerkConfigured ? (
-          <div
-            onClickCapture={authorizeSession}
-            onKeyDownCapture={authorizeSession}
-            onFocusCapture={authorizeSession}
-          >
-            {isInvitation ? (
-              <SignUp
-                fallbackRedirectUrl={returnUrl}
-                forceRedirectUrl={returnUrl}
-                routing="path"
-                path="/login"
-                appearance={clerkAppearance}
-              />
-            ) : (
-              <SignIn
-                fallbackRedirectUrl={returnUrl}
-                forceRedirectUrl={returnUrl}
-                routing="path"
-                path="/login"
-                appearance={clerkAppearance}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
-            Configurá una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
-          </div>
-        )}
+        {/* El espacio del formulario mide lo mismo con el spinner y con Clerk (402 px en el celular,
+            384 px en escritorio): si crece al cargar, la página centrada salta (CLS, #398). */}
+        <div data-testid="login-auth-slot" className="min-h-[25.125rem] sm:min-h-96">
+          {!isLoaded || isStaleSession ? (
+            <div className="flex h-[25.125rem] items-center justify-center sm:h-96">
+              <LoaderCircle className="size-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+            </div>
+          ) : isClerkConfigured ? (
+            <div
+              onClickCapture={authorizeSession}
+              onKeyDownCapture={authorizeSession}
+              onFocusCapture={authorizeSession}
+            >
+              {isInvitation ? (
+                <SignUp
+                  fallbackRedirectUrl={returnUrl}
+                  forceRedirectUrl={returnUrl}
+                  routing="path"
+                  path="/login"
+                  appearance={clerkAppearance}
+                />
+              ) : (
+                <SignIn
+                  fallbackRedirectUrl={returnUrl}
+                  forceRedirectUrl={returnUrl}
+                  routing="path"
+                  path="/login"
+                  appearance={clerkAppearance}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
+              Configurá una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
+            </div>
+          )}
+        </div>
 
         {/* Enlaces públicos al pie, discretos: el formulario es lo primero que se ve. */}
         <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">

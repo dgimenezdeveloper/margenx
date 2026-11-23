@@ -34,3 +34,7 @@ dist-ssr
 # Coverage reports
 coverage/
 *.lcov
+
+# Lighthouse CI (#398)
+/.lighthouseci/
+/lhci-report/

@@ -63,7 +63,7 @@ export const HEALTH_BUCKET_META: Record<HealthBucket, HealthBucketConfig> = {
     description: 'Rentabilidad positiva pero por debajo del margen mínimo esperado.',
     badgeClassName:
       'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/70 dark:text-rose-300',
-    textClassName: 'text-rose-600 dark:text-rose-400',
+    textClassName: 'text-rose-700 dark:text-rose-400',
     borderClassName: 'border-rose-200 dark:border-rose-900/60',
     bgHoverClassName: 'hover:bg-rose-50 dark:hover:bg-rose-950/30',
     chartBarClassName: 'bg-rose-400 dark:bg-rose-400',
