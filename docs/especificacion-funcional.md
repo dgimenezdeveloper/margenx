@@ -428,7 +428,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 
 ## 13. Ventas, caja y ganancia real (módulo opcional)
 
-**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos, la venta con ticket y la caja por turnos están *Disponibles*. La ganancia real está *Planificada* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
+**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos, la venta con ticket, la caja por turnos y la ganancia real están *Disponibles*. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
 
 ### El problema
 
@@ -474,6 +474,15 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Varios vendedores:** todos los usuarios de la cuenta venden en el único turno abierto, y el arqueo es del turno (la caja), no de cada vendedor. Para un arqueo por persona, cada una abre y cierra su propio turno, uno después del otro.
 - **Planificado para la v1.1:** movimientos de caja (gastos y retiros con su motivo, que entran en lo esperado) y el fondo del turno siguiente precargado con lo que quedó. Hasta entonces, un gasto pagado con la caja aparece como faltante en el arqueo.
 - **Fase 2:** el mail con el resumen del cierre al dueño (n8n), y el arqueo por cajero o varias cajas abiertas a la vez si los comercios piloto lo piden.
+
+### Ganancia real · *Disponible*
+
+- **Qué es:** lo que se vendió menos lo que costó cada producto el día de la venta (el costo congelado de cada renglón), y el margen ponderado por lo vendido (ganancia / ventas). No reemplaza al margen teórico de cada producto: lo complementa. Sin las ventas anuladas.
+- **Solo para el ADMIN** (§8): el colaborador no la ve en el panel ni en la API.
+- **Panel:** la tarjeta "Ganancia real" muestra hoy y la semana, con la cantidad de ventas, lo vendido y el margen, y enlaza al detalle. Aparece solo con el módulo de ventas prendido.
+- **Detalle** (`/ventas/ganancia`): hoy, la semana (hoy y los 6 días anteriores) o el mes (hoy y los 29 anteriores), en días de Argentina; ventas, costo, ganancia y margen; la comparación de la ganancia con el período anterior; y los 5 productos más vendidos y los 5 que más ganancia dejan.
+- **Reporte semanal** (ADR-009): con el módulo prendido, el PDF suma la sección "Ventas de la semana" y el mail, la ganancia real de la semana. Sin el módulo, no aparecen.
+- Contrato: `docs/api.md` §11 y §12. Detalle para el usuario: `docs/manual-usuario/09-ventas.md`.
 
 ### Fuera del módulo (Fase 2)
 

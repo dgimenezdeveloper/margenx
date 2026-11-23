@@ -25,6 +25,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/ventas/turnos` | Historial de turnos de caja con la diferencia de cada cierre (módulo opcional) | Redirige a `/login` | Todos los turnos | El abierto y los que abrió, cerró o en los que vendió |
 | `/ventas/turnos/:id` | Resumen imprimible del turno y del cierre (módulo opcional) | Redirige a `/login` | Cualquier turno | El abierto y los que abrió, cerró o en los que vendió |
 | `/ventas/turnos/:id/cerrar` | Cierre de caja: lo esperado, lo contado y la diferencia (módulo opcional) | Redirige a `/login` | Cierra el turno abierto | Cierra el turno abierto |
+| `/ventas/ganancia` | Ganancia real: ventas, costo, ganancia y margen del día, la semana o el mes (módulo opcional) | Redirige a `/login` | Acceso | Sin acceso (vuelve a Productos) |
 | `/perfil` | Perfil y configuración comercial | Redirige a `/login` | Margen objetivo global, estado de alertas y del reporte semanal (con su descarga) y Colaboradores | Consulta de cuenta (sin alertas, reporte ni Colaboradores) |
 | `/*` (Cualquier otra) | Página 404 (No encontrada) | Redirige a `/login` | Acceso con botón al Dashboard | Acceso con botón al Dashboard |
 
