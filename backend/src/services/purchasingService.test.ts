@@ -1231,3 +1231,62 @@ describe('purchasingService.getPurchasingMarginImpact & getIngredientMarginImpac
     });
   });
 });
+
+describe('margin-impact: aislamiento por cuenta y margen en $ ([RV476-I1], [RV476-I2])', () => {
+  type ConsultaImpacto = {
+    where: unknown;
+    select: { suppliers: { where: { supplier: unknown } }; products: { where: { product: unknown } } };
+  };
+
+  const harinaConAlternativa = {
+    id: 'ing-harina', name: 'Harina 000', unit: 'kg', currentCost: D('900.00'),
+    suppliers: [
+      { id: 'si-molino', packageSize: D('50.000'), packagePrice: D('45000.00'), isDefault: true, isQuarantined: false, supplier: { id: 'sup-molino', name: 'Molino Cañuelas', isActive: true } },
+      { id: 'si-centro', packageSize: D('25.000'), packagePrice: D('22000.00'), isDefault: false, isQuarantined: false, supplier: { id: 'sup-centro', name: 'Distribuidora del Centro', isActive: true } },
+    ],
+    products: [
+      { product: { id: 'prod-medialunas', name: 'Medialunas x 12', salePrice: D('6000.00'), minMarginPercent: D('35.00'), ingredients: [
+        { ingredientId: 'ing-harina', quantity: D('2.000'), ingredient: { id: 'ing-harina', currentCost: D('900.00') } },
+        { ingredientId: 'ing-manteca', quantity: D('0.250'), ingredient: { id: 'ing-manteca', currentCost: D('8600.00') } },
+      ] } },
+    ],
+  };
+
+  it('el resumen solo consulta insumos, presentaciones y productos de la cuenta del token', async () => {
+    ingredientFindManyMock.mockResolvedValue([]);
+
+    await getPurchasingMarginImpact('account-quimica');
+
+    const consulta = ingredientFindManyMock.mock.calls.at(-1)?.[0] as ConsultaImpacto;
+    expect(consulta.where).toEqual({ accountId: 'account-quimica' });
+    expect(consulta.select.suppliers.where.supplier).toMatchObject({ accountId: 'account-quimica' });
+    expect(consulta.select.products.where.product).toMatchObject({ accountId: 'account-quimica' });
+  });
+
+  it('el detalle busca el insumo, la presentación y los productos solo en la cuenta del token: el de otra cuenta da 404', async () => {
+    ingredientFindFirstMock.mockResolvedValue(null);
+
+    await expect(getIngredientMarginImpact('account-quimica', 'ing-harina', 'si-centro')).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Insumo no encontrado.',
+    });
+
+    const consulta = ingredientFindFirstMock.mock.calls.at(-1)?.[0] as ConsultaImpacto;
+    expect(consulta.where).toEqual({ id: 'ing-harina', accountId: 'account-quimica' });
+    expect(consulta.select.suppliers.where.supplier).toMatchObject({ accountId: 'account-quimica' });
+    expect(consulta.select.products.where.product).toMatchObject({ accountId: 'account-quimica' });
+  });
+
+  it('informa el margen en $ por unidad vendida, actual y con la alternativa, en el resumen y en el detalle', async () => {
+    ingredientFindManyMock.mockResolvedValue([harinaConAlternativa]);
+    ingredientFindFirstMock.mockResolvedValue(harinaConAlternativa);
+
+    const resumen = await getPurchasingMarginImpact('account-1');
+    const detalle = await getIngredientMarginImpact('account-1', 'ing-harina', 'si-centro');
+
+    // 6000 − 3950 = 2050 hoy; 6000 − 3910 = 2090 con la harina a $880/kg.
+    for (const medialunas of [resumen.byIngredient[0]!.products[0]!, detalle.products[0]!]) {
+      expect(medialunas).toMatchObject({ currentMarginAmount: '2050.00', projectedMarginAmount: '2090.00' });
+    }
+  });
+});
