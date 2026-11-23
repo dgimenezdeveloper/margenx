@@ -36,7 +36,7 @@ Solo aparecen los productos que se pueden vender: los que tienen receta y precio
 
 El ticket muestra el nombre del comercio, el número (por ejemplo, **N.º 000008**; es correlativo en tu comercio), la fecha y la hora, cada producto con su cantidad y su importe, el total, el medio de pago y la leyenda **"Comprobante no válido como factura"**. Arriba lleva el logo de MargenX y al pie, "Emitido con MargenX · margenx.tech". En la ticketera el logo sale en negro; en A4 y en el PDF, en color.
 
-- **Imprimir:** elegí el formato (**Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4**) y tocá **Imprimir**. Se imprime solo el ticket, sin el menú.
+- **Imprimir:** elegí el formato (**Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4**) y tocá **Imprimir**. Se imprime solo el ticket, sin el menú. Con la ticketera, elegila en la ventana de impresión: el papel es el rollo de la impresora.
 - **Descargar PDF:** abre la ventana de impresión en tamaño A4. Ahí elegí **Guardar como PDF**.
 - **Compartir por WhatsApp:** abre WhatsApp con el texto del ticket listo para mandarle al cliente.
 - **Nueva venta:** vuelve a la pantalla de cobro.
@@ -70,6 +70,8 @@ Al terminar el turno, contá la plata y cerrá la caja. Lo puede hacer el Admini
    - **Justo** (en verde): coincide.
 5. Tocá **Cerrar turno** y confirmá. **Es definitivo:** en ese turno ya no se puede vender ni anular. Para seguir cobrando, abrí un turno nuevo.
 
+   Si mientras contabas otra persona cobró o anuló una venta, la app no cierra: actualiza lo esperado, te avisa y la diferencia se recalcula. Transferencia y Mercado Pago se actualizan solos si no los habías corregido. Revisá lo contado y volvé a tocar **Cerrar turno**.
+
 Por ejemplo: si abriste con **$10.000**, vendiste **$25.000** en efectivo y al cerrar contás **$34.500**, lo esperado es $35.000 y la diferencia es **Falta −$500,00**.
 
 **Tené en cuenta:**
@@ -84,7 +86,7 @@ Por ejemplo: si abriste con **$10.000**, vendiste **$25.000** en efectivo y al c
 
 Al cerrar se abre el **resumen del turno** con el comercio, quién abrió y cerró y cuándo, el monto inicial, las ventas, las anuladas, lo vendido, el arqueo de cada medio de pago y la diferencia total.
 
-- **Imprimir:** elegí **Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4** y tocá **Imprimir** (o guardalo como PDF desde la ventana de impresión).
+- **Imprimir:** elegí **Ticketera 58 mm**, **Ticketera 80 mm** u **Hoja A4** y tocá **Imprimir** (o guardalo como PDF desde la ventana de impresión). Con la ticketera, elegila en la ventana de impresión: el papel es el rollo de la impresora.
 - **Ver las ventas del turno:** abre el historial con solo las ventas de ese turno.
 
 En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más reciente primero, con lo vendido y la diferencia de cada cierre. El Administrador ve todos; el Colaborador, el turno abierto y los que abrió, cerró o en los que vendió.
