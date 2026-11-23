@@ -584,7 +584,10 @@ paths:
     post:
       tags: [Interno - n8n]
       summary: '[Uso interno] Ingesta masiva de listas de precios'
-      description: Endpoint de uso interno consumido por n8n. Límite 5 MB y hasta 5000 ítems.
+      description: >-
+        Endpoint de uso interno consumido por n8n. Límite 5 MB y hasta 5000 ítems. El precio se redondea a 2
+        decimales (ROUND_HALF_UP), como la columna packagePrice, antes de compararlo y guardarlo: un precio igual al
+        vigente con más decimales cuenta como unchanged.
       security: [{ webhookSecret: [] }]
       responses:
         '200': { description: Resumen del lote procesado }
