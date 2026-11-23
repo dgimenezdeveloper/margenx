@@ -1779,4 +1779,81 @@ describe('PUT /api/ingredients/:id - costo manual con presentación predetermina
     expect(res.body.error).toMatch(/defaultPresentationAction/);
     expect(updateMock).not.toHaveBeenCalled();
   });
+
+  it('con un bulto de 0,5 kg, actualizar la presentación redondea el medio centavo hacia arriba y guarda el costo que da el bulto', async () => {
+    // Pan de manteca de 0,5 kg a $6.045 ($12.090/kg). 12.090,25 × 0,5 = 6.045,125 → 6.045,13 (ROUND_HALF_UP; con
+    // redondeo bancario daría 6.045,12). Ese bulto da 6.045,13 / 0,5 = 12.090,26 por kg: es el costo que se guarda,
+    // así el insumo y su presentación predeterminada coinciden (ADR-005, ADR-011).
+    const applySpy = vi.spyOn(marginCalculator, 'applyIngredientCostChange');
+    findFirstMock.mockResolvedValue(
+      harinaConPredeterminada({
+        name: 'Manteca en bloque mayorista',
+        currentCost: new Prisma.Decimal('12090.00'),
+        suppliers: [{ ...presentacionMolinera, packageSize: new Prisma.Decimal('0.500'), packagePrice: new Prisma.Decimal('6045.00') }],
+      })
+    );
+
+    const res = await guardar({ name: 'Manteca en bloque mayorista', currentCost: '12090.25', defaultPresentationAction: 'update-presentation' });
+
+    expect(res.status).toBe(200);
+    const arg = supplierIngredientUpdateMock.mock.calls[0]![0] as { data: { packagePrice: Prisma.Decimal } };
+    expect(arg.data.packagePrice.toFixed(2)).toBe('6045.13');
+    const data = (updateMock.mock.calls[0]![0] as { data: { currentCost: Prisma.Decimal } }).data;
+    expect(data.currentCost.toFixed(2)).toBe('12090.26');
+    expect((applySpy.mock.calls[0]![3] as Prisma.Decimal).toFixed(2)).toBe('12090.26');
+    applySpy.mockRestore();
+  });
+
+  it('si el precio del bulto superaría $99.999.999,99, responde 422 sin guardar nada', async () => {
+    // Bolsa de 25 kg: 4.000.000 × 25 = 100.000.000, que no entra en el precio del bulto (Decimal(10, 2)).
+    findFirstMock.mockResolvedValue(harinaConPredeterminada());
+
+    const res = await guardar({ currentCost: '4000000', defaultPresentationAction: 'update-presentation' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/precio del bulto no puede superar/);
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('si el precio del bulto daría $0,00, responde 422 sin guardar nada', async () => {
+    // Bulto de 0,1 kg: 0,01 × 0,1 = 0,001 → 0,00.
+    findFirstMock.mockResolvedValue(
+      harinaConPredeterminada({
+        suppliers: [{ ...presentacionMolinera, packageSize: new Prisma.Decimal('0.100'), packagePrice: new Prisma.Decimal('90.00') }],
+      })
+    );
+
+    const res = await guardar({ currentCost: '0.01', defaultPresentationAction: 'update-presentation' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/precio del bulto/);
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['update-presentation', 'clear-default'])(
+    'con un costo igual al de la presentación, la acción "%s" no toca la presentación',
+    async (accion) => {
+      findFirstMock.mockResolvedValue(harinaConPredeterminada({ currentCost: new Prisma.Decimal('880.00') }));
+
+      const res = await guardar({ currentCost: '900', defaultPresentationAction: accion });
+
+      expect(res.status).toBe(200);
+      expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['update-presentation', 'clear-default'])(
+    'con el mismo costo (solo cambia el nombre), la acción "%s" no toca la presentación',
+    async (accion) => {
+      findFirstMock
+        .mockResolvedValueOnce(harinaConPredeterminada({ currentCost: new Prisma.Decimal('950.00') }))
+        .mockResolvedValueOnce(null);
+
+      const res = await guardar({ name: 'Harina 000 Olavarriense x 25', currentCost: '950', defaultPresentationAction: accion });
+
+      expect(res.status).toBe(200);
+      expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+    }
+  );
 });
