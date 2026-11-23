@@ -253,7 +253,7 @@ export default function ProductDetailPage() {
               {!isCollaborator && (
                 <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div><h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">Eliminar este producto</h3><p className="text-xs text-rose-600 dark:text-rose-400">Se borrará la ficha técnica y todas sus relaciones.</p></div>
+                    <div><h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">Eliminar este producto</h3><p className="text-xs text-rose-700 dark:text-rose-400">Se borrará la ficha técnica y todas sus relaciones.</p></div>
                     <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"><Trash2 className="size-4" /> Eliminar Producto</button>
                   </div>
                 </section>

@@ -180,6 +180,20 @@ npm run test:e2e
 ```
 Necesita el backend y el frontend corriendo contra una base con el seed cargado (`npx prisma db seed` en `backend/`).
 
+### Lighthouse (LHCI, a 360 px)
+
+`lighthouserc.json` audita las páginas públicas (`/`, `/login`, `/instalar` y `/privacidad`) sobre el build servido con `vite preview`: celular de 360 × 640 px, 4G lenta simulada y la mediana de tres corridas (#398). Las metas (90 o más en Performance, Accessibility, Best Practices y SEO) van como advertencia: no cortan el comando ni el CI.
+
+```bash
+npm run build
+npx --yes @lhci/cli@0.16.1 autorun   # el reporte queda en lhci-report/ (ignorado en git)
+```
+
+- En el CI corre el job **Lighthouse CI (360 px, no bloquea)**, que no es un check requerido, y sube el reporte como artefacto `lighthouse-360px`. Se decide bloquear cuando la medición sea estable.
+- `@lhci/cli` se usa con `npx` y la versión fija, sin agregarlo a `package.json`: sus dependencias suman vulnerabilidades moderadas de desarrollo que no hacen falta en el lockfile.
+- Con la clave de la instancia de desarrollo de Clerk, Best Practices queda en 77: Clerk deja una cookie de terceros (`_cfuvid`, de `accounts.dev`). En producción Clerk usa `clerk.margenx.tech`, de primera parte, y ese punto no se pierde. Resultados y desvíos: `docs/qa/reporte-calidad-sprint7.md` §3.
+- Las páginas con sesión no entran en LHCI (necesitan Clerk y la API). Se miden a mano con Chrome (DevTools → **Lighthouse** → *Mobile*), con la sesión iniciada, o con el procedimiento del reporte de calidad.
+
 ## Instalabilidad PWA
 
 La aplicación está configurada como una Progressive Web App (PWA) instalable mediante `manifest.webmanifest`, íconos adaptativos (maskable) y meta-etiquetas optimizadas para Android e iOS Safari.

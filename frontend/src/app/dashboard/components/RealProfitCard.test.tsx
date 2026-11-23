@@ -83,4 +83,25 @@ describe('RealProfitCard: ganancia real en el panel (#450)', () => {
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByRole('group', { name: 'Semana' })).toHaveTextContent('$38.000,00')
   })
+
+  it('mientras carga reserva el mismo alto que los bloques cargados, así el panel no salta (#398, CLS a 360 px)', async () => {
+    const pendientes: Array<(valor: SalesSummary) => void> = []
+    vi.mocked(salesSummaryService.get).mockImplementation(() => new Promise((resolve) => pendientes.push(resolve)))
+    renderCard()
+
+    const cargando = screen.getByLabelText('Cargando la ganancia real')
+    const esqueletos = Array.from(cargando.children)
+    expect(esqueletos).toHaveLength(2)
+    for (const bloque of esqueletos) expect(bloque).toHaveClass('min-h-31')
+
+    expect(pendientes).toHaveLength(2)
+    pendientes[0]!(resumen({ period: 'day', salesCount: 0, salesTotal: '0.00', costTotal: '0.00', profit: '0.00', marginPercent: null }))
+    pendientes[1]!(resumen())
+    const tarjeta = await screen.findByRole('region', { name: 'Ganancia real' })
+    // Con ventas (tres renglones a 360 px) o sin ventas, cada bloque mide al menos lo mismo que el esqueleto.
+    const grupos = await within(tarjeta).findAllByRole('group')
+    expect(grupos).toHaveLength(2)
+    for (const grupo of grupos) expect(grupo).toHaveClass('min-h-31')
+  })
 })
+
