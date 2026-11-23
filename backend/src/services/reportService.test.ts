@@ -24,6 +24,15 @@ vi.mock('../lib/prisma', () => ({
   },
 }));
 
+const getAccountFeaturesMock = vi.fn();
+const salesSummaryBetweenMock = vi.fn();
+vi.mock('../lib/features', () => ({
+  getAccountFeatures: (...args: unknown[]) => getAccountFeaturesMock(...args),
+}));
+vi.mock('./salesSummaryService', () => ({
+  salesSummaryBetween: (...args: unknown[]) => salesSummaryBetweenMock(...args),
+}));
+
 vi.mock('./purchasingService', () => ({
   getPurchasingSuggestions: (...args: unknown[]) => getPurchasingSuggestionsMock(...args),
 }));
@@ -69,6 +78,7 @@ beforeEach(() => {
   priceHistoryFindManyMock.mockResolvedValue([]);
   supplierIngredientFindManyMock.mockResolvedValue([]);
   getPurchasingSuggestionsMock.mockResolvedValue(EMPTY_SUGGESTIONS);
+  getAccountFeaturesMock.mockResolvedValue({ sales: false });
 });
 
 describe('getActiveReportAccounts', () => {
@@ -468,3 +478,34 @@ describe('buildWeeklyMarginReport - aislamiento por cuenta (#390)', () => {
     expect(getPurchasingSuggestionsMock).toHaveBeenCalledWith(BASE_ACCOUNT.id);
   });
 });
+
+describe('buildWeeklyMarginReport - sección de ventas (#450)', () => {
+  const semana = {
+    salesCount: 41,
+    salesTotal: '100000.00',
+    costTotal: '62000.00',
+    profit: '38000.00',
+    marginPercent: '38.00',
+    topSold: [{ productId: 'p-pan', productName: 'Pan flauta — 1 kg', quantity: 10, salesTotal: '46000.00', profit: '14000.00', marginPercent: '30.43' }],
+    topProfit: [{ productId: 'p-medialunas', productName: 'Medialunas de manteca — docena (12 unidades)', quantity: 4, salesTotal: '54000.00', profit: '24000.00', marginPercent: '44.44' }],
+  };
+
+  it('Escenario "Reporte sin módulo": una cuenta sin el módulo de ventas no trae la sección ni consulta las ventas', async () => {
+    const report = await buildWeeklyMarginReport(BASE_ACCOUNT.id, { from: FROM, to: TO });
+
+    expect(report).not.toHaveProperty('sales');
+    expect(getAccountFeaturesMock).toHaveBeenCalledWith(BASE_ACCOUNT.id);
+    expect(salesSummaryBetweenMock).not.toHaveBeenCalled();
+  });
+
+  it('con el módulo, trae la ganancia real del mismo período del reporte', async () => {
+    getAccountFeaturesMock.mockResolvedValue({ sales: true });
+    salesSummaryBetweenMock.mockResolvedValue(semana);
+
+    const report = await buildWeeklyMarginReport(BASE_ACCOUNT.id, { from: FROM, to: TO });
+
+    expect(salesSummaryBetweenMock).toHaveBeenCalledWith(BASE_ACCOUNT.id, FROM, TO);
+    expect(report.sales).toEqual(semana);
+  });
+});
+
