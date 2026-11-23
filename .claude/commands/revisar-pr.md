@@ -127,7 +127,7 @@ Registrá **por cada comando**: paquete, comando, resultado (OK / FALLA), error 
 2. `npx prisma validate` y `npx prisma generate`
 3. `npm run build` (TypeScript estricto; mismo paso que `Backend Build & Tests`)
 4. `npm test` (Vitest)
-5. `npm run test:coverage`: el umbral de 90 % de líneas está en `backend/vitest.config.mts` (el comando falla si no se alcanza). Registrá el % de líneas total y el de los archivos tocados. El CI todavía no corre la cobertura del backend (issue #277): este resultado es evidencia propia de la review.
+5. `npm run test:coverage`: el umbral de 90 % de líneas está en `backend/vitest.config.mts` (el comando falla si no se alcanza). Registrá el % de líneas total y el de los archivos tocados. El job `Backend Build & Tests` también la aplica (artefacto `cobertura-backend`): este resultado la confirma en el commit revisado.
 
 ### 6.2. Frontend (`WT/frontend`) — siempre
 

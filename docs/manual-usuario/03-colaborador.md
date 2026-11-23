@@ -19,8 +19,8 @@ MargenX implementa un blindaje de doble capa:
 | Módulo o Vista | Administrador (Dueño) | Colaborador (Mostrador / Salón) |
 |---|:---:|:---:|
 | **Landing pública (`/`)** | Redirige al Dashboard | Redirige al Dashboard |
-| **Dashboard (`/dashboard`)** | Métricas consolidadas, KPIs de riesgo e histograma | Solo catálogo monitoreado con precios de venta al público |
-| **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo Producto* | Solo nombres y precios de venta finales cobrados al público |
+| **Dashboard (`/dashboard`)** | Métricas consolidadas, KPIs de riesgo e histograma | Solo catálogo monitoreado con precios de venta al público (solo productos a la venta) |
+| **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo Producto*, borradores incluidos | Solo nombres y precios de venta finales cobrados al público, de los productos a la venta |
 | **Ficha Técnica (`/productos/:id`)** | Ficha completa, desglose de recetas, cantidades y simulador | Ficha de lectura: nombre, precio de venta y lista conceptual de insumos (sin cantidades ni costos) |
 | **Alta de producto (`/productos/nuevo`)** | Constructor de recetas con simulador | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** vuelve a `/productos` con aviso |
@@ -29,6 +29,10 @@ MargenX implementa un blindaje de doble capa:
 | **Compras sugeridas (`/compras`)** | Sugerencias y pedidos a proveedores | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Ventas (`/ventas`, módulo opcional)** | Cobra, ve todas las ventas del comercio, anula cualquiera del turno abierto, y abre y cierra la caja | Cobra y ve sus ventas y sus tickets, sin costos ni márgenes; anula las suyas con el turno abierto; abre y cierra la caja y ve el arqueo de sus turnos ([Ventas, ticket y caja](09-ventas.md)) |
 | **Perfil (`/perfil`)** | Configuración de margen, estado de las alertas automáticas y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
+
+### Solo productos a la venta
+
+El colaborador ve únicamente los productos que se venden: los que tienen receta y un precio de venta mayor que $0. Los **borradores** (productos que el dueño todavía no terminó de cargar, que pueden tener precio $0) no aparecen ni en el panel ni en el catálogo, y su ficha no se abre, así nadie le dice a un cliente que algo cuesta $0. Si todavía no hay ningún producto a la venta, el catálogo dice **"Todavía no hay productos a la venta"** y el panel, "Todavía no hay productos a la venta.".
 
 ### Aviso al abrir una pantalla del administrador
 

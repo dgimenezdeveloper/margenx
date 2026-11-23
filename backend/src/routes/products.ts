@@ -132,6 +132,15 @@ function parseBody(body: ProductBody) {
   return { name, salePrice, minMarginPercent, ingredients };
 }
 
+/**
+ * El COLLABORATOR solo ve lo que se vende: productos con receta y precio mayor que 0 (#428).
+ * Un borrador (sin receta) puede tener precio $0, y el empleado podría leérselo a un cliente.
+ * El filtro va en la consulta, así `meta.total` y la paginación cuentan solo lo que se ve.
+ */
+function forSaleFilter(role: string | undefined): Prisma.ProductWhereInput {
+  return role === 'COLLABORATOR' ? { ingredients: { some: {} }, salePrice: { gt: 0 } } : {};
+}
+
 /* ------------------------------------------------------------------ */
 /* GET /api/products                                                  */
 /* ------------------------------------------------------------------ */
@@ -146,6 +155,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
   const where: Prisma.ProductWhereInput = {
     accountId,
+    ...forSaleFilter(req.user!.role),
     ...(search
       ? {
           OR: [
@@ -243,7 +253,8 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   if (!id) throw new AppError('ID de producto inválido.', 400);
 
   const product = await prisma.product.findFirst({
-    where: { id, accountId },
+    // Para el COLLABORATOR, un borrador responde 404 como un producto de otra cuenta (#428).
+    where: { id, accountId, ...forSaleFilter(req.user!.role) },
     omit: { searchName: true },
     include: { ingredients: { include: { ingredient: true } } },
   });

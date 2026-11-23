@@ -168,6 +168,9 @@ export function MonitoredCatalogGrid({
                 Quitar filtro y ver todos
               </button>
             </>
+          ) : isCollaborator ? (
+            // El colaborador solo recibe productos con receta y precio (#428).
+            'Todavía no hay productos a la venta.'
           ) : (
             'Aún no tenés productos registrados en el catálogo.'
           )}

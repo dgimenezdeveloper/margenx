@@ -1109,3 +1109,78 @@ describe('Nombres de producto: formato original y unicidad case-insensitive', ()
     expect(firstUpdateData().name).toBe('Pan de Campo');
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* #428: el colaborador no ve borradores ni productos a $0            */
+/* ------------------------------------------------------------------ */
+describe('Productos a la venta para el COLLABORATOR (#428)', () => {
+  const A_LA_VENTA = { ingredients: { some: {} }, salePrice: { gt: 0 } };
+
+  it('Escenario "Colaborador sin borradores": la lista y el total solo cuentan productos con receta y precio', async () => {
+    setAuthRole('COLLABORATOR');
+    // Panadería: 3 con receta y precio (lo que devuelve la base con el filtro) de 5 en total.
+    productFindManyMock.mockResolvedValue([
+      { id: 'p1', name: 'Pan de campo 1 kg', salePrice: '4500.00', ingredients: [{ ingredientId: 'i1', quantity: '0.700' }] },
+      { id: 'p2', name: 'Medialunas de manteca x12', salePrice: '6000.00', ingredients: [{ ingredientId: 'i2', quantity: '0.300' }] },
+      { id: 'p3', name: 'Budín de limón', salePrice: '5200.00', ingredients: [{ ingredientId: 'i3', quantity: '0.250' }] },
+    ]);
+    productCountMock.mockResolvedValue(3);
+
+    const res = await request(buildApp()).get('/api/products?page=1&limit=20');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.meta).toEqual({ total: 3, page: 1, limit: 20, totalPages: 1 });
+    // El filtro va en la consulta: la lista y el conteo usan el mismo where, así la paginación cuenta bien.
+    const where = { accountId: 'account-1', ...A_LA_VENTA };
+    expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ where }));
+    expect(productCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it('el filtro se suma a la búsqueda por nombre, sin reemplazarla', async () => {
+    setAuthRole('COLLABORATOR');
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    await request(buildApp()).get('/api/products?search=pan');
+
+    const { where } = productFindManyMock.mock.calls[0]![0] as { where: Record<string, unknown> };
+    expect(where).toMatchObject({ accountId: 'account-1', ...A_LA_VENTA });
+    expect(where.OR).toBeDefined();
+  });
+
+  it('Escenario "ADMIN sin cambios": el ADMIN sigue recibiendo los borradores', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(5);
+
+    const res = await request(buildApp()).get('/api/products');
+
+    expect(res.body.meta.total).toBe(5);
+    expect(productCountMock).toHaveBeenCalledWith({ where: { accountId: 'account-1' } });
+  });
+
+  it('Escenario "Borrador por id": el COLLABORATOR recibe 404, igual que con un producto de otra cuenta', async () => {
+    setAuthRole('COLLABORATOR');
+    // Con el filtro en la consulta, la base no devuelve el borrador.
+    productFindFirstMock.mockResolvedValue(null);
+
+    const res = await request(buildApp()).get('/api/products/p-borrador');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Producto no encontrado.');
+    expect(productFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'p-borrador', accountId: 'account-1', ...A_LA_VENTA } })
+    );
+  });
+
+  it('el ADMIN abre un borrador por id como siempre', async () => {
+    productFindFirstMock.mockResolvedValue({ id: 'p-borrador', accountId: 'account-1', name: 'Torta de ricota', salePrice: '0.00' });
+
+    const res = await request(buildApp()).get('/api/products/p-borrador');
+
+    expect(res.status).toBe(200);
+    expect(productFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'p-borrador', accountId: 'account-1' } })
+    );
+  });
+});
