@@ -38,7 +38,7 @@ Recomendado para arrancar rápidamente si ya tenés tu lista de precios en Excel
    - **Válidas:** filas listas para ser importadas al catálogo.
    - **Repetidas:** insumos que ya existen en tu despensa o que se repiten dentro de la misma planilla. El sistema los omite para no alterar los costos vigentes.
    - **Con error:** filas que presentan problemas de formato (ej. unidades inexistentes o costos no numéricos), indicando el número exacto de fila para que puedas corregirlas.
-6. Tocá **Importar insumos**. El sistema confirmará cuántos insumos se crearon y cuántos fueron omitidos.
+6. Tocá **Importar insumos**. Al terminar, un aviso confirma el resultado, por ejemplo *"Se cargaron 12 insumos. 2 repetidos y 1 con error."*, y la lista se actualiza.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-carga-masiva-preview.webp | Modal de carga masiva en móvil mostrando las pestañas Válidas, Repetidas y Con error con sus contadores] -->
 
@@ -59,10 +59,10 @@ Pensado para **actualizar periódicamente los costos** de insumos que ya tenés 
 
 Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad de medida o actualizar manualmente el costo:
 
-1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha de edición.
+1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha **Editar insumo**.
 2. Modificá el **Nombre del insumo**. Si ingresás un nombre que ya existe en otro insumo de tu comercio (sin importar mayúsculas o minúsculas), MargenX te avisará directamente debajo del campo impidiendo guardar duplicados.
 3. Para cambiar la **Unidad de medida**, seleccioná la nueva opción (`kg`, `litro`, `unidad`).
-4. **Protección preventiva de recetas:** Si el insumo ya forma parte de recetas de productos, al presionar **Guardar Costo** se abrirá un diálogo de confirmación explicando que las cantidades numéricas guardadas en las recetas no se convertirán automáticamente (se preservará el número cargado). Deberás confirmar la acción y revisar las fichas técnicas afectadas para asegurar que las proporciones continúen siendo correctas.
+4. **Protección preventiva de recetas:** Si el insumo ya forma parte de recetas de productos, al presionar **Guardar cambios** se abrirá un diálogo de confirmación explicando que las cantidades numéricas guardadas en las recetas no se convertirán automáticamente (se preservará el número cargado). Deberás confirmar la acción y revisar las fichas técnicas afectadas para asegurar que las proporciones continúen siendo correctas.
 5. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-modal-edicion-insumo.webp | Ficha de insumo en edición con nombre, unidad, costo es-AR y bloque Se usa en] -->
@@ -74,7 +74,7 @@ Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad 
 Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se usa en**:
 
 - Muestra la cantidad total de productos cuya receta técnica utiliza esa materia prima.
-- Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y el precio de venta vigente al público.
+- Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y, rotulado como **Precio de venta**, el precio vigente al público del producto (no es un costo).
 - Al tocar cualquier producto de la lista, navegarás directamente hacia su ficha técnica para revisar o ajustar su formulación.
 - Si el insumo no forma parte de ninguna receta, la sección te informará claramente que no está siendo utilizado en productos activos.
 - Si un insumo está en más de 100 productos, la sección muestra los primeros 100 y avisa cuántos son en total.
@@ -88,9 +88,15 @@ Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se u
 Para auditar la evolución de precios de un insumo:
 
 1. Abrí la ficha del insumo y tocá el ícono del reloj (**Historial de precios**) en la esquina superior derecha.
-2. Se desplegará la línea de tiempo con cada variación registrada (costo anterior, costo nuevo, porcentaje de aumento o disminución y fecha exacta).
+2. Se desplegará la línea de tiempo con cada variación registrada (costo anterior, costo nuevo, porcentaje de aumento o disminución y fecha exacta). Cada costo dice por qué unidad es (por ejemplo, *$900,00/kg*): es la unidad actual del insumo, porque el historial no guarda la de cada cambio. Si cambiaste la unidad, los costos anteriores a ese cambio son de la unidad vieja.
 3. **Orden cronológico:** La lista muestra por defecto el cambio más reciente en primer lugar.
 4. Con el botón **Más recientes / Más antiguos**, podés alternar el orden de visualización según tu preferencia de análisis.
+
+---
+
+## Tarjeta "Variaciones recientes"
+
+Arriba de la lista, el Administrador ve cuántos precios de proveedores están retenidos en la cuarentena. Si esa consulta falla (por ejemplo, sin conexión), la tarjeta dice **No se pudo cargar** y ofrece **Reintentar**, en lugar de mostrar un 0 que parecería un dato. El Colaborador no ve esta tarjeta.
 
 ---
 

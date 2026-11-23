@@ -14,8 +14,8 @@ test.describe('TC-LAYOUT-360PX: Diálogos móviles y barra de producto sin desbo
     const sheet = page.getByRole('dialog')
     await expect(sheet).toBeVisible()
 
-    // 1. El título "Actualizar Costo" y el botón de cerrar deben ser completamente visibles en el viewport (sin quedar desbordados hacia arriba)
-    const title = sheet.getByRole('heading', { name: /Actualizar Costo/i })
+    // 1. El título "Editar insumo" y el botón de cerrar deben ser completamente visibles en el viewport (sin quedar desbordados hacia arriba)
+    const title = sheet.getByRole('heading', { name: /Editar insumo/i })
     await expect(title).toBeInViewport()
 
     const closeBtn = sheet.getByRole('button', { name: /Cerrar modal/i })
@@ -27,8 +27,8 @@ test.describe('TC-LAYOUT-360PX: Diálogos móviles y barra de producto sin desbo
     expect(box!.y).toBeGreaterThanOrEqual(0)
     expect(box!.height).toBeLessThanOrEqual(740)
 
-    // 3. El botón "Guardar Costo" está dentro del diálogo y accesible (fijo en el footer)
-    const saveBtn = sheet.getByRole('button', { name: /Guardar Costo/i })
+    // 3. El botón "Guardar cambios" está dentro del diálogo y accesible (fijo en el footer)
+    const saveBtn = sheet.getByRole('button', { name: /Guardar cambios/i })
     await expect(saveBtn).toBeInViewport()
 
     // 4. Captura de evidencia en resolución 360px
