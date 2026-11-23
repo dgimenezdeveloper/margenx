@@ -144,7 +144,7 @@ export function ProductAddIngredientModal({
                 </div>
                 <div className="w-28 sm:w-36">
                   <label htmlFor="recipe-unit-select" className="mb-2 block text-xs font-bold text-gray-600 dark:text-gray-300">Unidad</label>
-                  <select id="recipe-unit-select" value={recipeUnit} onChange={(e) => setRecipeUnit(e.target.value)} className="min-h-11 h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500">
+                  <select id="recipe-unit-select" value={recipeUnit} onChange={(e) => setRecipeUnit(e.target.value)} className="min-h-11 h-12 w-full cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-900 outline-none transition hover:bg-white focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:[color-scheme:dark] dark:hover:bg-gray-700 dark:focus:border-indigo-500">
                     {availableUnits.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>

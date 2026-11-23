@@ -316,4 +316,20 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
     await waitFor(() => expect(screen.queryByText('Error al actualizar el producto.')).not.toBeInTheDocument())
   })
+
+  it('Escenario "Aviso al crear" (#432): al eliminar, vuelve a la lista con el aviso para que se vea allá', async () => {
+    vi.mocked(productService.getById).mockResolvedValue(mockProduct)
+    vi.mocked(productService.delete).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    const router = renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Eliminar Producto/ }))
+    await user.click(await screen.findByRole('button', { name: 'Sí, eliminar' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/productos'))
+    expect(router.state.location.state).toEqual({
+      productNotice: { title: 'Producto eliminado correctamente.', type: 'success' },
+    })
+  })
 })
+
