@@ -127,11 +127,13 @@ describe('SupplierDeleteDialog', () => {
     expect(within(harina).getByText('Cód. HAR-000')).toBeInTheDocument()
     expect(within(integral).getByText('En cuarentena')).toBeInTheDocument()
 
+    // #434: una sola frase, sin repetir los nombres que ya están en la lista.
     expect(
       screen.getByText(
-        'Harina de trigo 000 conserva su costo actual, pero queda sin proveedor predeterminado hasta que elijas otro.'
+        'Los insumos en los que este proveedor es predeterminado mantienen su costo actual, pero quedan sin proveedor predeterminado hasta que elijas otro.'
       )
     ).toBeInTheDocument()
+    expect(screen.queryByText(/Harina de trigo 000 conserva/)).toBeNull()
     expect(screen.getByText('Las listas de precios de este proveedor ya no van a actualizar estos insumos.')).toBeInTheDocument()
     expect(screen.getByText(/1 precio en cuarentena se descarta/)).toBeInTheDocument()
   })

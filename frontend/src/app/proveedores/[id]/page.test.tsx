@@ -213,6 +213,9 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     await user.click(screen.getByRole('button', { name: 'Quitar presentación de Harina de trigo 000' }))
 
     expect(screen.getByRole('dialog')).toHaveTextContent('¿Quitar presentación de Harina de trigo 000?')
+    // #434: el modal no repite la presentación ni el precio, y Cancelar tiene hover en modo oscuro.
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('$18.406,25')
+    expect(screen.getByRole('button', { name: 'Cancelar' }).className).toContain('dark:hover:bg-gray-700')
     await user.click(screen.getByRole('button', { name: 'Sí, quitar' }))
 
     expect(
