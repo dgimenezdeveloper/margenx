@@ -2,29 +2,32 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import LandingPage from './app/page'
 import LoginPage from './app/login/page'
-import DashboardPage from './app/dashboard/page'
-import SuppliesPage from './app/insumos/page'
-import ProductsPage from './app/productos/page'
-import NewProductPage from './app/productos/nuevo/page'
-import ProductDetailPage from './app/productos/[id]/page'
-import ProfilePage from './app/perfil/page'
-import PrivacyPage from './app/privacidad/page'
-import InstallPage from './app/instalar/page'
-import SuppliersListPage from './app/proveedores/page'
-import SupplierDetailPage from './app/proveedores/[id]/page'
-import QuarantinePage from './app/proveedores/cuarentena/page'
-import PurchasesPage from './app/compras/page'
-import SalesHistoryPage from './app/ventas/page'
-import NewSalePage from './app/ventas/nueva/page'
-import SaleTicketPage from './app/ventas/[id]/ticket/page'
-import CashShiftsPage from './app/ventas/turnos/page'
-import RealProfitPage from './app/ventas/ganancia/page'
-import CashShiftSummaryPage from './app/ventas/turnos/[id]/page'
-import CloseCashShiftPage from './app/ventas/turnos/[id]/cerrar/page'
-import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
 import { FeatureRoute } from './components/feature-route'
+import { lazyPage } from './lib/lazyPage'
+
+// Cada pantalla se baja al abrirla (#398). La landing y el login van en el bundle principal: son la primera carga.
+const DashboardPage = lazyPage(() => import('./app/dashboard/page'))
+const SuppliesPage = lazyPage(() => import('./app/insumos/page'))
+const ProductsPage = lazyPage(() => import('./app/productos/page'))
+const NewProductPage = lazyPage(() => import('./app/productos/nuevo/page'))
+const ProductDetailPage = lazyPage(() => import('./app/productos/[id]/page'))
+const ProfilePage = lazyPage(() => import('./app/perfil/page'))
+const PrivacyPage = lazyPage(() => import('./app/privacidad/page'))
+const InstallPage = lazyPage(() => import('./app/instalar/page'))
+const SuppliersListPage = lazyPage(() => import('./app/proveedores/page'))
+const SupplierDetailPage = lazyPage(() => import('./app/proveedores/[id]/page'))
+const QuarantinePage = lazyPage(() => import('./app/proveedores/cuarentena/page'))
+const PurchasesPage = lazyPage(() => import('./app/compras/page'))
+const SalesHistoryPage = lazyPage(() => import('./app/ventas/page'))
+const NewSalePage = lazyPage(() => import('./app/ventas/nueva/page'))
+const SaleTicketPage = lazyPage(() => import('./app/ventas/[id]/ticket/page'))
+const CashShiftsPage = lazyPage(() => import('./app/ventas/turnos/page'))
+const RealProfitPage = lazyPage(() => import('./app/ventas/ganancia/page'))
+const CashShiftSummaryPage = lazyPage(() => import('./app/ventas/turnos/[id]/page'))
+const CloseCashShiftPage = lazyPage(() => import('./app/ventas/turnos/[id]/cerrar/page'))
+const NotFoundPage = lazyPage(() => import('./app/not-found/page'))
 
 export const router = createBrowserRouter([
   {
