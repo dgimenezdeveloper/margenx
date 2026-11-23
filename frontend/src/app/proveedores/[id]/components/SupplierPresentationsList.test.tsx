@@ -59,11 +59,10 @@ describe('SupplierPresentationsList - retoques visuales (#362)', () => {
     expect(nombre).toHaveAttribute('title', CACAO)
   })
 
-  it('las etiquetas Predeterminada y En cuarentena bajan de renglón en lugar de recortar el nombre', () => {
+  it('la etiqueta En cuarentena baja de renglón en lugar de recortar el nombre', () => {
     renderLista()
     const nombre = screen.getByText('Harina de trigo 000')
     expect(nombre.parentElement?.className.split(/\s+/)).toContain('flex-wrap')
-    expect(within(filaDe('Harina de trigo 000')).getByText('Predeterminada')).toBeInTheDocument()
   })
 
   it('la descripción de la lista del proveedor también tiene tooltip con el texto completo', () => {
@@ -72,10 +71,11 @@ describe('SupplierPresentationsList - retoques visuales (#362)', () => {
     expect(descripcion).toHaveAttribute('title', 'CACAO AMARGO ALCALINO EN POLVO BOLSA X 25 KG MARCA BAHIA')
   })
 
-  it('"Hacer predeterminada" responde al pasar el mouse en claro y en oscuro, muestra el foco y llama a la acción', async () => {
+  it('la estrella vacía "Usar como predeterminada" responde al pasar el mouse en claro y en oscuro, muestra el foco y llama a la acción', async () => {
     const user = userEvent.setup()
     const { onMakeDefault } = renderLista()
-    const boton = within(filaDe(CACAO)).getByRole('button', { name: 'Hacer predeterminada' })
+    const boton = within(filaDe(CACAO)).getByRole('button', { name: `Usar como predeterminada la presentación de ${CACAO}` })
+    expect(boton).toHaveAttribute('title', 'Usar como predeterminada')
     expect(boton.className.split(/\s+/)).toEqual(
       expect.arrayContaining([
         'hover:border-indigo-300',
@@ -89,8 +89,44 @@ describe('SupplierPresentationsList - retoques visuales (#362)', () => {
     expect(onMakeDefault).toHaveBeenCalledWith(presentaciones[0])
   })
 
-  it('la presentación que ya es predeterminada no ofrece el botón', () => {
+  it('la presentación que ya es predeterminada tiene la estrella llena y no ofrece el botón', () => {
     renderLista()
-    expect(within(filaDe('Harina de trigo 000')).queryByRole('button', { name: 'Hacer predeterminada' })).toBeNull()
+    const fila = filaDe('Harina de trigo 000')
+    expect(within(fila).getByRole('img', { name: 'Presentación predeterminada' })).toHaveAttribute('title', 'Presentación predeterminada')
+    expect(within(fila).queryByRole('button', { name: /Usar como predeterminada/ })).toBeNull()
+  })
+})
+
+describe('SupplierPresentationsList - Escenario "Tabla legible" (#434)', () => {
+  it('cada dato va en su columna, con los nombres unificados y la columna Acciones', () => {
+    renderLista()
+    const encabezado = screen.getByTestId('supplier-presentations-header')
+    expect([...encabezado.children].map((c) => c.textContent)).toEqual([
+      'Insumo',
+      'Presentación',
+      'Precio del bulto',
+      'Costo por unidad',
+      'Código',
+      'Acciones',
+    ])
+
+    const celdas = [...filaDe(CACAO).children].map((c) => c.textContent ?? '')
+    expect(celdas).toHaveLength(6)
+    expect(celdas[1]).toContain('25 kg')
+    expect(celdas[2]).toContain('$412.500,00')
+    expect(celdas[3]).toContain('$16.500,00')
+    expect(celdas[4]).toContain('CAC220')
+  })
+
+  it('una presentación sin código lo dice en su columna', () => {
+    render(
+      <SupplierPresentationsList
+        presentations={[{ ...presentaciones[0]!, supplierCode: null, rawDescription: null }]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onMakeDefault={vi.fn()}
+      />
+    )
+    expect([...filaDe(CACAO).children][4]).toHaveTextContent('Sin código')
   })
 })
