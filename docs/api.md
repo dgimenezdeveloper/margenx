@@ -666,7 +666,7 @@ Compara las presentaciones activas y no en cuarentena de cada insumo contra su p
 Devuelve el impacto proyectado en el margen de los productos con receta (excluye borradores) al cambiar a la presentación alternativa elegible más económica de cada insumo.
 - **Base y elegibilidad:** Compara contra `Ingredient.currentCost` (refleja ediciones manuales del costo). Entra un insumo solo si tiene al menos una presentación alternativa activa, no en cuarentena, no predeterminada y con `unitCost < currentCost`. Ante empate de `unitCost`, desempata por menor `packagePrice`, nombre del proveedor y `id`.
 - **Impacto aislado (un cambio por vez):** Para cada producto con receta que usa el insumo, proyecta el costo de receta y el margen reemplazando únicamente ese insumo y dejando el resto con su `currentCost`. Usa `Prisma.Decimal` con redondeo `ROUND_HALF_UP` por renglón, idéntico al recálculo real al confirmar el cambio de proveedor predeterminado.
-- **Campos de margen:** Informa `currentMarginPercent` y `projectedMarginPercent` (`%`); el margen nominal en `$` por unidad se obtiene directamente como `salePrice - currentRecipeCost` / `salePrice - projectedRecipeCost`.
+- **Campos de margen:** por cada producto, el margen por unidad vendida hoy y con la alternativa, en `$` (`currentMarginAmount` y `projectedMarginAmount`, es decir `salePrice` menos el costo de receta) y en `%` (`currentMarginPercent` y `projectedMarginPercent`). Los cuatro salen de `marginCalculator.ts`, con el mismo redondeo que el recálculo real.
 - **`summary`:** `ingredientsWithAlternative`, `productsAffected` (productos distintos entre todos los insumos) y `productsLeavingRiskOrLoss` (productos distintos que pasan de `risk` o `loss` a `target` o `surplus` con al menos uno de los cambios).
 - **Orden:** Insumos ordenados por `productsLeavingRiskOrLossCount` descendente, mayor suba de margen porcentual entre sus productos, mayor `unitCostDifference` y nombre. Dentro de cada insumo, productos ordenados por suba de margen descendente y nombre.
 - **Respuesta 200:**
@@ -704,6 +704,8 @@ Devuelve el impacto proyectado en el margen de los productos con receta (excluye
             "minMarginPercent": "35.00",
             "currentRecipeCost": "3950.00",
             "projectedRecipeCost": "3810.00",
+            "currentMarginAmount": "2050.00",
+            "projectedMarginAmount": "2190.00",
             "currentMarginPercent": "34.17",
             "projectedMarginPercent": "36.50",
             "currentBucket": "risk",
@@ -751,6 +753,8 @@ Evalúa el mismo cálculo de impacto para una presentación alternativa específ
         "minMarginPercent": "35.00",
         "currentRecipeCost": "3950.00",
         "projectedRecipeCost": "3810.00",
+        "currentMarginAmount": "2050.00",
+        "projectedMarginAmount": "2190.00",
         "currentMarginPercent": "34.17",
         "projectedMarginPercent": "36.50",
         "currentBucket": "risk",
