@@ -428,7 +428,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 
 ## 13. Ventas, caja y ganancia real (módulo opcional)
 
-**Fuente:** ADR-010. **Estado:** el control de módulos y el modelo de datos están *Disponibles*. La venta, la caja y la ganancia real están *Planificadas* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
+**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos y la venta con ticket están *Disponibles*. La caja por turnos y la ganancia real están *Planificadas* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
 
 ### El problema
 
@@ -439,7 +439,7 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - Un módulo está prendido para una cuenta si tiene una **excepción** que lo prende (`AccountFeature`), o si no tiene excepción y su **plan** lo trae. La excepción manda en los dos sentidos.
 - Hoy ningún plan trae módulos. Qué plan incluye las ventas se decide en la v1.2, con los planes pagos: es una *propuesta* abierta. Mientras tanto, las excepciones se cargan con el seed de la Demo (`docs/runbook-operacion.md`).
 - Con el módulo apagado, las rutas `/api/sales` y `/api/cash-shifts` responden **404**, como si no existieran.
-- `GET /api/auth/me` informa los módulos en `user.features` (`docs/api.md` §3). El frontend los lee con el hook `useFeatures`, que usa el menú "Ventas" de la venta rápida (*Planificado*) para mostrarse solo con el módulo prendido.
+- `GET /api/auth/me` informa los módulos en `user.features` (`docs/api.md` §3). El frontend los lee con el hook `useFeatures`: el menú "Ventas" y las pantallas `/ventas` solo existen con el módulo prendido (si no, la página 404).
 
 ### Reglas del módulo de ventas
 
@@ -451,6 +451,15 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Baja de un colaborador** (ADR-008): sus ventas y turnos quedan, sin usuario.
 - **Colaborador:** vende y ve los montos de venta y el arqueo de su turno, pero **nunca costos ni márgenes** (§8).
 - **Ganancia real:** ventas menos costo congelado, y el margen ponderado por lo vendido (ganancia / ventas), sin las ventas anuladas.
+
+### Venta rápida y ticket · *Disponible*
+
+- **Quién vende:** ADMIN y COLLABORATOR, desde `/ventas/nueva`: productos con búsqueda, cantidades con + y −, total en es-AR, medio de pago y **Cobrar**. Solo se ofrecen y se aceptan productos con receta y precio mayor a $0 (la API rechaza un borrador o un precio en $0 con 422).
+- **Qué guarda:** en una transacción, el número de ticket siguiente de la cuenta y, en cada renglón, el precio y el costo vigentes del producto y su margen (`Prisma.Decimal`, `ROUND_HALF_UP`). El precio y el costo salen siempre de la base, nunca del navegador. Sin turno abierto, responde 409 y la pantalla ofrece abrir el turno.
+- **El ticket** (`/ventas/:id/ticket`): comercio, fecha y hora de Argentina, número, ítems, total, medio de pago y la leyenda no fiscal, con el logo de MargenX arriba y la firma "Emitido con MargenX · margenx.tech" al pie (también en el texto de WhatsApp). Se imprime en ticketera de 58 u 80 mm o en A4, se guarda como PDF desde la ventana de impresión del navegador y se comparte por WhatsApp (enlace `wa.me` con el texto del ticket).
+- **Historial** (`/ventas`): las ventas del día o todas, paginadas. El ADMIN ve las de la cuenta; el colaborador, solo las suyas, y nunca recibe costos ni márgenes.
+- **Anulación:** con motivo, sin borrar. El ADMIN anula cualquier venta; el colaborador, las suyas mientras el turno de la venta siga abierto.
+- Contrato: `docs/api.md` §12. Detalle para el usuario: `docs/manual-usuario/09-ventas.md`.
 
 ### Fuera del módulo (Fase 2)
 

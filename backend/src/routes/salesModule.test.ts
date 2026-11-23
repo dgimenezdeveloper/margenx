@@ -96,10 +96,10 @@ describe('Módulo de ventas prendido', () => {
     db.findUnique.mockResolvedValue(MODULE_ON);
   });
 
-  it('pasa la compuerta del módulo: las rutas llegan con la venta y la caja', async () => {
-    const res = await request(buildApp()).get('/api/sales');
+  it('pasa la compuerta del módulo: las rutas de la caja llegan a su router', async () => {
+    const res = await request(buildApp()).get('/api/cash-shifts/current');
 
-    // Sin rutas todavía: Express responde su 404 por defecto, no el de la compuerta.
+    // Las rutas de turnos llegan con #449: Express responde su 404 por defecto, no el de la compuerta.
     expect(res.status).toBe(404);
     expect(res.body).not.toEqual({ error: 'Recurso no encontrado.' });
     expect(db.findUnique).toHaveBeenCalledWith(accountQuery('acc-panaderia-central'));
