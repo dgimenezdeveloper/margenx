@@ -297,10 +297,10 @@ describe('PurchasesPage (/compras)', () => {
     renderPage()
 
     await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    const makeDefaultBtn = screen.getByRole('button', { name: /Hacer predeterminada/i })
+    const makeDefaultBtn = screen.getByRole('button', { name: /Usar como predeterminada/i })
     fireEvent.click(makeDefaultBtn)
 
-    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar proveedor predeterminado?' })
+    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
     expect(within(dialog).getByText('Distribuidora del Centro')).toBeInTheDocument()
 
     const confirmBtn = within(dialog).getByRole('button', { name: 'Confirmar cambio' })
@@ -577,7 +577,7 @@ describe('PurchasesPage (/compras)', () => {
     Object.defineProperty(window, 'print', { value: originalPrint, configurable: true, writable: true })
   })
 
-  it('si falla "Hacer predeterminada" avisa el error, no recarga y deja el diálogo abierto', async () => {
+  it('si falla "Usar como predeterminada" avisa el error, no recarga y deja el diálogo abierto', async () => {
     vi.mocked(supplierService.addPackaging).mockRejectedValueOnce(
       new ApiError('La presentación está en cuarentena', 409)
     )
@@ -585,12 +585,12 @@ describe('PurchasesPage (/compras)', () => {
     renderPage()
 
     await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.click(screen.getByRole('button', { name: /Hacer predeterminada/i }))
-    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar proveedor predeterminado?' })
+    fireEvent.click(screen.getByRole('button', { name: /Usar como predeterminada/i }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cambio' }))
 
     expect(await screen.findByText('La presentación está en cuarentena')).toBeInTheDocument()
     expect(purchasingService.getSuggestions).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('dialog', { name: '¿Cambiar proveedor predeterminado?' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })).toBeInTheDocument()
   })
 })

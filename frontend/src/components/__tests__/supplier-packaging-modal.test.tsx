@@ -117,19 +117,19 @@ describe('SupplierPackagingModal', () => {
       expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
 
-    const checkbox = screen.getByLabelText(/Marcar como proveedor predeterminado/i)
+    const checkbox = screen.getByLabelText(/Usar como presentación predeterminada/i)
     expect(checkbox).toBeChecked()
 
     fireEvent.click(checkbox)
     expect(checkbox).not.toBeChecked()
 
-    const submitBtn = screen.getByRole('button', { name: /Actualizar Empaque/i })
+    const submitBtn = screen.getByRole('button', { name: /Guardar presentación/i })
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
       expect(
         screen.getByText(
-          /No podés quitar el proveedor predeterminado sin asignar otro/i
+          /No podés quitar la presentación predeterminada sin elegir otra/i
         )
       ).toBeInTheDocument()
     })
@@ -309,10 +309,10 @@ describe('SupplierPackagingModal', () => {
     const sizeInput = screen.getByLabelText(/Tamaño del bulto/i)
     fireEvent.change(sizeInput, { target: { value: '' } })
 
-    const priceInput = screen.getByLabelText(/Precio total del bulto/i)
+    const priceInput = screen.getByLabelText(/Precio del bulto/i)
     fireEvent.change(priceInput, { target: { value: '' } })
 
-    const submitBtn = screen.getByRole('button', { name: /Asociar Empaque/i })
+    const submitBtn = screen.getByRole('button', { name: /Asociar presentación/i })
     expect(submitBtn).toBeEnabled()
     fireEvent.click(submitBtn)
 
@@ -322,7 +322,7 @@ describe('SupplierPackagingModal', () => {
         screen.getByText(/Ingresá una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Ingresá un precio válido|El precio del empaque debe ser mayor a 0/i)
+        screen.getByText(/Ingresá un precio válido|El precio del bulto debe ser mayor a 0/i)
       ).toBeInTheDocument()
     })
 
@@ -381,12 +381,55 @@ describe('SupplierPackagingModal', () => {
       await waitFor(() => expect(desplegable).toHaveTextContent('Distribuidora MarJuanC Alimentos'))
 
       await user.type(screen.getByLabelText(/Tamaño del bulto/i), '25')
-      await user.type(screen.getByLabelText(/Precio total del bulto/i), '19000')
-      await user.click(screen.getByRole('button', { name: /Asociar Empaque/i }))
+      await user.type(screen.getByLabelText(/Precio del bulto/i), '19000')
+      await user.click(screen.getByRole('button', { name: /Asociar presentación/i }))
 
       await waitFor(() => expect(supplierService.addPackaging).toHaveBeenCalledTimes(1))
       expect(vi.mocked(supplierService.addPackaging).mock.calls[0][1]).toBe('sup-3')
       expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+
+    it('Escenario "Código de artículo en el alta" (#434): la presentación nueva queda con el código', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      vi.mocked(supplierService.addPackaging).mockResolvedValue({
+        unitCost: 760,
+        supplierIngredient: { ...mockSupplierConnection, id: 'conn-4', supplierId: 'sup-2', supplierCode: 'MC-990', isDefault: false },
+      } as Awaited<ReturnType<typeof supplierService.addPackaging>>)
+      const user = userEvent.setup()
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      await user.type(screen.getByLabelText(/Tamaño del bulto/i), '25')
+      await user.type(screen.getByLabelText(/Precio del bulto/i), '19000')
+      await user.type(screen.getByLabelText(/Código de artículo/i), '  MC-990 ')
+      await user.click(screen.getByRole('button', { name: /Asociar presentación/i }))
+
+      await waitFor(() => expect(supplierService.addPackaging).toHaveBeenCalledTimes(1))
+      expect(vi.mocked(supplierService.addPackaging).mock.calls[0]![2]).toMatchObject({ supplierCode: 'MC-990' })
+    })
+
+    it('al editar, el código que ya tenía viene cargado y se vuelve a mandar, así no se pierde', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue([buildSupplier('sup-1', 'Proveedor 1')])
+      vi.mocked(supplierService.addPackaging).mockResolvedValue({
+        unitCost: 500,
+        supplierIngredient: { ...mockSupplierConnection, supplierCode: 'HAR-50' },
+      } as Awaited<ReturnType<typeof supplierService.addPackaging>>)
+      const user = userEvent.setup()
+      render(
+        <SupplierPackagingModal
+          isOpen
+          onClose={vi.fn()}
+          ingredient={mockIngredient}
+          existingConnection={{ ...mockSupplierConnection, supplierCode: 'HAR-50' }}
+          onSuccess={vi.fn()}
+        />
+      )
+      await esperarCarga()
+
+      expect(screen.getByLabelText(/Código de artículo/i)).toHaveValue('HAR-50')
+      await user.click(screen.getByRole('button', { name: /Guardar presentación/i }))
+      await waitFor(() => expect(supplierService.addPackaging).toHaveBeenCalledTimes(1))
+      expect(vi.mocked(supplierService.addPackaging).mock.calls[0]![2]).toMatchObject({ supplierCode: 'HAR-50' })
     })
 
     it('el proveedor dado de alta rápido queda elegido en el desplegable', async () => {

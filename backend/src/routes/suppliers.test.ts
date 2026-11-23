@@ -1133,7 +1133,7 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
       .send({ ingredientId: 'ing-1', packageSize: '50', packageUnit: 'kg', packagePrice: '40000', isDefault: false });
 
     expect(res.status).toBe(422);
-    expect(res.body.error).toMatch(/No podés quitar el proveedor predeterminado sin asignar otro/);
+    expect(res.body.error).toMatch(/No podés quitar la presentación predeterminada sin elegir otra/);
     expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
   });
 

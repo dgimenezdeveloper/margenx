@@ -33,6 +33,7 @@ import { ApiError } from '@/services/api'
 import { ingredientService, type Ingredient, type IngredientProductUsage } from '@/services/ingredientService'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { BulkIngredientsModal } from './BulkIngredientsModal'
+import { MakeDefaultDialog } from '@/components/make-default-dialog'
 import { bulkUploadNotice } from '@/lib/bulkUploadNotice'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
@@ -414,13 +415,18 @@ export default function SuppliesPageContent() {
 
     if (newCost !== undefined) {
       setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
-      notify(`Presentación vinculada y costo activo actualizado a ${money(newCost)} por proveedor predeterminado.`, 'success')
+      notify(`Presentación vinculada y costo actualizado a ${money(newCost)} por ser la presentación predeterminada.`, 'success')
     } else {
       notify('Presentación mayorista asociada correctamente al proveedor.', 'success')
     }
   }
 
+  // Presentación que espera confirmación antes de pasar a ser la predeterminada (#434).
+  const [defaultCandidate, setDefaultCandidate] = useState<SupplierIngredient | null>(null)
+  const [isSettingDefault, setIsSettingDefault] = useState(false)
+
   const handleMakeDefault = async (conn: SupplierIngredient) => {
+    setIsSettingDefault(true)
     try {
       const result = await supplierService.addPackaging(getToken, conn.supplierId, {
         ingredientId: selected!.id,
@@ -439,11 +445,14 @@ export default function SuppliesPageContent() {
       setSelected(updatedIngredient)
       setValue('currentCost', toCostInput(newCost), { shouldDirty: false })
       notify(
-        `Proveedor ${conn.supplier?.name || 'seleccionado'} establecido como predeterminado. Costo activo actualizado a ${money(newCost)}.`,
+        `La presentación de ${conn.supplier?.name || 'este proveedor'} es la predeterminada. Costo actualizado a ${money(newCost)}.`,
         'success'
       )
     } catch (error: unknown) {
-      notify(error instanceof ApiError ? error.message : 'Error al cambiar proveedor predeterminado.', 'error')
+      notify(error instanceof ApiError ? error.message : 'No se pudo cambiar la presentación predeterminada.', 'error')
+    } finally {
+      setIsSettingDefault(false)
+      setDefaultCandidate(null)
     }
   }
 
@@ -465,7 +474,7 @@ export default function SuppliesPageContent() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Insumos</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Administra los costos de tus materias primas y empaques mayoristas.
+                Administra los costos de tus materias primas y sus presentaciones mayoristas.
               </p>
             </div>
             <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-end">
@@ -680,7 +689,7 @@ export default function SuppliesPageContent() {
           setEditingConnection(connection)
           setShowPackagingModal(true)
         }}
-        onMakeDefault={handleMakeDefault}
+        onMakeDefault={setDefaultCandidate}
         register={register}
         setValue={setValue}
         errors={errors}
@@ -798,6 +807,19 @@ export default function SuppliesPageContent() {
           }}
         />
       )}
+      <MakeDefaultDialog
+        open={defaultCandidate !== null}
+        ingredientName={selected?.name ?? ''}
+        supplierName={defaultCandidate?.supplier?.name ?? 'este proveedor'}
+        currentSupplierName={selected?.supplierConnections?.find((conn) => conn.isDefault)?.supplier?.name ?? null}
+        unitCost={defaultCandidate ? defaultCandidate.packagePrice / (defaultCandidate.packageSize || 1) : 0}
+        unit={selected?.unit ?? ''}
+        isSaving={isSettingDefault}
+        onConfirm={() => {
+          if (defaultCandidate) void handleMakeDefault(defaultCandidate)
+        }}
+        onCancel={() => setDefaultCandidate(null)}
+      />
     </main>
   )
 }

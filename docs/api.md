@@ -30,7 +30,7 @@ Esta guía narrativa constituye el contrato histórico de referencia para el Fro
 - `404 Not Found`: Recurso inexistente o perteneciente a otra cuenta comercial.
 - `409 Conflict`: Violación de unicidad de nombre (case-insensitive) o de protección referencial.
 - `413 Payload Too Large`: Cuerpo de solicitud superior a la cuota permitida o más de 500 filas en carga masiva.
-- `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar el proveedor predeterminado sin asignar un reemplazo).
+- `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar la presentación predeterminada sin elegir otra).
 - `500 Internal Server Error`: Excepción no controlada en servidor.
 - `502 Bad Gateway`: Falló un servicio externo del que depende la operación (hoy, la Backend API de Clerk al invitar, revocar o dar de baja). La operación no se aplicó y se puede reintentar.
 - `503 Service Unavailable`: Un servicio satélite necesario para completar la solicitud (como el generador de PDF en n8n) no respondió o está deshabilitado.

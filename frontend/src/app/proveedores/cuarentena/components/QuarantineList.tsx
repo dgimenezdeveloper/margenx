@@ -252,7 +252,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
               {actionType === 'release'
                 ? selectedItem?.isDefault
                   ? `El costo de ${selectedItem?.ingredient.name} se actualizará y recalculará las recetas afectadas.`
-                  : `Se actualizará la presentación de ${selectedItem?.ingredient.name}. No afectará las recetas porque no es el proveedor predeterminado.`
+                  : `Se actualizará la presentación de ${selectedItem?.ingredient.name}. No afectará las recetas porque no es la presentación predeterminada.`
                 : `El precio anómalo será descartado y ${selectedItem?.ingredient.name} mantendrá su costo actual.`}
             </DialogDescription>
             {actionError && (
