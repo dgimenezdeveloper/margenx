@@ -1,7 +1,6 @@
-
 # API REST — Contratos, Límites, Seguridad y Códigos HTTP
 
-Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
+Esta guía narrativa constituye el contrato histórico de referencia para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Desde esta entrega, `backend/openapi/openapi.yaml` es la referencia OpenAPI 3.1 para esquemas y operaciones. Explorá la documentación interactiva Swagger UI en [`/api/docs`](https://api-dev.margenx.tech/api/docs) y obtené el contrato JSON en [`/api/docs/openapi.json`](https://api-dev.margenx.tech/api/docs/openapi.json). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
 
 ---
 

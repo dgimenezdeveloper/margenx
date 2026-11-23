@@ -21,6 +21,7 @@ RUN npx prisma generate
 # Copiar el código fuente y compilar TypeScript
 COPY tsconfig*.json ./
 COPY src ./src/
+COPY openapi ./openapi/
 RUN npm run build
 
 # Purgar dependencias de desarrollo para dejar solo las de producción
@@ -45,6 +46,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/openapi ./openapi
 
 # Asignar propiedad a usuario sin privilegios incluido en Alpine
 USER node

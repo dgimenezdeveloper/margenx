@@ -38,6 +38,7 @@ The application is structured into five core operational modules:
 3. **Pantry & Supply Management (`/insumos`):** Responsive inventory catalog with live unit cost tracking, search filtering, and inline modal creation.
 4. **Products & Recipes (`/productos`, `/productos/nuevo`):** Bill of Materials (BOM) constructor with dynamic supply row additions, yield factor conversions, and interactive pricing simulator (+5%, +10%, target 30%).
 5. **Supplier Price Quarantine (`/proveedores/cuarentena`):** Review tray for supplier price updates that triggered the anti-pollution anomaly guard (>50% variation or a near-zero computed unit cost) — an ADMIN releases the update to apply it or rejects it to keep the current price.
+6. **Interactive OpenAPI / Swagger Documentation (`/api/docs`):** Live API explorer powered by OpenAPI 3.1, enabling authenticated JWT execution (`Try it out`) and raw contract retrieval (`/api/docs/openapi.json`).
 
 ---
 
@@ -164,6 +165,7 @@ Módulos principales del sistema:
 3. **Insumos (`/insumos`):** Gestión de materias primas con buscador, unidades de medida (`kg`, `l`, `u`) y formulario modal de alta y edición rápida.
 4. **Productos y Recetas (`/productos`, `/productos/nuevo`):** Ficha técnica con selector dinámico de ingredientes por receta, conversión de unidades y simulador interactivo de precios de venta (+5%, +10%, margen 30%).
 5. **Cuarentena de Precios de Proveedores (`/proveedores/cuarentena`):** Bandeja de revisión para los cambios de precio de proveedor que disparan el filtro anti-polución (variación mayor al 50% o costo unitario calculado casi nulo) — un ADMIN libera el cambio para aplicarlo o lo rechaza para mantener el precio vigente.
+6. **Documentación Interactiva Swagger / OpenAPI (`/api/docs`):** Explorador navegable de la API REST bajo especificación OpenAPI 3.1, con soporte de autorización Bearer JWT, contratos de esquemas completos y descarga en formato JSON (`/api/docs/openapi.json`).
 
 ---
 
