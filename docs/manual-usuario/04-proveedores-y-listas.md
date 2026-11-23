@@ -139,7 +139,7 @@ Si le comprás el mismo insumo a varios proveedores, tocá la **estrella vacía*
 2. Confirmá en el diálogo (**Sí, quitar**) o tocá **Cancelar**.
 3. **Protección de recetas:** si la presentación es la **predeterminada** y tenés otros proveedores cargados para ese insumo, MargenX no te dejará eliminarla hasta que marques otra como predeterminada primero (desde la ficha del insumo en **Insumos**). Así tus recetas nunca quedan sin un costo de referencia.
 
-<!-- [CAPTURA 360PX SUGERIDA: 02-detalle-proveedor-presentaciones.webp | Ficha /proveedores/:id con lista de presentaciones comerciales, botón Hacer predeterminada y SKU mayorista] -->
+<!-- [CAPTURA 360PX SUGERIDA: 02-detalle-proveedor-presentaciones.webp | Ficha /proveedores/:id con lista de presentaciones comerciales, estrellas de la presentación predeterminada y código de artículo] -->
 
 ---
 

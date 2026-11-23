@@ -81,7 +81,7 @@ export default function PurchasesPage() {
   const [orderPreview, setOrderPreview] = useState<OrderPreviewResponse | null>(null)
   const [orderError, setOrderError] = useState<string | null>(null)
 
-  // Modal para confirmar "Hacer predeterminada" con datos del proveedor sugerido
+  // Modal para confirmar "Usar como predeterminada" con datos del proveedor sugerido
   const [defaultCandidate, setDefaultCandidate] = useState<DefaultCandidate | null>(null)
   const [isSettingDefault, setIsSettingDefault] = useState(false)
 
@@ -455,7 +455,7 @@ export default function PurchasesPage() {
                                   CANONICAL_FOCUS_CLASSES
                                 )}
                               >
-                                Hacer predeterminada
+                                Usar como predeterminada
                               </button>
                             </td>
                           </tr>
