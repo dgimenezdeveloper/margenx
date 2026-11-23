@@ -34,6 +34,7 @@ import { ingredientService, type Ingredient, type IngredientProductUsage } from 
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { MakeDefaultDialog } from '@/components/make-default-dialog'
+import { bulkUploadNotice } from '@/lib/bulkUploadNotice'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
@@ -84,6 +85,9 @@ export default function SuppliesPageContent() {
   } = usePaginatedList(fetchSupplies, { errorMessage: 'No se pudieron cargar los insumos.' })
 
   const [quarantineCount, setQuarantineCount] = useState(0)
+  // Si la consulta de cuarentena falla, la tarjeta lo dice en lugar de mostrar 0 ([RV385-I1]).
+  const [quarantineError, setQuarantineError] = useState(false)
+  const [quarantineReloadKey, setQuarantineReloadKey] = useState(0)
   const [bulkCatalog, setBulkCatalog] = useState<Ingredient[]>([])
   const [selected, setSelected] = useState<Ingredient | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -132,13 +136,17 @@ export default function SuppliesPageContent() {
     supplierService
       .getQuarantine(getToken)
       .then((quarantined) => {
-        if (active) setQuarantineCount(quarantined.length)
+        if (!active) return
+        setQuarantineCount(quarantined.length)
+        setQuarantineError(false)
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (active) setQuarantineError(true)
+      })
     return () => {
       active = false
     }
-  }, [getToken, isCollaborator])
+  }, [getToken, isCollaborator, quarantineReloadKey])
 
   useEffect(() => {
     if (!currentToast && toastQueue.length > 0) {
@@ -488,7 +496,7 @@ export default function SuppliesPageContent() {
                 <button
                   type="button"
                   onClick={() => navigate('/proveedores/cuarentena')}
-                  className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400"
+                  className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-900/40"
                 >
                   <ShieldAlert className="size-4" />
                   Cuarentena
@@ -552,10 +560,29 @@ export default function SuppliesPageContent() {
                   <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Insumos activos</p>
                   <p className="mt-1 text-2xl font-black text-indigo-950 dark:text-indigo-100">{catalogTotal ?? 0}</p>
                 </div>
-                <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
-                  <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
-                  <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">{quarantineCount}</p>
-                </div>
+                {/* Solo para el ADMIN: al colaborador no se le consulta la cuarentena ([RV385-I1]). */}
+                {!isCollaborator && (
+                  <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/60">
+                    <p className="text-xs font-semibold text-rose-700 dark:text-rose-400">Variaciones recientes</p>
+                    {quarantineError ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="text-sm font-bold text-rose-950 dark:text-rose-100">No se pudo cargar</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuarantineError(false)
+                            setQuarantineReloadKey((key) => key + 1)
+                          }}
+                          className={`min-h-11 cursor-pointer text-xs font-bold text-rose-800 underline dark:text-rose-200 ${CANONICAL_FOCUS_CLASSES}`}
+                        >
+                          Reintentar
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-2xl font-black text-rose-950 dark:text-rose-100">{quarantineCount}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <section>
@@ -757,6 +784,7 @@ export default function SuppliesPageContent() {
           onClose={() => setShowHistoryModal(false)}
           ingredientId={selected.id}
           ingredientName={selected.name}
+          ingredientUnit={selected.unit}
         />
       )}
       {selected && (
@@ -773,7 +801,10 @@ export default function SuppliesPageContent() {
           isOpen={showBulkModal}
           onClose={() => setShowBulkModal(false)}
           existingSupplies={bulkCatalog}
-          onSuccess={reloadSupplies}
+          onSuccess={(result) => {
+            reloadSupplies()
+            notify(bulkUploadNotice(result), result.created > 0 ? 'success' : 'info')
+          }}
         />
       )}
       <MakeDefaultDialog

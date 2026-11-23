@@ -91,6 +91,21 @@ Al cerrar se abre el **resumen del turno** con el comercio, quién abrió y cerr
 
 En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más reciente primero, con lo vendido y la diferencia de cada cierre. El Administrador ve todos; el Colaborador, el turno abierto y los que abrió, cerró o en los que vendió.
 
+## Ganancia real
+
+La **ganancia real** es lo que vendiste menos lo que te costó cada producto el día que lo vendiste. A diferencia del margen de cada producto (que es teórico), te dice cuánto ganaste de verdad con lo que vendiste. No cuenta las ventas anuladas. La ve solo el Administrador.
+
+- **En el Panel**, la tarjeta **Ganancia real** muestra lo de hoy y lo de la semana: la ganancia, cuántas ventas y por cuánto, y el margen. Si la ganancia es negativa, dice **Pérdida**.
+- Tocá **Ver el detalle** para abrir la pantalla **Ganancia real** (`/ventas/ganancia`):
+  - elegí **Hoy**, **Semana** (hoy y los 6 días anteriores) o **Mes** (hoy y los 29 anteriores);
+  - ves las ventas, el costo, la ganancia y el margen, y cuánto cambió la ganancia contra el período anterior;
+  - abajo, los 5 productos **más vendidos** y los 5 que **más ganancia dejan**.
+- El **reporte semanal en PDF** suma la sección **Ventas de la semana**, y el mail del lunes, la ganancia real de la semana.
+
+Por ejemplo: si en la semana vendiste **$100.000** y esos productos te costaron **$62.000**, la ganancia real es **$38.000** y el margen, **38,0 %**.
+
+<!-- [CAPTURA 360PX SUGERIDA: 09-ventas-ganancia.webp | Pantalla Ganancia real a 360 px con la semana, la comparación y los productos más vendidos] -->
+
 ## Qué ve cada rol
 
 | | Administrador | Colaborador |
@@ -100,6 +115,7 @@ En **Ventas → Ver turnos** (`/ventas/turnos`) están todos los turnos, el más
 | Anular (solo con el turno abierto) | Cualquier venta del turno | Las suyas |
 | Abrir y cerrar la caja | Sí | Sí |
 | Historial de turnos | Todos | El abierto y los que abrió, cerró o en los que vendió |
+| Ganancia real | Sí | **Nunca** la ve |
 | Costo y margen de cada venta | Los guarda MargenX para la ganancia real | **Nunca** los ve |
 
 El precio y el costo de cada producto quedan **guardados en la venta**: si mañana cambia el precio de un insumo, el ticket y la ganancia de las ventas de hoy no cambian.

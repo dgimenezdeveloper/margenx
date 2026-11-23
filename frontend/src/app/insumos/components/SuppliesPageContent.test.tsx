@@ -303,7 +303,7 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
     await user.clear(nameInput)
     await user.type(nameInput, 'Harina 000 Olavarriense')
 
-    const saveBtn = screen.getByRole('button', { name: 'Guardar Costo' })
+    const saveBtn = screen.getByRole('button', { name: 'Guardar cambios' })
     await user.click(saveBtn)
 
     await waitFor(() => {
@@ -333,7 +333,7 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
     await user.clear(nameInput)
     await user.type(nameInput, 'Azúcar común')
 
-    const saveBtn = screen.getByRole('button', { name: 'Guardar Costo' })
+    const saveBtn = screen.getByRole('button', { name: 'Guardar cambios' })
     await user.click(saveBtn)
 
     expect(await screen.findByText('Ya existe un insumo con ese nombre.')).toBeInTheDocument()
@@ -373,7 +373,7 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
     const litroBtn = screen.getByRole('button', { name: 'litro' })
     await user.click(litroBtn)
 
-    const saveBtn = screen.getByRole('button', { name: 'Guardar Costo' })
+    const saveBtn = screen.getByRole('button', { name: 'Guardar cambios' })
     await user.click(saveBtn)
 
     const unitDialog = await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })
@@ -485,7 +485,7 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
     await screen.findByText('No pudimos cargar los productos que usan este insumo.')
 
     await user.click(screen.getByRole('button', { name: 'litro' }))
-    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     const dialogo = await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })
     expect(dialogo).toHaveTextContent(/No pudimos confirmar en qué recetas se usa/i)
@@ -497,7 +497,7 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
     const user = await abrirFicha()
 
     await user.click(screen.getByRole('button', { name: 'litro' }))
-    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })).toBeInTheDocument()
     expect(ingredientService.update).not.toHaveBeenCalled()
@@ -509,7 +509,7 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
     await screen.findByText('Este insumo no se utiliza en ninguna receta activa.')
 
     await user.click(screen.getByRole('button', { name: 'litro' }))
-    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() =>
       expect(ingredientService.update).toHaveBeenCalledWith(expect.any(Function), 'ing-1', expect.objectContaining({ unit: 'l' }))
@@ -522,7 +522,7 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
     vi.mocked(ingredientService.getProducts).mockResolvedValue(usos(0))
     await abrirFicha()
 
-    expect(await screen.findByRole('dialog', { name: 'Actualizar Costo' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Editar insumo' })).toBeInTheDocument()
     expect(ingredientService.getProducts).not.toHaveBeenCalled()
     expect(screen.queryByText('Se usa en')).not.toBeInTheDocument()
     expect(screen.queryByText('Este insumo no se utiliza en ninguna receta activa.')).not.toBeInTheDocument()
@@ -615,7 +615,7 @@ describe('SuppliesPageContent - cambios sin guardar y avisos de error (#364)', (
     renderPage()
     await editarNombre(user)
 
-    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Error al actualizar el insumo.')
 
     // Pasado el tiempo de un aviso de éxito, el error sigue en pantalla.

@@ -43,7 +43,7 @@ async function setIngredientCost(page: Page, cost: string) {
   // Se usa el botón/card visible tanto en mobile como en desktop (evita colisión de elementos ocultos)
   await page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) }).click()
   await page.getByLabel(/Costo unitario/i).fill(cost)
-  await page.getByRole('button', { name: 'Guardar Costo' }).click()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
   // Confirma el guardado esperando que el nuevo costo se refleje en la interfaz de insumos.
   await expect(page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) })).toContainText(money(Number(cost)))
 }

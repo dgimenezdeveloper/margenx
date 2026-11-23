@@ -177,12 +177,12 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
   {
     nombre: 'Nuevo insumo',
     ui: <IngredientSheetHarness selected={null} />,
-    titulo: 'Nuevo Insumo',
+    titulo: 'Nuevo insumo',
   },
   {
-    nombre: 'Actualizar costo de insumo',
+    nombre: 'Editar insumo',
     ui: <IngredientSheetHarness selected={harina} />,
-    titulo: 'Actualizar Costo',
+    titulo: 'Editar insumo',
   },
   {
     nombre: 'Eliminar insumo',
