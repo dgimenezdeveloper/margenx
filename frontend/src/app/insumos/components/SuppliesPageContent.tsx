@@ -775,6 +775,7 @@ export default function SuppliesPageContent() {
           onClose={() => setShowHistoryModal(false)}
           ingredientId={selected.id}
           ingredientName={selected.name}
+          ingredientUnit={selected.unit}
         />
       )}
       {selected && (

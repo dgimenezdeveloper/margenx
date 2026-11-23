@@ -88,4 +88,24 @@ describe('PriceHistoryModal - Criterios de Aceptación Issue #354', () => {
       expect(screen.getByText('Sin variaciones registradas')).toBeInTheDocument()
     })
   })
+
+  it('RC-09 (#433): con la unidad del insumo, cada precio dice por qué unidad es', async () => {
+    vi.mocked(ingredientService.getHistory).mockResolvedValueOnce([
+      { id: 'h-9', ingredientId: 'ing-1', oldCost: 900, newCost: 950, changedAt: '2026-11-20T10:00:00.000Z' },
+    ])
+
+    render(
+      <PriceHistoryModal
+        isOpen
+        onClose={vi.fn()}
+        ingredientId="ing-1"
+        ingredientName="Leche entera larga vida Silvia"
+        ingredientUnit="l"
+      />
+    )
+
+    expect(await screen.findByText('$900,00/litro')).toBeInTheDocument()
+    expect(screen.getByText('$950,00/litro')).toBeInTheDocument()
+  })
 })
+
