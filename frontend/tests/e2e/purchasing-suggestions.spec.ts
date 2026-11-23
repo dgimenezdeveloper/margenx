@@ -1,21 +1,104 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * Compras sugeridas (/compras, issue #389, RF-15) con la sesión de ADMIN y el seed real.
+ * Impacto en el margen (/compras, issue #446, ADR-010) con la sesión de ADMIN.
  *
- * Dato del seed (backend/prisma/seed.ts): la Harina de trigo 000 Olavarriense tiene como
- * predeterminada la presentación de Distribuidora MarJuanC Alimentos y una segunda presentación,
- * más barata por kg, en Distribuidora Mayorista Molinera. Por eso la harina aparece bajo Molinera.
- *
- * Solo lectura: no se toca "Usar como predeterminada" (cambiaría el costo vigente que usan
- * cascade-recalculation y margin-recalculation) y POST /api/purchasing/order-preview no persiste nada.
+ * El spec crea sus propios datos por la API y los borra al terminar, sin tocar el catálogo del
+ * seed que usan cascade-recalculation y margin-recalculation: dos proveedores, un insumo con la
+ * presentación predeterminada a $1.000/kg y una alternativa a $800/kg, y un producto que usa 1 kg.
+ * Con precio de $1.500 y mínimo del 40 %, el margen pasa de 33,3 % (En riesgo) a 46,7 % (En objetivo).
  */
 
-const INGREDIENT = 'Harina de trigo 000 Olavarriense'
-const CHEAPER_SUPPLIER = 'Distribuidora Mayorista Molinera'
+// Mismo VITE_API_URL que usa la app (frontend/src/services/api.ts): en CI el backend corre en el 3021.
+const API_URL = process.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
-function supplierGroup(page: Page) {
-  return page.locator('section', { has: page.getByRole('heading', { name: CHEAPER_SUPPLIER, exact: true }) })
+const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+const DEFAULT_SUPPLIER = `Molino Pampeano (E2E ${RUN_ID})`
+const CHEAPER_SUPPLIER = `Distribuidora Granos del Sur (E2E ${RUN_ID})`
+const INGREDIENT = `Harina integral fina (E2E ${RUN_ID})`
+const PRODUCT = `Pan integral de molde (E2E ${RUN_ID})`
+
+interface Fixture {
+  defaultSupplierId: string
+  cheaperSupplierId: string
+  ingredientId: string
+  productId: string
+}
+
+// Token real de la sesión de Clerk (storageState de auth.setup.ts): el backend valida
+// Authorization: Bearer. Se pide uno por llamada porque duran ~60 s.
+async function getAdminToken(page: Page): Promise<string> {
+  await page.waitForFunction(
+    () => Boolean((globalThis as unknown as { Clerk?: { session?: unknown } }).Clerk?.session),
+    undefined,
+    { timeout: 15000 },
+  )
+  const token = await page.evaluate(async () => {
+    const clerk = (globalThis as unknown as { Clerk?: { session?: { getToken: () => Promise<string | null> } } }).Clerk
+    return (await clerk?.session?.getToken()) ?? null
+  })
+  if (!token) throw new Error('No se pudo obtener un token de Clerk desde la sesión autenticada de la página.')
+  return token
+}
+
+async function adminApi(page: Page, method: 'GET' | 'POST' | 'DELETE', path: string, data?: unknown) {
+  const token = await getAdminToken(page)
+  const res = await page.request.fetch(`${API_URL}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    data,
+  })
+  if (!res.ok()) {
+    throw new Error(`${method} ${path} falló (${res.status()}): ${await res.text()}`)
+  }
+  return res.json()
+}
+
+async function createFixture(page: Page): Promise<Fixture> {
+  const { supplier: defaultSupplier } = await adminApi(page, 'POST', '/suppliers', { name: DEFAULT_SUPPLIER, isActive: true })
+  const { supplier: cheaperSupplier } = await adminApi(page, 'POST', '/suppliers', { name: CHEAPER_SUPPLIER, isActive: true })
+  const { ingredient } = await adminApi(page, 'POST', '/ingredients', { name: INGREDIENT, unit: 'kg', currentCost: '1000.00' })
+
+  await adminApi(page, 'POST', `/suppliers/${defaultSupplier.id}/ingredients`, {
+    ingredientId: ingredient.id,
+    packageSize: '25',
+    packageUnit: 'kg',
+    packagePrice: '25000.00',
+    isDefault: true,
+  })
+  await adminApi(page, 'POST', `/suppliers/${cheaperSupplier.id}/ingredients`, {
+    ingredientId: ingredient.id,
+    packageSize: '25',
+    packageUnit: 'kg',
+    packagePrice: '20000.00',
+    isDefault: false,
+  })
+  const { product } = await adminApi(page, 'POST', '/products', {
+    name: PRODUCT,
+    salePrice: '1500.00',
+    minMarginPercent: '40.00',
+    ingredients: [{ ingredientId: ingredient.id, quantity: '1.000' }],
+  })
+
+  return {
+    defaultSupplierId: defaultSupplier.id,
+    cheaperSupplierId: cheaperSupplier.id,
+    ingredientId: ingredient.id,
+    productId: product.id,
+  }
+}
+
+// Se borra en orden: el producto libera el insumo, los proveedores se llevan sus presentaciones.
+async function deleteFixture(page: Page, fixture: Partial<Fixture>) {
+  const steps: Array<[string | undefined, string]> = [
+    [fixture.productId, `/products/${fixture.productId}`],
+    [fixture.defaultSupplierId, `/suppliers/${fixture.defaultSupplierId}`],
+    [fixture.cheaperSupplierId, `/suppliers/${fixture.cheaperSupplierId}`],
+    [fixture.ingredientId, `/ingredients/${fixture.ingredientId}`],
+  ]
+  for (const [id, path] of steps) {
+    if (id) await adminApi(page, 'DELETE', path)
+  }
 }
 
 async function expectNoHorizontalScroll(page: Page) {
@@ -23,78 +106,78 @@ async function expectNoHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0)
 }
 
-test.describe('TC-COMPRAS-01: Sugerir compra (issue #389)', () => {
-  test.describe('a 360 px', () => {
-    test.use({ viewport: { width: 360, height: 740 } })
+test.describe('TC-COMPRAS-01: Impacto en el margen (issue #446)', () => {
+  test.use({ viewport: { width: 360, height: 740 } })
 
-    test('muestra la harina bajo el proveedor más barato, sin scroll horizontal y con la pestaña Compras activa', async ({ page }) => {
-      await page.goto('/compras')
+  test('confirmar la alternativa deja el margen que mostraba la confirmación, sin calculadora ni scroll horizontal', async ({ page }) => {
+    await page.goto('/compras')
+    let fixture: Partial<Fixture> = {}
 
-      await expect(page.getByRole('heading', { level: 1, name: 'Compras Sugeridas' })).toBeVisible()
-      const group = supplierGroup(page)
-      await expect(group.getByText(INGREDIENT, { exact: true })).toBeVisible()
-      // formatPercent separa el "%" con espacio duro (U+00A0): \s lo cubre, un espacio común no.
-      await expect(group.getByText(/^-\$[\d.,]+\/kg \([\d,]+\s%\)$/).first()).toBeVisible()
-      await expect(page.getByText(/no modifica tus costos vigentes ni tus recetas/i)).toBeVisible()
+    try {
+      fixture = await createFixture(page)
+      await page.reload()
 
-      // Mobile: tarjetas apiladas, sin la fila de encabezados de la tabla.
-      await expect(group.getByRole('columnheader', { name: 'Insumo' })).toBeHidden()
+      // Impacto visible
+      await expect(page.getByRole('heading', { level: 1, name: 'Impacto en el margen' })).toBeVisible()
+      const card = page.getByRole('article', { name: INGREDIENT })
+      await expect(card.getByText(DEFAULT_SUPPLIER, { exact: true })).toBeVisible()
+      await expect(card.getByText(CHEAPER_SUPPLIER, { exact: true })).toBeVisible()
+      const productRow = card.getByRole('listitem', { name: PRODUCT })
+      // formatPercent separa el "%" con espacio duro (U+00A0): \s lo cubre.
+      await expect(productRow.getByText(/^33,3\s%$/)).toBeVisible()
+      await expect(productRow.getByText(/^46,7\s%$/)).toBeVisible()
+      await expect(productRow.getByText('En riesgo', { exact: true })).toBeVisible()
+      await expect(productRow.getByText('En objetivo', { exact: true })).toBeVisible()
+
+      // Sin calculadora
+      await expect(page.getByRole('button', { name: /Calcular pedido/i })).toHaveCount(0)
+      await expect(page.getByText(/Pedido Semanal|Ahorro potencial por bulto/i)).toHaveCount(0)
+      await expect(page.getByRole('spinbutton')).toHaveCount(0)
+      await expect(page.getByRole('textbox')).toHaveCount(0)
 
       const tab = page.getByTestId('bottom-nav-compras')
-      await expect(tab).toBeVisible()
       await expect(tab).toHaveAttribute('aria-current', 'page')
+      await expect(tab).toHaveAccessibleName('Impacto en el margen')
       await expectNoHorizontalScroll(page)
+      await page.screenshot({ path: 'test-results/evidencia-360px/compras-impacto-360px.png', fullPage: true })
 
-      await page.screenshot({ path: 'test-results/evidencia-360px/compras-360px.png', fullPage: true })
-    })
+      // Confirmación con impacto
+      await card
+        .getByRole('button', { name: `Ya le compro a este proveedor: ${INGREDIENT} a ${CHEAPER_SUPPLIER}` })
+        .click()
+      const dialog = page.getByRole('dialog', { name: `¿Ya le comprás a ${CHEAPER_SUPPLIER}?` })
+      const dialogRow = dialog.getByRole('listitem', { name: PRODUCT })
+      await expect(dialogRow.getByText(/^46,7\s%$/)).toBeVisible()
+      await expect(dialog.getByText(/1 producto cambia su margen/)).toBeVisible()
+      await page.screenshot({ path: 'test-results/evidencia-360px/compras-impacto-confirmacion-360px.png' })
+
+      await dialog.getByRole('button', { name: 'Sí, ya le compro' }).click()
+      await expect(page.getByText('Listo: 1 producto recalculado')).toBeVisible()
+      await expect(dialog).toBeHidden()
+
+      // El margen guardado es el que mostraba la confirmación.
+      const { product } = await adminApi(page, 'GET', `/products/${fixture.productId}`)
+      expect(Number(product.marginPercent).toFixed(1)).toBe('46.7')
+      const { ingredient } = await adminApi(page, 'GET', `/ingredients/${fixture.ingredientId}`)
+      expect(Number(ingredient.currentCost)).toBe(800)
+
+      // El insumo ya no tiene alternativa más barata: su tarjeta desaparece.
+      await expect(page.getByRole('article', { name: INGREDIENT })).toHaveCount(0)
+    } finally {
+      await deleteFixture(page, fixture)
+    }
   })
 
   test.describe('en escritorio', () => {
     test.use({ viewport: { width: 1280, height: 800 } })
 
-    test('la lista se ve como tabla y el enlace Compras está en la barra superior', async ({ page }) => {
+    test('el enlace "Impacto en el margen" está en la barra superior y no en el menú inferior', async ({ page }) => {
       await page.goto('/compras')
 
-      const group = supplierGroup(page)
-      await expect(group.getByRole('columnheader', { name: 'Costo unitario' })).toBeVisible()
-      await expect(group.getByRole('row', { name: new RegExp(INGREDIENT) })).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Compras' })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Impacto en el margen' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Impacto en el margen' })).toBeVisible()
       await expect(page.getByTestId('bottom-nav-compras')).toBeHidden()
       await expectNoHorizontalScroll(page)
     })
-  })
-})
-
-test.describe('TC-COMPRAS-02: Pedido sugerido (issue #389)', () => {
-  test.use({ viewport: { width: 360, height: 740 } })
-
-  test('con 2 bultos de harina calcula subtotal del proveedor, total y ahorro sin desbordar', async ({ page }) => {
-    await page.goto('/compras')
-
-    const group = supplierGroup(page)
-    const qty = group.getByLabel(`Bultos de ${INGREDIENT}`, { exact: true })
-    await expect(qty).toBeVisible()
-    await qty.fill('2')
-    await qty.blur()
-
-    const previewResponse = page.waitForResponse(
-      (res) => res.url().includes('/api/purchasing/order-preview') && res.request().method() === 'POST'
-    )
-    await page.getByRole('button', { name: 'Calcular pedido sugerido' }).click()
-    const response = await previewResponse
-    expect(response.status()).toBe(200)
-
-    const preview = page.getByRole('region', { name: 'Previsualización del Pedido Semanal' })
-    await expect(preview).toBeVisible()
-    await expect(preview.getByText('Total Estimado')).toBeVisible()
-    await expect(preview.getByText('Ahorro Neto Estimado')).toBeVisible()
-    await expect(preview.getByRole('heading', { name: CHEAPER_SUPPLIER, exact: true })).toBeVisible()
-    await expect(preview.getByText(/^Subtotal: \$[\d.,]+$/).first()).toBeVisible()
-    await expect(preview.getByRole('listitem').filter({ hasText: INGREDIENT })).toContainText('2 bulto(s) (50 kg)')
-    await expect(preview.getByRole('button', { name: /Copiar pedido/i })).toBeVisible()
-    await expect(preview.getByRole('button', { name: /Imprimir/i })).toBeVisible()
-    await expectNoHorizontalScroll(page)
-
-    await page.screenshot({ path: 'test-results/evidencia-360px/compras-pedido-360px.png', fullPage: true })
   })
 })
