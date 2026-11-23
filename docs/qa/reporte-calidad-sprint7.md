@@ -277,6 +277,11 @@ con sesión. La Performance con sesión se registra y se mejora lo posible.
 - **Emulación:** Lighthouse 13.6.0 en modo móvil, pantalla de 360 × 640 px
   (DPR 2), 4G lenta y CPU 4× simuladas. Es la configuración de
   `frontend/lighthouserc.json`; la de Lighthouse por defecto es de 412 px.
+  **Excepción:** las 4 páginas públicas de "antes" (staging) se midieron con la
+  emulación por defecto, 412 × 823 px (DPR 1,75); la red y el CPU son los
+  mismos. Sus comparaciones con "después" (§3.3) mezclan los dos tamaños de
+  pantalla. Las 6 páginas con sesión de "antes" y las 10 de "después" son a
+  360 × 640.
 - **Antes (23/11/2026):** `dev.margenx.tech` con `develop` en `cfae5fe`. Las
   páginas con sesión se midieron con el administrador de la cuenta Demo, con
   el mismo inicio de sesión de Clerk que usa la E2E (`@clerk/testing`). Las
@@ -294,7 +299,11 @@ con sesión. La Performance con sesión se registra y se mejora lo posible.
 ### 3.3 Páginas públicas
 
 Puntajes en orden Performance / Accessibility / Best Practices / SEO.
-"Después" muestra las dos corridas completas de LHCI en local.
+"Después" muestra las dos corridas completas de LHCI en local. "Antes" es a
+412 × 823 px y "Después", a 360 × 640 px (§3.2): las cifras de Performance,
+LCP y CLS no son del mismo tamaño de pantalla. La columna de producción no
+tiene sus reportes en `evidencias/398/`; producción se vuelve a medir con el
+release (§3.6).
 
 | Página | Antes, staging | Producción (`main`) | Después, local | LCP (staging → local) | CLS (staging → local) |
 |---|---|---|---|---|---|
@@ -334,7 +343,11 @@ en las páginas con sesión.
   en staging), y el logo declara su tamaño.
 - **Bundle inicial:**
   - cada pantalla con sesión se baja al abrirla (`frontend/src/lib/lazyPage.tsx`);
-  - el JavaScript inicial pasa de 346 KB a 97 KB con gzip;
+  - el JavaScript inicial pasa de 346 KB a unos 200 KB con gzip (42 % menos):
+    el bundle principal (103 KB) y el chunk compartido con React (97 KB), que
+    `index.html` precarga (tamaños del build de Vite);
+  - si una pantalla no baja (red caída o versión nueva publicada), se ve "No
+    se pudo cargar la pantalla" con **Reintentar**, que recarga la app;
   - las páginas públicas siguen en el bundle principal, porque se abren por
     enlace directo.
 - **`/instalar`:** las capturas de la guía declaran su ancho y alto reales.
