@@ -56,7 +56,7 @@ Si todavía no cargaste ninguno, la pantalla te invita con el botón **Cargar mi
 
 Los errores se marcan al salir de cada campo y se corrigen solos mientras escribís. Si cerrás el formulario con datos sin guardar, MargenX te pregunta si querés descartarlos.
 
-Un proveedor nuevo arranca sin insumos. Para vincularle un insumo, abrí la ficha del insumo en **Insumos** y asociá la presentación (ver [Primeros pasos](01-primeros-pasos.md#proveedor-predeterminado)).
+Un proveedor nuevo arranca sin insumos. Para vincularle un insumo, abrí la ficha del insumo en **Insumos** y asociá la presentación (ver [Primeros pasos](01-primeros-pasos.md#presentación-predeterminada)).
 
 <!-- [CAPTURA 360PX SUGERIDA: 02-modal-alta-proveedor.webp | Formulario en bottom sheet para crear proveedor con validación en tiempo real] -->
 
@@ -87,9 +87,9 @@ Ninguna de las dos cambia el costo actual de tus insumos.
 **Para dar de baja:**
 
 1. Tocá **Dar de baja** en la fila del proveedor.
-2. Antes de habilitar el botón, MargenX busca y lista las **Presentaciones afectadas**: cada insumo con su bulto, su precio y su código de artículo, y las marcas **Predeterminada** y **En cuarentena** cuando corresponden.
+2. Antes de habilitar el botón, MargenX busca y lista las **Presentaciones afectadas** (con scroll si son muchas): cada insumo con su presentación, el precio del bulto y su código de artículo, y las marcas **Predeterminada** y **En cuarentena** cuando corresponden.
 3. Debajo se explica qué pasa:
-   - los insumos donde este proveedor era el **predeterminado** conservan su costo, pero quedan sin proveedor predeterminado hasta que elijas otro;
+   - los insumos en los que este proveedor es predeterminado mantienen su costo actual, pero quedan sin proveedor predeterminado hasta que elijas otro (una sola frase, sin repetir los nombres de la lista);
    - los precios **en cuarentena** de este proveedor se descartan sin aplicarse;
    - sus listas de precios ya no van a actualizar esos insumos.
 4. Tocá **Sí, dar de baja** para confirmar, o **Cancelar**.
@@ -109,9 +109,18 @@ Al tocar el nombre de un proveedor en la lista, abrís su ficha técnica detalla
 ### Qué muestra la ficha
 
 - **Datos de contacto:** estado activo/inactivo, teléfono, email, dirección física y contadores de presentaciones totales, predeterminadas y retenidas en cuarentena.
-- **Tabla y tarjetas de presentaciones:** cada insumo asociado con su código SKU mayorista, descripción en lista, presentación cerrada, precio de compra facturado y el costo unitario equivalente ($V/S$) liquidado automáticamente.
-- **Marcas visuales:** badge **Predeterminada** si este proveedor define el costo activo de tus recetas, y **En cuarentena** si tiene un precio pendiente de resolución.
+- **Tabla de presentaciones:** en la computadora, una columna para cada dato: **Insumo** (con la descripción de la lista), **Presentación** (por ejemplo, 25 kg), **Precio del bulto**, **Costo por unidad**, **Código** y **Acciones**. En el celular, cada presentación es una tarjeta con los mismos datos en el mismo orden.
+- **Marcas visuales:** en **Acciones**, una **estrella llena** marca la **presentación predeterminada** (la que define el costo de tus recetas); las demás tienen una estrella vacía, **Usar como predeterminada**. La etiqueta **En cuarentena** aparece si tiene un precio pendiente de resolución.
 - **Búsqueda y páginas:** las presentaciones se muestran de a 20. Con el buscador "Buscar por insumo o código..." encontrás una por nombre del insumo, código o descripción de la lista, sin importar tildes ni mayúsculas. En la computadora elegís 20, 50 o 100 filas y pasás de página; en el celular tocás **Cargar más**. Los contadores de la ficha cuentan todas las presentaciones del proveedor.
+
+### Nombres que usa MargenX
+
+En toda la app (Proveedores, Insumos y Compras) se usan los mismos nombres:
+
+- **Presentación:** cómo te vende el proveedor un insumo (por ejemplo, la bolsa de 25 kg de harina). Antes se le decía también "empaque".
+- **Precio del bulto:** lo que pagás por esa presentación entera.
+- **Costo por unidad:** el precio del bulto dividido por su tamaño (por kg, litro o unidad).
+- **Presentación predeterminada:** la que define el costo del insumo en tus recetas. Hay una por insumo.
 
 ### Corregir un código o descripción
 
@@ -122,12 +131,12 @@ Al tocar el nombre de un proveedor en la lista, abrís su ficha técnica detalla
 
 ### Cambiar la presentación predeterminada
 
-Si le comprás el mismo insumo a varios proveedores, tocá **Hacer predeterminada** sobre la presentación que querés que defina el costo activo. El costo de tu insumo se actualizará inmediatamente y todas las recetas vinculadas se recalcularán en cascada.
+Si le comprás el mismo insumo a varios proveedores, tocá la **estrella vacía** (**Usar como predeterminada**) de la presentación que querés que defina el costo. MargenX te pide confirmación y te muestra el costo por unidad que pasa a usar el insumo: recién al tocar **Confirmar cambio** se actualiza el costo y se recalculan las recetas que lo usan. Es la misma confirmación desde la ficha del proveedor, desde la ficha del insumo y desde **Compras**.
 
 ### Quitar una presentación
 
 1. Tocá **Quitar** (ícono de cesto de basura) en la fila de la presentación.
-2. Confirmá en el diálogo.
+2. Confirmá en el diálogo (**Sí, quitar**) o tocá **Cancelar**.
 3. **Protección de recetas:** si la presentación es la **predeterminada** y tenés otros proveedores cargados para ese insumo, MargenX no te dejará eliminarla hasta que marques otra como predeterminada primero (desde la ficha del insumo en **Insumos**). Así tus recetas nunca quedan sin un costo de referencia.
 
 <!-- [CAPTURA 360PX SUGERIDA: 02-detalle-proveedor-presentaciones.webp | Ficha /proveedores/:id con lista de presentaciones comerciales, botón Hacer predeterminada y SKU mayorista] -->
@@ -174,4 +183,4 @@ Si algo falla (por ejemplo, se cortó la conexión), el mensaje de error aparece
 
 ## El aviso en la ficha del insumo
 
-Si un insumo tiene un precio retenido, al abrir su ficha en **Insumos** la sección **Proveedores y Empaques** muestra un aviso ("1 precio de este insumo está retenido en cuarentena") con el enlace **Revisar en Cuarentena**, y la presentación de ese proveedor lleva la marca **En cuarentena**.
+Si un insumo tiene un precio retenido, al abrir su ficha en **Insumos** la sección **Proveedores y presentaciones** muestra un aviso ("1 precio de este insumo está retenido en cuarentena") con el enlace **Revisar en Cuarentena**, y la presentación de ese proveedor lleva la marca **En cuarentena**.

@@ -121,8 +121,9 @@ Si ingresás un formato ambiguo o texto con letras (como `1.2.3` o `abc`), el si
 
 ---
 
-## Proveedor Predeterminado
+## Presentación predeterminada
 
-Cuando asocies empaques de proveedores a tus insumos, tené en cuenta lo siguiente:
-- Solo un proveedor puede ser el **predeterminado** para cada insumo. El costo de este proveedor es el que se usará para calcular tus recetas.
-- Para proteger tus costos, **no podés quitar el proveedor predeterminado sin elegir otro**. Si querés cambiar de proveedor, simplemente marcá el nuevo como predeterminado y el sistema se encargará de desmarcar el anterior y recalcular tus productos automáticamente.
+En la ficha del insumo, la sección **Proveedores y presentaciones** lista lo que te vende cada proveedor. Con **Asociar otra presentación** cargás una nueva: el proveedor, el tamaño del bulto, el **precio del bulto** y, si querés, el **código de artículo** con que figura en su lista de precios (por ejemplo, `MC-990`); con ese código, las listas del proveedor actualizan el precio solas. Tené en cuenta lo siguiente:
+- Solo una presentación puede ser la **predeterminada** de cada insumo (la marca la **estrella llena**). Su costo por unidad es el que se usa para calcular tus recetas.
+- Para cambiarla, tocá la **estrella vacía** (**Usar como predeterminada**) de otra presentación: MargenX te pide confirmación con el costo nuevo y, al confirmar, desmarca la anterior y recalcula tus productos.
+- Para proteger tus costos, **no podés quitar la presentación predeterminada sin elegir otra**.
