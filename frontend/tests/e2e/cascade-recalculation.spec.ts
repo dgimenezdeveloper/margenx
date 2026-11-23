@@ -22,7 +22,7 @@ async function setIngredientCost(page: Page, cost: string) {
   // está oculta por CSS (`hidden md:block`) — Playwright no puede clickearla.
   await page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) }).click()
   await page.getByLabel(/Costo unitario/i).fill(cost)
-  await page.getByRole('button', { name: 'Guardar Costo' }).click()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
 }
 
 // Evita que una corrida local con varios workers mute el costo compartido de
@@ -53,7 +53,7 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
       page.waitForResponse(
         (res) => res.url().includes(`/api/ingredients/${INGREDIENT_ID}`) && res.request().method() === 'PUT'
       ),
-      page.getByRole('button', { name: 'Guardar Costo' }).click(),
+      page.getByRole('button', { name: 'Guardar cambios' }).click(),
     ])
 
     // --- Verificación de red: el payload JSON trae los productos críticos (issue #175) ---
