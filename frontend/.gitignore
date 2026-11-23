@@ -36,5 +36,5 @@ coverage/
 *.lcov
 
 # Lighthouse CI (#398)
-/.lhci/
+/.lighthouseci/
 /lhci-report/
