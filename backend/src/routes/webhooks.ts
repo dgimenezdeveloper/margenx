@@ -213,7 +213,9 @@ router.post('/supplier-prices', async (req: Request, res: Response) => {
         continue;
       }
 
-      const newPrice = new Prisma.Decimal(String(item.price));
+      // packagePrice es Decimal(10, 2): se redondea igual que la columna (ROUND_HALF_UP) antes de comparar y de
+      // guardar. Si no, 18406.387654 contra 18406,39 contaba como cambio y recalculaba por nada (#439, [RV422-I1]).
+      const newPrice = new Prisma.Decimal(String(item.price)).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
       const previousPackagePrice = mapped.packagePrice;
       let previousUnitCost: Prisma.Decimal;
       let newUnitCost: Prisma.Decimal | null = null;

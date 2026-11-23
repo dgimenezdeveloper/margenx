@@ -576,8 +576,9 @@ Endpoint de recepción en lote para el orquestador satélite n8n.
   1. Deduplica ítems por código dentro del lote.
   2. Búsqueda implícita de `supplierCode` en `SupplierIngredient` de la cuenta.
   3. Descarte estricto (Anti-Pollution): Códigos no vinculados se descartan con motivo `NOT_FOUND`; proveedores inactivos con `INACTIVE_SUPPLIER`; códigos duplicados entre múltiples proveedores con `AMBIGUOUS`.
-  4. Retención en Cuarentena si $|\Delta\%| > 50\%$ o costo unitario $\le \$0.01$.
-  5. Actualiza precios válidos y ejecuta recálculo en cascada para presentaciones con `isDefault = true`.
+  4. **Redondeo del precio:** `price` se redondea a 2 decimales con `ROUND_HALF_UP`, igual que la columna `packagePrice` (`Decimal(10, 2)`), antes de compararlo y de guardarlo. Un precio igual al vigente con más decimales cuenta como `unchanged` y no recalcula: `18406.387654` contra `18406,39` no es un cambio, y `18406.385` tampoco (redondea a `18406,39`).
+  5. Retención en Cuarentena si $|\Delta\%| > 50\%$ o costo unitario $\le \$0.01$.
+  6. Actualiza precios válidos y ejecuta recálculo en cascada para presentaciones con `isDefault = true`.
 - **Respuesta 200:**
   ```json
   {
