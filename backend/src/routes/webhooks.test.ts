@@ -808,3 +808,84 @@ describe('POST /api/webhooks/supplier-prices', () => {
     );
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* #439 ([RV422-I1]): el precio se redondea a 2 decimales             */
+/* ------------------------------------------------------------------ */
+describe('POST /api/webhooks/supplier-prices - precio redondeado a 2 decimales (#439)', () => {
+  // Harina 000 en bolsa de 25 kg a $18.406,39 (packagePrice es Decimal(10, 2) en la base).
+  const presentacion = (isDefault: boolean) => ({
+    id: 'si-harina-25',
+    supplierId: 'supplier-molinera',
+    ingredientId: 'ing-harina-000',
+    supplierCode: 'HAR-000-25',
+    packageSize: new Prisma.Decimal('25'),
+    packagePrice: new Prisma.Decimal('18406.39'),
+    isDefault,
+    isQuarantined: false,
+    ingredient: { id: 'ing-harina-000', accountId: 'acc-123', currentCost: new Prisma.Decimal('736.26') },
+    supplier: { id: 'supplier-molinera', isActive: true },
+  });
+
+  const enviar = (price: number) =>
+    request(buildApp())
+      .post('/api/webhooks/supplier-prices')
+      .set('x-margenx-webhook-secret', 'test-secret')
+      .send({ accountSlug: 'panaderia-central', items: [{ code: 'HAR-000-25', price }] });
+
+  beforeEach(() => {
+    process.env.INTERNAL_WEBHOOK_SECRET = 'test-secret';
+    accountFindUniqueMock.mockReset();
+    supplierIngredientFindManyMock.mockReset();
+    supplierIngredientUpdateMock.mockReset();
+    vi.mocked(marginCalculator.applyBatchIngredientCostChanges).mockClear();
+    accountFindUniqueMock.mockResolvedValue({
+      id: 'acc-123',
+      slug: 'panaderia-central',
+      businessName: 'Panadería Central',
+      isActive: true,
+      users: [{ email: 'admin.panaderia@seed.example.test' }],
+    });
+  });
+
+  it('Escenario "Precio igual con más decimales": 18406.387654 contra 18406,39 responde unchanged: 1 y no recalcula', async () => {
+    supplierIngredientFindManyMock.mockResolvedValue([presentacion(true)]);
+
+    const res = await enviar(18406.387654);
+
+    expect(res.status).toBe(200);
+    expect(res.body.unchanged).toBe(1);
+    expect(res.body.updated).toBe(0);
+    expect(supplierIngredientUpdateMock).not.toHaveBeenCalled();
+    expect(marginCalculator.applyBatchIngredientCostChanges).not.toHaveBeenCalled();
+  });
+
+  it('redondea con ROUND_HALF_UP, como la columna: 18406.385 es 18406,39 y no cuenta como cambio', async () => {
+    supplierIngredientFindManyMock.mockResolvedValue([presentacion(false)]);
+
+    const res = await enviar(18406.385);
+
+    expect(res.body.unchanged).toBe(1);
+    expect(res.body.updated).toBe(0);
+  });
+
+  it('Escenario "Precio distinto": 18406.4 responde updated: 1 y guarda el precio con 2 decimales', async () => {
+    supplierIngredientFindManyMock.mockResolvedValue([presentacion(false)]);
+
+    const res = await enviar(18406.4);
+
+    expect(res.body.updated).toBe(1);
+    expect(res.body.unchanged).toBe(0);
+    const data = (supplierIngredientUpdateMock.mock.calls[0]![0] as { data: { packagePrice: Prisma.Decimal } }).data;
+    expect(data.packagePrice.toFixed(2)).toBe('18406.40');
+  });
+
+  it('un precio con más decimales se guarda redondeado, igual que lo guardaría la base', async () => {
+    supplierIngredientFindManyMock.mockResolvedValue([presentacion(false)]);
+
+    await enviar(18500.4567);
+
+    const data = (supplierIngredientUpdateMock.mock.calls[0]![0] as { data: { packagePrice: Prisma.Decimal } }).data;
+    expect(data.packagePrice.equals(new Prisma.Decimal('18500.46'))).toBe(true);
+  });
+});

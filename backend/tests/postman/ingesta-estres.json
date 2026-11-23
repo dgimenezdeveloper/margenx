@@ -576,6 +576,41 @@
           "response": []
         },
         {
+          "name": "Precio igual con mas decimales no cuenta como cambio (#439)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El request anterior dejo el bulto en 18406,39. 18406.387654 redondea a 18406,39 (ROUND_HALF_UP, como la columna Decimal(10, 2)): es el mismo precio (#439, RV422-I1).",
+                  "pm.test('Status code es 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('el mismo precio con mas decimales es unchanged, no updated', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.unchanged).to.eql(1);",
+                  "    pm.expect(body.updated).to.eql(0);",
+                  "    pm.expect(body.quarantined).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-margenx-webhook-secret", "value": "{{internalWebhookSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"HAR188\", \"description\": \"mismo precio con mas decimales\", \"price\": 18406.387654 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/webhooks/supplier-prices", "host": ["{{baseUrl}}"], "path": ["webhooks", "supplier-prices"] }
+          },
+          "response": []
+        },
+        {
           "name": "Descripcion con unicode, HTML y emoji no rompe el procesamiento",
           "event": [
             {

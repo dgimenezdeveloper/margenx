@@ -306,16 +306,21 @@ El backend entrega los datos del reporte semanal mediante `/api/internal/reports
 
 ---
 
-## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible*
+## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API) / En transición (UI)*
 
-Con varios proveedores por insumo, el sistema calcula dónde conviene comprar (`GET /api/purchasing/suggestions`) y permite armar una orden de compra optimizada desde la interfaz en `/compras` (`POST /api/purchasing/order-preview`):
+Compras sugeridas mide el **impacto en el margen** de cambiar el proveedor de un insumo (ADR-010). Sin stock no hay cantidades reales de consumo, por lo que la reposición con cantidades queda para la Fase 2 y `POST /api/purchasing/order-preview` pasa a estado **deprecado** (se conserva en la v1.0.0 hasta que se reutilice con stock o se retire en la v1.1).
 
-- **Oportunidades de ahorro:** compara presentaciones de proveedores activos que no estén en cuarentena contra la presentación predeterminada, informando el ahorro por unidad (`$` y `%`) y por bulto de la presentación más barata (en el ejemplo de §4: $900 contra $880, ahorro de $20/kg — 2,22 %, y $1.000 por bulto de 50 kg). Las presentaciones en cuarentena no compiten y se informan aparte.
-- **Pedido sugerido (`order-preview`):** agrupa los bultos indicados por proveedor con subtotales, total y ahorro acumulado respecto a comprar todo a la presentación predeterminada, sin persistir órdenes ni afectar el catálogo.
-- **Herramientas operativas:** la pantalla permite copiar el pedido estructurado en texto plano para WhatsApp y correo, o imprimir una orden física limpia sin elementos de navegación (`window.print`).
-- **Alcance del ahorro:** MargenX no registra consumo ni stock, por lo que el ahorro se expresa únicamente por unidad, por bulto y por pedido previsualizado (no se estima ahorro mensual).
+- **Impacto en el margen por insumo (`GET /api/purchasing/margin-impact` · *Disponible*, solo `ADMIN`):**
+  - **Alternativa evaluada:** para cada insumo, toma la presentación elegible más barata (proveedor activo, no en cuarentena y no predeterminada), usando los mismos desempates que `/api/purchasing/suggestions`.
+  - **Base de comparación:** compara contra el **costo vigente del insumo (`Ingredient.currentCost`)**, no contra el costo de la presentación predeterminada (si el costo se editó a mano, la diferencia parte de ese valor manual). Solo entra un insumo si el costo unitario de su alternativa es menor a su `currentCost`.
+  - **Un cambio por vez:** proyecta cada producto con receta (excluye borradores) cambiando solo ese insumo y manteniendo los demás con su costo vigente. Informa el costo de receta actual y proyectado, el margen porcentual antes y después, y la transición de estado de salud (`classifyProductHealthBucket`).
+  - **Priorización y resumen:** ordena primero los insumos que sacan más productos de **Pérdida** o **En riesgo** (`loss`/`risk` → `target`/`surplus`), luego por mayor suba de margen porcentual. El resumen general cuenta productos **distintos** afectados y rescatados de riesgo/pérdida (un producto compartido por dos insumos cuenta una sola vez).
+  - **Paridad exacta:** calcula con `Prisma.Decimal` y redondeo `ROUND_HALF_UP` por renglón, igual que el recálculo en cascada real al confirmar el cambio de proveedor.
+- **Proyección puntual (`GET /api/purchasing/margin-impact/:ingredientId?supplierIngredientId=...` · *Disponible*, solo `ADMIN`):** calcula el mismo impacto sobre una presentación específica para mostrarlo antes de confirmar *"Ya le compro a este proveedor"*. Responde `404` si el insumo o la presentación no son de la cuenta o no se corresponden, y `422` si está en cuarentena, su proveedor está inactivo o ya es la predeterminada.
+- **Comparativa de ahorro (`GET /api/purchasing/suggestions` · *Disponible*):** compara las presentaciones elegibles contra la predeterminada activa e informa aparte las excluidas por cuarentena.
+- **Pantalla `/compras`:** la vista actual muestra sugerencias por proveedor y cálculo de pedido (`order-preview`, deprecado) hasta que se reemplace por la vista de impacto en el margen (*Planificado*, `#446`).
 
-La sugerencia **no cambia** el costo vigente: el administrador decide si marca otra presentación como predeterminada mediante el botón interactivo de la pantalla (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial (ADR-005).
+La consulta **no cambia** el costo vigente: el administrador decide si confirma el cambio de proveedor predeterminado (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial (ADR-005).
 
 ---
 
@@ -402,14 +407,14 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Recálculo en cascada y alerta por correo al cruzar el margen mínimo | Disponible |
 | Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
-| Compras inteligentes (API: sugerencias y preview de pedido) | Disponible |
-| Compras inteligentes: pantalla de compras sugeridas en la app | Planificado |
+| Compras inteligentes: impacto en el margen por insumo (API: `margin-impact` y detalle; `order-preview` deprecado) | Disponible |
+| Compras inteligentes: vista de impacto en el margen en `/compras` | Planificado |
+| Compras inteligentes (UI actual de transición en `/compras`: sugerencias y pedido) | Disponible |
 | Reporte semanal de márgenes (API de datos y descarga PDF desde el panel y Perfil) | Disponible |
 | Workflow automático semanal de reporte PDF por correo (n8n) | Disponible |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
-| Compras inteligentes (API y UI: sugerencias y cálculo de pedido en /compras) | Disponible |
 | Control de módulos por plan y por cuenta, y módulos de la cuenta en `GET /api/auth/me` | Disponible |
 | Módulo de ventas: modelo de ventas y caja, y ventas de prueba en la cuenta Demo | Disponible (solo la cuenta Demo de staging tiene el módulo) |
 | Venta rápida con ticket no fiscal | Planificado |
