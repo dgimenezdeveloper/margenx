@@ -1,0 +1,775 @@
+openapi: 3.1.0
+info:
+  title: MargenX API
+  version: 1.0.0
+  description: |
+    API REST de MargenX para control de márgenes en tiempo real.
+servers:
+  - url: https://api-dev.margenx.tech
+    description: Staging (rama develop)
+  - url: https://api.margenx.tech
+    description: Producción (rama main)
+  - url: http://localhost:3000
+    description: Entorno local (DevContainer)
+tags:
+  - name: Salud
+  - name: Autenticación y Cuenta
+  - name: Colaboradores
+  - name: Insumos
+  - name: Productos
+  - name: Proveedores
+  - name: Cuarentena
+  - name: Panel
+  - name: Compras Sugeridas
+  - name: Reportes
+  - name: Interno - n8n
+paths:
+  /api/health:
+    get:
+      tags: [Salud]
+      summary: Estado de la API
+      description: Endpoint público para verificación de vida del backend.
+      security: []
+      responses:
+        '200':
+          description: Servicio operativo.
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/me:
+    get:
+      tags: [Autenticación y Cuenta]
+      summary: Usuario autenticado y su cuenta
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Perfil del usuario autenticado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/account/margin:
+    patch:
+      tags: [Autenticación y Cuenta]
+      summary: Actualizar margen mínimo global de la cuenta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [defaultMinMarginPercent]
+              properties:
+                defaultMinMarginPercent:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+      responses:
+        '200': { description: Margen global actualizado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/invitations:
+    post:
+      tags: [Colaboradores]
+      summary: Invitar colaborador por correo (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '201': { description: Invitación creada }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '502': { $ref: '#/components/responses/BadGatewayError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    get:
+      tags: [Colaboradores]
+      summary: Listar invitaciones pendientes de la cuenta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Lista de invitaciones pendientes }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '502': { $ref: '#/components/responses/BadGatewayError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/invitations/{id}:
+    delete:
+      tags: [Colaboradores]
+      summary: Revocar una invitación pendiente (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Invitación revocada }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '502': { $ref: '#/components/responses/BadGatewayError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/users:
+    get:
+      tags: [Colaboradores]
+      summary: Listar usuarios activos de la cuenta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Usuarios activos }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/auth/users/{id}:
+    delete:
+      tags: [Colaboradores]
+      summary: Dar de baja a un colaborador en Clerk y en la base (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Colaborador dado de baja }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
+        '502': { $ref: '#/components/responses/BadGatewayError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/ingredients:
+    get:
+      tags: [Insumos]
+      summary: Listar insumos paginados
+      description: Para COLLABORATOR se purgan cost, currentCost, suppliers y quantity.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Listado paginado de insumos }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Insumos]
+      summary: Crear un insumo (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngredientInput' }
+      responses:
+        '201': { description: Insumo creado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/ingredients/bulk:
+    post:
+      tags: [Insumos]
+      summary: Carga masiva de insumos por planilla (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Resultado del lote procesado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '413': { $ref: '#/components/responses/PayloadTooLargeError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/ingredients/{id}:
+    get:
+      tags: [Insumos]
+      summary: Obtener detalle de un insumo
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Detalle del insumo }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    put:
+      tags: [Insumos]
+      summary: Actualizar un insumo con recálculo en cascada y alerta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngredientInput' }
+      responses:
+        '200': { description: Insumo actualizado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Insumos]
+      summary: Eliminar un insumo (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Insumo eliminado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/ingredients/{id}/history:
+    get:
+      tags: [Insumos]
+      summary: Historial de precios del insumo (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Historial de precios }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/ingredients/{id}/products:
+    get:
+      tags: [Insumos]
+      summary: Productos que utilizan el insumo en su receta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Productos vinculados }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/products:
+    get:
+      tags: [Productos]
+      summary: Listar productos paginados
+      description: Para COLLABORATOR se purgan cost, marginAmount, marginPercent, quantity y packagePrice.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Listado paginado de productos }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Productos]
+      summary: Crear un producto con o sin receta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201': { description: Producto creado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/products/{id}:
+    get:
+      tags: [Productos]
+      summary: Obtener detalle de un producto y su receta
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Detalle del producto }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    put:
+      tags: [Productos]
+      summary: Actualizar un producto y/o su receta (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '200': { description: Producto actualizado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Productos]
+      summary: Eliminar un producto (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Producto eliminado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/dashboard/metrics:
+    get:
+      tags: [Panel]
+      summary: Métricas consolidadas del catálogo (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Métricas del panel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardMetrics' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers:
+    get:
+      tags: [Proveedores]
+      summary: Listar proveedores con contadores (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Lista de proveedores }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Proveedores]
+      summary: Crear un proveedor (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupplierInput' }
+      responses:
+        '201': { description: Proveedor creado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/quarantine:
+    get:
+      tags: [Cuarentena]
+      summary: Listar precios retenidos en cuarentena (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Ítems en cuarentena }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/quarantine/{id}/release:
+    post:
+      tags: [Cuarentena]
+      summary: Liberar y aplicar un precio en cuarentena (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Precio liberado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/quarantine/{id}/reject:
+    post:
+      tags: [Cuarentena]
+      summary: Rechazar un precio en cuarentena (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Precio rechazado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/{id}:
+    get:
+      tags: [Proveedores]
+      summary: Detalle de proveedor y sus presentaciones (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Detalle del proveedor }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    put:
+      tags: [Proveedores]
+      summary: Actualizar un proveedor (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupplierInput' }
+      responses:
+        '200': { description: Proveedor actualizado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Proveedores]
+      summary: Eliminar un proveedor y sus presentaciones (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Proveedor eliminado }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/{id}/ingredients:
+    post:
+      tags: [Proveedores]
+      summary: Asociar o actualizar presentación mayorista de un insumo (solo ADMIN)
+      description: Si isDefault es verdadero y packagePrice cambia, recalcula el cost y la marginPercent de las recetas vinculadas.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Presentación actualizada }
+        '201': { description: Presentación creada }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/suppliers/{id}/ingredients/{ingredientId}:
+    delete:
+      tags: [Proveedores]
+      summary: Quitar una presentación de proveedor (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: ingredientId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Presentación eliminada }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/purchasing/suggestions:
+    get:
+      tags: [Compras Sugeridas]
+      summary: Sugerencias de compra más económicas por insumo y proveedor (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Comparativa de ahorro }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/purchasing/order-preview:
+    post:
+      tags: [Compras Sugeridas]
+      summary: Calcular previsualización de orden de compra (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [supplierIngredientId, packages]
+                    properties:
+                      supplierIngredientId: { type: string }
+                      packages: { type: integer, minimum: 1, maximum: 100000 }
+      responses:
+        '200': { description: Pedido agrupado por proveedor }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/reports/weekly:
+    get:
+      tags: [Reportes]
+      summary: Reporte semanal de márgenes en JSON (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Reporte semanal }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/reports/weekly.pdf:
+    get:
+      tags: [Reportes]
+      summary: Descargar el reporte semanal de márgenes en PDF (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Archivo PDF del reporte
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailableError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/webhooks/supplier-prices:
+    post:
+      tags: [Interno - n8n]
+      summary: '[Uso interno] Ingesta masiva de listas de precios'
+      description: Endpoint de uso interno consumido por n8n. Límite 5 MB y hasta 5000 ítems.
+      security: [{ webhookSecret: [] }]
+      responses:
+        '200': { description: Resumen del lote procesado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '413': { $ref: '#/components/responses/PayloadTooLargeError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/internal/reports/accounts:
+    get:
+      tags: [Interno - n8n]
+      summary: '[Uso interno] Listar cuentas activas para reporte semanal'
+      description: Endpoint de uso interno para n8n por red interna de Docker.
+      security: [{ webhookSecret: [] }]
+      responses:
+        '200': { description: Cuentas activas }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/internal/reports/weekly/{slug}:
+    get:
+      tags: [Interno - n8n]
+      summary: '[Uso interno] Reporte semanal por slug de cuenta'
+      description: Endpoint de uso interno para n8n por red interna de Docker.
+      security: [{ webhookSecret: [] }]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Reporte semanal calculado }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido por Clerk en cabecera Authorization.
+    webhookSecret:
+      type: apiKey
+      in: header
+      name: x-margenx-webhook-secret
+      description: Secreto compartido para autenticación entre satélite n8n y backend.
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: "Recurso no encontrado o no autorizado." }
+        code: { type: string, example: "PAYLOAD_TOO_LARGE" }
+    PaginationMeta:
+      type: object
+      required: [total, page, limit, totalPages]
+      properties:
+        total: { type: integer, example: 45 }
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 20 }
+        totalPages: { type: integer, example: 3 }
+    AuthUser:
+      type: object
+      properties:
+        id: { type: string }
+        accountId: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [ADMIN, COLLABORATOR] }
+        account:
+          type: object
+          properties:
+            id: { type: string }
+            businessName: { type: string }
+            defaultMinMarginPercent: { type: string }
+            slug: { type: string }
+    AccountUser:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [ADMIN, COLLABORATOR] }
+        createdAt: { type: string, format: date-time }
+    Invitation:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        url: { type: string, nullable: true }
+    IngredientInput:
+      type: object
+      required: [name, unit, currentCost]
+      properties:
+        name: { type: string, minLength: 2, example: "Harina 000" }
+        unit: { type: string, enum: [kg, l, u], example: "kg" }
+        currentCost: { type: number, minimum: 0.01, example: 736.25 }
+    Ingredient:
+      type: object
+      properties:
+        id: { type: string }
+        accountId: { type: string }
+        name: { type: string }
+        unit: { type: string, enum: [kg, l, u] }
+        currentCost: { type: string }
+        updatedAt: { type: string, format: date-time }
+    ProductInput:
+      type: object
+      required: [name, salePrice, minMarginPercent]
+      properties:
+        name: { type: string, minLength: 2, example: "Medialunas de manteca — docena" }
+        salePrice: { type: number, minimum: 0, example: 13500.0 }
+        minMarginPercent: { type: number, minimum: 0, maximum: 999.99, example: 65.0 }
+        ingredients:
+          type: array
+          items:
+            type: object
+            required: [ingredientId, quantity]
+            properties:
+              ingredientId: { type: string }
+              quantity: { type: number, minimum: 0.001, example: 0.5 }
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        salePrice: { type: string }
+        minMarginPercent: { type: string }
+        cost: { type: string }
+        marginAmount: { type: string }
+        marginPercent: { type: string }
+    SupplierInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120, example: "Distribuidora MarJuanC" }
+        contactPhone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        address: { type: string, nullable: true }
+        isActive: { type: boolean, default: true }
+    DashboardMetrics:
+      type: object
+      properties:
+        activeIngredientsCount: { type: integer, example: 10 }
+        criticalProductsCount: { type: integer, example: 2 }
+        healthyProductsCount: { type: integer, example: 8 }
+        averageMarginPercent: { type: number, example: 58.25 }
+        recentCostVariationsCount: { type: integer, example: 1 }
+        lossCount: { type: integer, example: 0 }
+        riskCount: { type: integer, example: 2 }
+        targetCount: { type: integer, example: 4 }
+        surplusCount: { type: integer, example: 4 }
+        draftCount: { type: integer, example: 0 }
+
+  responses:
+    BadRequestError:
+      description: Solicitud inválida por error sintáctico o semántico de validación.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnauthorizedError:
+      description: Token JWT ausente, expirado o secreto de webhook inválido.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ForbiddenError:
+      description: Acceso denegado. Rol insuficiente (ej. COLLABORATOR intentando mutar datos).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFoundError:
+      description: Recurso no encontrado o perteneciente a otra cuenta.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ConflictError:
+      description: Conflicto de unicidad o protección referencial activa.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    PayloadTooLargeError:
+      description: El cuerpo excede el límite máximo permitido.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnprocessableEntityError:
+      description: Violación de regla de negocio de la aplicación.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    BadGatewayError:
+      description: Fallo en la comunicación con un servicio de terceros (Clerk).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailableError:
+      description: Servicio satélite no disponible (n8n / Gotenberg).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalServerError:
+      description: Error interno del servidor o excepción no controlada.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
