@@ -152,6 +152,6 @@ describe('LoginPage: enlace de invitación de un colaborador (#395)', () => {
 
     expect(screen.getByTestId('sign-in')).toBeInTheDocument()
     expect(screen.queryByTestId('sign-up')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Inicia sesión en tu comercio' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Iniciá sesión en tu comercio' })).toBeInTheDocument()
   })
 })

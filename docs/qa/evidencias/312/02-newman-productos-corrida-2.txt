@@ -1,0 +1,127 @@
+# Issue #312 — MargenX - Productos API, segunda corrida, sin re-seedear
+# Fecha: 22/11/2026. Entorno: el mismo de 01-newman-productos-corrida-1.txt, minutos después.
+# Comando, desde backend/:
+#   TOKEN_A=$(npx tsx scripts/get-test-token.ts panaderia-admin | grep -E '^eyJ')
+#   (cd tests/postman && bash ./run-tests-productos.sh "$TOKEN_A" "") 2>&1 | grep -v 'eyJ'
+# "Crear producto válido" vuelve a dar 201 (no 409): la primera corrida no dejó "Producto QA".
+# La única falla es la del pedido de la Cuenta B (401), por el mismo motivo que en la primera corrida.
+# Salida de consola de Newman, sin cambios.
+
+newman
+
+MargenX - Productos API
+
+❏ 01 - Alta y Validaciones (Cuenta A - Panadería Central)
+↳ POST Crear producto válido, sin receta (201)
+  POST http://localhost:3000/api/products [201 Created, 1.2kB, 35ms]
+  ✓  Status code es 201 Created
+  ✓  El body respeta el schema de Product
+  ✓  El producto creado pertenece a la Cuenta A
+  ✓  El producto creado tiene los valores enviados
+  ✓  Sin ingredientes, queda en modo borrador (costo y margen en 0)
+
+↳ POST salePrice en cero crea el producto (201, allowZero intencional)
+  POST http://localhost:3000/api/products [201 Created, 1.21kB, 18ms]
+  ✓  Status code es 201 Created
+  ✓  El producto se crea con salePrice en 0
+
+↳ POST Validación - salePrice en cero con receta (400)
+  POST http://localhost:3000/api/products [400 Bad Request, 1.02kB, 7ms]
+  ✓  Status code es 400 Bad Request
+  ✓  El mensaje indica que el precio debe ser mayor a cero cuando hay receta
+  ✓  No se creó ningún registro (respuesta no incluye un product)
+
+↳ POST Validación - nombre duplicado con distinto casing (409)
+  POST http://localhost:3000/api/products [409 Conflict, 962B, 9ms]
+  ✓  Status code es 409 Conflict
+  ✓  El mensaje indica que el nombre ya existe
+
+↳ POST Validación - salePrice negativo (400)
+  POST http://localhost:3000/api/products [400 Bad Request, 981B, 8ms]
+  ✓  Status code es 400 Bad Request
+  ✓  El mensaje indica que el precio debe ser mayor o igual a cero
+  ✓  No se creó ningún registro (respuesta no incluye un product)
+
+↳ POST Validación - nombre vacío (400)
+  POST http://localhost:3000/api/products [400 Bad Request, 961B, 6ms]
+  ✓  Status code es 400 Bad Request
+  ✓  El mensaje indica que el nombre es obligatorio
+  ✓  No se creó ningún registro (respuesta no incluye un product)
+
+↳ GET Listar productos (200)
+  GET http://localhost:3000/api/products [200 OK, 21.27kB, 10ms]
+  ✓  Status code es 200 OK
+  ✓  El body respeta el schema paginado { data, meta }
+  ✓  El producto creado en este run aparece en el listado de su cuenta
+  ✓  El listado es exclusivo de la Cuenta A (sin fugas de otras cuentas)
+
+↳ GET Buscar productos sin tildes (200)
+  GET http://localhost:3000/api/products?search=canoncitos&page=1&limit=5 [200 OK, 2.22kB, 11ms]
+  ✓  Status code es 200 OK
+  ✓  Encuentra Cañoncitos buscando "canoncitos" sin ñ
+
+↳ GET Buscar producto inexistente devuelve vacío (200)
+  GET http://localhost:3000/api/products?search=producto_inexistente_xyz [200 OK, 986B, 8ms]
+  ✓  Status code es 200 OK
+  ✓  data está vacío y total es 0
+
+↳ GET Listar productos sin token (401)
+  GET http://localhost:3000/api/products [401 Unauthorized, 942B, 4ms]
+  ✓  Status code es 401 Unauthorized
+  ✓  El mensaje de error es el uniforme de autenticación
+
+❏ 02 - Aislamiento Multiempresa (Cuenta B - Química GyJ contra datos de Cuenta A)
+↳ GET Listar productos como Cuenta B (no debe incluir productos de Cuenta A)
+  GET http://localhost:3000/api/products [401 Unauthorized, 942B, 3ms]
+  1. Status code es 200 OK
+  2⠄ TypeError in test-script
+
+❏ 03 - Limpieza (deja el catálogo como estaba)
+↳ DELETE Borrar el producto creado (200)
+  DELETE http://localhost:3000/api/products/15faa71c-168c-4df3-a157-1d7e9b389e65 [200 OK, 923B, 11ms]
+  ✓  Status code es 200 OK
+  ✓  Se borró "Producto QA"
+
+↳ DELETE Borrar el producto a $0 (200)
+  DELETE http://localhost:3000/api/products/4fd34c6d-9d36-4681-83f5-cdea0d3fd199 [200 OK, 923B, 9ms]
+  ✓  Status code es 200 OK
+  ✓  Se borró "Producto Precio Cero"
+
+↳ GET Los productos de la corrida ya no existen (404)
+  GET http://localhost:3000/api/products/15faa71c-168c-4df3-a157-1d7e9b389e65 [404 Not Found, 949B, 7ms]
+  ✓  La corrida guardó los ids de los dos productos que creó
+  ✓  "Producto QA" de la corrida ya no existe (404)
+  GET http://localhost:3000/api/products/4fd34c6d-9d36-4681-83f5-cdea0d3fd199 [404 Not Found, 949B, 7ms]
+  ✓  "Producto Precio Cero" de la corrida ya no existe (404)
+
+┌─────────────────────────┬──────────────────┬─────────────────┐
+│                         │         executed │          failed │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              iterations │                1 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│                requests │               15 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│            test-scripts │               14 │               1 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│      prerequest-scripts │                1 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              assertions │               36 │               1 │
+├─────────────────────────┴──────────────────┴─────────────────┤
+│ total run duration: 490ms                                    │
+├──────────────────────────────────────────────────────────────┤
+│ total data received: 22.75kB (approx)                        │
+├──────────────────────────────────────────────────────────────┤
+│ average response time: 10ms [min: 3ms, max: 35ms, s.d.: 7ms] │
+└──────────────────────────────────────────────────────────────┘
+
+  #  failure         detail
+
+ 1.  AssertionError  Status code es 200 OK
+                     expected response to have status code 200 but got 401
+                     at assertion:0 in test-script
+                     inside "02 - Aislamiento Multiempresa (Cuenta B - Química GyJ contra datos de Cuenta A) / GET Listar productos como Cuenta B (no debe incluir productos de Cuenta A)"
+
+ 2.  TypeError
+                     Cannot read properties of undefined (reading 'map')
+                     at test-script
+                     inside "02 - Aislamiento Multiempresa (Cuenta B - Química GyJ contra datos de Cuenta A) / GET Listar productos como Cuenta B (no debe incluir productos de Cuenta A)"

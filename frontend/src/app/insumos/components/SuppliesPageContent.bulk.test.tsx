@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { supplierService } from '@/services/supplierService'
 import SuppliesPageContent from './SuppliesPageContent'
+import { renderWithDataRouter } from '@/test-utils/renderWithDataRouter'
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: vi.fn().mockResolvedValue('token-de-prueba'), signOut: vi.fn() }),
@@ -51,12 +51,7 @@ const HARINA: Ingredient = {
   updatedAt: '2026-10-01T00:00:00.000Z',
 }
 
-const renderPage = () =>
-  render(
-    <MemoryRouter initialEntries={['/insumos']}>
-      <SuppliesPageContent />
-    </MemoryRouter>
-  )
+const renderPage = () => renderWithDataRouter(<SuppliesPageContent />, '/insumos')
 
 describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => {
   beforeEach(() => {
@@ -120,5 +115,54 @@ describe('SuppliesPageContent - acceso a la carga desde planilla (#252)', () => 
     await user.click(desktopButton as HTMLElement)
 
     expect(await screen.findByRole('dialog', { name: 'Cargar insumos desde una planilla' })).toBeInTheDocument()
+  })
+})
+
+describe('SuppliesPageContent - encabezado y tarjetas (#362)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentUser.role = 'ADMIN'
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([HARINA]))
+    vi.mocked(ingredientService.getAll).mockResolvedValue([HARINA])
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+  })
+
+  const encabezado = async () => {
+    const titulo = await screen.findByRole('heading', { level: 1, name: 'Insumos' })
+    return within(titulo.closest('section') as HTMLElement)
+  }
+
+  it('ordena el encabezado: Cuarentena, después las dos altas, con "Nuevo Insumo" (la acción principal) al final', async () => {
+    renderPage()
+    const botones = (await encabezado()).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())
+    expect(botones).toEqual(['Cuarentena', 'Cargar desde planilla', 'Nuevo Insumo'])
+  })
+
+  it('"Cargar desde planilla" responde al pasar el mouse en claro y en oscuro, y muestra el foco', async () => {
+    renderPage()
+    const [desktopButton, mobileButton] = await screen.findAllByRole('button', { name: 'Cargar desde planilla' })
+    for (const boton of [desktopButton, mobileButton]) {
+      const clases = (boton as HTMLElement).className.split(/\s+/)
+      expect(clases).toEqual(
+        expect.arrayContaining(['hover:border-indigo-300', 'hover:bg-indigo-50', 'dark:hover:bg-gray-700', 'focus-visible:outline-2'])
+      )
+    }
+  })
+
+  it('quita las tarjetas "Recálculo: Activo" y "Afectan a: Catálogo general", que no informaban nada', async () => {
+    renderPage()
+    expect(await screen.findByText('Insumos activos')).toBeInTheDocument()
+    expect(screen.getByText('Variaciones recientes')).toBeInTheDocument()
+    for (const texto of ['Recálculo', 'Activo', 'Afectan a', 'Catálogo general']) {
+      expect(screen.queryByText(texto)).toBeNull()
+    }
+  })
+
+  it('el colaborador no ve Cuarentena ni la planilla en el encabezado', async () => {
+    currentUser.role = 'COLLABORATOR'
+    renderPage()
+    const botones = (await encabezado()).queryAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())
+    expect(botones).not.toContain('Cuarentena')
+    expect(botones).not.toContain('Cargar desde planilla')
   })
 })

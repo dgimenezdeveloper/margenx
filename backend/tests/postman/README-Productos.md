@@ -10,8 +10,8 @@ Issue #38. Colección automatizada de pruebas de API para `POST/GET /api/product
 
 ## ⚠️ Notas importantes: alcance vs. estado actual del backend
 
-1. **Sin `GET/PUT/DELETE /api/products/:id`.** El endpoint de Productos hoy solo expone `GET /api/products` (listado paginado) y `POST /api/products` (alta). La issue #38 pide validar el aislamiento multi-tenant "consultando un `productId` ajeno" — al no existir una ruta de detalle por id, esa prueba se adaptó para usar el único endpoint de lectura disponible: se crea un producto con la Cuenta A y se verifica que **no aparece en el listado de la Cuenta B** (carpeta `02 - Aislamiento Multiempresa`). Cubre el mismo riesgo de fuga de datos que un test de IDOR clásico, pero no reemplaza uno si en el futuro se agrega la ruta de detalle — cuando eso pase, conviene sumar el caso directo (`GET /api/products/:id` ajeno → 404) como se hizo con Insumos.
-2. **Sin limpieza automática.** Como tampoco existe `DELETE /api/products/:id`, los productos que crea esta colección en cada corrida **quedan persistidos** en la base (a diferencia de la colección de Insumos, que sí puede autolimpiarse). Todos los nombres de prueba llevan el prefijo `"Producto ..."` + `{{$timestamp}}` para poder identificarlos y borrarlos a mano desde Prisma Studio si hace falta dejar la base limpia.
+1. **Aislamiento probado por el listado.** La colección se armó cuando Productos solo tenía `GET /api/products` (listado) y `POST /api/products` (alta). Por eso la issue #38, que pide validar el aislamiento multi-tenant "consultando un `productId` ajeno", se cubrió con el único endpoint de lectura de entonces: se crea un producto con la Cuenta A y se verifica que **no aparece en el listado de la Cuenta B** (carpeta `02 - Aislamiento Multiempresa`). Hoy también existen `GET`, `PUT` y `DELETE /api/products/:id`: el caso directo (`GET /api/products/:id` ajeno → 404), como el de Insumos, queda como mejora.
+2. **Limpieza automática (#312).** La carpeta `03 - Limpieza` borra con `DELETE /api/products/:id` los dos productos que crea la corrida ("Producto QA" y "Producto Precio Cero") y controla que ya no existan (`GET /api/products/:id` → 404). Los demás casos de alta son rechazos (400 o 409) y no crean nada.
 
 ## Requisitos previos
 
@@ -58,7 +58,7 @@ Salida esperada: **0 failures**, con el detalle de cada assertion (`pm.test`) en
 ## 3. Reproducibilidad
 
 - El nombre de cada producto de prueba incluye `{{$timestamp}}`, así que las corridas no colisionan entre sí por nombre duplicado.
-- Al no existir `DELETE /api/products/:id`, los productos creados en cada run **no se borran solos** (ver nota de alcance más arriba). Si necesitás dejar la base piloto limpia, borralos a mano desde Prisma Studio filtrando por nombre (`"Producto QA"`, `"Producto Precio Cero"`, `"Producto Precio Negativo"`).
+- La carpeta `03 - Limpieza` borra los dos productos que crea la corrida y controla que ya no existan, así que la colección se puede correr seguida sin dejar productos en la base (#312). Si una corrida se corta antes de esa carpeta, los productos que hayan quedado se reconocen por el nombre (`"Producto QA …"` o `"Producto Precio Cero …"`) y se borran desde la app o con `DELETE /api/products/:id`.
 
 ## También desde la app de Postman (opcional, para debug manual)
 

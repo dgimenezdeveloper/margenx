@@ -7,6 +7,40 @@
   },
   "item": [
     {
+      "name": "00 - Guarda el insumo como estaba antes de la corrida",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Guarda nombre, unidad y costo de antes de la corrida: 04 los vuelve a dejar así (#312).",
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const ingrediente = pm.response.json().ingredient;",
+              "pm.collectionVariables.set('harinaNombreOriginal', ingrediente.name);",
+              "pm.collectionVariables.set('harinaUnidadOriginal', ingrediente.unit);",
+              "pm.collectionVariables.set('harinaCostoOriginal', String(ingrediente.currentCost));",
+              "pm.test('El costo de partida no es el 9500 que fija 01: así 01 y 04 son cambios reales', function () {",
+              "  pm.expect(Number(ingrediente.currentCost)).to.not.eql(9500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "01 - Cambio real: affectedProductsCount total + criticalProducts subset",
       "event": [
         {
@@ -41,7 +75,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
@@ -59,7 +93,7 @@
           "script": {
             "exec": [
               "// Reenvía el mismo currentCost que dejó el request 01 (9500.00), no el",
-              "// costo base original (736.25): este request comparte el insumo con el",
+              "// costo de antes de la corrida: este request comparte el insumo con el",
               "// 01 dentro de la misma corrida, así que \"sin cambio real\" tiene que",
               "// probarse contra el valor vigente en este momento, no contra la base.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
@@ -81,7 +115,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
@@ -116,7 +150,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"9500.00\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"9500.00\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
@@ -133,12 +167,9 @@
           "listen": "test",
           "script": {
             "exec": [
-              "// Vuelve el costo a la base del seed (736.25, el costo activo post-seed",
-              "// de la presentación mayorista por defecto - ver docs/qa/seed-data-comercios.md,",
-              "// no el valor histórico declarado en prisma/seed.ts): es un cambio real",
-              "// otra vez (esta vez hacia abajo), así que de paso deja la colección",
-              "// reproducible sin una limpieza aparte y sin pisar el baseline que",
-              "// usan otras colecciones y las suites E2E.",
+              "// Vuelve el insumo al costo, nombre y unidad que tenía antes de la corrida (los guarda 00,",
+              "// y 05 controla que queden iguales). Es un cambio real otra vez (desde 9500), así que",
+              "// prueba el envío de la alerta y de paso deja la colección repetible sin limpieza aparte (#312).",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
               "pm.test('El total real queda en affectedProductsCount', function () {",
@@ -166,8 +197,43 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"736.25\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"{{harinaCostoOriginal}}\"\n}"
         },
+        "url": {
+          "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["ingredients", "{{ingredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - El insumo quedó como estaba antes de la corrida",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Control final (#312): la corrida deja el insumo igual que antes de empezar.",
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const ingrediente = pm.response.json().ingredient;",
+              "pm.test('El costo vuelve al de antes de la corrida', function () {",
+              "  pm.expect(Number(ingrediente.currentCost)).to.eql(Number(pm.collectionVariables.get('harinaCostoOriginal')));",
+              "});",
+              "pm.test('El nombre y la unidad no cambian', function () {",
+              "  pm.expect(ingrediente.name).to.eql(pm.collectionVariables.get('harinaNombreOriginal'));",
+              "  pm.expect(ingrediente.unit).to.eql(pm.collectionVariables.get('harinaUnidadOriginal'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
           "host": ["{{baseUrl}}"],

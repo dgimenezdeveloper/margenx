@@ -7,7 +7,11 @@ import type { ActiveHealthBucket } from '@/lib/healthBucket'
 import { MonitoredCatalogGrid } from './MonitoredCatalogGrid'
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  ),
 }))
 
 const NOMBRES = [
@@ -71,6 +75,21 @@ function tarjetas() {
 }
 
 describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
+  it('Escenario Gherkin: Link del filtro -> con "En objetivo" el enlace que quita el filtro usa el color de enlace, no el de alerta (#362)', () => {
+    const { onClearFilter } = renderGrilla('target')
+    const quitarFiltro = screen.getByRole('button', { name: /ver catálogo completo/i })
+    expect(quitarFiltro.className).toMatch(/text-indigo-700/)
+    expect(quitarFiltro.className).not.toMatch(/rose|red|amber/)
+    fireEvent.click(quitarFiltro)
+    expect(onClearFilter).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin filtro, el enlace al catálogo usa el mismo color de enlace que con filtro (#362)', () => {
+    renderGrilla()
+    const enlace = screen.getByRole('link', { name: /ver catálogo completo/i })
+    expect(enlace.className).toMatch(/text-indigo-700/)
+  })
+
   it('muestra el total real en "Ver catálogo completo" y 20 productos por página', () => {
     renderGrilla()
     expect(screen.getByText('Ver catálogo completo (339)')).toBeInTheDocument()
@@ -170,7 +189,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     unmount()
 
     renderGrilla(null, [])
-    expect(screen.getByText(/aún no tienes productos/i)).toBeInTheDocument()
+    expect(screen.getByText(/aún no tenés productos/i)).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /paginación/i })).toBeNull()
   })
 

@@ -6,6 +6,7 @@ import { Pagination } from '@/components/pagination'
 import { DEFAULT_PAGE_SIZE } from '@/services/pagination'
 import type { Product } from '@/services/productService'
 import { formatMoney } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import {
   HEALTH_BUCKET_META,
   classifyHealthBucket,
@@ -13,6 +14,12 @@ import {
 } from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
+
+/**
+ * "Ver catálogo completo" es un enlace aunque, con un filtro activo, solo lo quite:
+ * usa siempre el color de enlace y nunca el de una alerta (#362).
+ */
+const CATALOG_LINK_CLASSES = `inline-flex min-h-11 items-center rounded-md text-xs font-bold text-indigo-700 underline-offset-2 transition hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200 ${CANONICAL_FOCUS_CLASSES}`
 
 const BUCKET_TITLES: Record<ActiveHealthBucket, string> = {
   loss: HEALTH_BUCKET_META.loss.label,
@@ -124,7 +131,7 @@ export function MonitoredCatalogGrid({
             <button
               type="button"
               onClick={onClearFilter}
-              className="text-xs font-bold text-rose-600 transition hover:underline dark:text-rose-400 cursor-pointer"
+              className={`${CATALOG_LINK_CLASSES} cursor-pointer`}
             >
               <span className="sm:hidden">Restablecer</span>
               <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
@@ -133,7 +140,7 @@ export function MonitoredCatalogGrid({
           {(!selectedBucket || isCollaborator) && (
             <Link
               href="/productos"
-              className="text-xs font-bold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+              className={CATALOG_LINK_CLASSES}
             >
               <span className="sm:hidden">Ver todos ({products.length})</span>
               <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
@@ -162,7 +169,7 @@ export function MonitoredCatalogGrid({
               </button>
             </>
           ) : (
-            'Aún no tienes productos registrados en el catálogo.'
+            'Aún no tenés productos registrados en el catálogo.'
           )}
         </div>
       ) : (

@@ -11,7 +11,6 @@ import {
 interface HealthBucketColumn {
   key: ActiveHealthBucket
   title: string
-  shortTitle: string
   rangeLabel: string
   count: number
   percentage: number
@@ -52,7 +51,6 @@ export function HealthDistributionHistogram({
       {
         key: 'loss',
         title: HEALTH_BUCKET_META.loss.label,
-        shortTitle: HEALTH_BUCKET_META.loss.shortLabel,
         rangeLabel: `< ${formatPercent(0, { decimals: 0 })}`,
         count: lossCount,
         percentage: calcPct(lossCount),
@@ -64,7 +62,6 @@ export function HealthDistributionHistogram({
       {
         key: 'risk',
         title: HEALTH_BUCKET_META.risk.label,
-        shortTitle: HEALTH_BUCKET_META.risk.shortLabel,
         rangeLabel: 'Bajo su mínimo',
         count: riskCount,
         percentage: calcPct(riskCount),
@@ -76,7 +73,6 @@ export function HealthDistributionHistogram({
       {
         key: 'target',
         title: HEALTH_BUCKET_META.target.label,
-        shortTitle: HEALTH_BUCKET_META.target.shortLabel,
         rangeLabel: `Su mínimo a ${surplusLabel}`,
         count: targetCount,
         percentage: calcPct(targetCount),
@@ -88,7 +84,6 @@ export function HealthDistributionHistogram({
       {
         key: 'surplus',
         title: HEALTH_BUCKET_META.surplus.label,
-        shortTitle: HEALTH_BUCKET_META.surplus.shortLabel,
         rangeLabel: `> ${surplusLabel}`,
         count: surplusCount,
         percentage: calcPct(surplusCount),
@@ -175,7 +170,7 @@ export function HealthDistributionHistogram({
                   disabled={!hasProducts}
                   aria-pressed={isSelected}
                   aria-label={`${bucket.title}: ${bucket.count} ${bucket.count === 1 ? 'producto' : 'productos'}, ${bucket.rangeLabel.toLowerCase()}`}
-                  className={`group relative flex flex-col justify-end rounded-2xl border p-2 transition-all text-center cursor-pointer select-none sm:p-3.5 ${
+                  className={`group relative flex flex-col justify-end rounded-2xl border px-1.5 py-2 transition-all text-center cursor-pointer select-none sm:p-3.5 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/40'
                       : `${bucket.borderClass} ${hasProducts ? bucket.bgHoverClass : 'opacity-40 cursor-not-allowed'} bg-gray-50/50 dark:bg-gray-800/20`
@@ -200,9 +195,9 @@ export function HealthDistributionHistogram({
                   </div>
 
                   <div className="mt-2 space-y-0.5">
-                    <p className="text-[11px] font-black leading-tight text-gray-900 dark:text-gray-100 sm:text-xs">
-                      <span className="sm:hidden">{bucket.shortTitle}</span>
-                      <span className="hidden sm:inline">{bucket.title}</span>
+                    {/* El mismo nombre en todos los anchos: a 360 px "En objetivo" pasa a dos líneas. */}
+                    <p className="text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 sm:text-xs">
+                      {bucket.title}
                     </p>
                     <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 sm:text-[10px]">
                       {bucket.rangeLabel}
@@ -227,7 +222,7 @@ export function HealthDistributionHistogram({
               {catalogTotal} {catalogTotal === 1 ? 'producto' : 'productos'} en total
             </span>
             <span className="hidden sm:inline">
-              Haz clic en una columna para filtrar los productos abajo
+              Hacé clic en una columna para filtrar los productos de abajo
             </span>
           </div>
         </div>

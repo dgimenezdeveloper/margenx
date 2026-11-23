@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/services/api'
@@ -109,7 +109,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     vi.mocked(productService.list).mockResolvedValue({ items: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } })
     renderPage()
 
-    expect(await screen.findByText('Aún no tienes productos cargados')).toBeInTheDocument()
+    expect(await screen.findByText('Aún no tenés productos cargados')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Paginación de productos' })).toBeNull()
   })
 
@@ -127,5 +127,58 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByText('No autorizado.')).toBeInTheDocument())
+  })
+})
+
+describe('ProductsPage - aviso al colaborador redirigido (#364)', () => {
+  const renderRedirigido = (state: unknown) => {
+    const router = createMemoryRouter([{ path: '/productos', element: <ProductsPage /> }], {
+      initialEntries: [{ pathname: '/productos', state }],
+    })
+    render(<RouterProvider router={router} />)
+    return router
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentUser.role = 'COLLABORATOR'
+    vi.mocked(productService.list).mockResolvedValue({
+      items: [producto(1)],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    })
+  })
+
+  it('Escenario Gherkin "Colaborador redirigido": al volver desde /insumos ve que esa pantalla es del administrador', async () => {
+    renderRedirigido({ adminOnlyFrom: '/insumos' })
+
+    const aviso = await screen.findByRole('status')
+    expect(aviso).toHaveTextContent('Esa pantalla es solo para el administrador')
+    expect(aviso).toHaveTextContent('Te trajimos al catálogo de productos.')
+  })
+
+  it('el aviso se consume: el estado del historial se limpia para que recargar no lo repita', async () => {
+    const router = renderRedirigido({ adminOnlyFrom: '/proveedores/cuarentena' })
+
+    await screen.findByText('Esa pantalla es solo para el administrador')
+    await waitFor(() => expect(router.state.location.state).toBeNull())
+    expect(router.state.location.pathname).toBe('/productos')
+  })
+
+  it('el aviso se puede cerrar con la X', async () => {
+    renderRedirigido({ adminOnlyFrom: '/productos/nuevo' })
+
+    await screen.findByText('Esa pantalla es solo para el administrador')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Esa pantalla es solo para el administrador')).not.toBeInTheDocument()
+    )
+  })
+
+  it('entrar a /productos de forma normal no muestra ningún aviso', async () => {
+    renderRedirigido(null)
+
+    expect((await screen.findAllByText('Medialuna de manteca 1')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Esa pantalla es solo para el administrador')).not.toBeInTheDocument()
   })
 })

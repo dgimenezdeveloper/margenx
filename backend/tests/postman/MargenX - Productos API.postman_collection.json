@@ -111,7 +111,10 @@
                   "",
                   "pm.test('El producto se crea con salePrice en 0', function () {",
                   "    pm.expect(pm.response.json().product.salePrice).to.eql('0');",
-                  "});"
+                  "});",
+                  "",
+                  "// Guarda el id para borrarlo en \"03 - Limpieza\" (#312).",
+                  "pm.environment.set('productId_cuentaA_precioCero', pm.response.json().product.id);"
                 ]
               }
             }
@@ -493,29 +496,31 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// El backend todavía no expone GET /api/products/:id, así que no hay",
-                  "// forma de reproducir un ataque IDOR clásico (consulta directa por id",
-                  "// ajeno) como se hizo con Insumos. Este test valida el mismo riesgo",
-                  "// de fuga de datos multi-tenant a través del único endpoint de lectura",
-                  "// disponible hoy: el listado. Ver README-Productos.md.",
+                  "// Aislamiento multiempresa por el listado: un producto de la Cuenta A no aparece en el",
+                  "// listado de la Cuenta B. Hoy también existe GET /api/products/:id; el caso directo",
+                  "// (id ajeno → 404), como en Insumos, queda como mejora. Ver README-Productos.md.",
                   "",
                   "pm.test('Status code es 200 OK', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "const jsonData = pm.response.json();",
-                  "const ids = jsonData.data.map((p) => p.id);",
-                  "const accountIdCuentaA = pm.environment.get('accountId_cuentaA');",
+                  "// Sin 200 (por ejemplo, 401 sin token de la Cuenta B) no hay listado que revisar: falla",
+                  "// solo el control del status, sin un TypeError al leer `data`.",
+                  "const jsonData = pm.response.code === 200 ? pm.response.json() : null;",
+                  "if (jsonData && Array.isArray(jsonData.data)) {",
+                  "    const ids = jsonData.data.map((p) => p.id);",
+                  "    const accountIdCuentaA = pm.environment.get('accountId_cuentaA');",
                   "",
-                  "pm.test('El producto de la Cuenta A no aparece en el listado de la Cuenta B', function () {",
-                  "    pm.expect(ids).to.not.include(pm.environment.get('productId_cuentaA'));",
-                  "});",
-                  "",
-                  "pm.test('Ningún producto listado pertenece a la Cuenta A', function () {",
-                  "    jsonData.data.forEach((product) => {",
-                  "        pm.expect(product.accountId).to.not.eql(accountIdCuentaA);",
+                  "    pm.test('El producto de la Cuenta A no aparece en el listado de la Cuenta B', function () {",
+                  "        pm.expect(ids).to.not.include(pm.environment.get('productId_cuentaA'));",
                   "    });",
-                  "});"
+                  "",
+                  "    pm.test('Ningún producto listado pertenece a la Cuenta A', function () {",
+                  "        jsonData.data.forEach((product) => {",
+                  "            pm.expect(product.accountId).to.not.eql(accountIdCuentaA);",
+                  "        });",
+                  "    });",
+                  "}"
                 ]
               }
             }
@@ -529,6 +534,125 @@
               "raw": "{{baseUrl}}/products",
               "host": ["{{baseUrl}}"],
               "path": ["products"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Limpieza (deja el catálogo como estaba)",
+      "item": [
+        {
+          "name": "DELETE Borrar el producto creado (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Borra lo que creó la corrida (#312): DELETE /api/products/:id responde 200 con { success: true }.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Se borró \"Producto QA\"', function () {",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Borrar el producto a $0 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Borra lo que creó la corrida (#312): DELETE /api/products/:id responde 200 con { success: true }.",
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Se borró \"Producto Precio Cero\"', function () {",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA_precioCero}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA_precioCero}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Los productos de la corrida ya no existen (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Control final (#312): la corrida no deja productos en el catálogo de Panadería Central.",
+                  "const idProducto = pm.environment.get('productId_cuentaA');",
+                  "const idPrecioCero = pm.environment.get('productId_cuentaA_precioCero');",
+                  "",
+                  "pm.test('La corrida guardó los ids de los dos productos que creó', function () {",
+                  "    pm.expect(idProducto, 'id de \"Producto QA\"').to.be.a('string').and.not.be.empty;",
+                  "    pm.expect(idPrecioCero, 'id de \"Producto Precio Cero\"').to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "",
+                  "pm.test('\"Producto QA\" de la corrida ya no existe (404)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/products/' + idPrecioCero,",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.variables.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('\"Producto Precio Cero\" de la corrida ya no existe (404)', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(404);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId_cuentaA}}"]
             }
           },
           "response": []

@@ -6,8 +6,11 @@ import { SupplierPackagingModal } from '../supplier-packaging-modal'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import type { Ingredient } from '@/services/ingredientService'
 
+// Como en Clerk, getToken conserva su referencia entre renders: si cambiara, el modal
+// volvería a pedir los proveedores y la prueba no reflejaría lo que pasa en la app.
+const getToken = vi.fn().mockResolvedValue('fake-token')
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: vi.fn().mockResolvedValue('fake-token') }),
+  useAuth: () => ({ getToken }),
 }))
 
 vi.mock('@/services/supplierService', () => ({
@@ -126,7 +129,7 @@ describe('SupplierPackagingModal', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /No puedes quitar el proveedor predeterminado sin asignar otro/i
+          /No podés quitar el proveedor predeterminado sin asignar otro/i
         )
       ).toBeInTheDocument()
     })
@@ -192,8 +195,8 @@ describe('SupplierPackagingModal', () => {
       expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
 
-    // Abrir el sub-formulario para nuevo proveedor (usando el texto exacto 'Nuevo')
-    const newSupplierBtn = screen.getByRole('button', { name: 'Nuevo' })
+    // Abrir el sub-formulario para nuevo proveedor
+    const newSupplierBtn = screen.getByRole('button', { name: 'Nuevo proveedor' })
     fireEvent.click(newSupplierBtn)
 
     // Escribir en el campo de texto del nuevo proveedor
@@ -274,7 +277,7 @@ describe('SupplierPackagingModal', () => {
       expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /Nuevo/ }))
+    await user.click(screen.getByRole('button', { name: 'Nuevo proveedor' }))
     await user.type(screen.getByPlaceholderText('Nombre del proveedor...'), 'Distribuidora La Espiga')
     await user.click(screen.getByRole('button', { name: 'Cancelar alta de proveedor' }))
     await user.click(screen.getByRole('button', { name: /^Cancelar$/ }))
@@ -316,16 +319,108 @@ describe('SupplierPackagingModal', () => {
     // Los mensajes deben aparecer en el DOM con semántica alert
     await waitFor(() => {
       expect(
-        screen.getByText(/Ingresa una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
+        screen.getByText(/Ingresá una cantidad válida|El tamaño del bulto debe ser mayor a 0/i)
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Ingresa un precio válido|El precio del empaque debe ser mayor a 0/i)
+        screen.getByText(/Ingresá un precio válido|El precio del empaque debe ser mayor a 0/i)
       ).toBeInTheDocument()
     })
 
     // El foco debe desplazarse al primer campo inválido (packageSize)
     await waitFor(() => {
       expect(sizeInput).toHaveFocus()
+    })
+  })
+
+  describe('retoques visuales (#362)', () => {
+    const PROVEEDORES = [
+      buildSupplier('sup-2', 'Molino Campodónico'),
+      buildSupplier('sup-3', 'Distribuidora MarJuanC Alimentos'),
+    ]
+
+    const esperarCarga = () =>
+      waitFor(() => {
+        expect(screen.queryByText('Cargando proveedores...')).not.toBeInTheDocument()
+      })
+
+    it('el botón para dar de alta un proveedor se ve como botón y dice qué hace', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      const boton = screen.getByRole('button', { name: 'Nuevo proveedor' })
+      const clases = boton.className.split(/\s+/)
+      expect(clases).toEqual(
+        expect.arrayContaining(['border', 'border-indigo-200', 'bg-indigo-50', 'text-indigo-700', 'min-h-11', 'focus-visible:outline-2'])
+      )
+      expect(clases).not.toContain('hover:underline')
+    })
+
+    it('Escenario: el proveedor se elige en un desplegable con el estilo de MargenX, no en un select nativo', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      vi.mocked(supplierService.addPackaging).mockResolvedValue({
+        unitCost: 760,
+        supplierIngredient: { ...mockSupplierConnection, id: 'conn-3', supplierId: 'sup-3', packageSize: 25, packagePrice: 19000, isDefault: false },
+      } as Awaited<ReturnType<typeof supplierService.addPackaging>>)
+      const onSuccess = vi.fn()
+      const user = userEvent.setup()
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={onSuccess} />)
+      await esperarCarga()
+
+      expect(document.querySelector('select')).toBeNull()
+      const desplegable = screen.getByRole('combobox', { name: 'Proveedor mayorista' })
+      expect(desplegable).toHaveTextContent('Molino Campodónico')
+
+      await user.click(desplegable)
+      const lista = await screen.findByRole('listbox')
+      expect(within(lista).getAllByRole('option').map((o) => o.textContent)).toEqual([
+        'Molino Campodónico',
+        'Distribuidora MarJuanC Alimentos',
+      ])
+      await user.click(within(lista).getByRole('option', { name: 'Distribuidora MarJuanC Alimentos' }))
+      await waitFor(() => expect(desplegable).toHaveTextContent('Distribuidora MarJuanC Alimentos'))
+
+      await user.type(screen.getByLabelText(/Tamaño del bulto/i), '25')
+      await user.type(screen.getByLabelText(/Precio total del bulto/i), '19000')
+      await user.click(screen.getByRole('button', { name: /Asociar Empaque/i }))
+
+      await waitFor(() => expect(supplierService.addPackaging).toHaveBeenCalledTimes(1))
+      expect(vi.mocked(supplierService.addPackaging).mock.calls[0][1]).toBe('sup-3')
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+
+    it('el proveedor dado de alta rápido queda elegido en el desplegable', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      vi.mocked(supplierService.create).mockResolvedValue(buildSupplier('sup-9', 'Distribuidora La Espiga'))
+      const user = userEvent.setup()
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      await user.click(screen.getByRole('button', { name: 'Nuevo proveedor' }))
+      await user.type(screen.getByPlaceholderText('Nombre del proveedor...'), 'Distribuidora La Espiga')
+      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      const desplegable = await screen.findByRole('combobox', { name: 'Proveedor mayorista' })
+      await waitFor(() => expect(desplegable).toHaveTextContent('Distribuidora La Espiga'))
+    })
+
+    it('al editar una presentación el proveedor no se puede cambiar', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue([buildSupplier('sup-1', 'Molino Olavarriense'), ...PROVEEDORES])
+      render(
+        <SupplierPackagingModal
+          isOpen
+          onClose={vi.fn()}
+          ingredient={mockIngredient}
+          existingConnection={mockSupplierConnection}
+          onSuccess={vi.fn()}
+        />
+      )
+      await esperarCarga()
+
+      const desplegable = screen.getByRole('combobox', { name: 'Proveedor mayorista' })
+      expect(desplegable).toHaveTextContent('Molino Olavarriense')
+      expect(desplegable).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Nuevo proveedor' })).toBeNull()
     })
   })
 })

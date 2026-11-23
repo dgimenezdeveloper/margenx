@@ -143,7 +143,7 @@ export default function LoginPage() {
             className="mx-auto h-20 w-auto object-contain transition-all duration-150 dark:brightness-0 dark:invert"
           />
           <h1 className="mt-4 text-base font-medium text-gray-500">
-            {isInvitation ? 'Creá tu acceso a MargenX' : 'Inicia sesión en tu comercio'}
+            {isInvitation ? 'Creá tu acceso a MargenX' : 'Iniciá sesión en tu comercio'}
           </h1>
         </div>
 
@@ -177,7 +177,7 @@ export default function LoginPage() {
           </div>
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800 shadow-sm">
-            Configura una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
+            Configurá una clave válida de Clerk en <strong>frontend/.env</strong> para habilitar el inicio de sesión.
           </div>
         )}
 

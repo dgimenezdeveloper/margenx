@@ -111,8 +111,9 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     const switches = screen.queryAllByRole('switch')
     expect(switches).toHaveLength(0)
 
-    // La alerta crítica se visualiza como "Activa"
-    expect(screen.getByText('Alerta de Margen Crítico')).toBeInTheDocument()
+    // La alerta de margen mínimo se visualiza como "Activa", sin el nombre viejo "crítico" (#430)
+    expect(screen.getByText('Alerta de margen mínimo')).toBeInTheDocument()
+    expect(screen.queryByText(/cr[ií]tic/i)).toBeNull()
     expect(screen.getByText('Activa')).toBeInTheDocument()
 
     // El reporte semanal en PDF ya está activo (#392); dejó de ser "Próximamente"
@@ -147,7 +148,7 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 
     // Secciones restringidas no deben montarse
     expect(screen.queryByText('Margen Objetivo Global')).toBeNull()
-    expect(screen.queryByText('Alertas Automáticas (n8n)')).toBeNull()
+    expect(screen.queryByText('Alertas automáticas')).toBeNull()
     expect(screen.queryByLabelText('Margen Mínimo Sugerido')).toBeNull()
   })
 
@@ -205,6 +206,22 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(errorElements.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('el aviso de un error al guardar el margen es una alerta cerrable, no el aviso verde de éxito (#364)', async () => {
+    vi.mocked(authService.updateGlobalMargin).mockRejectedValueOnce(
+      new ApiError('Error al conectar con el servidor', 500)
+    )
+
+    render(<ProfilePage />)
+
+    fireEvent.change(screen.getByLabelText('Margen Mínimo Sugerido'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar Margen/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error al conectar con el servidor')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar notificación' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
   it('Apertura de LogoutDialog al tocar Cerrar Sesión', async () => {
     render(<ProfilePage />)
 
@@ -212,6 +229,54 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     fireEvent.click(logoutButtons[0])
 
     expect(await screen.findByRole('dialog', { name: '¿Cerrar sesión?' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage (/perfil): textos y accesos sin duplicar (#429)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    mockIsLoading = false
+  })
+
+  it('Escenario Gherkin "Texto del margen global": es la sugerencia para productos nuevos y las alertas usan el mínimo de cada producto', () => {
+    render(<ProfilePage />)
+
+    expect(
+      screen.getByText('Es el margen que te sugerimos al crear un producto nuevo. Cada producto tiene su propio mínimo, y las alertas usan ese mínimo.')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/determinará el umbral de alerta/)).toBeNull()
+  })
+
+  it('Escenario Gherkin "Sin duplicados": el título de las alertas no nombra la herramienta interna', () => {
+    render(<ProfilePage />)
+
+    expect(screen.getByRole('heading', { name: 'Alertas automáticas' })).toBeInTheDocument()
+    expect(screen.queryByText(/n8n/)).toBeNull()
+  })
+
+  it('Política e Instalación salen de Perfil y quedan en los dos pies (móvil y escritorio)', () => {
+    render(<ProfilePage />)
+
+    expect(screen.queryByRole('link', { name: 'Política de privacidad' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Guía de instalación' })).toBeNull()
+
+    // Pie móvil (md:hidden) y DesktopFooter (hidden md:flex).
+    const politica = screen.getAllByRole('link', { name: 'Política' })
+    const instalar = screen.getAllByRole('link', { name: 'Instalar' })
+    expect(politica).toHaveLength(2)
+    expect(instalar).toHaveLength(2)
+    for (const enlace of politica) expect(enlace).toHaveAttribute('href', '/privacidad')
+    for (const enlace of instalar) expect(enlace).toHaveAttribute('href', '/instalar')
+  })
+
+  it('en escritorio, Cerrar sesión queda solo en el navbar: el botón de Perfil se muestra únicamente en el celular', () => {
+    render(<ProfilePage />)
+
+    const botonPerfil = screen.getByRole('button', { name: /Cerrar Sesión/i })
+    expect(botonPerfil.parentElement).toHaveClass('md:hidden')
+    // El "Salir" del navbar es el acceso de escritorio (hidden md:inline-flex).
+    expect(screen.getByRole('button', { name: 'Salir' })).toHaveClass('hidden', 'md:inline-flex')
   })
 })
 

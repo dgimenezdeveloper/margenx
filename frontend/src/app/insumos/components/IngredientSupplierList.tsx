@@ -134,7 +134,7 @@ export function IngredientSupplierList({
       ) : (
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3.5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
           <p className="text-[11px] text-gray-500 dark:text-gray-400">
-            No hay proveedores asociados. Calcula el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
+            No hay proveedores asociados. Calculá el costo equivalente desde bultos mayoristas cerrados (ej. bolsa de 50 kg).
           </p>
         </div>
       )}

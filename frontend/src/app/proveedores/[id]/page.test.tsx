@@ -202,7 +202,7 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     const user = userEvent.setup()
     vi.mocked(supplierService.removePackaging).mockRejectedValue(
       new ApiError(
-        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.',
+        'No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero.',
         409
       )
     )
@@ -217,7 +217,7 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
 
     expect(
       await screen.findByText(
-        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.'
+        'No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero.'
       )
     ).toBeInTheDocument()
     expect(supplierService.removePackaging).toHaveBeenCalledWith(expect.any(Function), 'sup-marjuanc', 'ing-1')
@@ -343,5 +343,38 @@ describe('SupplierDetailPage - presentaciones paginadas y búsqueda (#350)', () 
     })
     fireEvent.change(screen.getByLabelText('Buscar presentaciones por insumo o código'), { target: { value: 'azafran' } })
     expect(await screen.findByText('No hay presentaciones que coincidan con "azafran".', undefined, BUSQUEDA)).toBeInTheDocument()
+  })
+})
+
+describe('SupplierDetailPage - datos del proveedor (#362)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supplierService.getPage).mockResolvedValue(unaPagina(mockSupplier))
+  })
+
+  it('agrupa teléfono, correo y dirección en una lista rotulada debajo del nombre', async () => {
+    renderPage()
+    const titulo = await screen.findByRole('heading', { level: 1, name: 'Distribuidora MarJuanC Alimentos' })
+    const datos = screen.getByRole('list', { name: 'Datos de contacto' })
+    const items = within(datos).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual([
+      'Teléfono: +54 11 3758-0195',
+      'Correo: ventas@marjuanc.com',
+      'Dirección: Grito de Asencio 3632',
+    ])
+    // Misma columna que el nombre: se lee de arriba hacia abajo y no compite con el título.
+    expect(titulo.closest('[data-testid="supplier-identity"]')).toContainElement(datos)
+    for (const li of items) {
+      expect(li.className.split(/\s+/)).toEqual(expect.arrayContaining(['min-w-0', 'max-w-full', 'wrap-anywhere']))
+    }
+  })
+
+  it('sin datos de contacto no muestra una lista vacía', async () => {
+    vi.mocked(supplierService.getPage).mockResolvedValue(
+      unaPagina({ ...mockSupplier, contactPhone: null, email: null, address: null })
+    )
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'Distribuidora MarJuanC Alimentos' })
+    expect(screen.queryByRole('list', { name: 'Datos de contacto' })).toBeNull()
   })
 })

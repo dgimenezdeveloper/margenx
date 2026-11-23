@@ -11,17 +11,19 @@ import {
   PackageOpen,
   Phone,
   Search,
+  type LucideIcon,
 } from 'lucide-react'
 
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useToast } from '@/hooks/useToast'
 import { BottomNav } from '@/components/bottom-nav'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Navbar } from '@/components/navbar'
 import { Pagination } from '@/components/pagination'
-import { ToastAlert, type ToastType } from '@/components/ToastAlert'
+import { ToastAlert } from '@/components/ToastAlert'
 import { ApiError } from '@/services/api'
 import { fetchAllPages, type PageParams } from '@/services/pagination'
 import {
@@ -35,6 +37,23 @@ import { PresentationDeleteDialog } from './components/PresentationDeleteDialog'
 import { PresentationEditDialog } from './components/PresentationEditDialog'
 import { SupplierPresentationsList } from './components/SupplierPresentationsList'
 import { formatMoney } from '@/lib/format'
+
+interface ContactChip {
+  key: 'phone' | 'email' | 'address'
+  label: string
+  value: string
+  Icon: LucideIcon
+}
+
+/** Datos de contacto cargados, en orden fijo y con un rótulo para el lector de pantalla. */
+function supplierContactChips(supplier: SupplierDetail): ContactChip[] {
+  const chips: Array<ContactChip | null> = [
+    supplier.contactPhone ? { key: 'phone', label: 'Teléfono', value: supplier.contactPhone, Icon: Phone } : null,
+    supplier.email ? { key: 'email', label: 'Correo', value: supplier.email, Icon: Mail } : null,
+    supplier.address ? { key: 'address', label: 'Dirección', value: supplier.address, Icon: MapPin } : null,
+  ]
+  return chips.filter((chip): chip is ContactChip => chip !== null)
+}
 
 function SupplierDetailSkeleton() {
   return (
@@ -58,12 +77,7 @@ export default function SupplierDetailPage() {
   const [editingPresentation, setEditingPresentation] = useState<SupplierPresentation | null>(null)
   const [deletingPresentation, setDeletingPresentation] = useState<SupplierPresentation | null>(null)
 
-  const [toast, setToast] = useState<{ id: number; title: string; description?: string; type: ToastType } | null>(null)
-
-  const notify = (title: string, type: ToastType = 'success', description?: string) => {
-    setToast({ id: Date.now(), title, description, type })
-    setTimeout(() => setToast(null), 3500)
-  }
+  const { toast, notify, dismiss: dismissToast } = useToast()
 
   // Presentaciones paginadas y filtradas en la API; la ficha del proveedor llega en la misma respuesta.
   const fetchPresentations = useCallback(
@@ -180,6 +194,8 @@ export default function SupplierDetailPage() {
     }
   }
 
+  const contactChips = supplier ? supplierContactChips(supplier) : []
+
   return (
     <main className="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {toast && (
@@ -188,7 +204,7 @@ export default function SupplierDetailPage() {
           title={toast.title}
           description={toast.description}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={dismissToast}
         />
       )}
 
@@ -210,10 +226,10 @@ export default function SupplierDetailPage() {
             <>
               {/* Tarjeta de Información del Proveedor */}
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm md:p-6 dark:border-gray-800 dark:bg-gray-900">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div data-testid="supplier-identity" className="space-y-3">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <h1 className="text-2xl font-bold tracking-tight text-gray-950 md:text-3xl dark:text-white">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight text-gray-950 md:text-3xl dark:text-white">
                         {supplier.name}
                       </h1>
                       {supplier.isActive ? (
@@ -233,26 +249,21 @@ export default function SupplierDetailPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {supplier.contactPhone && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        <Phone className="size-3.5 text-gray-400" aria-hidden="true" />
-                        {supplier.contactPhone}
-                      </span>
-                    )}
-                    {supplier.email && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        <Mail className="size-3.5 text-gray-400" aria-hidden="true" />
-                        {supplier.email}
-                      </span>
-                    )}
-                    {supplier.address && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        <MapPin className="size-3.5 text-gray-400" aria-hidden="true" />
-                        {supplier.address}
-                      </span>
-                    )}
-                  </div>
+                  {/* Datos de contacto debajo del nombre, en una fila que baja de renglón (#362). */}
+                  {contactChips.length > 0 && (
+                    <ul aria-label="Datos de contacto" className="flex flex-wrap gap-2 text-xs">
+                      {contactChips.map(({ key, label, value, Icon }) => (
+                        <li
+                          key={key}
+                          className="inline-flex min-w-0 max-w-full items-center gap-1.5 wrap-anywhere rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        >
+                          <Icon className="size-3.5 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                          <span className="sr-only">{label}: </span>
+                          {value}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5 dark:border-gray-800">

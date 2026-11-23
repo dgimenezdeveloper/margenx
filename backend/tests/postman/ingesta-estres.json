@@ -418,18 +418,34 @@
                   "  const bump = 1 + (0.05 + i * 0.001);",
                   "  const items = Object.entries(realCodes).map(([code, price]) => ({ code, description: `Concurrencia ${i}`, price: Math.round(price * bump * 100) / 100 }));",
                   "  for (let j = 0; j < 290; j++) items.push({ code: `ESTRES-CONC-${i}-${j}`, price: 1 });",
-                  "  return new Promise((resolve, reject) => {",
+                  "  // Siempre resuelve: un error de red o de cabeceras queda como prueba fallida y no corta la corrida de Newman.",
+                  "  return new Promise((resolve) => {",
                   "    pm.sendRequest({",
                   "      url: baseUrl + '/webhooks/supplier-prices',",
                   "      method: 'POST',",
                   "      header: { 'Content-Type': 'application/json', 'x-margenx-webhook-secret': secret },",
                   "      body: { mode: 'raw', raw: JSON.stringify({ accountSlug: slug, items }) }",
-                  "    }, (err, res) => (err ? reject(err) : resolve(res)));",
+                  "    }, (err, res) => resolve({ err, res }));",
                   "  });",
                   "}",
                   "",
-                  "return Promise.all(Array.from({ length: 15 }, (_, i) => sendOne(i))).then((responses) => {",
+                  "// Umbral de QA (#313): la revision de #215 midio hasta 4,5 s por el encolado de las 15 transacciones sobre",
+                  "// las mismas 10 filas. 7,5 s = 5 veces el 1,5 s del lote de 3.000 filas, lejos del timeout de 30 s de la transaccion.",
+                  "const CONCURRENCY_MAX_MS = 7500;",
+                  "const startedAt = Date.now();",
+                  "",
+                  "return Promise.all(Array.from({ length: 15 }, (_, i) => sendOne(i))).then((results) => {",
+                  "  const elapsedMs = Date.now() - startedAt;",
+                  "  const errors = results.filter((r) => r.err).map((r) => String((r.err && r.err.message) || r.err));",
+                  "  const responses = results.filter((r) => !r.err).map((r) => r.res);",
+                  "  pm.test('las 15 corridas concurrentes reciben respuesta (sin errores de red ni de cabeceras)', function () {",
+                  "    pm.expect(errors, errors[0]).to.eql([]);",
+                  "  });",
+                  "  pm.test(`las 15 corridas concurrentes terminan en menos de 7,5 s (tardaron ${elapsedMs} ms)`, function () {",
+                  "    pm.expect(elapsedMs).to.be.below(CONCURRENCY_MAX_MS);",
+                  "  });",
                   "  pm.test('las 15 corridas concurrentes devuelven 200', function () {",
+                  "    pm.expect(responses.length).to.eql(15);",
                   "    responses.forEach((r) => pm.expect(r.code).to.eql(200));",
                   "  });",
                   "  pm.test('ninguna corrida concurrente devuelve un error de servidor (5xx)', function () {",
@@ -501,9 +517,13 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "// 18406.387654 / 25 kg = 736,25550616: redondeado a 2 decimales da 736,26 y truncado, 736,25 (#313).",
                   "pm.test('Status code es 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('el codigo real se procesa, no se descarta', function () {",
                   "    pm.expect(pm.response.json().discarded).to.eql(0);",
+                  "});",
+                  "pm.test('el precio nuevo se aplica (updated = 1): el siguiente request lee el costo resultante', function () {",
+                  "    pm.expect(pm.response.json().updated).to.eql(1);",
                   "});"
                 ]
               }
@@ -517,10 +537,41 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"HAR188\", \"description\": \"precio con muchos decimales\", \"price\": 18406.256789 }\n  ]\n}",
+              "raw": "{\n  \"accountSlug\": \"{{validAccountSlug}}\",\n  \"items\": [\n    { \"code\": \"HAR188\", \"description\": \"precio con muchos decimales\", \"price\": 18406.387654 }\n  ]\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": { "raw": "{{baseUrl}}/webhooks/supplier-prices", "host": ["{{baseUrl}}"], "path": ["webhooks", "supplier-prices"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Costo unitario de Harina 000 tras el precio con muchos decimales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Requiere adminToken (ADMIN de Panadería Central, dura ~60 s): ver README-IngestaEstres.md.",
+                  "pm.test('Status code es 200 (un 401 indica adminToken ausente o vencido)', function () { pm.response.to.have.status(200); });",
+                  "pm.test('el costo unitario de Harina 000 queda en 736,26: ROUND_HALF_UP a 2 decimales, no truncado', function () {",
+                  "    pm.expect(Number(pm.response.json().ingredient.currentCost)).to.eql(736.26);",
+                  "});",
+                  "pm.test('el precio del bulto HAR188 se guarda con 2 decimales (18406,39)', function () {",
+                  "    const har188 = pm.response.json().ingredient.suppliers.find((s) => s.supplierCode === 'HAR188');",
+                  "    pm.expect(har188, 'presentacion HAR188 de Harina 000').to.exist;",
+                  "    pm.expect(Number(har188.packagePrice)).to.eql(18406.39);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/ingredients/{{harina000IngredientId}}", "host": ["{{baseUrl}}"], "path": ["ingredients", "{{harina000IngredientId}}"] }
           },
           "response": []
         },
@@ -568,6 +619,9 @@
                   "pm.test('Status code es 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('el codigo con espacios matchea igual gracias al trim del schema', function () {",
                   "    pm.expect(pm.response.json().discarded).to.eql(0);",
+                  "});",
+                  "pm.test('el precio nuevo se aplica (updated = 1): el siguiente request verifica a que insumo', function () {",
+                  "    pm.expect(pm.response.json().updated).to.eql(1);",
                   "});"
                 ]
               }
@@ -585,6 +639,37 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": { "raw": "{{baseUrl}}/webhooks/supplier-prices", "host": ["{{baseUrl}}"], "path": ["webhooks", "supplier-prices"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Costo unitario de Harina 000 tras el codigo con espacios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// \"   HAR188   \" a $18.500 por bulto de 25 kg: Harina 000 tiene que quedar en 740,00 por kg (#313).",
+                  "pm.test('Status code es 200 (un 401 indica adminToken ausente o vencido)', function () { pm.response.to.have.status(200); });",
+                  "pm.test('el precio se aplico a la presentacion HAR188 de Harina 000 (18500)', function () {",
+                  "    const har188 = pm.response.json().ingredient.suppliers.find((s) => s.supplierCode === 'HAR188');",
+                  "    pm.expect(har188, 'presentacion HAR188 de Harina 000').to.exist;",
+                  "    pm.expect(Number(har188.packagePrice)).to.eql(18500);",
+                  "});",
+                  "pm.test('el costo unitario de Harina 000 queda en 740,00 (18500 / 25 kg)', function () {",
+                  "    pm.expect(Number(pm.response.json().ingredient.currentCost)).to.eql(740);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/ingredients/{{harina000IngredientId}}", "host": ["{{baseUrl}}"], "path": ["ingredients", "{{harina000IngredientId}}"] }
           },
           "response": []
         },

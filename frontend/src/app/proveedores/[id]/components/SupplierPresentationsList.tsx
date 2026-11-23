@@ -5,6 +5,7 @@ import { Pencil, ShieldAlert, Star, Trash2 } from 'lucide-react'
 
 import { formatPackage, formatPackagePrice } from '@/lib/supplierDisplay'
 import type { SupplierPresentation } from '@/services/supplierService'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 
 interface SupplierPresentationsListProps {
   presentations: SupplierPresentation[]
@@ -13,8 +14,9 @@ interface SupplierPresentationsListProps {
   onMakeDefault: (presentation: SupplierPresentation) => void
 }
 
+/** La columna del insumo es la más ancha: el nombre se lee completo en escritorio (#362). */
 const DESKTOP_GRID =
-  'md:grid md:grid-cols-[minmax(0,1.8fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto] md:items-center md:gap-4'
+  'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] md:items-center md:gap-4'
 
 export function SupplierPresentationsList({
   presentations,
@@ -47,8 +49,12 @@ export function SupplierPresentationsList({
               className={`flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-indigo-50/40 md:px-5 dark:hover:bg-indigo-950/20 ${DESKTOP_GRID}`}
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
+                {/* El nombre no se recorta: baja de renglón, y las etiquetas pasan abajo si no entran (#362). */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p
+                    title={item.ingredient.name}
+                    className="min-w-0 break-words text-sm font-bold text-gray-900 dark:text-gray-100"
+                  >
                     {item.ingredient.name}
                   </p>
                   {item.isDefault && (
@@ -83,7 +89,7 @@ export function SupplierPresentationsList({
                   </span>
                 )}
                 {item.rawDescription && (
-                  <p className="truncate text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p title={item.rawDescription} className="truncate text-gray-500 dark:text-gray-400 mt-0.5">
                     {item.rawDescription}
                   </p>
                 )}
@@ -107,7 +113,7 @@ export function SupplierPresentationsList({
                   <button
                     type="button"
                     onClick={() => onMakeDefault(item)}
-                    className="min-h-11 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer"
+                    className={`min-h-11 cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 ${CANONICAL_FOCUS_CLASSES}`}
                   >
                     Hacer predeterminada
                   </button>

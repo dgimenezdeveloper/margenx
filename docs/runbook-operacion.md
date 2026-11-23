@@ -1,7 +1,7 @@
 # Runbook — Sembrar y resembrar staging y producción
 
 **Proyecto:** MargenX (VPS: staging `dev.margenx.tech` y producción `margenx.tech`)
-**Última actualización:** 30 de octubre de 2026
+**Última actualización:** 22 de noviembre de 2026
 **Responsable:** DevOps
 
 Cómo cargar o volver a cargar los datos de los comercios piloto y de la cuenta Demo en las bases de la VPS. Las cuentas piloto (Panadería Central y Química GyJ) y la Demo son datos de prueba: se pueden resembrar, y el estado de la presentación es el que deja el seed.
@@ -16,6 +16,7 @@ Este documento no contiene credenciales. Las contraseñas de los usuarios Demo v
 |---|---|---|
 | `piloto` | `backend/prisma/seed.ts` | Panadería Central y Química GyJ: insumos, proveedores con sus presentaciones mayoristas (MarJuanC, Molinera, Don Roque, Limpikorn), productos y recetas. |
 | `demo` | `backend/prisma/seed-demo.ts` | Demo MargenX: 8 insumos, 2 proveedores (uno con códigos y otro sin códigos), 9 presentaciones, 1 en cuarentena y 3 productos con receta. |
+| `ventas` | `backend/prisma/seed-ventas-demo.ts` | Demo MargenX: 21 días de ventas y turnos de caja cerrados que terminan ayer, con los productos con receta de la cuenta, y la excepción del módulo de ventas prendida (ADR-010). Requiere la Demo ya sembrada. `ventas-apagar` solo apaga el módulo, sin borrar nada. |
 | `volumen` | `backend/prisma/seed-volumen.ts` | Solo staging. Suma a la Demo MargenX 210 insumos, 5 proveedores, unas 280 presentaciones (3 en cuarentena y 8 insumos con 5 proveedores), 336 productos (borradores, con pérdida, en riesgo y en objetivo, y uno con el precio mal cargado), unas 1.300 líneas de receta y 240 cambios de historial. Sirve para probar paginación, rendimiento e integridad con un catálogo grande. Requiere la Demo ya sembrada. |
 
 Reglas al resembrar:
@@ -71,6 +72,17 @@ infra/scripts/seed-remoto.sh dev volumen --confirmar margenx_dev
 infra/scripts/seed-remoto.sh dev volumen-limpiar --confirmar margenx_dev
 ```
 
+```bash
+# Módulo de ventas de la Demo (ADR-010): cargar o reiniciar las ventas y prender el módulo
+infra/scripts/seed-remoto.sh dev ventas --confirmar margenx_dev
+# Producción: solo si la decisión del 28/11 fue mostrar el módulo, y desde main
+infra/scripts/seed-remoto.sh prod ventas --confirmar margenx_prod
+# Apagar el módulo de la Demo sin borrar las ventas
+infra/scripts/seed-remoto.sh prod ventas-apagar --confirmar margenx_prod
+```
+
+Las ventas usan IDs con prefijo `33`. `ventas` **reinicia** las ventas y los turnos de caja de la Demo: borra los que haya (también los cargados a mano en la Demo) y vuelve a cargar los del seed. No toca las demás cuentas ni el catálogo. Los productos que vende son los de la Demo con receta, precio y margen positivo (hasta 12, por nombre): en staging, con el volumen cargado, aparecen también productos del volumen.
+
 El volumen usa IDs con prefijo `32` y no toca los datos base de la Demo: `volumen` borra la carga anterior antes de volver a cargar, y `volumen-limpiar` la quita. Si un usuario agregó un insumo del volumen a un producto base de la Demo, esa línea de receta se borra con él; resembrar `demo` lo deja como estaba. En producción el script rechaza las dos opciones. Al terminar, `volumen` imprime los tiempos de escritura y un chequeo de integridad de la cuenta (costos guardados frente a la receta, presentaciones predeterminadas y productos por estado de margen).
 
 `--confirmar` debe repetir el nombre de la base del entorno; si no coincide, el script no hace nada.
@@ -119,7 +131,7 @@ printf 'x-margenx-webhook-secret: %s\n' "$S" | curl -s -X POST http://127.0.0.1:
   -d '{"accountSlug":"demo-margenx","items":[{"code":"DEMO-HAR-25","price":21000}]}'
 ```
 
-Alerta de margen crítico: en la Demo, "Alfajores de dulce de leche — docena" queda con 29,21 % sobre un mínimo de 28 %. Con el administrador Demo, editar el insumo "Manteca (demo)" y subir su costo un 10 % (de 9500 a 10450 por kg): cruza el mínimo y el backend envía el aviso a n8n, que manda el mail a `demo-admin@margenx.tech` (Cloudflare lo reenvía a la casilla configurada en Email Routing). El botón "Ajustar" debe apuntar a `https://margenx.tech`. Después, resembrar con `prod demo` para volver al estado inicial.
+Alerta de margen mínimo: en la Demo, "Alfajores de dulce de leche — docena" queda con 29,21 % sobre un mínimo de 28 %. Con el administrador Demo, editar el insumo "Manteca (demo)" y subir su costo un 10 % (de 9500 a 10450 por kg): cruza el mínimo y el backend envía el aviso a n8n, que manda el mail a `demo-admin@margenx.tech` (Cloudflare lo reenvía a la casilla configurada en Email Routing). El botón "Ajustar" debe apuntar a `https://margenx.tech`. Después, resembrar con `prod demo` para volver al estado inicial.
 
 El mail de alerta sale cuando el costo cambia desde la app (editar un insumo o liberar una cuarentena). El webhook `supplier-prices` no lo envía: devuelve las alertas en `criticalProductsAlerts` y el workflow de ingesta de n8n las incluye en el resumen al dueño. Un `curl` directo al webhook actualiza el precio y muestra la alerta en la respuesta, pero no manda ningún mail.
 

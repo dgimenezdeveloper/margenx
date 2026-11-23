@@ -12,7 +12,7 @@ describe('ErrorState Component', () => {
     expect(alert).toBeInTheDocument()
     expect(screen.getByText('No pudimos cargar la información')).toBeInTheDocument()
     expect(
-      screen.getByText('Ocurrió un problema al consultar el servidor. Verifica tu conexión e intenta nuevamente.')
+      screen.getByText('Ocurrió un problema al consultar el servidor. Revisá tu conexión y probá de nuevo.')
     ).toBeInTheDocument()
   })
 

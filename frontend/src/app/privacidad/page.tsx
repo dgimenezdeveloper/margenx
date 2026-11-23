@@ -8,13 +8,13 @@ const privacyPoints = [
   {
     title: 'Cuenta y acceso',
     description:
-      'Guardamos la identidad del usuario activa en la cuenta, su email de contacto, el rol asignado (ADMIN o COLLABORATOR) y la relación con el comercio correspondiente. Clerk gestiona la autenticación y la sesión.',
+      'Guardamos los datos de cada persona que usa tu cuenta: su correo, su rol (administrador o colaborador) y el comercio al que pertenece. Clerk se encarga del inicio de sesión.',
     icon: UserRound,
   },
   {
     title: 'Comercio y negocio',
     description:
-      'Registramos el nombre del comercio, el slug único, la información de la cuenta y la configuración operativa del negocio que se usa para personalizar la app y la seguridad por tenant.',
+      'Registramos el nombre del comercio, el nombre corto que usa la dirección de correo de tus listas de precios y la configuración de tu cuenta, como el margen mínimo. Los datos de cada comercio quedan separados de los de los demás.',
     icon: Building2,
   },
   {

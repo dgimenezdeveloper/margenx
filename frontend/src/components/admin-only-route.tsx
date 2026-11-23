@@ -1,9 +1,11 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useUserRole } from '@/hooks/useUserRole'
+import type { AdminOnlyRedirectState } from '@/lib/adminOnlyRedirect'
 import { LoaderCircle } from 'lucide-react'
 
 export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isCollaborator, isLoading } = useUserRole()
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -14,7 +16,9 @@ export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isCollaborator) {
-    return <Navigate to="/productos" replace />
+    // El catálogo lee este estado y muestra el aviso de que la pantalla es del administrador.
+    const state: AdminOnlyRedirectState = { adminOnlyFrom: location.pathname }
+    return <Navigate to="/productos" replace state={state} />
   }
 
   return <>{children}</>
