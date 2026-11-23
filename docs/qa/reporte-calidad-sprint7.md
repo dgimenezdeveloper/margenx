@@ -259,3 +259,130 @@ Qué demuestra cada una:
   de QA: solo correos ficticios ([`evidencias/README.md`](evidencias/README.md)).
 - [x] Un reporte de QA adjunta la salida real de Newman en lugar de solo
   capturas (esta sección).
+
+## 3. Lighthouse a 360 px (issue #398)
+
+**Estado de esta sección: mediciones de antes y de después en local completas.
+La medición de después en staging se hace después del merge (§3.6).**
+
+### 3.1 Objetivo
+
+Medir y mejorar los puntajes de Lighthouse en el celular (RNF-01 y RNF-02).
+La meta es 90 o más en Performance, Accessibility, Best Practices y SEO en las
+páginas públicas, y 90 o más en Accessibility y Best Practices en las páginas
+con sesión. La Performance con sesión se registra y se mejora lo posible.
+
+### 3.2 Método
+
+- **Emulación:** Lighthouse 13.6.0 en modo móvil, pantalla de 360 × 640 px
+  (DPR 2), 4G lenta y CPU 4× simuladas. Es la configuración de
+  `frontend/lighthouserc.json`; la de Lighthouse por defecto es de 412 px.
+- **Antes (23/11/2026):** `dev.margenx.tech` con `develop` en `cfae5fe`. Las
+  páginas con sesión se midieron con el administrador de la cuenta Demo, con
+  el mismo inicio de sesión de Clerk que usa la E2E (`@clerk/testing`). Las
+  páginas públicas se midieron también en `margenx.tech` (producción, `main`),
+  para separar lo que depende del entorno.
+- **Después:** el build de la rama servido con `vite preview` en el puerto
+  4173. Las páginas públicas se midieron con LHCI (mediana de tres corridas).
+  Las páginas con sesión, contra el backend local con la cuenta Demo, que en
+  local tiene el módulo de ventas prendido y precios en cuarentena.
+- **Evidencia:** los 20 reportes HTML están en
+  [`evidencias/398/`](evidencias/398/README.md). Se generaron sin las capturas
+  embebidas, para bajar su peso, y con el identificador del navegador de
+  desarrollo de Clerk tapado.
+
+### 3.3 Páginas públicas
+
+Puntajes en orden Performance / Accessibility / Best Practices / SEO.
+"Después" muestra las dos corridas completas de LHCI en local.
+
+| Página | Antes, staging | Producción (`main`) | Después, local | LCP (staging → local) | CLS (staging → local) |
+|---|---|---|---|---|---|
+| `/` | 92 / 95 / 77 / 66 | 93 / 95 / 96 / 100 | 87–96 / 100 / 77 / 100 | 1,0 s → 0,9 s | 0 → 0 |
+| `/login` | 71 / 100 / 77 / 66 | 74 / 100 / 96 / 100 | 88–92 / 100 / 77 / 100 | 3,1 s → 2,6–2,8 s | 0,248 → 0 |
+| `/instalar` | 70 / 100 / 77 / 66 | 94 / 100 / 96 / 100 | 92–93 / 100 / 77 / 100 | 5,5 s → 0,9 s | 0,104 → 0 |
+| `/privacidad` | 93 / 100 / 77 / 63 | 93 / 100 / 96 / 100 | 79–96 / 100 / 77 / 100 | 0,9 s → 0,9 s | 0 → 0 |
+
+### 3.4 Páginas con sesión (administrador de la cuenta Demo)
+
+Puntajes en orden Performance / Accessibility / Best Practices. SEO no aplica
+en las páginas con sesión.
+
+| Página | Antes, staging | Después, local | LCP | CLS |
+|---|---|---|---|---|
+| `/dashboard` | 87 / 96 / 77 | 90 / 100 / 77 | 3,4 s → 3,3 s | 0,064 → 0,061 |
+| `/insumos` | 87 / 95 / 77 | 90 / 100 / 77 | 3,5 s → 3,3 s | 0 → 0,069 (§3.5) |
+| `/productos` | 89 / 95 / 77 | 98 / 100 / 77 | 3,5 s → 2,2 s | 0,008 → 0,008 |
+| `/productos/:id` | 88 / 95 / 77 | 95 / 100 / 77 | 3,5 s → 2,4 s | 0 → 0 |
+| `/proveedores` | 89 / 95 / 77 | 83 / 100 / 77 | 3,5 s → 3,5 s | 0,001 → 0,013 |
+| `/compras` | 88 / 96 / 77 | 97 / 100 / 77 | 3,5 s → 2,3 s | 0 → 0 |
+
+### 3.5 Correcciones y desvíos
+
+**Correcciones:**
+
+- **Contraste AA (Accessibility):**
+  - el menú inferior (las pestañas inactivas, en todas las páginas con sesión);
+  - la receta de la ficha del producto y de `/productos/nuevo`;
+  - el aviso de borrado de la ficha del producto;
+  - el número "En riesgo" del panel;
+  - la landing.
+  - Los números grandes de "Cómo funciona" son una marca de agua: pasan a un
+    pseudo-elemento oculto para el lector de pantalla.
+- **`/login` sin corrimientos:** el espacio del formulario de Clerk queda
+  reservado mientras carga (402 px en el celular, 384 px en escritorio, medidos
+  en staging), y el logo declara su tamaño.
+- **Bundle inicial:**
+  - cada pantalla con sesión se baja al abrirla (`frontend/src/lib/lazyPage.tsx`);
+  - el JavaScript inicial pasa de 346 KB a 97 KB con gzip;
+  - las páginas públicas siguen en el bundle principal, porque se abren por
+    enlace directo.
+- **`/instalar`:** las capturas de la guía declaran su ancho y alto reales.
+- **Panel:** el esqueleto de "Ganancia real" reserva el alto de los bloques ya
+  cargados.
+- **CSP de la VPS** (`infra/vps/nginx/margenx.conf`): habilita lo que usa Clerk
+  (su dominio, el script y las sondas de su protección antibots y sus
+  workers). En producción, esa era la única falla de Best Practices.
+- **Caché de los assets con hash:** ya estaba bien. Se sirven con un año de
+  vigencia, `immutable` y gzip; se verificó con `curl` en staging.
+
+**Desvíos de la meta, con su causa:**
+
+- **SEO de 63 a 66 en staging:** `dev.margenx.tech` responde a propósito
+  `X-Robots-Tag: noindex` para que no lo indexen los buscadores
+  (`infra/vps/README.md` §10). En producción y en local da 100.
+- **Best Practices 77 en staging y en local:** es la instancia de desarrollo de
+  Clerk. Sus scripts vienen de `*.clerk.accounts.dev` y dejan una cookie de
+  terceros (`_cfuvid`), y Chrome lo marca dos veces ("third-party cookies" y
+  "Issues"). En producción Clerk usa `clerk.margenx.tech`, que es de primera
+  parte, y Best Practices da 96: lo único que le faltaba era la CSP corregida
+  en este PR.
+- **Performance de las páginas públicas en local, entre 79 y 96:** el TBT de una
+  misma página varió entre 320 y 1.110 ms de una corrida a otra, con la máquina
+  cargada (carga promedio de 5,6). Lighthouse escala el CPU medido en la
+  máquina, así que la medición que cuenta es la de staging después del merge
+  (§3.6) y la del job del CI. LCP y CLS, que no dependen de esa carga, mejoraron
+  en todas las páginas.
+- **CLS de `/insumos` en local (0,069):** en el celular, el aviso "Precios en
+  Cuarentena" aparece arriba de la lista recién cuando llega la cantidad. En la
+  Demo de staging no había precios en cuarentena al medir. Evitarlo implica
+  cambiar dónde va el aviso, que es una decisión de diseño fuera del alcance de
+  #398, y Performance con sesión no es meta. Queda registrado.
+- **Performance de `/proveedores` (83) y de `/dashboard`:** el LCP depende de la
+  respuesta de la API y de Clerk. Se registra y no se maquilla.
+
+### 3.6 Pendiente después del merge
+
+- **Aplicar la CSP en la VPS:** copiar `infra/vps/nginx/margenx.conf`, correr
+  `sudo nginx -t` y `sudo systemctl reload nginx`. El archivo no se despliega
+  con el CI.
+- **Medir de nuevo en `dev.margenx.tech`,** con el mismo método, las 10 páginas.
+  Los reportes se suman a `evidencias/398/despues-staging/`.
+- **Producción:** se mide con el release v1.0.0 (#400).
+
+### 3.7 Definition of Done de #398
+
+- [x] Puntajes medidos y documentados con evidencia (§3.3, §3.4 y
+  `evidencias/398/`).
+- [ ] Correcciones mergeadas, con el CI en verde (en el PR).
+- [x] Desvíos de la meta explicados con su causa (§3.5).
