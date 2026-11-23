@@ -16,6 +16,8 @@ import { ApiError } from '@/services/api'
 import type { ActiveHealthBucket } from '@/lib/healthBucket'
 
 import { DashboardKpiCards } from './components/DashboardKpiCards'
+import { RealProfitCard } from './components/RealProfitCard'
+import { useFeatures } from '@/hooks/useFeatures'
 import { HealthDistributionHistogram } from './components/HealthDistributionHistogram'
 import { MonitoredCatalogGrid } from './components/MonitoredCatalogGrid'
 
@@ -24,6 +26,7 @@ export default function DashboardPage() {
   const { user, isLoading: isLoadingUser } = useCurrentUser()
   const isCollaborator = user?.role === 'COLLABORATOR'
   const isAdmin = user?.role === 'ADMIN'
+  const { hasFeature } = useFeatures()
 
   const [products, setProducts] = useState<Product[]>([])
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
@@ -158,6 +161,8 @@ export default function DashboardPage() {
             <>
               {!isCollaborator && (
                 <>
+                  {/* Ganancia real: solo el ADMIN y con el módulo de ventas (ADR-010). */}
+                  {isAdmin && hasFeature('sales') && <RealProfitCard />}
                   <DashboardKpiCards metrics={metrics} isLoading={isLoadingMetrics} />
                   <HealthDistributionHistogram
                     metrics={metrics}

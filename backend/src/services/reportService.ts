@@ -8,6 +8,8 @@ import {
   type CatalogHealthSummary,
 } from './marginCalculator';
 import { getPurchasingSuggestions } from './purchasingService';
+import { getAccountFeatures } from '../lib/features';
+import { salesSummaryBetween, type RankedProduct, type SummaryTotals } from './salesSummaryService';
 
 const Decimal = Prisma.Decimal;
 const ZERO = new Decimal(0);
@@ -100,6 +102,12 @@ export interface StaleCostReportItem {
   daysWithoutUpdate: number;
 }
 
+/** Ganancia real del período del reporte: solo viene si la cuenta tiene el módulo de ventas (ADR-010). */
+export type WeeklySalesSection = SummaryTotals & {
+  topSold: RankedProduct[];
+  topProfit: RankedProduct[];
+};
+
 export interface WeeklyMarginReport {
   account: {
     id: string;
@@ -139,6 +147,8 @@ export interface WeeklyMarginReport {
     thresholdDays: number;
     items: StaleCostReportItem[];
   };
+  /** Solo con el módulo de ventas prendido; si no, el campo no viene. */
+  sales?: WeeklySalesSection;
 }
 
 function formatArgentinaDate(date: Date): string {
@@ -513,6 +523,10 @@ export async function buildWeeklyMarginReport(
     return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
   });
 
+  // Ventas de la semana (ADR-010): mismo período del reporte, solo con el módulo prendido.
+  const features = await getAccountFeatures(accountId);
+  const salesSection: WeeklySalesSection | null = features.sales ? await salesSummaryBetween(accountId, from, to) : null;
+
   const staleCostItems: StaleCostReportItem[] = staleCandidates
     .slice(0, STALE_COSTS_LIMIT)
     .map((item) => ({
@@ -564,5 +578,6 @@ export async function buildWeeklyMarginReport(
       thresholdDays: STALE_COST_DAYS,
       items: staleCostItems,
     },
+    ...(salesSection ? { sales: salesSection } : {}),
   };
 }

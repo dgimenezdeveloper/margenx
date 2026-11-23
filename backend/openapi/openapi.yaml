@@ -661,6 +661,29 @@ paths:
         '422': { $ref: '#/components/responses/UnprocessableEntityError' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  /api/sales/summary:
+    get:
+      tags: [Ventas]
+      summary: Ganancia real del período (solo ADMIN)
+      description: >-
+        Ventas, costo congelado, ganancia y margen ponderado de las ventas completadas del período (las anuladas no cuentan),
+        con la comparación contra el período anterior y los rankings de los 5 productos más vendidos y de los 5 que más ganancia dejan.
+        Los días son de Argentina (UTC-3). Los montos van como texto con dos decimales. Si el módulo de ventas está apagado para la cuenta responde 404.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: period, in: query, required: false, schema: { type: string, enum: [day, week, month], default: week } }
+      responses:
+        '200':
+          description: Resumen del período
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesSummary' }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
   /api/sales/{id}:
     get:
       tags: [Ventas]
@@ -804,6 +827,50 @@ components:
       description: Secreto compartido para autenticación entre satélite n8n y backend.
 
   schemas:
+    SalesSummaryTotals:
+      type: object
+      required: [salesCount, salesTotal, costTotal, profit, marginPercent]
+      properties:
+        salesCount: { type: integer, example: 42 }
+        salesTotal: { type: string, example: '185400.00' }
+        costTotal: { type: string, example: '97320.50' }
+        profit: { type: string, example: '88079.50' }
+        marginPercent: { type: [string, 'null'], description: 'Ganancia / ventas × 100; null si no hubo ventas.', example: '47.51' }
+    SalesSummaryProduct:
+      type: object
+      required: [productId, productName, quantity, salesTotal, profit, marginPercent]
+      properties:
+        productId: { type: [string, 'null'], format: uuid }
+        productName: { type: string, example: 'Pan de campo 1 kg' }
+        quantity: { type: integer, example: 120 }
+        salesTotal: { type: string, example: '420000.00' }
+        profit: { type: string, example: '198000.00' }
+        marginPercent: { type: [string, 'null'], example: '47.14' }
+    SalesSummary:
+      allOf:
+        - $ref: '#/components/schemas/SalesSummaryTotals'
+        - type: object
+          required: [period, from, to, previous, change, topSold, topProfit]
+          properties:
+            period: { type: string, enum: [day, week, month] }
+            from: { type: string, format: date, example: '2026-11-16' }
+            to: { type: string, format: date, example: '2026-11-22' }
+            previous:
+              allOf:
+                - $ref: '#/components/schemas/SalesSummaryTotals'
+                - type: object
+                  required: [from, to]
+                  properties:
+                    from: { type: string, format: date }
+                    to: { type: string, format: date }
+            change:
+              type: object
+              description: Variación porcentual contra el período anterior; null si el anterior fue 0.
+              properties:
+                salesTotal: { type: [string, 'null'], example: '12.50' }
+                profit: { type: [string, 'null'], example: '-3.20' }
+            topSold: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SalesSummaryProduct' } }
+            topProfit: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SalesSummaryProduct' } }
     ErrorResponse:
       type: object
       required: [error]
