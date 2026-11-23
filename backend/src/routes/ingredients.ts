@@ -627,6 +627,29 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     });
   }
 
+  // update-presentation: el bulto pasa a costo × tamaño, redondeado al centavo, y el insumo guarda el costo que da ese
+  // bulto. Con un tamaño con decimales (0,5 kg) puede diferir en centavos del tipeado, pero así el insumo y su
+  // presentación predeterminada coinciden siempre (ADR-005, ADR-011). Un bulto fuera de rango no se guarda.
+  let presentationUpdate: { packagePrice: Prisma.Decimal; unitCost: Prisma.Decimal } | null = null;
+  if (contradictsDefault && defaultPresentation && defaultPresentationAction === 'update-presentation') {
+    const packagePrice = nextCost.mul(defaultPresentation.packageSize).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+    if (packagePrice.greaterThan(MAX_MONEY_VALUE)) {
+      throw new AppError(
+        'El precio del bulto no puede superar $99.999.999,99. Revisá el costo o dejá de usar esta presentación como predeterminada.',
+        422
+      );
+    }
+    const unitCost = safeUnitCost(packagePrice, defaultPresentation.packageSize);
+    if (!unitCost) {
+      throw new AppError(
+        'Con ese costo, el precio del bulto no es válido para esta presentación. Revisá el costo o dejá de usar esta presentación como predeterminada.',
+        422
+      );
+    }
+    presentationUpdate = { packagePrice, unitCost };
+  }
+  const costToSave = presentationUpdate?.unitCost ?? nextCost;
+
   if (name.toLowerCase() !== existing.name.toLowerCase()) {
     const duplicate = await prisma.ingredient.findFirst({
       where: { accountId, name: { equals: name, mode: 'insensitive' } },
@@ -649,12 +672,10 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
   const result = await prisma.$transaction(async (tx) => {
     // La decisión sobre la presentación predeterminada va en la misma transacción que el costo (#427).
-    if (contradictsDefault && defaultPresentation && defaultPresentationAction === 'update-presentation') {
+    if (presentationUpdate && defaultPresentation) {
       await tx.supplierIngredient.update({
         where: { id: defaultPresentation.id },
-        data: {
-          packagePrice: nextCost.mul(defaultPresentation.packageSize).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
-        },
+        data: { packagePrice: presentationUpdate.packagePrice },
       });
     } else if (contradictsDefault && defaultPresentation && defaultPresentationAction === 'clear-default') {
       await tx.supplierIngredient.update({ where: { id: defaultPresentation.id }, data: { isDefault: false } });
@@ -663,10 +684,10 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     const ingredient = await tx.ingredient.update({
       where: { id },
       omit: { searchName: true },
-      data: { name, searchName: normalizeSearchText(name), unit, currentCost: nextCost },
+      data: { name, searchName: normalizeSearchText(name), unit, currentCost: costToSave },
     });
 
-    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);
+    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, costToSave);
 
     return { ingredient, affectedProductsCount, affectedProducts, criticalProducts };
   });
