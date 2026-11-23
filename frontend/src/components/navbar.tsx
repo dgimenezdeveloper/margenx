@@ -13,12 +13,14 @@ import {
   LogOut,
   Moon,
   Package,
+  Receipt,
   ShoppingCart,
   Sun,
   Truck,
 } from 'lucide-react'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useUserRole } from '@/hooks/useUserRole'
+import { useFeatures } from '@/hooks/useFeatures'
 import { useTheme } from '@/hooks/useTheme'
 import { LogoutDialog } from '@/components/logout-dialog'
 import { clearSessionCaches } from '@/lib/serviceWorkerCache'
@@ -57,6 +59,7 @@ export function Navbar({
   const { signOut } = useAuth()
   const { businessName, isLoading } = useCurrentUser()
   const role = useUserRole()
+  const { features } = useFeatures()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const displayedCompanyName = companyName || businessName
@@ -65,10 +68,11 @@ export function Navbar({
     { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
+    { label: 'Ventas', href: '/ventas', icon: Receipt },
     { label: 'Proveedores', href: '/proveedores', icon: Truck },
     { label: 'Compras', href: '/compras', icon: ShoppingCart },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
-  ].filter(link => isNavLinkVisible(link.href, role))
+  ].filter(link => isNavLinkVisible(link.href, role, features))
 
   const handleConfirmSignOut = () => {
     sessionStorage.removeItem('margenx_active_session')
