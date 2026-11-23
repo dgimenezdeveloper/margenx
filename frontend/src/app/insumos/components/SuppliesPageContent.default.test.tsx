@@ -38,7 +38,7 @@ const HARINA: Ingredient = {
   currentCost: 736.25,
   supplierConnections: [
     { id: 'si-marjuanc', supplierId: 'sup-marjuanc', ingredientId: 'ing-harina', packageSize: 25, packageUnit: 'kg', packagePrice: 18406.25, isDefault: true, isQuarantined: false, supplier: { id: 'sup-marjuanc', name: 'Distribuidora MarJuanC Alimentos' } },
-    { id: 'si-molinera', supplierId: 'sup-molinera', ingredientId: 'ing-harina', packageSize: 25, packageUnit: 'kg', packagePrice: 17812.5, isDefault: false, isQuarantined: false, supplier: { id: 'sup-molinera', name: 'Distribuidora Mayorista Molinera' } },
+    { id: 'si-molinera', supplierId: 'sup-molinera', ingredientId: 'ing-harina', packageSize: 25, packageUnit: 'kg', packagePrice: 17812.5, isDefault: false, isQuarantined: false, supplierCode: 'MOL-000', rawDescription: 'HARINA 000 OLAV. X 25 KG', supplier: { id: 'sup-molinera', name: 'Distribuidora Mayorista Molinera' } },
   ],
 }
 const pagina = <T,>(items: T[]) => ({ items, meta: { total: items.length, page: 1, limit: 20, totalPages: 1 } })
@@ -86,5 +86,51 @@ describe('Insumos - Escenario "Confirmación desde el insumo" (#434)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })).toBeNull())
     expect(supplierService.addPackaging).not.toHaveBeenCalled()
+  })
+
+  async function confirmarMolinera() {
+    const user = userEvent.setup()
+    renderWithDataRouter(<SuppliesPageContent />, '/insumos')
+    const [fila] = await screen.findAllByText('Harina de trigo 000 Olavarriense')
+    await user.click(fila!)
+    await user.click(await screen.findByRole('button', { name: /Usar como predeterminada la presentación de Distribuidora Mayorista Molinera/ }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar cambio' }))
+  }
+
+  it('Escenario "Se conserva el código de artículo" (#486): reenvía el código y la descripción de la lista', async () => {
+    await confirmarMolinera()
+
+    await waitFor(() =>
+      expect(supplierService.addPackaging).toHaveBeenCalledWith(expect.any(Function), 'sup-molinera', {
+        ingredientId: 'ing-harina',
+        packageSize: 25,
+        packageUnit: 'kg',
+        packagePrice: 17812.5,
+        isDefault: true,
+        supplierCode: 'MOL-000',
+        rawDescription: 'HARINA 000 OLAV. X 25 KG',
+      })
+    )
+  })
+
+  it('una presentación sin código ni descripción los manda en null, sin inventarlos (#486)', async () => {
+    const sinCodigo: Ingredient = {
+      ...HARINA,
+      supplierConnections: HARINA.supplierConnections!.map((conn) =>
+        conn.id === 'si-molinera' ? { ...conn, supplierCode: undefined, rawDescription: undefined } : conn
+      ),
+    }
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([sinCodigo]))
+
+    await confirmarMolinera()
+
+    await waitFor(() =>
+      expect(supplierService.addPackaging).toHaveBeenCalledWith(
+        expect.any(Function),
+        'sup-molinera',
+        expect.objectContaining({ isDefault: true, supplierCode: null, rawDescription: null })
+      )
+    )
   })
 })
