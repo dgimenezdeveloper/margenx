@@ -580,6 +580,58 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "PUT Actualizar la presentación con un precio del bulto fuera de rango (422, #427)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// #427: la bolsa de 25 kg de HAR188 a $4.000.000/kg daría $100.000.000, que no entra en el precio del bulto",
+                  "// (máximo $99.999.999,99). Con \"update-presentation\" responde 422 antes de guardar nada.",
+                  "pm.test('Status code es 422', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje explica el límite del precio del bulto', function () {",
+                  "    pm.expect(pm.response.json().error).to.include('El precio del bulto no puede superar $99.999.999,99');",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/ingredients/30b00001-0000-4000-8000-000000000001',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('El costo del insumo no fue modificado', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        pm.expect(Number(res.json().ingredient.currentCost)).to.not.eql(4000000);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"kg\",\n  \"currentCost\": \"4000000\",\n  \"defaultPresentationAction\": \"update-presentation\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/30b00001-0000-4000-8000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "30b00001-0000-4000-8000-000000000001"]
+            }
+          },
+          "response": []
         }
       ]
     },

@@ -21,7 +21,11 @@
               "pm.collectionVariables.set('harinaCostoOriginal', String(ingrediente.currentCost));",
               "pm.test('El costo de partida no es el 9500 que fija 01: así 01 y 04 son cambios reales', function () {",
               "  pm.expect(Number(ingrediente.currentCost)).to.not.eql(9500);",
-              "});"
+              "});",
+              "// Con presentación predeterminada, 01 y 04 eligen \"update-presentation\" (ADR-011): el bulto sigue al costo y 05",
+              "// controla que vuelva a dar el costo de antes de la corrida.",
+              "const predeterminada = (ingrediente.suppliers || []).find(function (p) { return p.isDefault; });",
+              "pm.collectionVariables.set('harinaPresentacionId', predeterminada ? predeterminada.id : '');"
             ],
             "type": "text/javascript"
           }
@@ -47,6 +51,8 @@
           "listen": "test",
           "script": {
             "exec": [
+              "// La Harina tiene presentación predeterminada: sin elegir qué hacer con ella, el PUT respondería 409 (ADR-011).",
+              "// \"update-presentation\" lleva el bulto a 9500/kg, y 04 lo vuelve al costo de antes de la corrida.",
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
               "pm.test('El payload expone affectedProductsCount total', function () {",
@@ -75,7 +81,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"9500.00\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"9500.00\",\n  \"defaultPresentationAction\": \"update-presentation\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
@@ -197,7 +203,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"{{harinaCostoOriginal}}\"\n}"
+          "raw": "{\n  \"name\": \"{{harinaNombreOriginal}}\",\n  \"unit\": \"{{harinaUnidadOriginal}}\",\n  \"currentCost\": \"{{harinaCostoOriginal}}\",\n  \"defaultPresentationAction\": \"update-presentation\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/ingredients/{{ingredientId}}",
@@ -223,7 +229,17 @@
               "pm.test('El nombre y la unidad no cambian', function () {",
               "  pm.expect(ingrediente.name).to.eql(pm.collectionVariables.get('harinaNombreOriginal'));",
               "  pm.expect(ingrediente.unit).to.eql(pm.collectionVariables.get('harinaUnidadOriginal'));",
-              "});"
+              "});",
+              "const presentacionId = pm.collectionVariables.get('harinaPresentacionId');",
+              "if (presentacionId) {",
+              "  pm.test('La presentación predeterminada sigue siéndolo y su bulto da el costo de antes de la corrida (ADR-011)', function () {",
+              "    const presentacion = (ingrediente.suppliers || []).find(function (p) { return p.id === presentacionId; });",
+              "    pm.expect(presentacion, 'la presentación predeterminada que guardó 00').to.be.an('object');",
+              "    pm.expect(presentacion.isDefault).to.eql(true);",
+              "    const esperado = Math.round(Number(pm.collectionVariables.get('harinaCostoOriginal')) * Number(presentacion.packageSize) * 100) / 100;",
+              "    pm.expect(Number(presentacion.packagePrice)).to.eql(esperado);",
+              "  });",
+              "}"
             ],
             "type": "text/javascript"
           }
