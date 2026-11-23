@@ -1,12 +1,14 @@
 import Link from 'next/link'
-import { Pencil, Plus, ShieldAlert, Truck } from 'lucide-react'
+import { Pencil, Plus, ShieldAlert, Star, Truck } from 'lucide-react'
 
 import type { Ingredient } from '@/services/ingredientService'
 import type { SupplierIngredient } from '@/services/supplierService'
 import { formatUnit } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
+import { formatPackage } from '@/lib/supplierDisplay'
 
 /**
- * Lista de proveedores y empaques asociados a un insumo seleccionado.
+ * Lista de proveedores y presentaciones asociados a un insumo seleccionado.
  * Centraliza la comparación del costo por proveedor, la marca de default
  * y la posibilidad de editar o crear nuevas asociaciones mayoristas.
  */
@@ -21,7 +23,7 @@ interface IngredientSupplierListProps {
 
 /**
  * Muestra los proveedores asociados a un insumo y permite elegir el default.
- * La intención es mantener toda la lógica de costos por empaque y cambio de proveedor
+ * La intención es mantener toda la lógica de costos por presentación y cambio de proveedor
  * concentrada en esta vista de detalle, evitando mezclarla con la página principal.
  */
 export function IngredientSupplierList({
@@ -44,7 +46,7 @@ export function IngredientSupplierList({
         <div className="flex items-center gap-2">
           <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
           <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
-            Proveedores y Empaques
+            Proveedores y presentaciones
           </span>
         </div>
         <button
@@ -52,7 +54,7 @@ export function IngredientSupplierList({
           onClick={onOpenPackaging}
           className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 cursor-pointer shadow-xs inline-flex items-center gap-1"
         >
-          <Plus className="size-3" /> Asociar otro empaque
+          <Plus className="size-3" aria-hidden="true" /> Asociar otra presentación
         </button>
       </div>
 
@@ -92,10 +94,10 @@ export function IngredientSupplierList({
                     {conn.supplier?.name || 'Proveedor Desconocido'}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Bulto {conn.packageSize} {conn.packageUnit} @ {money(conn.packagePrice)}
+                    {formatPackage(conn.packageSize, conn.packageUnit)} · Precio del bulto: {money(conn.packagePrice)}
                   </span>
                   <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    Equivalente: {money(unitCost)} / {formatUnit(selected.unit)}
+                    Costo por unidad: {money(unitCost)} / {formatUnit(selected.unit)}
                   </span>
                   {conn.isQuarantined && (
                     <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">
@@ -105,26 +107,35 @@ export function IngredientSupplierList({
                   )}
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {/* La misma estrella que la ficha del proveedor; cambiar pide confirmación (#434). */}
                   {conn.isDefault ? (
-                    <span className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
-                      Predeterminado
+                    <span
+                      role="img"
+                      aria-label="Presentación predeterminada"
+                      title="Presentación predeterminada"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center text-indigo-600 dark:text-indigo-300"
+                    >
+                      <Star className="size-5 fill-current" aria-hidden="true" />
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => onMakeDefault(conn)}
-                      className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+                      aria-label={`Usar como predeterminada la presentación de ${conn.supplier?.name || 'este proveedor'}`}
+                      title="Usar como predeterminada"
+                      className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 ${CANONICAL_FOCUS_CLASSES}`}
                     >
-                      Hacer Predeterminado
+                      <Star className="size-4" aria-hidden="true" />
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => onEditConnection(conn)}
                     className="min-h-11 min-w-11 flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
-                    title="Editar empaque"
+                    title="Editar presentación"
+                    aria-label={`Editar presentación de ${conn.supplier?.name || 'este proveedor'}`}
                   >
-                    <Pencil className="size-4" />
+                    <Pencil className="size-4" aria-hidden="true" />
                   </button>
                 </div>
               </li>
