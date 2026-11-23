@@ -11,6 +11,7 @@ import internalReportsRoutes from './routes/internalReports';
 import productsRoutes from './routes/products';
 import purchasingRoutes from './routes/purchasing';
 import reportsRoutes from './routes/reports';
+import { cashShiftsRouter, salesRouter } from './routes/salesModule';
 import suppliersRoutes from './routes/suppliers';
 import webhooksRoutes from './routes/webhooks';
 
@@ -36,6 +37,8 @@ export function createApp(): Application {
   mountRouter(app, '/api/webhooks', webhooksRoutes);
   mountRouter(app, '/api/internal/reports', internalReportsRoutes);
   mountRouter(app, '/api/reports', reportsRoutes);
+  mountRouter(app, '/api/sales', salesRouter);
+  mountRouter(app, '/api/cash-shifts', cashShiftsRouter);
 
   mountOpenApiDocs(app);
 
