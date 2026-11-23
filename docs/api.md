@@ -1,4 +1,3 @@
-
 # API REST — Contratos, Límites, Seguridad y Códigos HTTP
 
 Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
@@ -257,6 +256,9 @@ Actualización de costo o datos del insumo con recálculo en cascada y alertas.
 - **Roles:** Solo `ADMIN`.
 - **Body:** `{ "name": "Harina 000", "unit": "kg", "currentCost": "9500.00" }`
 - **Guarda Zero-Variation:** Si `currentCost` no varía, retorna inmediatamente con `affectedProductsCount: 0`.
+- **Reglas:**
+  - **Unidad fija con uso (`409 Conflict`):** Si cambia `unit` y el insumo tiene al menos una receta (`ProductIngredient`) o presentación de proveedor (`SupplierIngredient`), responde `409 Conflict` sin modificar datos ni historial: `"No se puede cambiar la unidad: el insumo está en N receta(s) y M presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad."`. Si no tiene recetas ni presentaciones, permite cambiar la unidad. Nombre y costo siguen siendo editables cuando la unidad no cambia.
+  - **Nombre único (`409 Conflict`):** Si el nuevo nombre ya existe en la cuenta (case-insensitive).
 - **Respuesta 200:**
   ```json
   {

@@ -340,8 +340,7 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
     expect(screen.getByLabelText('Nombre del insumo')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('muestra diálogo de advertencia al cambiar la unidad de un insumo vinculado a recetas', async () => {
-    const user = userEvent.setup()
+  it('bloquea el cambio de unidad en la ficha cuando el insumo está vinculado a recetas y explica el motivo', async () => {
     vi.mocked(ingredientService.list).mockResolvedValueOnce(pagina([
       { id: 'ing-1', name: 'Aceite de Girasol', unit: 'kg', currentCost: 2000 }
     ]))
@@ -370,32 +369,43 @@ describe('SuppliesPageContent - Edición de Nombre, Unidad y Validación 409 (Is
 
     await screen.findByText('Pan de Campo')
 
-    const litroBtn = screen.getByRole('button', { name: 'litro' })
-    await user.click(litroBtn)
-
-    const saveBtn = screen.getByRole('button', { name: 'Guardar Costo' })
-    await user.click(saveBtn)
-
-    const unitDialog = await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })
-    expect(unitDialog).toBeInTheDocument()
-    expect(unitDialog).toHaveTextContent(/Este insumo se utiliza en 1 producto/i)
-    expect(ingredientService.update).not.toHaveBeenCalled()
-
-    const confirmBtn = screen.getByRole('button', { name: 'Sí, cambiar unidad' })
-    vi.mocked(ingredientService.update).mockResolvedValueOnce({
-      ingredient: { id: 'ing-1', name: 'Aceite de Girasol', unit: 'l', currentCost: 2000 },
-      affectedProductsCount: 1,
-      criticalProducts: [],
-    })
-    await user.click(confirmBtn)
-
-    await waitFor(() => {
-      expect(ingredientService.update).toHaveBeenCalledWith(
-        expect.any(Function),
-        'ing-1',
-        expect.objectContaining({ unit: 'l' })
+    expect(screen.getByRole('button', { name: 'kg' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'litro' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'unidad' })).toBeDisabled()
+    expect(
+      screen.getByText(
+        'La unidad no se puede cambiar porque el insumo ya está en recetas o en presentaciones de proveedor.'
       )
+    ).toBeInTheDocument()
+    expect(ingredientService.update).not.toHaveBeenCalled()
+  })
+
+  it('muestra el error 409 del backend en la ficha sin cerrarla si se asoció una receta desde otra pestaña', async () => {
+    const user = userEvent.setup()
+    const conflictMsg =
+      'No se puede cambiar la unidad: el insumo está en 1 receta(s) y 0 presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.'
+
+    vi.mocked(ingredientService.list).mockResolvedValueOnce(pagina([
+      { id: 'ing-1', name: 'Harina 000', unit: 'kg', currentCost: 736.25 }
+    ]))
+    vi.mocked(ingredientService.getProducts).mockResolvedValueOnce({
+      data: [],
+      meta: { total: 0, page: 1, limit: 100, totalPages: 0 },
     })
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(new ApiError(conflictMsg, 409))
+
+    renderPage()
+
+    const [row] = await screen.findAllByText('Harina 000')
+    fireEvent.click(row)
+    await screen.findByText('Este insumo no se utiliza en ninguna receta activa.')
+
+    await user.click(screen.getByRole('button', { name: 'litro' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar Costo' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(conflictMsg)
+    expect(screen.getByRole('dialog', { name: 'Actualizar Costo' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre del insumo')).toHaveAttribute('aria-invalid', 'false')
   })
 
   it('formatea el costo con formatNumeroAR al perder el foco (onBlur)', async () => {

@@ -61,9 +61,8 @@ Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad 
 
 1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha de edición.
 2. Modificá el **Nombre del insumo**. Si ingresás un nombre que ya existe en otro insumo de tu comercio (sin importar mayúsculas o minúsculas), MargenX te avisará directamente debajo del campo impidiendo guardar duplicados.
-3. Para cambiar la **Unidad de medida**, seleccioná la nueva opción (`kg`, `litro`, `unidad`).
-4. **Protección preventiva de recetas:** Si el insumo ya forma parte de recetas de productos, al presionar **Guardar Costo** se abrirá un diálogo de confirmación explicando que las cantidades numéricas guardadas en las recetas no se convertirán automáticamente (se preservará el número cargado). Deberás confirmar la acción y revisar las fichas técnicas afectadas para asegurar que las proporciones continúen siendo correctas.
-5. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
+3. Para cambiar la **Unidad de medida** (`kg`, `litro`, `unidad`): si el insumo todavía no se usa en ninguna receta ni tiene presentaciones de proveedor, podés seleccionar la nueva unidad desde la ficha. Si ya está en uso, los botones aparecen deshabilitados para proteger las cantidades de tus recetas y bultos; para usar otra unidad, sacalo primero de sus recetas y proveedores o creá un insumo nuevo.
+4. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-modal-edicion-insumo.webp | Ficha de insumo en edición con nombre, unidad, costo es-AR y bloque Se usa en] -->
 
@@ -78,7 +77,7 @@ Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se u
 - Al tocar cualquier producto de la lista, navegarás directamente hacia su ficha técnica para revisar o ajustar su formulación.
 - Si el insumo no forma parte de ninguna receta, la sección te informará claramente que no está siendo utilizado en productos activos.
 - Si un insumo está en más de 100 productos, la sección muestra los primeros 100 y avisa cuántos son en total.
-- Si la lista no se puede cargar (por ejemplo, sin conexión), la sección lo avisa y ofrece **Reintentar**. Mientras no se sepa dónde se usa el insumo, cambiar la unidad pide confirmación igual.
+- Si la lista no se puede cargar (por ejemplo, sin conexión), la sección lo avisa y ofrece **Reintentar**. Mientras no se sepa dónde se usa el insumo, cambiar la unidad pide confirmación igual; si al guardar resulta que ya estaba en recetas o presentaciones, MargenX te avisará en la ficha y mantendrá la unidad actual.
 - La sección es solo para el Administrador: el Colaborador no la ve.
 
 ---

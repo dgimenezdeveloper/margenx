@@ -159,4 +159,175 @@ describe('IngredientUpsertSheet - Criterios de Aceptación Issue #354', () => {
     const errorMsg = screen.getByRole('alert')
     expect(errorMsg).toHaveTextContent('Ya existe un insumo con ese nombre.')
   })
+
+  it('deshabilita los botones de unidad y muestra el motivo cuando el insumo se usa en recetas', () => {
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+          usedProductsTotal={2}
+          isLoadingProducts={false}
+        />
+      </MemoryRouter>
+    )
+
+    for (const label of ['kg', 'litro', 'unidad']) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled()
+    }
+    expect(
+      screen.getByText(
+        'La unidad no se puede cambiar porque el insumo ya está en recetas o en presentaciones de proveedor.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('deshabilita los botones de unidad y muestra el motivo cuando tiene presentaciones de proveedor', () => {
+    const withSupplier: Ingredient = {
+      ...mockIngredient,
+      supplierConnections: [
+        {
+          id: 'si-1',
+          supplierId: 'sup-1',
+          ingredientId: 'ing-1',
+          packageSize: 25,
+          packageUnit: 'kg',
+          packagePrice: 18406.25,
+          isDefault: true,
+        },
+      ],
+    }
+
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={withSupplier}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+          usedProducts={[]}
+          usedProductsTotal={0}
+          isLoadingProducts={false}
+        />
+      </MemoryRouter>
+    )
+
+    for (const label of ['kg', 'litro', 'unidad']) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled()
+    }
+    expect(
+      screen.getByText(
+        'La unidad no se puede cambiar porque el insumo ya está en recetas o en presentaciones de proveedor.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('mantiene habilitados los botones de unidad cuando el insumo no tiene recetas ni presentaciones', () => {
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+          usedProducts={[]}
+          usedProductsTotal={0}
+          isLoadingProducts={false}
+        />
+      </MemoryRouter>
+    )
+
+    for (const label of ['kg', 'litro', 'unidad']) {
+      expect(screen.getByRole('button', { name: label })).toBeEnabled()
+    }
+    expect(
+      screen.queryByText(
+        'La unidad no se puede cambiar porque el insumo ya está en recetas o en presentaciones de proveedor.'
+      )
+    ).not.toBeInTheDocument()
+  })
+
+  it('muestra el mensaje de error 409 sobre la unidad con role="alert"', () => {
+    const serverMessage =
+      'No se puede cambiar la unidad: el insumo está en 1 receta(s) y 0 presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.'
+
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={mockIngredient}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{ unit: { type: 'server', message: serverMessage } }}
+          selectedUnit="litro"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(serverMessage)
+  })
 })

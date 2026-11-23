@@ -473,6 +473,57 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "PUT Validación - bloquear cambio de unidad en insumo con uso (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('El mensaje indica cuántas recetas y presentaciones usan el insumo', function () {",
+                  "    const error = pm.response.json().error;",
+                  "    pm.expect(error).to.match(/^No se puede cambiar la unidad: el insumo está en \\d+ receta\\(s\\) y \\d+ presentación\\(es\\) de proveedor\\./);",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/ingredients/30b00001-0000-4000-8000-000000000001',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('La unidad del insumo no fue modificada (sigue en kg)', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        pm.expect(res.json().ingredient.unit).to.eql('kg');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Harina de trigo 000 Olavarriense\",\n  \"unit\": \"l\",\n  \"currentCost\": \"736.25\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/30b00001-0000-4000-8000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "30b00001-0000-4000-8000-000000000001"]
+            }
+          },
+          "response": []
         }
       ]
     },

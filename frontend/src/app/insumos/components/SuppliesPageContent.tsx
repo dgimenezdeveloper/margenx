@@ -339,7 +339,11 @@ export default function SuppliesPageContent() {
       handleCloseSheet()
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 409) {
-        setError('name', { type: 'server', message: error.message }, { shouldFocus: true })
+        if (/unidad/i.test(error.message)) {
+          setError('unit', { type: 'server', message: error.message })
+        } else {
+          setError('name', { type: 'server', message: error.message }, { shouldFocus: true })
+        }
         return
       }
       notify(error instanceof ApiError ? error.message : 'No se pudo guardar el insumo.', 'error')
