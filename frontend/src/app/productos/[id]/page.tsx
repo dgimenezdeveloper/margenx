@@ -32,6 +32,7 @@ import { ProductFinancialCockpit } from './components/ProductFinancialCockpit'
 import { ProductMobileSimulatorSheet } from './components/ProductMobileSimulatorSheet'
 import { ProductMobileFooter } from './components/ProductMobileFooter'
 import { ProductStatusBanner } from './components/ProductStatusBanner'
+import { productNoticeState } from '@/lib/productNotice'
 
 type ProductInput = z.input<typeof productSchema>
 
@@ -213,8 +214,8 @@ export default function ProductDetailPage() {
     try {
       setIsDeleting(true)
       await productService.delete(id!, getToken)
-      notify('Producto eliminado correctamente.')
-      setTimeout(() => navigate('/productos'), 600)
+      // El aviso viaja a la lista: mostrado acá, se perdía al redirigir (#432).
+      navigate('/productos', { state: productNoticeState('Producto eliminado correctamente.') })
     } catch (err) {
       notify(err instanceof ApiError ? err.message : 'No se pudo eliminar el producto.', 'error')
       setIsDeleting(false); setShowDeleteModal(false)

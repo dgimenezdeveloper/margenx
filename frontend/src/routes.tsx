@@ -14,9 +14,17 @@ import SuppliersListPage from './app/proveedores/page'
 import SupplierDetailPage from './app/proveedores/[id]/page'
 import QuarantinePage from './app/proveedores/cuarentena/page'
 import PurchasesPage from './app/compras/page'
+import SalesHistoryPage from './app/ventas/page'
+import NewSalePage from './app/ventas/nueva/page'
+import SaleTicketPage from './app/ventas/[id]/ticket/page'
+import CashShiftsPage from './app/ventas/turnos/page'
+import RealProfitPage from './app/ventas/ganancia/page'
+import CashShiftSummaryPage from './app/ventas/turnos/[id]/page'
+import CloseCashShiftPage from './app/ventas/turnos/[id]/cerrar/page'
 import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
+import { FeatureRoute } from './components/feature-route'
 
 export const router = createBrowserRouter([
   {
@@ -106,6 +114,79 @@ export const router = createBrowserRouter([
   {
     path: '/productos/:id',
     element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute>,
+  },
+  {
+    path: '/ventas',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <SalesHistoryPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/nueva',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <NewSalePage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/:id/ticket',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <SaleTicketPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    // Ganancia real: datos financieros, solo para el ADMIN (especificación §8 y ADR-010).
+    path: '/ventas/ganancia',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <AdminOnlyRoute>
+            <RealProfitPage />
+          </AdminOnlyRoute>
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CashShiftsPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos/:id',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CashShiftSummaryPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos/:id/cerrar',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CloseCashShiftPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/perfil',

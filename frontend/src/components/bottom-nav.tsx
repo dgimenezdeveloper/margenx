@@ -2,22 +2,25 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Boxes, CircleUserRound, LayoutDashboard, Package, ShoppingCart, Truck } from 'lucide-react'
+import { Boxes, CircleUserRound, LayoutDashboard, Package, Receipt, ShoppingCart, Truck } from 'lucide-react'
 import { useUserRole } from '@/hooks/useUserRole'
+import { useFeatures } from '@/hooks/useFeatures'
 import { isNavLinkActive, isNavLinkVisible } from '@/lib/navigation'
 
 export function BottomNav() {
   const pathname = usePathname()
   const role = useUserRole()
+  const { features } = useFeatures()
 
   const tabs = [
     { label: 'Inicio', icon: LayoutDashboard, href: '/dashboard' },
     { label: 'Insumos', icon: Boxes, href: '/insumos' },
     { label: 'Productos', icon: Package, href: '/productos' },
+    { label: 'Ventas', icon: Receipt, href: '/ventas' },
     { label: 'Proveedores', icon: Truck, href: '/proveedores' },
     { label: 'Compras', icon: ShoppingCart, href: '/compras' },
     { label: 'Perfil', icon: CircleUserRound, href: '/perfil' },
-  ].filter(tab => isNavLinkVisible(tab.href, role))
+  ].filter(tab => isNavLinkVisible(tab.href, role, features))
 
   // El alto vertical (pt-2.5, ícono size-5, gap-1 y etiqueta de 10 px) es el que supone
   // ABOVE_BOTTOM_NAV_CLASS (lib/mobile-layout.ts) para apoyar las barras fijas sobre esta barra.

@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ingredientService, type Ingredient } from '@/services/ingredientService'
 import { productService } from '@/services/productService'
@@ -18,8 +18,12 @@ vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken }),
 }))
 
+// Perfil del usuario: cada prueba puede simular que todavía está cargando.
+const usuario = vi.hoisted(() => ({
+  actual: { defaultMinMarginPercent: 30 as number | undefined, isLoading: false },
+}))
 vi.mock('@/lib/useCurrentUser', () => ({
-  useCurrentUser: () => ({ defaultMinMarginPercent: 30, isLoading: false }),
+  useCurrentUser: () => usuario.actual,
 }))
 
 vi.mock('@/services/productService', () => ({
@@ -166,7 +170,8 @@ describe('NewProductPage - selector de la receta: repetidos y alta rápida (#357
 
     await user.click(await screen.findByRole('combobox', { name: /Levadura fresca/ }))
     await user.type(screen.getByPlaceholderText('Filtrar por nombre...'), 'Azafrán en hebras')
-    await user.click(screen.getByRole('option', { name: '+ Crear nuevo insumo' }))
+    // "Crear" aparece recién cuando termina la búsqueda (#432).
+    await user.click(await screen.findByRole('option', { name: '+ Crear nuevo insumo' }))
 
     expect(await screen.findByRole('dialog', { name: 'Nuevo insumo' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Azafrán en hebras')
@@ -223,3 +228,61 @@ describe('NewProductPage - avisos de error (#364)', () => {
     await vi.waitFor(() => expect(screen.queryByText('No se pudieron cargar los insumos.')).not.toBeInTheDocument())
   })
 })
+
+describe('NewProductPage - Escenario "Aviso al crear" (#432)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  it('al guardar vuelve a la lista con el aviso de producto creado, sin esperar a que se pierda', async () => {
+    vi.mocked(productService.create).mockResolvedValue({ id: 'prod-nuevo' } as never)
+    const router = createMemoryRouter(
+      [
+        { path: '/productos/nuevo', element: <NewProductPage /> },
+        { path: '/productos', element: <h1>Catálogo de productos</h1> },
+      ],
+      { initialEntries: ['/productos/nuevo'] }
+    )
+    render(<RouterProvider router={router} />)
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText(/Nombre del producto/), 'Bizcochitos de grasa — 1 kg')
+    await user.type(screen.getByLabelText('Precio de Venta'), '3200')
+    await user.click(screen.getAllByRole('button', { name: /Guardar Producto/i })[0]!)
+
+    await waitFor(() => expect(productService.create).toHaveBeenCalled())
+    await waitFor(() => expect(router.state.location.pathname).toBe('/productos'))
+    expect(router.state.location.state).toEqual({
+      productNotice: { title: 'Producto guardado en estado Borrador (sin receta).', type: 'success' },
+    })
+    expect(screen.queryByRole('dialog', { name: /Descartar cambios/ })).toBeNull()
+  })
+})
+
+describe('NewProductPage - Escenario "Sin texto vacío" (RC-21, #431)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  afterEach(() => {
+    usuario.actual = { defaultMinMarginPercent: 30, isLoading: false }
+  })
+
+  it('mientras el perfil carga no muestra la frase del margen global a medias', async () => {
+    usuario.actual = { defaultMinMarginPercent: undefined, isLoading: true }
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    expect(screen.queryByText(/tu margen global de/i)).toBeNull()
+  })
+
+  it('con el perfil cargado muestra el margen global con su valor', async () => {
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    expect(screen.getByText(/tu margen global de/i).closest('p')).toHaveTextContent(/tu margen global de\s*30\s%/)
+  })
+})
+

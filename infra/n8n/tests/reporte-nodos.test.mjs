@@ -407,6 +407,34 @@ const descarga = (body, headers = { 'x-margenx-webhook-secret': 'secreto' }) =>
     assert.match(compose, new RegExp(`- ${variable}=\\$\\{${variable}:-http://`), `n8n no recibe ${variable}`);
   }
 
+  // 23 Ventas de la semana (#450): la sección viene solo si la cuenta tiene el módulo de ventas
+  const ventas = {
+    salesCount: 41, salesTotal: '100000.00', costTotal: '62000.00', profit: '38000.00', marginPercent: '38.00',
+    topSold: [{ productId: 'p1', productName: 'Lavandina concentrada 5 L', quantity: 120, salesTotal: '148147.20', profit: '-18518.40', marginPercent: '-12.50' }],
+    topProfit: [{ productId: 'p2', productName: 'Detergente neutro 1 L', quantity: 40, salesTotal: '86000.00', profit: '21500.00', marginPercent: '25.00' }],
+  };
+  r = await semanal(reporte({ sales: ventas }));
+  pdf = html(r);
+  enOrden(pdf, ['Para revisar', 'Salud del catálogo', 'Ventas de la semana', 'Cambios de costo de la semana']);
+  for (const esperado of ['100.000,00', '62.000,00', '38.000,00', '38,00%', '41 ventas', 'Lavandina concentrada 5 L', '18.518,40', 'Detergente neutro 1 L', '21.500,00']) {
+    assert.ok(pdf.includes(esperado), `falta ${esperado} en la sección de ventas`);
+  }
+  assert.ok(pdf.includes('Sin las ventas anuladas'), 'la sección aclara que no cuenta las anuladas');
+  assert.match(pdf, /-\s?\$\s?18\.518,40/, 'una ganancia negativa lleva el signo menos');
+  assert.ok(!pdf.includes('100000.00') && !pdf.includes('-18518.40'), 'nunca el número crudo del backend');
+  assert.ok(r.json.emailText.includes('Ganancia real de la semana: $ 38.000,00') || /Ganancia real de la semana: \$\s?38\.000,00/.test(r.json.emailText), 'el mail resume la ganancia real');
+
+  // Escenario "Reporte sin módulo": sin el campo sales, ni el PDF ni el mail hablan de ventas
+  r = await semanal(reporte());
+  assert.ok(!html(r).includes('Ventas de la semana'), 'sin el módulo no aparece la sección');
+  assert.ok(!r.json.emailText.includes('Ganancia real'), 'sin el módulo el mail no habla de ventas');
+
+  // Semana con el módulo pero sin ventas: lo dice, sin tablas vacías ni margen dividido por cero
+  r = await semanal(reporte({ sales: { salesCount: 0, salesTotal: '0.00', costTotal: '0.00', profit: '0.00', marginPercent: null, topSold: [], topProfit: [] } }));
+  pdf = html(r);
+  assert.ok(pdf.includes('Ventas de la semana') && pdf.includes('No hubo ventas en el período.'));
+  assert.ok(!/NaN|null|undefined/.test(pdf), 'sin NaN, null ni undefined en el PDF');
+
   console.log('reporte-nodos: todas las pruebas pasaron');
 })().catch((error) => {
   console.error(error);

@@ -67,22 +67,22 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: authFile },
       dependencies: ['setup'],
-      // rbac-security.spec.ts corre aparte, autenticado como colaborador (ver proyecto de abajo).
-      testIgnore: /rbac-security\.spec\.ts/,
+      // rbac-security.spec.ts y sales-collaborator.spec.ts corren aparte, autenticados como colaborador (ver proyecto de abajo).
+      testIgnore: /rbac-security\.spec\.ts|sales-collaborator\.spec\.ts/,
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'], storageState: authFile },
       dependencies: ['setup'],
-      testIgnore: /rbac-security\.spec\.ts/,
+      testIgnore: /rbac-security\.spec\.ts|sales-collaborator\.spec\.ts/,
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], storageState: authFile },
       dependencies: ['setup'],
-      testIgnore: /rbac-security\.spec\.ts/,
+      testIgnore: /rbac-security\.spec\.ts|sales-collaborator\.spec\.ts/,
     },
 
     {
@@ -92,7 +92,7 @@ export default defineConfig({
       name: 'chromium-collaborator',
       use: { ...devices['Desktop Chrome'], storageState: collabAuthFile },
       dependencies: ['setup-collaborator'],
-      testMatch: /rbac-security\.spec\.ts/,
+      testMatch: /rbac-security\.spec\.ts|sales-collaborator\.spec\.ts/,
     },
   ],
 

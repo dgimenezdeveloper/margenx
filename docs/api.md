@@ -1,7 +1,6 @@
-
 # API REST — Contratos, Límites, Seguridad y Códigos HTTP
 
-Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
+Esta guía narrativa constituye el contrato histórico de referencia para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Desde esta entrega, `backend/openapi/openapi.yaml` es la referencia OpenAPI 3.1 para esquemas y operaciones. Explorá la documentación interactiva Swagger UI en [`/api/docs`](https://api-dev.margenx.tech/api/docs) y obtené el contrato JSON en [`/api/docs/openapi.json`](https://api-dev.margenx.tech/api/docs/openapi.json). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
 
 ---
 
@@ -732,7 +731,7 @@ Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 For
 - `GET /api/reports/weekly`: devuelve el reporte como JSON.
 - `GET /api/reports/weekly.pdf`: envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día en `America/Argentina/Buenos_Aires`. También envía `Cache-Control: private, no-store` y `Access-Control-Expose-Headers: Content-Disposition`: la app y la API se publican en orígenes distintos, y sin esa cabecera el navegador no deja que la app lea el nombre del archivo. Si n8n no está configurado, falla, expira o devuelve un PDF vacío, responde `503` con un mensaje genérico, sin detalles internos.
 
-El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
+El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. **Ventas de la semana:** si la cuenta tiene el módulo de ventas (ADR-010), el reporte suma `sales` con la ganancia real del mismo período (`salesCount`, `salesTotal`, `costTotal`, `profit`, `marginPercent` y los rankings `topSold` y `topProfit`, con la forma de `GET /api/sales/summary` de §12). Sin el módulo, el campo no viene y el PDF no tiene la sección. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
 
 ## 12. Módulo de Ventas y Caja (`/api/sales` y `/api/cash-shifts`)
 
@@ -741,4 +740,161 @@ Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). 
 - **Módulo apagado:** cualquier ruta de `/api/sales` o `/api/cash-shifts` responde `404 Not Found` con `{ "error": "Recurso no encontrado." }`, para los dos roles, como si no existiera. La cuenta sale de `req.user`, nunca del cliente.
 - **Sin sesión:** `401 Unauthorized`, antes de consultar el módulo.
 - **Cómo saber si está prendido:** `GET /api/auth/me` → `user.features.sales` (§3).
-- **Rutas:** se documentan acá cuando se implementan: la venta y el ticket (`/api/sales`) y los turnos y el cierre de caja (`/api/cash-shifts`).
+- **Turnos y cierre de caja (`/api/cash-shifts`):** más abajo, en esta misma sección. ADMIN y COLLABORATOR abren y cierran el turno.
+- **Montos:** todos los importes van como texto con dos decimales (`"3300.00"`), calculados con `Prisma.Decimal` y `ROUND_HALF_UP`. Las fechas, en ISO 8601 (UTC).
+- **Colaborador:** vende, ve sus ventas y su ticket, pero **nunca** recibe `unitCost`, `lineCost`, `marginPercent` ni `totalCost`. La respuesta se arma por rol en el servicio de ventas (no con `sanitizeFinancialData`, que también quitaría la `quantity` de cada renglón). Todas las respuestas llevan `Cache-Control: private, no-store`.
+
+### `POST /api/sales` — Registrar una venta (ADMIN y COLLABORATOR)
+
+- **Body:**
+  ```json
+  {
+    "paymentMethod": "CASH",
+    "items": [
+      { "productId": "<uuid>", "quantity": 2 },
+      { "productId": "<uuid>", "quantity": 1 }
+    ]
+  }
+  ```
+  - `paymentMethod`: `CASH` (efectivo), `TRANSFER` (transferencia) o `MERCADO_PAGO`. Solo se registra: no hay integración de cobro.
+  - `items`: de 1 a 50 productos distintos; `quantity` entera de 1 a 999. Un producto repetido suma sus cantidades. Cualquier otro campo (precio, costo, total, `accountId`) se ignora: el precio y el costo salen de la base.
+- **Regla:** en **una transacción**: exige un turno de caja abierto en la cuenta, toma el precio de venta y el costo vigentes de cada producto, calcula el margen de cada renglón (misma fórmula que el producto, ADR-004) y asigna el **número de ticket correlativo por cuenta** (el siguiente al mayor; si dos ventas toman el mismo número a la vez, el índice único rechaza una y se reintenta con el siguiente, hasta 3 veces). Precio, costo y margen quedan **congelados** en cada renglón: si mañana cambia un costo, la venta no cambia (ADR-005, ADR-010).
+- **Respuesta 201 Created:**
+  ```json
+  {
+    "id": "<uuid>",
+    "ticketNumber": 8,
+    "businessName": "Panadería Central",
+    "soldAt": "2026-11-24T12:30:00.000Z",
+    "paymentMethod": "CASH",
+    "total": "3300.00",
+    "totalCost": "1015.20",
+    "status": "COMPLETED",
+    "cashShiftId": "<uuid>",
+    "voidedAt": null,
+    "voidReason": null,
+    "items": [
+      { "productId": "<uuid>", "productName": "Medialuna de manteca", "quantity": 2, "unitPrice": "900.00", "lineTotal": "1800.00", "unitCost": "301.35", "lineCost": "602.70", "marginPercent": "66.52" }
+    ]
+  }
+  ```
+  Para el colaborador, sin `totalCost` y sin `unitCost`, `lineCost` ni `marginPercent` en los renglones.
+- **Errores:** `400` (medio de pago, productos o cantidades inválidos) · `404` `"Uno de los productos de la venta no existe."` (también si es de otra cuenta) · `409` `"No hay un turno de caja abierto. Abrí el turno para empezar a cobrar."` · `422` si un producto está en borrador (sin receta) o no tiene precio de venta.
+
+### `GET /api/sales` — Historial de ventas
+
+- **Query:** `page` (por defecto 1), `limit` (por defecto 20, máximo 100), `date` (`AAAA-MM-DD`, día calendario de Argentina: de 00:00 a 24:00 en UTC−3) y `cashShiftId` (uuid del turno). Orden: la más reciente primero.
+- **Alcance:** el ADMIN ve las ventas de toda la cuenta; el colaborador, solo las que registró él.
+- **Respuesta 200 OK:** `{ "data": [{ "id", "ticketNumber", "soldAt", "paymentMethod", "total", "status", "cashShiftId", "itemsCount" }], "meta": { "total", "page", "limit", "totalPages" } }`. Sin costos para ningún rol.
+- **Errores:** `400` `"La fecha tiene que tener el formato AAAA-MM-DD."` · `400` `"El turno indicado no es válido."`
+
+### `GET /api/sales/summary` — Ganancia real (solo ADMIN)
+
+- **Query:** `period` = `day` (hoy), `week` (hoy y los 6 días anteriores, la misma ventana del reporte semanal) o `month` (hoy y los 29 anteriores). Por defecto, `week`. Días calendario de Argentina (UTC−3).
+- **Regla:** ventas menos el **costo congelado** de cada renglón, y el **margen ponderado por lo vendido** (ganancia / ventas × 100, sobre la venta como en ADR-004), con `Prisma.Decimal` y `ROUND_HALF_UP`. **Sin las ventas anuladas.** El período anterior tiene el mismo largo y termina donde empieza el actual.
+- **Respuesta 200 OK:**
+  ```json
+  {
+    "period": "week",
+    "from": "2026-11-18",
+    "to": "2026-11-24",
+    "salesCount": 41,
+    "salesTotal": "100000.00",
+    "costTotal": "62000.00",
+    "profit": "38000.00",
+    "marginPercent": "38.00",
+    "previous": { "from": "2026-11-11", "to": "2026-11-17", "salesCount": 35, "salesTotal": "80000.00", "costTotal": "52000.00", "profit": "28000.00", "marginPercent": "35.00" },
+    "change": { "salesTotal": "25.00", "profit": "35.71" },
+    "topSold": [{ "productId": "<uuid>", "productName": "Pan flauta — 1 kg", "quantity": 80, "salesTotal": "346571.20", "profit": "145571.20", "marginPercent": "42.00" }],
+    "topProfit": [{ "productId": "<uuid>", "productName": "Medialunas de manteca — docena (12 unidades)", "quantity": 30, "salesTotal": "405000.00", "profit": "273000.00", "marginPercent": "67.41" }]
+  }
+  ```
+  - `marginPercent`: `null` si no hubo ventas (nunca divide por cero).
+  - `change`: variación porcentual de las ventas y de la ganancia contra el período anterior; `null` si el anterior fue 0.
+  - `topSold` (por unidades) y `topProfit` (por ganancia): 5 productos cada uno. Un producto dado de baja aparece con `productId: null` y el nombre guardado en la venta.
+- **Errores:** `400` `"El período tiene que ser day, week o month."` · `403` para el colaborador.
+- **Pruebas:** colección `MargenX - Ventas API`, `backend/src/routes/salesSummaryRoutes.test.ts` y `backend/src/services/salesSummaryService.test.ts`.
+
+### `GET /api/sales/:id` — Detalle y ticket
+
+- Mismo cuerpo que la respuesta de `POST /api/sales`, con los renglones ordenados por nombre. El colaborador solo puede ver sus ventas.
+- **Errores:** `404` `"La venta no existe."` (también si es de otra cuenta, de otro colaborador o el id no es válido).
+
+### `POST /api/sales/:id/void` — Anular una venta
+
+- **Body:** `{ "reason": "Cobré dos veces la misma venta" }` (de 3 a 200 caracteres).
+- **Regla:** no se borra nada: la venta pasa a `VOIDED` con la fecha, quién la anuló y el motivo, y sigue en el historial. **Solo mientras el turno de la venta siga abierto**, también para el ADMIN: así el arqueo de un turno cerrado no cambia nunca. El ADMIN anula cualquier venta del turno; el colaborador, solo las suyas. La anulación toma el mismo bloqueo compartido que la venta (ver el cierre).
+- **Respuesta 200 OK:** la venta anulada, con el mismo cuerpo que el detalle.
+- **Errores:** `400` `"Escribí el motivo de la anulación."` · `403` `"Solo se pueden anular ventas del turno abierto. El turno de esta venta ya se cerró y su arqueo no cambia."` (los dos roles) · `404` `"La venta no existe."` (también la venta de otro colaborador) · `409` `"La venta ya está anulada."`
+- **Pruebas:** colección `MargenX - Ventas API` (`backend/tests/postman/README-Ventas.md`) y `backend/src/routes/salesRoutes.test.ts`.
+
+### Turnos de caja (`/api/cash-shifts`)
+
+Un solo turno abierto por cuenta (índice parcial único `CashShift_accountId_open_key`). Para vender hace falta un turno abierto. **ADMIN y COLLABORATOR** abren y cierran. El arqueo no tiene costos ni márgenes, así que la respuesta es la misma para los dos roles.
+
+**Resumen del turno** (respuesta de todas las rutas de turnos):
+
+```json
+{
+  "id": "<uuid>",
+  "status": "CLOSED",
+  "openedAt": "2026-11-24T10:00:00.000Z",
+  "openedBy": "cajera.panaderia@seed.example.test",
+  "closedAt": "2026-11-24T18:00:00.000Z",
+  "closedBy": "cajera.panaderia@seed.example.test",
+  "openingAmount": "10000.00",
+  "salesCount": 11,
+  "voidedCount": 1,
+  "salesTotal": "33400.00",
+  "methods": [
+    { "paymentMethod": "CASH", "salesTotal": "25000.00", "expected": "35000.00", "counted": "34500.00", "difference": "-500.00" },
+    { "paymentMethod": "TRANSFER", "salesTotal": "8400.00", "expected": "8400.00", "counted": "8400.00", "difference": "0.00" },
+    { "paymentMethod": "MERCADO_PAGO", "salesTotal": "0.00", "expected": "0.00", "counted": "0.00", "difference": "0.00" }
+  ],
+  "expectedTotal": "43400.00",
+  "countedTotal": "42900.00",
+  "difference": "-500.00"
+}
+```
+
+- `salesCount` y `salesTotal`: solo las ventas completadas. Las anuladas no suman en lo esperado y se cuentan en `voidedCount`.
+- **Esperado:** en efectivo, el monto inicial más las ventas en efectivo; en transferencia y Mercado Pago, solo sus ventas.
+- **Diferencia:** contado − esperado, por medio de pago y total. Negativa = falta plata; positiva = sobra.
+- **Turno abierto:** lo esperado se calcula con las ventas hasta ahora, y `counted`, `difference`, `countedTotal`, `closedAt` y `closedBy` van en `null`.
+- **Turno cerrado:** lo esperado y lo contado son los guardados al cierre.
+- `openedBy` y `closedBy`: el email del usuario, o `null` si se dio de baja (ADR-008).
+- **Montos de entrada** (`openingAmount` y lo contado): número o texto, de 0 a 99.999.999,99, con hasta 2 decimales. Si no, `400` `"Indicá <qué>: un monto de 0 a $99.999.999,99, con hasta 2 decimales."`
+
+#### `POST /api/cash-shifts/open` — Abrir el turno
+
+- **Body:** `{ "openingAmount": 10000 }`.
+- **Respuesta 201 Created:** el resumen del turno abierto.
+- **Errores:** `400` (monto inválido) · `409` `"Ya hay un turno de caja abierto. Cerralo antes de abrir otro."` (también si dos personas abren a la vez: el índice único deja pasar una).
+
+#### `GET /api/cash-shifts/current` — Turno abierto
+
+- **Respuesta 200 OK:** `{ "shift": <resumen> }`, o `{ "shift": null }` si no hay turno abierto. No responde 404: el 404 queda para el módulo apagado.
+
+#### `POST /api/cash-shifts/:id/close` — Cerrar el turno con el arqueo
+
+- **Body:** lo contado en los **tres** medios de pago (obligatorios): `{ "countedCash": 34500, "countedTransfer": 8400, "countedMercadoPago": 0 }`.
+- **Regla:** en **una transacción**:
+  1. pasa el turno a `CLOSED`;
+  2. suma las ventas del turno;
+  3. guarda lo esperado, lo contado y la diferencia total.
+
+  La venta y la anulación toman un bloqueo compartido (`FOR SHARE`) sobre la fila del turno, así que el paso 1 espera a las que están en curso. Una venta que llega durante el cierre espera y responde 409: ninguna venta queda afuera de un arqueo ya calculado.
+- **Respuesta 200 OK:** el resumen del turno cerrado.
+- **Errores:** `400` (falta lo contado de algún medio o es inválido) · `404` `"El turno no existe."` (también de otra cuenta o, para el colaborador, un turno cerrado en el que no trabajó) · `409` `"El turno ya está cerrado."` (también si otra persona lo cerró a la vez).
+
+#### `GET /api/cash-shifts` — Historial de turnos
+
+- **Query:** `page` (por defecto 1) y `limit` (por defecto 20, máximo 100). Orden: el más reciente primero.
+- **Alcance:** el ADMIN ve todos los turnos de la cuenta; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
+- **Respuesta 200 OK:** `{ "data": [<resumen>], "meta": { "total", "page", "limit", "totalPages" } }`.
+
+#### `GET /api/cash-shifts/:id` — Resumen del turno
+
+- **Respuesta 200 OK:** el resumen, más `businessName` (el nombre del comercio, para imprimirlo). Mismo alcance que el historial.
+- **Errores:** `404` `"El turno no existe."`
+- **Pruebas:** colección `MargenX - Ventas API`, `backend/src/routes/cashShiftRoutes.test.ts` y `backend/src/services/cashShiftService.test.ts`.

@@ -1,6 +1,6 @@
-# Cómo ejecutar las 11 colecciones de Postman
+# Cómo ejecutar las 12 colecciones de Postman
 
-Issue #264 (Colaboradores se sumó en #395, Compras en #388 y Reportes en #390). Las 11 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
+Issue #264 (Colaboradores se sumó en #395, Compras en #388, Reportes en #390 y Ventas en #448, con la caja en #449). Las 12 colecciones viven en `backend/tests/postman/` y validan la API contra una base local sembrada (`npx prisma db seed` desde `backend/`, con el backend corriendo en `http://localhost:3000`).
 
 Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar el comando de `newman` a mano. Correlos desde `backend/tests/postman/`.
 
@@ -17,6 +17,7 @@ Cada colección tiene su propio wrapper `run-tests*.sh` para no tener que armar 
 | Colaboradores API | `./run-tests-colaboradores.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` (misma cuenta) |
 | Compras API | `./run-tests-compras.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab` |
 | Reportes API | `INTERNAL_WEBHOOK_SECRET=<secreto> ./run-tests-reportes.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab`, y el mismo `INTERNAL_WEBHOOK_SECRET` del `.env` del backend |
+| Ventas API | `./run-tests-ventas.sh <token_admin> <token_colaborador>` | Tokens de `panaderia-admin` y `panaderia-colab`, con el módulo de ventas prendido para Panadería Central (`README-Ventas.md`) |
 
 ## Generar los tokens de Clerk
 
@@ -37,7 +38,7 @@ echo "TOKEN_B=$(npx tsx scripts/get-test-token.ts quimica-admin)"
 echo "TOKEN_COLLAB=$(npx tsx scripts/get-test-token.ts panaderia-colab)"
 ```
 
-## Correr las 11 en orden
+## Correr las 12 en orden
 
 ```bash
 cd backend/tests/postman
@@ -52,9 +53,10 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-cuarentena.sh "$TO
 ./run-tests-colaboradores.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ./run-tests-compras.sh "$TOKEN_A" "$TOKEN_COLLAB"
 INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-reportes.sh "$TOKEN_A" "$TOKEN_COLLAB"
+./run-tests-ventas.sh "$TOKEN_A" "$TOKEN_COLLAB"
 ```
 
-Salida esperada: **0 failures** en las 11.
+Salida esperada: **0 failures** en las 12.
 
 ## Reproducibilidad
 
@@ -65,6 +67,7 @@ Salida esperada: **0 failures** en las 11.
 - Proveedores, Webhooks, Colaborador RBAC y Colaboradores no modifican datos que haga falta restaurar. Colaboradores no crea invitaciones reales (cada una manda un mail): el alta de punta a punta se prueba en staging, como explica `README-Colaboradores.md`.
 - Compras API es una colección de solo lectura que no requiere restaurar datos ni resembrar la cuenta.
 - Reportes API valida endpoints internos, permisos de ADMIN y el contrato del reporte. Para la prueba local, configurar el mismo `INTERNAL_WEBHOOK_SECRET` del backend.
+- Ventas API **modifica datos**: cada corrida deja en Panadería Central un turno cerrado, una venta y una venta anulada. Correrla solo contra la base local; se puede repetir (`README-Ventas.md`).
 
 ## Evidencia en los reportes de QA
 
@@ -72,4 +75,4 @@ Un reporte de QA cita la salida real de Newman o de Vitest, no solo capturas de 
 
 ## Para cada README específico
 
-Insumos (`README.md`), Productos (`README-Productos.md`), Proveedores (`README-ProveedoresConversiones.md`) y Colaboradores (`README-Colaboradores.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen, Cuarentena, Dashboard, Compras y Reportes no necesitan preparación adicional más allá de los tokens o secretos de la tabla de arriba.
+Insumos (`README.md`), Productos (`README-Productos.md`), Proveedores (`README-ProveedoresConversiones.md`) Colaboradores (`README-Colaboradores.md`) y Ventas (`README-Ventas.md`) tienen su propio README en esta misma carpeta con el detalle de alcance y preparación de cuentas. Webhooks, Colaborador RBAC, Alertas de margen, Cuarentena, Dashboard, Compras y Reportes no necesitan preparación adicional más allá de los tokens o secretos de la tabla de arriba.

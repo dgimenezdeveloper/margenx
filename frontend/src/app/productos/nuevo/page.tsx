@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -39,16 +39,19 @@ import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import { cn } from '@/lib/utils'
 import { HEALTH_BUCKET_META, resolveProductHealthBucket } from '@/lib/healthBucket'
+import { productNoticeState } from '@/lib/productNotice'
 
 const money = (val: number) => formatMoney(val)
 
 export default function NewProductPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const { defaultMinMarginPercent, isLoading: isLoadingUser } = useCurrentUser()
 
   const { toast, notify, dismiss: dismissToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Aviso de producto creado que espera a que la pantalla quede sin cambios para ir a la lista (#432).
+  const [savedNotice, setSavedNotice] = useState<string | null>(null)
   const submitLockRef = useRef(false)
   const isNavigatingAfterSaveRef = useRef(false)
 
@@ -109,6 +112,15 @@ export default function NewProductPage() {
 
   useBodyScrollLock(isDropdownOpen)
   const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChangesWarning(hasUnsavedChanges)
+
+  // Se navega recién cuando el formulario ya se limpió: si se navegara en el mismo paso que el
+  // guardado, la protección de cambios sin guardar todavía estaría activa y frenaría la salida.
+  // El aviso viaja a la lista, porque mostrado acá se perdía al redirigir (#432).
+  useEffect(() => {
+    if (savedNotice && !hasUnsavedChanges) {
+      navigate('/productos', { state: productNoticeState(savedNotice) })
+    }
+  }, [savedNotice, hasUnsavedChanges, navigate])
 
   const watchedSalePrice = useWatch({ control, name: 'salePrice' }) as string | number
   const watchedMinMargin = useWatch({ control, name: 'minMarginPercent' }) as string | number
@@ -282,15 +294,14 @@ export default function NewProductPage() {
     try {
       await productService.create(getToken, payload)
 
-      notify(
+      const createdNotice =
         items.length === 0
           ? `Producto guardado en estado ${HEALTH_BUCKET_META.draft.label} (sin receta).`
           : 'Producto creado exitosamente con receta vinculada.'
-      )
       isNavigatingAfterSaveRef.current = true
       reset({ name: '', salePrice: '', minMarginPercent: '30' })
       resetStore()
-      setTimeout(() => router.push('/productos'), 800)
+      setSavedNotice(createdNotice)
     } catch (error: unknown) {
       isNavigatingAfterSaveRef.current = false
       if (error instanceof ApiError) {
@@ -424,14 +435,17 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
-                  <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  <p className="leading-tight">
-                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
-                    <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
-                    exclusivamente para este producto sin alterar el resto.
-                  </p>
-                </div>
+                {/* Recién con el perfil cargado: sin el margen global, la frase quedaba a medias (#431). */}
+                {!isLoadingUser && defaultMinMarginPercent !== undefined && (
+                  <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
+                    <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <p className="leading-tight">
+                      <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
+                      <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
+                      exclusivamente para este producto sin alterar el resto.
+                    </p>
+                  </div>
+                )}
               </section>
 
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
@@ -496,7 +510,7 @@ export default function NewProductPage() {
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
                         className={cn(
-                          'min-h-11 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500',
+                          'min-h-11 h-11 w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:[color-scheme:dark] dark:hover:bg-gray-700 outline-none focus:border-indigo-600 dark:focus:border-indigo-500',
                           CANONICAL_FOCUS_CLASSES
                         )}
                       >
@@ -724,7 +738,7 @@ export default function NewProductPage() {
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       )}
                     >
-                      +5%
+                      {formatPercent(5, { signed: true, minDecimals: 0 })}
                     </button>
                     <button
                       type="button"
@@ -737,7 +751,7 @@ export default function NewProductPage() {
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       )}
                     >
-                      +10%
+                      {formatPercent(10, { signed: true, minDecimals: 0 })}
                     </button>
                     <button
                       type="button"

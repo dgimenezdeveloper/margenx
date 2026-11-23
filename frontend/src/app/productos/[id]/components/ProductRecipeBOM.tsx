@@ -107,7 +107,7 @@ export function ProductRecipeBOM({
         <button
           type="button"
           onClick={onAddIngredient}
-          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 cursor-pointer"
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40 cursor-pointer"
         >
           <Plus className="size-4" /> Agregar Insumo a la Receta
         </button>
