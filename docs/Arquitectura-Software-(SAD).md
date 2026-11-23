@@ -509,6 +509,7 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
   2. Para cada venta, en una transacción, el backend toma un bloqueo compartido sobre la fila del turno abierto (`FOR SHARE`), toma el precio y el costo vigentes de cada producto desde la base, congela precio, costo y margen en cada renglón y asigna el número de ticket correlativo de la cuenta. Sin turno abierto responde 409. El colaborador nunca recibe costos ni márgenes (CU-02).
   3. Una venta se anula con su motivo, sin borrarse, solo mientras su turno siga abierto (403 si está cerrado). La anulación toma el mismo bloqueo compartido.
   4. Al cerrar, en una transacción, el backend pasa el turno a `CLOSED`, suma las ventas completadas por medio de pago y guarda lo esperado (en efectivo, el monto inicial más las ventas en efectivo), lo contado y la diferencia. La actualización del turno espera a las ventas y anulaciones en curso, y una venta que llega durante el cierre encuentra el turno cerrado: ninguna venta queda afuera del arqueo.
+  5. El Administrador consulta la ganancia real del día, la semana o el mes: ventas completadas menos el costo congelado de cada renglón, y el margen ponderado por lo vendido. Con el módulo prendido, el reporte semanal suma la misma cuenta para su período.
 - Postcondición: cada venta queda con su ticket y sus valores congelados para la ganancia real, y cada turno cerrado con un arqueo que ya no cambia.
 
 ---
