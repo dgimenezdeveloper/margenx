@@ -202,7 +202,7 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     const user = userEvent.setup()
     vi.mocked(supplierService.removePackaging).mockRejectedValue(
       new ApiError(
-        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.',
+        'No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero.',
         409
       )
     )
@@ -217,7 +217,7 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
 
     expect(
       await screen.findByText(
-        'No puedes eliminar la presentación predeterminada mientras existan otras. Selecciona otra como predeterminada primero.'
+        'No podés eliminar la presentación predeterminada mientras haya otras. Elegí otra como predeterminada primero.'
       )
     ).toBeInTheDocument()
     expect(supplierService.removePackaging).toHaveBeenCalledWith(expect.any(Function), 'sup-marjuanc', 'ing-1')

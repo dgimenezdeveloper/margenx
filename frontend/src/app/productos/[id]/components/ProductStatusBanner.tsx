@@ -41,7 +41,7 @@ export function ProductStatusBanner({
           {meta.label}
         </p>
         <p className="mt-1 text-xs text-gray-500">
-          Agrega materias primas para comenzar a calcular automáticamente el margen de ganancia.
+          Agregá materias primas para empezar a calcular automáticamente el margen de ganancia.
         </p>
       </section>
     )

@@ -222,7 +222,7 @@ export function HealthDistributionHistogram({
               {catalogTotal} {catalogTotal === 1 ? 'producto' : 'productos'} en total
             </span>
             <span className="hidden sm:inline">
-              Haz clic en una columna para filtrar los productos abajo
+              Hacé clic en una columna para filtrar los productos de abajo
             </span>
           </div>
         </div>

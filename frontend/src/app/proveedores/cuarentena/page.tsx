@@ -40,7 +40,7 @@ export default function QuarantinePage() {
                 Precios en Cuarentena
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Revisa y decide sobre los precios retenidos por el filtro anti-polución debido a variaciones anormales.
+                Revisá y decidí qué hacer con los precios que MargenX retuvo porque cambiaron demasiado.
               </p>
             </div>
 

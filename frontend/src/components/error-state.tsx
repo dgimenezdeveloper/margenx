@@ -20,7 +20,7 @@ export interface ErrorStateProps {
  */
 export function ErrorState({
   title = 'No pudimos cargar la información',
-  description = 'Ocurrió un problema al consultar el servidor. Verifica tu conexión e intenta nuevamente.',
+  description = 'Ocurrió un problema al consultar el servidor. Revisá tu conexión y probá de nuevo.',
   actionLabel,
   onAction,
   onRetry,

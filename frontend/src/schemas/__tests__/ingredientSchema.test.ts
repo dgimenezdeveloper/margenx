@@ -12,7 +12,7 @@ describe('ingredientSchema', () => {
     const invalidUnit = ingredientSchema.safeParse({ name: 'Sal', unit: 'gramos', currentCost: 200 });
     expect(invalidUnit.success).toBe(false);
     if (!invalidUnit.success) {
-      expect(invalidUnit.error.issues[0].message).toBe('Selecciona una unidad válida');
+      expect(invalidUnit.error.issues[0].message).toBe('Seleccioná una unidad válida');
     }
   });
 

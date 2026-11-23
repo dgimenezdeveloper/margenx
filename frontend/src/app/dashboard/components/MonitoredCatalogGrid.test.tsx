@@ -189,7 +189,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     unmount()
 
     renderGrilla(null, [])
-    expect(screen.getByText(/aún no tienes productos/i)).toBeInTheDocument()
+    expect(screen.getByText(/aún no tenés productos/i)).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /paginación/i })).toBeNull()
   })
 

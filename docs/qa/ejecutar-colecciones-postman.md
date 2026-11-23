@@ -62,12 +62,16 @@ Salida esperada: **0 failures** en las 12.
 
 - Insumos se autolimpia (borra el insumo de prueba al final).
 - Cuarentena se autolimpia: crea su propio insumo y dos proveedores, y los borra en la carpeta "04 - Cleanup Final".
-- Productos **no** se autolimpia: no existe `DELETE /api/products/:id`. Los productos de prueba quedan persistidos (prefijo `"Producto QA"` / `"Producto Precio Cero"` / `"Producto Precio Negativo"`); borrarlos a mano desde Prisma Studio si hace falta una base piloto limpia.
-- Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" en su costo activo real post-seed (`736.25`, la presentación mayorista por defecto — ver `docs/qa/seed-data-comercios.md`) al final de la propia colección — no hace falta limpieza aparte, y se puede correr repetidas veces. `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E) fijan su propio costo base (`742.98`) por `beforeEach` antes de cada test, así que no dependen de en qué quede este insumo al terminar la colección.
+- Productos se autolimpia: la carpeta "03 - Limpieza" borra los dos productos que crea ("Producto QA" y "Producto Precio Cero") con `DELETE /api/products/:id` y controla que ya no existan (#312).
+- Alertas de margen deja el insumo "Harina de trigo 000 Olavarriense" como estaba antes de la corrida: el request 00 guarda su nombre, unidad y costo, el 04 los vuelve a poner y el 05 controla que queden iguales (#312). Si la base está recién sembrada, ese costo es `736.25` (ver `docs/qa/seed-data-comercios.md`); si otra colección lo cambió antes (por ejemplo, la de estrés), queda en ese valor y no en el del seed. No hace falta limpieza aparte, y se puede correr repetidas veces. `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts` (E2E) fijan su propio costo base (`742.98`) por `beforeEach` antes de cada test, así que no dependen de en qué quede este insumo al terminar la colección.
 - Proveedores, Webhooks, Colaborador RBAC y Colaboradores no modifican datos que haga falta restaurar. Colaboradores no crea invitaciones reales (cada una manda un mail): el alta de punta a punta se prueba en staging, como explica `README-Colaboradores.md`.
 - Compras API es una colección de solo lectura que no requiere restaurar datos ni resembrar la cuenta.
 - Reportes API valida endpoints internos, permisos de ADMIN y el contrato del reporte. Para la prueba local, configurar el mismo `INTERNAL_WEBHOOK_SECRET` del backend.
 - Ventas API **modifica datos**: cada corrida deja en Panadería Central un turno cerrado, una venta y una venta anulada. Correrla solo contra la base local; se puede repetir (`README-Ventas.md`).
+
+## Evidencia en los reportes de QA
+
+Un reporte de QA cita la salida real de Newman o de Vitest, no solo capturas de pantalla: la tabla final de Newman (`requests`, `assertions`, fallas) o el resumen de Vitest, pegados como texto. Las reglas, incluida qué correos pueden aparecer, están en `docs/qa/evidencias/README.md`.
 
 ## Para cada README específico
 

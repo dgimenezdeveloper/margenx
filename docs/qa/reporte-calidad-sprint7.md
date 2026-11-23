@@ -179,3 +179,83 @@ ahorro suma bultos que no se comparan. El equipo decidió el 22/11 que Compras
 mida **el impacto en el margen** de cambiar de proveedor (#445 en el backend,
 #446 en el frontend), y que la reposición con cantidades llegue en la Fase 2,
 con el stock. La regla queda escrita en el ADR-010 (#447).
+
+## 2. Colecciones Newman sin datos mutados (issue #312)
+
+**Estado de esta sección: completa, con una limitación del entorno.** Productos
+y Alertas de margen dejan la base como estaba. La prueba de aislamiento de
+Productos no se pudo correr, porque Química GyJ no tiene usuarios en Clerk
+(§2.4).
+
+### 2.1 Objetivo
+
+Comprobar con la salida real de Newman que las colecciones que dejaban datos
+mutados (NB-4 de la revisión del PR #218, cosechado en #265) ya no lo hacen:
+Productos dejaba un producto a $0 y Alertas de margen dejaba la Harina en
+9500. La evidencia sigue las reglas de
+[`evidencias/README.md`](evidencias/README.md): salida de consola como texto,
+sin reportes HTML.
+
+### 2.2 Método
+
+- **Fecha y entorno:** 22/11/2026, en el devcontainer local. Backend de la
+  rama de #312 en `localhost:3000`, con la base local sembrada con los
+  comercios piloto.
+- **Productos:** dos corridas seguidas, sin volver a sembrar entre una y otra.
+  Usa el token de `panaderia-admin` (Cuenta A) y ninguno de Cuenta B (§2.4).
+  El script se corrió con `bash` porque no tenía permiso de ejecución; quedó
+  corregido en esta misma issue, junto con otros seis scripts `run-tests*.sh`
+  que tampoco lo tenían.
+- **Alertas de margen:** una corrida, con los tokens de `panaderia-admin` y
+  `panaderia-colab`.
+- **Base local:** el colaborador de Panadería Central tenía el usuario de
+  Clerk anterior a #276. Se actualizó al actual del seed solo en la base
+  local, como se había hecho con el administrador en #313.
+- **Comandos:** van en el encabezado de cada archivo de evidencia.
+
+### 2.3 Resultados
+
+| Colección | Corrida | Pedidos | Aserciones | Fallas | Evidencia |
+|---|---|---|---|---|---|
+| Productos API | 1 | 15 | 36 | 1 (Cuenta B, §2.4) | [01-newman-productos-corrida-1.txt](evidencias/312/01-newman-productos-corrida-1.txt) |
+| Productos API | 2, sin volver a sembrar | 15 | 36 | 1 (Cuenta B, §2.4) | [02-newman-productos-corrida-2.txt](evidencias/312/02-newman-productos-corrida-2.txt) |
+| Alertas de margen (Insumos) | 1 | 6 | 17 | 0 | [03-newman-alertas-margen.txt](evidencias/312/03-newman-alertas-margen.txt) |
+
+Qué demuestra cada una:
+
+- **Productos:**
+  - La carpeta "03 - Limpieza" borra "Producto QA" y "Producto Precio Cero"
+    (`DELETE` 200) y comprueba que ya no existen (`GET` 404).
+  - En la segunda corrida, "Crear producto válido" vuelve a dar 201. Si la
+    primera hubiera dejado el producto, daría 409 por el nombre repetido.
+- **Alertas de margen:** el pedido "00" guarda el nombre, la unidad y el costo
+  de "Harina de trigo 000 Olavarriense", y el "05" comprueba que quedan
+  iguales después de los cambios de "01" y "04". El costo de partida no era el
+  9500 que fija "01", así que los cambios fueron reales.
+
+### 2.4 Lo no cubierto
+
+- **Aislamiento multiempresa de Productos** (carpeta "02"): necesita un token
+  de `quimica-admin`, y los usuarios de Química GyJ no existen en la instancia
+  de Clerk. Es el mismo bloqueo del reporte del Sprint 5 (§3.5), que sigue
+  pendiente del equipo. El pedido da 401 y falla en las dos corridas. Las
+  colecciones de Insumos y de Proveedores tienen el mismo bloqueo. Esta
+  corrida no verifica el aislamiento: no es una falla de la API ni de los
+  cambios de #312.
+- **El script de esa prueba tiraba un `TypeError`** cuando la respuesta no era
+  200, porque buscaba `data` en el cuerpo (se ve en los archivos 01 y 02).
+  Quedó corregido en la revisión del PR: sin 200 falla solo el control del
+  status.
+- **Staging:** las corridas fueron locales. No se corrieron contra
+  `dev.margenx.tech`.
+
+### 2.5 Definition of Done de #312
+
+- [x] `run-tests-productos.sh` y su colección no dejan el producto a $0: lo
+  borran y lo comprueban (§2.3, archivos 01 y 02).
+- [x] `run-tests-alertas-margen.sh` y su colección dejan el costo de la Harina
+  como estaba (§2.3, archivo 03).
+- [x] Decisión escrita sobre los correos de cuentas de prueba en los reportes
+  de QA: solo correos ficticios ([`evidencias/README.md`](evidencias/README.md)).
+- [x] Un reporte de QA adjunta la salida real de Newman en lugar de solo
+  capturas (esta sección).
