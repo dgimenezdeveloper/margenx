@@ -75,7 +75,8 @@ describe('lazyPage: cada pantalla se baja cuando se abre (#398)', () => {
   it('el router importa estáticamente solo las páginas públicas; las de sesión van bajo demanda', () => {
     const fuente = readFileSync(path.resolve(__dirname, '../../routes.tsx'), 'utf8')
     const estaticas = [...fuente.matchAll(/^import \w+ from '\.\/app\/(.+)\/page'$/gm)].map((m) => m[1])
-    expect(estaticas.sort()).toEqual(['instalar', 'login', 'privacidad'])
+    // not-found va estática porque FeatureRoute también la importa: cargarla bajo demanda no la sacaba del bundle principal.
+    expect(estaticas.sort()).toEqual(['instalar', 'login', 'not-found', 'privacidad'])
     expect(fuente).toMatch(/^import LandingPage from '\.\/app\/page'$/m)
     expect(fuente).toContain("lazyPage(() => import('./app/dashboard/page'))")
   })

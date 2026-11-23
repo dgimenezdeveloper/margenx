@@ -4,13 +4,15 @@ import LandingPage from './app/page'
 import LoginPage from './app/login/page'
 import InstallPage from './app/instalar/page'
 import PrivacyPage from './app/privacidad/page'
+import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
 import { FeatureRoute } from './components/feature-route'
 import { lazyPage } from './lib/lazyPage'
 
 // Cada pantalla con sesión se baja al abrirla (#398). Las públicas (landing, login, privacidad e instalación) van en el
-// bundle principal: se abren por enlace directo y bajarlas aparte demoraba su primer pintado (LCP).
+// bundle principal: se abren por enlace directo y bajarlas aparte demoraba su primer pintado (LCP). La de "no encontrada"
+// también, porque FeatureRoute la importa directo y cargarla bajo demanda no la sacaba del bundle.
 const DashboardPage = lazyPage(() => import('./app/dashboard/page'))
 const SuppliesPage = lazyPage(() => import('./app/insumos/page'))
 const ProductsPage = lazyPage(() => import('./app/productos/page'))
@@ -28,7 +30,6 @@ const CashShiftsPage = lazyPage(() => import('./app/ventas/turnos/page'))
 const RealProfitPage = lazyPage(() => import('./app/ventas/ganancia/page'))
 const CashShiftSummaryPage = lazyPage(() => import('./app/ventas/turnos/[id]/page'))
 const CloseCashShiftPage = lazyPage(() => import('./app/ventas/turnos/[id]/cerrar/page'))
-const NotFoundPage = lazyPage(() => import('./app/not-found/page'))
 
 export const router = createBrowserRouter([
   {
