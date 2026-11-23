@@ -338,7 +338,9 @@ export default function SuppliesPageContent() {
 
         notify(
           `Insumo "${ingredient.name}" actualizado correctamente`,
-          `Nuevo valor: ${money(numericCost)}`,
+          // El costo que guardó el backend: con "Actualizar el precio" y un bulto fraccionario puede diferir en
+          // centavos del tipeado (ADR-011).
+          `Nuevo valor: ${money(ingredient.currentCost)}`,
           'success'
         )
 
