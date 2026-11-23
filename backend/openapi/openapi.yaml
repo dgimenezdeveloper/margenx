@@ -519,10 +519,47 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  /api/purchasing/margin-impact:
+    get:
+      tags: [Compras Sugeridas]
+      summary: Impacto en el margen por insumo al comprar a proveedores alternativos (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Impacto en el margen proyectado por insumo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PurchasingMarginImpactResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/purchasing/margin-impact/{ingredientId}:
+    get:
+      tags: [Compras Sugeridas]
+      summary: Impacto en el margen para un insumo y presentación alternativa específica (solo ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: ingredientId, in: path, required: true, schema: { type: string } }
+        - { name: supplierIngredientId, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Impacto en el margen para la presentación seleccionada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngredientMarginImpact' }
+        '400': { $ref: '#/components/responses/BadRequestError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/UnprocessableEntityError' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
   /api/purchasing/order-preview:
     post:
+      deprecated: true
       tags: [Compras Sugeridas]
-      summary: Calcular previsualización de orden de compra (solo ADMIN)
+      summary: '[Deprecado] Calcular previsualización de orden de compra (solo ADMIN)'
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -584,7 +621,10 @@ paths:
     post:
       tags: [Interno - n8n]
       summary: '[Uso interno] Ingesta masiva de listas de precios'
-      description: Endpoint de uso interno consumido por n8n. Límite 5 MB y hasta 5000 ítems.
+      description: >-
+        Endpoint de uso interno consumido por n8n. Límite 5 MB y hasta 5000 ítems. El precio se redondea a 2
+        decimales (ROUND_HALF_UP), como la columna packagePrice, antes de compararlo y guardarlo: un precio igual al
+        vigente con más decimales cuenta como unchanged.
       security: [{ webhookSecret: [] }]
       responses:
         '200': { description: Resumen del lote procesado }
@@ -984,6 +1024,76 @@ components:
         targetCount: { type: integer, example: 4 }
         surplusCount: { type: integer, example: 4 }
         draftCount: { type: integer, example: 0 }
+    MarginImpactProduct:
+      type: object
+      required:
+        - productId
+        - productName
+        - salePrice
+        - minMarginPercent
+        - currentRecipeCost
+        - projectedRecipeCost
+        - currentMarginAmount
+        - projectedMarginAmount
+        - currentMarginPercent
+        - projectedMarginPercent
+        - currentBucket
+        - projectedBucket
+      properties:
+        productId: { type: string, format: uuid }
+        productName: { type: string }
+        salePrice: { type: string }
+        minMarginPercent: { type: string }
+        currentRecipeCost: { type: string }
+        projectedRecipeCost: { type: string }
+        currentMarginAmount: { type: string }
+        projectedMarginAmount: { type: string }
+        currentMarginPercent: { type: string }
+        projectedMarginPercent: { type: string }
+        currentBucket: { type: string, enum: [loss, risk, target, surplus, draft] }
+        projectedBucket: { type: string, enum: [loss, risk, target, surplus, draft] }
+    IngredientMarginImpact:
+      type: object
+      required: [ingredientId, ingredientName, unit, currentCost, defaultPresentation, alternativePresentation, unitCostDifference, productsAffectedCount, productsLeavingRiskOrLossCount, products]
+      properties:
+        ingredientId: { type: string, format: uuid }
+        ingredientName: { type: string }
+        unit: { type: string, enum: [kg, l, u] }
+        currentCost: { type: string }
+        defaultPresentation:
+          type: ['object', 'null']
+          required: [supplierIngredientId, supplierName, unitCost]
+          properties:
+            supplierIngredientId: { type: string, format: uuid }
+            supplierName: { type: string }
+            unitCost: { type: string }
+        alternativePresentation:
+          type: object
+          required: [supplierIngredientId, supplierName, unitCost]
+          properties:
+            supplierIngredientId: { type: string, format: uuid }
+            supplierName: { type: string }
+            unitCost: { type: string }
+        unitCostDifference: { type: string }
+        productsAffectedCount: { type: integer }
+        productsLeavingRiskOrLossCount: { type: integer }
+        products:
+          type: array
+          items: { $ref: '#/components/schemas/MarginImpactProduct' }
+    PurchasingMarginImpactResponse:
+      type: object
+      required: [summary, byIngredient]
+      properties:
+        summary:
+          type: object
+          required: [ingredientsWithAlternative, productsAffected, productsLeavingRiskOrLoss]
+          properties:
+            ingredientsWithAlternative: { type: integer }
+            productsAffected: { type: integer }
+            productsLeavingRiskOrLoss: { type: integer }
+        byIngredient:
+          type: array
+          items: { $ref: '#/components/schemas/IngredientMarginImpact' }
 
   responses:
     BadRequestError:

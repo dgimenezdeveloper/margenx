@@ -576,8 +576,9 @@ Endpoint de recepción en lote para el orquestador satélite n8n.
   1. Deduplica ítems por código dentro del lote.
   2. Búsqueda implícita de `supplierCode` en `SupplierIngredient` de la cuenta.
   3. Descarte estricto (Anti-Pollution): Códigos no vinculados se descartan con motivo `NOT_FOUND`; proveedores inactivos con `INACTIVE_SUPPLIER`; códigos duplicados entre múltiples proveedores con `AMBIGUOUS`.
-  4. Retención en Cuarentena si $|\Delta\%| > 50\%$ o costo unitario $\le \$0.01$.
-  5. Actualiza precios válidos y ejecuta recálculo en cascada para presentaciones con `isDefault = true`.
+  4. **Redondeo del precio:** `price` se redondea a 2 decimales con `ROUND_HALF_UP`, igual que la columna `packagePrice` (`Decimal(10, 2)`), antes de compararlo y de guardarlo. Un precio igual al vigente con más decimales cuenta como `unchanged` y no recalcula: `18406.387654` contra `18406,39` no es un cambio, y `18406.385` tampoco (redondea a `18406,39`).
+  5. Retención en Cuarentena si $|\Delta\%| > 50\%$ o costo unitario $\le \$0.01$.
+  6. Actualiza precios válidos y ejecuta recálculo en cascada para presentaciones con `isDefault = true`.
 - **Respuesta 200:**
   ```json
   {
@@ -597,12 +598,14 @@ Endpoint de recepción en lote para el orquestador satélite n8n.
 
 ## 10. Módulo Compras Sugeridas — Smart Purchasing (`/api/purchasing`)
 
-Todas las rutas de este módulo son exclusivas para `ADMIN` (responden `403 Forbidden` a colaboradores), están acotadas por `accountId` y son de **solo lectura**: las sugerencias no modifican `Ingredient.currentCost` (ADR-005).
+Todas las rutas de este módulo son exclusivas para `ADMIN` (responden `403 Forbidden` a colaboradores), están acotadas por `accountId` y son de **solo lectura**: las sugerencias y proyecciones no modifican `Ingredient.currentCost` (ADR-005).
+
+**Regla de alcance (ADR-010):** Compras sugeridas mide el impacto en el margen de cambiar de proveedor. Sin stock no hay cantidades reales, por lo que la reposición con cantidades llega en la Fase 2. En la v1.0.0, `POST /api/purchasing/order-preview` queda **deprecado** (se reutiliza para la reposición con stock o se elimina en la v1.1).
 
 ### `GET /api/purchasing/suggestions`
 Compara las presentaciones activas y no en cuarentena de cada insumo contra su presentación predeterminada, calculando el ahorro por unidad (`$` y `%`) y por bulto mediante `calculateUnitCost` (`Prisma.Decimal`, `ROUND_HALF_UP`).
 - **Exclusiones:** las presentaciones de proveedores inactivos no participan; las presentaciones en cuarentena no compiten como más baratas y se informan aparte en `quarantinedExcluded`.
-- **Decisión de alcance:** MargenX no registra stock ni consumo, por lo que el ahorro se informa por unidad y por bulto (nunca como ahorro mensual).
+- **Alcance (ADR-010):** Compras sugeridas mide el impacto en el margen de cambiar de proveedor; al no registrarse stock ni consumo todavía, no se estima ahorro mensual ni cantidades a reponer.
 - **Respuesta 200:**
   ```json
   {
@@ -665,7 +668,111 @@ Compara las presentaciones activas y no en cuarentena de cada insumo contra su p
   }
   ```
 
-### `POST /api/purchasing/order-preview`
+### `GET /api/purchasing/margin-impact`
+Devuelve el impacto proyectado en el margen de los productos con receta (excluye borradores) al cambiar a la presentación alternativa elegible más económica de cada insumo.
+- **Base y elegibilidad:** Compara contra `Ingredient.currentCost` (refleja ediciones manuales del costo). Entra un insumo solo si tiene al menos una presentación alternativa activa, no en cuarentena, no predeterminada y con `unitCost < currentCost`. Ante empate de `unitCost`, desempata por menor `packagePrice`, nombre del proveedor y `id`.
+- **Impacto aislado (un cambio por vez):** Para cada producto con receta que usa el insumo, proyecta el costo de receta y el margen reemplazando únicamente ese insumo y dejando el resto con su `currentCost`. Usa `Prisma.Decimal` con redondeo `ROUND_HALF_UP` por renglón, idéntico al recálculo real al confirmar el cambio de proveedor predeterminado.
+- **Campos de margen:** por cada producto, el margen por unidad vendida hoy y con la alternativa, en `$` (`currentMarginAmount` y `projectedMarginAmount`, es decir `salePrice` menos el costo de receta) y en `%` (`currentMarginPercent` y `projectedMarginPercent`). Los cuatro salen de `marginCalculator.ts`, con el mismo redondeo que el recálculo real.
+- **`summary`:** `ingredientsWithAlternative`, `productsAffected` (productos distintos entre todos los insumos) y `productsLeavingRiskOrLoss` (productos distintos que pasan de `risk` o `loss` a `target` o `surplus` con al menos uno de los cambios).
+- **Orden:** Insumos ordenados por `productsLeavingRiskOrLossCount` descendente, mayor suba de margen porcentual entre sus productos, mayor `unitCostDifference` y nombre. Dentro de cada insumo, productos ordenados por suba de margen descendente y nombre.
+- **Respuesta 200:**
+  ```json
+  {
+    "summary": {
+      "ingredientsWithAlternative": 1,
+      "productsAffected": 1,
+      "productsLeavingRiskOrLoss": 1
+    },
+    "byIngredient": [
+      {
+        "ingredientId": "uuid",
+        "ingredientName": "Harina 000",
+        "unit": "kg",
+        "currentCost": "950.00",
+        "defaultPresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierName": "Molino Cañuelas",
+          "unitCost": "900.00"
+        },
+        "alternativePresentation": {
+          "supplierIngredientId": "uuid",
+          "supplierName": "Distribuidora del Centro",
+          "unitCost": "880.00"
+        },
+        "unitCostDifference": "70.00",
+        "productsAffectedCount": 1,
+        "productsLeavingRiskOrLossCount": 1,
+        "products": [
+          {
+            "productId": "uuid",
+            "productName": "Medialunas x 12",
+            "salePrice": "6000.00",
+            "minMarginPercent": "35.00",
+            "currentRecipeCost": "3950.00",
+            "projectedRecipeCost": "3810.00",
+            "currentMarginAmount": "2050.00",
+            "projectedMarginAmount": "2190.00",
+            "currentMarginPercent": "34.17",
+            "projectedMarginPercent": "36.50",
+            "currentBucket": "risk",
+            "projectedBucket": "target"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+  - `defaultPresentation` puede ser `null` si el insumo no tiene presentación predeterminada activa o está en cuarentena.
+
+### `GET /api/purchasing/margin-impact/:ingredientId?supplierIngredientId=...`
+Evalúa el mismo cálculo de impacto para una presentación alternativa específica del insumo indicado (usado en la confirmación de "Ya le compro a este proveedor"). Usa la misma base `Ingredient.currentCost` (por lo que `unitCostDifference` puede ser `0.00` o negativo si se evalúa una presentación de igual o mayor costo).
+- **Query Params:** `supplierIngredientId` (obligatorio).
+- **Errores:**
+  - `400 Bad Request`: falta `supplierIngredientId` o viene vacío.
+  - `404 Not Found`: el insumo o la presentación no existen, no corresponden entre sí o pertenecen a otra cuenta.
+  - `422 Unprocessable Entity`: la presentación está en cuarentena, su proveedor está inactivo o ya es la presentación predeterminada del insumo.
+- **Respuesta 200:**
+  ```json
+  {
+    "ingredientId": "uuid",
+    "ingredientName": "Harina 000",
+    "unit": "kg",
+    "currentCost": "950.00",
+    "defaultPresentation": {
+      "supplierIngredientId": "uuid",
+      "supplierName": "Molino Cañuelas",
+      "unitCost": "900.00"
+    },
+    "alternativePresentation": {
+      "supplierIngredientId": "uuid",
+      "supplierName": "Distribuidora del Centro",
+      "unitCost": "880.00"
+    },
+    "unitCostDifference": "70.00",
+    "productsAffectedCount": 1,
+    "productsLeavingRiskOrLossCount": 1,
+    "products": [
+      {
+        "productId": "uuid",
+        "productName": "Medialunas x 12",
+        "salePrice": "6000.00",
+        "minMarginPercent": "35.00",
+        "currentRecipeCost": "3950.00",
+        "projectedRecipeCost": "3810.00",
+        "currentMarginAmount": "2050.00",
+        "projectedMarginAmount": "2190.00",
+        "currentMarginPercent": "34.17",
+        "projectedMarginPercent": "36.50",
+        "currentBucket": "risk",
+        "projectedBucket": "target"
+      }
+    ]
+  }
+  ```
+
+### `[Deprecado] POST /api/purchasing/order-preview`
+> **Estado (ADR-010):** Deprecado en v1.0.0 (`deprecated: true` en OpenAPI). No se elimina todavía: se reutilizará para la reposición con stock en la Fase 2 o se eliminará en la v1.1.
+
 Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto a comprar todo a la presentación predeterminada. No persiste nada en base de datos.
 - **Body:**
   ```json

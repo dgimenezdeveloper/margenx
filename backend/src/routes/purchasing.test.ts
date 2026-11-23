@@ -29,10 +29,14 @@ vi.mock('../middlewares/auth', () => ({
 
 const getPurchasingSuggestionsMock = vi.fn();
 const previewPurchasingOrderMock = vi.fn();
+const getPurchasingMarginImpactMock = vi.fn();
+const getIngredientMarginImpactMock = vi.fn();
 
 vi.mock('../services/purchasingService', () => ({
   getPurchasingSuggestions: (...args: unknown[]) => getPurchasingSuggestionsMock(...args),
   previewPurchasingOrder: (...args: unknown[]) => previewPurchasingOrderMock(...args),
+  getPurchasingMarginImpact: (...args: unknown[]) => getPurchasingMarginImpactMock(...args),
+  getIngredientMarginImpact: (...args: unknown[]) => getIngredientMarginImpactMock(...args),
 }));
 
 import purchasingRouter from './purchasing';
@@ -51,6 +55,8 @@ beforeEach(() => {
   authState.accountId = 'account-1';
   getPurchasingSuggestionsMock.mockReset();
   previewPurchasingOrderMock.mockReset();
+  getPurchasingMarginImpactMock.mockReset();
+  getIngredientMarginImpactMock.mockReset();
 });
 
 describe('GET /api/purchasing/suggestions', () => {
@@ -222,5 +228,69 @@ describe('POST /api/purchasing/order-preview', () => {
 
     expect(res.status).toBe(422);
     expect(res.body.error).toMatch(/cuarentena/i);
+  });
+});
+
+describe('GET /api/purchasing/margin-impact', () => {
+  it('devuelve 401 si no está autenticado', async () => {
+    authState.authenticated = false;
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact');
+    expect(res.status).toBe(401);
+  });
+
+  it('devuelve 403 si es COLLABORATOR', async () => {
+    authState.role = 'COLLABORATOR';
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Acceso denegado. Se requiere rol ADMIN.');
+    expect(getPurchasingMarginImpactMock).not.toHaveBeenCalled();
+  });
+
+  it('devuelve 200 con el accountId del token', async () => {
+    const payload = { summary: { ingredientsWithAlternative: 1, productsAffected: 2, productsLeavingRiskOrLoss: 1 }, byIngredient: [] };
+    getPurchasingMarginImpactMock.mockResolvedValue(payload);
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(payload);
+    expect(getPurchasingMarginImpactMock).toHaveBeenCalledWith('account-1');
+  });
+});
+
+describe('GET /api/purchasing/margin-impact/:ingredientId', () => {
+  it('devuelve 401 si no está autenticado', async () => {
+    authState.authenticated = false;
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1?supplierIngredientId=si-1');
+    expect(res.status).toBe(401);
+  });
+
+  it('devuelve 403 si es COLLABORATOR', async () => {
+    authState.role = 'COLLABORATOR';
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1?supplierIngredientId=si-1');
+    expect(res.status).toBe(403);
+  });
+
+  it('devuelve 400 si falta supplierIngredientId', async () => {
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/supplierIngredientId/i);
+  });
+
+  it('propaga 404 y 422 del servicio', async () => {
+    getIngredientMarginImpactMock.mockRejectedValueOnce(new AppError('Insumo no encontrado.', 404));
+    let res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1?supplierIngredientId=si-1');
+    expect(res.status).toBe(404);
+
+    getIngredientMarginImpactMock.mockRejectedValueOnce(new AppError('La presentación ya es la predeterminada.', 422));
+    res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1?supplierIngredientId=si-1');
+    expect(res.status).toBe(422);
+  });
+
+  it('devuelve 200 con el impacto puntual', async () => {
+    const payload = { ingredientId: 'ing-1', products: [] };
+    getIngredientMarginImpactMock.mockResolvedValue(payload);
+    const res = await request(buildApp()).get('/api/purchasing/margin-impact/ing-1?supplierIngredientId=si-1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(payload);
+    expect(getIngredientMarginImpactMock).toHaveBeenCalledWith('account-1', 'ing-1', 'si-1');
   });
 });
