@@ -489,28 +489,40 @@ describe('SuppliesPageContent - "Se usa en" sin datos confiables (#354)', () => 
     expect(ingredientService.getProducts).toHaveBeenCalledTimes(2)
   })
 
-  it('si la consulta falla, cambiar la unidad pide confirmación igual', async () => {
+  // Desde #426 el backend no deja cambiar la unidad de un insumo usado (409): ya no hace falta confirmar
+  // cuando no se sabe dónde se usa. Si se usa, la ficha muestra el 409; si no, el cambio es inofensivo.
+  it('si la consulta falla, cambiar la unidad guarda sin diálogo y, si se usa, muestra el 409 en la ficha', async () => {
     vi.mocked(ingredientService.getProducts).mockRejectedValue(new Error('500'))
+    const conflicto =
+      'No se puede cambiar la unidad: el insumo está en 1 receta(s) y 0 presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.'
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(new ApiError(conflicto, 409))
     const user = await abrirFicha()
     await screen.findByText('No pudimos cargar los productos que usan este insumo.')
 
     await user.click(screen.getByRole('button', { name: 'litro' }))
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    const dialogo = await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })
-    expect(dialogo).toHaveTextContent(/No pudimos confirmar en qué recetas se usa/i)
-    expect(ingredientService.update).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(ingredientService.update).toHaveBeenCalledWith(expect.any(Function), 'ing-1', expect.objectContaining({ unit: 'l' }))
+    )
+    expect(screen.queryByRole('dialog', { name: '¿Cambiar unidad de medida?' })).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getAllByRole('alert').some((alerta) => alerta.textContent === conflicto)).toBe(true)
+    )
+    expect(screen.getByRole('dialog', { name: 'Editar insumo' })).toBeInTheDocument()
   })
 
-  it('mientras la lista carga, cambiar la unidad pide confirmación', async () => {
+  it('mientras la lista carga, cambiar la unidad guarda sin diálogo', async () => {
     vi.mocked(ingredientService.getProducts).mockReturnValue(new Promise(() => {}))
     const user = await abrirFicha()
 
     await user.click(screen.getByRole('button', { name: 'litro' }))
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(await screen.findByRole('dialog', { name: '¿Cambiar unidad de medida?' })).toBeInTheDocument()
-    expect(ingredientService.update).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(ingredientService.update).toHaveBeenCalledWith(expect.any(Function), 'ing-1', expect.objectContaining({ unit: 'l' }))
+    )
+    expect(screen.queryByRole('dialog', { name: '¿Cambiar unidad de medida?' })).not.toBeInTheDocument()
   })
 
   it('sin recetas que lo usen, cambiar la unidad guarda directo', async () => {

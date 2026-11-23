@@ -2,7 +2,7 @@
 
 import { useAuth } from '@clerk/clerk-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle, Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
+import { Boxes, FileSpreadsheet, LoaderCircle, Plus, Search, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -18,9 +18,8 @@ import { PriceHistoryModal } from '@/components/price-history-modal'
 import { SupplierPackagingModal } from '@/components/supplier-packaging-modal'
 import { ToastAlert } from '@/components/ToastAlert'
 import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog'
-import { Dialog, DialogPortal, DialogBackdrop, DialogPopup, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { handleDecimalARKeyDown, sanitizeDecimalAR } from '@/lib/numericInput'
-import { formatMoney, formatUnit } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
 import { formatNumeroAR, parseNumeroAR } from '@/lib/numericFormat'
 import { TOAST_DURATION_MS } from '@/lib/toast'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
@@ -104,8 +103,6 @@ export default function SuppliesPageContent() {
   const [usedProductsTotal, setUsedProductsTotal] = useState(0)
   // La consulta falló: no se sabe si el insumo se usa, así que no se muestra "no se usa".
   const [productsError, setProductsError] = useState(false)
-  const [showUnitConfirm, setShowUnitConfirm] = useState(false)
-  const [pendingSaveData, setPendingSaveData] = useState<z.input<typeof ingredientSchema> | null>(null)
 
   const [toastQueue, setToastQueue] = useState<ToastMsg[]>([])
   const [currentToast, setCurrentToast] = useState<ToastMsg | null>(null)
@@ -256,8 +253,6 @@ export default function SuppliesPageContent() {
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
-    setShowUnitConfirm(false)
-    setPendingSaveData(null)
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: toCostInput(supply.currentCost) })
 
@@ -272,8 +267,6 @@ export default function SuppliesPageContent() {
   const handleOpenNew = () => {
     setSelected(null)
     setShowDeleteConfirm(false)
-    setShowUnitConfirm(false)
-    setPendingSaveData(null)
     resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
@@ -283,8 +276,6 @@ export default function SuppliesPageContent() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
-    setShowUnitConfirm(false)
-    setPendingSaveData(null)
     resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
@@ -359,27 +350,10 @@ export default function SuppliesPageContent() {
     }
   }
 
-  const usageUnknown = isLoadingProducts || productsError
-
+  // Desde #426 el backend responde 409 si cambia la unidad de un insumo usado, y executeSave lo muestra en la
+  // ficha: ya no hace falta confirmar el cambio de unidad antes de guardar.
   const handleSave = async (data: z.input<typeof ingredientSchema>) => {
-    const canonicalUnit = data.unit === 'litro' ? 'l' : data.unit === 'unidad' ? 'u' : data.unit
-
-    // Si todavía no se sabe dónde se usa (cargando o con error), se confirma igual.
-    if (selected && selected.unit !== canonicalUnit && (usageUnknown || usedProductsTotal > 0)) {
-      setPendingSaveData(data)
-      setShowUnitConfirm(true)
-      return
-    }
-
     await executeSave(data)
-  }
-
-  const handleConfirmUnitChange = () => {
-    if (!pendingSaveData) return
-    const data = pendingSaveData
-    setShowUnitConfirm(false)
-    setPendingSaveData(null)
-    void executeSave(data)
   }
 
   const confirmDelete = async () => {
@@ -723,65 +697,6 @@ export default function SuppliesPageContent() {
         onCancel={() => setShowDiscardConfirm(false)}
       />
       <UnsavedChangesDialog open={showLeaveConfirm} onConfirm={confirmLeave} onCancel={cancelLeave} />
-      <Dialog open={showUnitConfirm} onOpenChange={(open) => { if (!open) setShowUnitConfirm(false) }}>
-        <DialogPortal>
-          <DialogBackdrop className="z-80" />
-          <DialogPopup className="z-80 max-w-md text-left">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
-              <AlertTriangle className="size-7" />
-            </div>
-            <DialogTitle className="text-center text-lg font-bold">
-              ¿Cambiar unidad de medida?
-            </DialogTitle>
-            <DialogDescription className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-              Estás a punto de cambiar la unidad de <strong>{selected?.name}</strong> de{' '}
-              <strong>{formatUnit(selected?.unit)}</strong> a{' '}
-              <strong>
-                {formatUnit(
-                  pendingSaveData?.unit === 'litro'
-                    ? 'l'
-                    : pendingSaveData?.unit === 'unidad'
-                    ? 'u'
-                    : pendingSaveData?.unit
-                )}
-              </strong>.
-              {usageUnknown ? (
-                <span className="block mt-2 font-medium">
-                  No pudimos confirmar en qué recetas se usa este insumo. Si se usa, las cantidades guardadas en las
-                  recetas no se convertirán automáticamente: se mantendrán los mismos números.
-                </span>
-              ) : (
-                usedProductsTotal > 0 && (
-                  <span className="block mt-2 font-medium">
-                    Este insumo se utiliza en <strong>{usedProductsTotal} {usedProductsTotal === 1 ? 'producto' : 'productos'}</strong>.
-                    Las cantidades guardadas en las recetas no se convertirán automáticamente: se mantendrán los mismos números.
-                    Deberás revisar las recetas afectadas para verificar que las proporciones sigan siendo correctas.
-                  </span>
-                )
-              )}
-            </DialogDescription>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUnitConfirm(false)
-                  setPendingSaveData(null)
-                }}
-                className="min-h-11 flex-1 cursor-pointer rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmUnitChange}
-                className="min-h-11 flex-1 cursor-pointer rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
-              >
-                Sí, cambiar unidad
-              </button>
-            </div>
-          </DialogPopup>
-        </DialogPortal>
-      </Dialog>
       {selected && (
         <PriceHistoryModal
           isOpen={showHistoryModal}
