@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { requireRole } from '../middlewares/rbac';
-import { getPurchasingSuggestions, previewPurchasingOrder } from '../services/purchasingService';
+import {
+  getPurchasingSuggestions,
+  previewPurchasingOrder,
+  getPurchasingMarginImpact,
+  getIngredientMarginImpact,
+} from '../services/purchasingService';
 
 const router = Router();
 
@@ -44,6 +49,33 @@ router.post('/order-preview', async (req: AuthenticatedRequest, res: Response) =
 
   const preview = await previewPurchasingOrder(req.user!.accountId, parsed.data.items);
   return res.status(200).json(preview);
+});
+
+router.get('/margin-impact', async (req: AuthenticatedRequest, res: Response) => {
+  const result = await getPurchasingMarginImpact(req.user!.accountId);
+  return res.status(200).json(result);
+});
+
+router.get('/margin-impact/:ingredientId', async (req: AuthenticatedRequest, res: Response) => {
+  const ingredientIdParam = req.params.ingredientId;
+  const ingredientId = typeof ingredientIdParam === 'string' ? ingredientIdParam.trim() : '';
+  if (!ingredientId) {
+    throw new AppError('El parámetro "ingredientId" es obligatorio.', 400);
+  }
+  const rawSupplierIngredientId = req.query.supplierIngredientId;
+  const supplierIngredientId =
+    typeof rawSupplierIngredientId === 'string' ? rawSupplierIngredientId.trim() : '';
+
+  if (!supplierIngredientId) {
+    throw new AppError('El parámetro "supplierIngredientId" es obligatorio.', 400);
+  }
+
+  const result = await getIngredientMarginImpact(
+    req.user!.accountId,
+    ingredientId,
+    supplierIngredientId
+  );
+  return res.status(200).json(result);
 });
 
 export default router;

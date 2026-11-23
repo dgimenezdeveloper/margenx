@@ -10,6 +10,7 @@
     { "key": "adminToken", "value": "<jwt-admin>" },
     { "key": "collaboratorToken", "value": "<jwt-colaborador>" },
     { "key": "harinaMolineraId", "value": "" },
+    { "key": "harinaDefaultId", "value": "" },
     { "key": "harinaIngredientId", "value": "30b00001-0000-4000-8000-000000000001" }
   ],
   "item": [
@@ -373,6 +374,319 @@
           "raw": "{{baseUrl}}/purchasing/order-preview",
           "host": ["{{baseUrl}}"],
           "path": ["purchasing", "order-preview"]
+        }
+      },
+      "response": []
+    },{
+      "name": "11 - GET /api/purchasing/margin-impact sin token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Mensaje uniforme de autenticación', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('No autorizado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "12 - GET /api/purchasing/margin-impact como COLLABORATOR (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 Forbidden', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test('Mensaje RBAC de rol ADMIN requerido', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('Acceso denegado. Se requiere rol ADMIN.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{collaboratorToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "13 - GET /api/purchasing/margin-impact como ADMIN (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('Estructura summary y byIngredient completa', function () {",
+              "    pm.expect(body).to.have.all.keys(['summary', 'byIngredient']);",
+              "    pm.expect(body.summary).to.have.all.keys([",
+              "        'ingredientsWithAlternative',",
+              "        'productsAffected',",
+              "        'productsLeavingRiskOrLoss'",
+              "    ]);",
+              "});",
+              "const harina = body.byIngredient.find(i => i.ingredientId === pm.collectionVariables.get('harinaIngredientId'));",
+              "pm.test('Harina 000 proyecta ahorro unitario de 16.25 e impacto en Pan flauta', function () {",
+              "    pm.expect(harina).to.exist;",
+              "    pm.expect(harina.currentCost).to.eql('736.25');",
+              "    pm.expect(harina.unitCostDifference).to.eql('16.25');",
+              "    pm.expect(harina.alternativePresentation.unitCost).to.eql('720.00');",
+              "    const pan = harina.products.find(p => p.productName.includes('Pan flauta'));",
+              "    pm.expect(pan).to.exist;",
+              "    pm.expect(pan.currentRecipeCost).to.eql('844.20');",
+              "    pm.expect(pan.projectedRecipeCost).to.eql('827.95');",
+              "    pm.expect(pan.currentMarginPercent).to.eql('80.51');",
+              "    pm.expect(pan.projectedMarginPercent).to.eql('80.89');",
+              "    pm.expect(pan.currentBucket).to.eql('surplus');",
+              "    pm.expect(pan.projectedBucket).to.eql('surplus');",
+              "});",
+              "if (harina && harina.defaultPresentation) {",
+              "    pm.collectionVariables.set('harinaDefaultId', harina.defaultPresentation.supplierIngredientId);",
+              "}",
+              "if (harina) {",
+              "    pm.collectionVariables.set('harinaMolineraId', harina.alternativePresentation.supplierIngredientId);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "14 - GET /api/purchasing/margin-impact/:id sin token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}?supplierIngredientId={{harinaMolineraId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"],
+          "query": [
+            { "key": "supplierIngredientId", "value": "{{harinaMolineraId}}" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "15 - GET /api/purchasing/margin-impact/:id como COLLABORATOR (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 Forbidden', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{collaboratorToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}?supplierIngredientId={{harinaMolineraId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"],
+          "query": [
+            { "key": "supplierIngredientId", "value": "{{harinaMolineraId}}" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "16 - GET /api/purchasing/margin-impact/:id sin supplierIngredientId (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Informa parámetro obligatorio', function () {",
+              "    pm.expect(pm.response.json().error).to.match(/supplierIngredientId/i);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "17 - GET /api/purchasing/margin-impact/:id con presentación predeterminada (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 422 Unprocessable Entity', function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('Rechaza evaluar la presentación predeterminada', function () {",
+              "    pm.expect(pm.response.json().error).to.include('predeterminada');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}?supplierIngredientId={{harinaDefaultId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"],
+          "query": [
+            { "key": "supplierIngredientId", "value": "{{harinaDefaultId}}" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "18 - GET /api/purchasing/margin-impact/:id con presentación inexistente (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404 Not Found', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('Mensaje uniforme', function () {",
+              "    pm.expect(pm.response.json().error).to.eql('Presentación no encontrada.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}?supplierIngredientId=00000000-0000-4000-8000-000000000000",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"],
+          "query": [
+            { "key": "supplierIngredientId", "value": "00000000-0000-4000-8000-000000000000" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "19 - GET /api/purchasing/margin-impact/:id como ADMIN (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('Proyecta el impacto de Harina 000 sin alterar el costo vigente', function () {",
+              "    pm.expect(body.ingredientId).to.eql(pm.collectionVariables.get('harinaIngredientId'));",
+              "    pm.expect(body.unitCostDifference).to.eql('16.25');",
+              "    pm.expect(body.products).to.be.an('array').that.is.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/purchasing/margin-impact/{{harinaIngredientId}}?supplierIngredientId={{harinaMolineraId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["purchasing", "margin-impact", "{{harinaIngredientId}}"],
+          "query": [
+            { "key": "supplierIngredientId", "value": "{{harinaMolineraId}}" }
+          ]
         }
       },
       "response": []
