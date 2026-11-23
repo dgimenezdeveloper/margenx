@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Building2,
-  Check,
   Copy,
   Info,
   LoaderCircle,
@@ -23,20 +22,12 @@ import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { ToastAlert } from '@/components/ToastAlert'
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogClose,
-  DialogDescription,
-  DialogPopup,
-  DialogPortal,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { NumericInput } from '@/components/NumericInput'
 import { formatMoney, formatPercent, formatQuantityWithUnit } from '@/lib/format'
 import { formatPackage } from '@/lib/supplierDisplay'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
+import { MakeDefaultDialog } from '@/components/make-default-dialog'
 import {
   purchasingService,
   type OrderPreviewResponse,
@@ -90,7 +81,7 @@ export default function PurchasesPage() {
   const [orderPreview, setOrderPreview] = useState<OrderPreviewResponse | null>(null)
   const [orderError, setOrderError] = useState<string | null>(null)
 
-  // Modal para confirmar "Hacer predeterminada" con datos del proveedor sugerido
+  // Modal para confirmar "Usar como predeterminada" con datos del proveedor sugerido
   const [defaultCandidate, setDefaultCandidate] = useState<DefaultCandidate | null>(null)
   const [isSettingDefault, setIsSettingDefault] = useState(false)
 
@@ -219,7 +210,7 @@ export default function PurchasesPage() {
       notify(
         err instanceof ApiError
           ? err.message
-          : 'No se pudo establecer como proveedor predeterminado.',
+          : 'No se pudo cambiar la presentación predeterminada.',
         'error'
       )
     } finally {
@@ -342,7 +333,7 @@ export default function PurchasesPage() {
               <div className="flex items-start gap-2.5 rounded-2xl bg-indigo-50/70 p-3.5 text-xs text-indigo-950 border border-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200 print:hidden">
                 <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
                 <p>
-                  <strong>Importante:</strong> Las sugerencias identifican la opción más económica entre tus distribuidores. Consultar esta pantalla <strong>no modifica tus costos vigentes ni tus recetas</strong> salvo que conmutes expresamente el proveedor predeterminado.
+                  <strong>Importante:</strong> Las sugerencias identifican la opción más económica entre tus distribuidores. Consultar esta pantalla <strong>no modifica tus costos vigentes ni tus recetas</strong> salvo que cambies la presentación predeterminada.
                 </p>
               </div>
 
@@ -464,7 +455,7 @@ export default function PurchasesPage() {
                                   CANONICAL_FOCUS_CLASSES
                                 )}
                               >
-                                Hacer predeterminada
+                                Usar como predeterminada
                               </button>
                             </td>
                           </tr>
@@ -611,48 +602,18 @@ export default function PurchasesPage() {
         <BottomNav />
       </div>
 
-      {/* Modal de Confirmación "Hacer Predeterminada" */}
-      <Dialog
+      {/* Confirmación de la presentación predeterminada: el mismo diálogo que Proveedores e Insumos (#434). */}
+      <MakeDefaultDialog
         open={defaultCandidate !== null}
-        onOpenChange={(open) => {
-          if (!open && !isSettingDefault) setDefaultCandidate(null)
-        }}
-      >
-        <DialogPortal>
-          <DialogBackdrop />
-          <DialogPopup>
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">
-              <Check className="size-7" />
-            </div>
-            <DialogTitle>¿Cambiar proveedor predeterminado?</DialogTitle>
-            <DialogDescription>
-              Estás a punto de establecer a <strong>{defaultCandidate?.supplierName}</strong> como el proveedor predeterminado para <strong>{defaultCandidate?.item.ingredientName}</strong> (reemplazando a {defaultCandidate?.item.defaultSupplierName}). El costo activo pasará a ser {defaultCandidate ? formatMoney(defaultCandidate.item.unitCost) : '$0,00'} y se recalcularán todas las recetas asociadas.
-            </DialogDescription>
-            <div className="mt-6 flex gap-3">
-              <DialogClose
-                disabled={isSettingDefault}
-                className={cn(
-                  'min-h-11 flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
-                  CANONICAL_FOCUS_CLASSES
-                )}
-              >
-                Cancelar
-              </DialogClose>
-              <button
-                type="button"
-                disabled={isSettingDefault}
-                onClick={handleConfirmMakeDefault}
-                className={cn(
-                  'min-h-11 flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 cursor-pointer',
-                  CANONICAL_FOCUS_CLASSES
-                )}
-              >
-                {isSettingDefault ? <LoaderCircle className="size-4 animate-spin" /> : 'Confirmar cambio'}
-              </button>
-            </div>
-          </DialogPopup>
-        </DialogPortal>
-      </Dialog>
+        ingredientName={defaultCandidate?.item.ingredientName ?? ''}
+        supplierName={defaultCandidate?.supplierName ?? ''}
+        currentSupplierName={defaultCandidate?.item.defaultSupplierName ?? null}
+        unitCost={Number(defaultCandidate?.item.unitCost ?? 0)}
+        unit={defaultCandidate?.item.unit ?? ''}
+        isSaving={isSettingDefault}
+        onConfirm={handleConfirmMakeDefault}
+        onCancel={() => setDefaultCandidate(null)}
+      />
     </main>
   )
 }

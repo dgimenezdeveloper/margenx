@@ -44,15 +44,15 @@ Las sugerencias se consolidan y agrupan por cada distribuidor mayorista recomend
 
 > **Regla de oro de costos:** Consultar esta pantalla **no modifica tus costos vigentes ni altera las recetas de tus productos**. Solo identifica dónde comprar más barato.
 
-<!-- [CAPTURA 360PX SUGERIDA: 07-compras-agrupadas-proveedor.webp | Desglose de insumos sugeridos agrupados por proveedor con botón Hacer predeterminada] -->
+<!-- [CAPTURA 360PX SUGERIDA: 07-compras-agrupadas-proveedor.webp | Desglose de insumos sugeridos agrupados por proveedor con botón Usar como predeterminada] -->
 
 ---
 
-## 4. Establecer una sugerencia como proveedor predeterminado
+## 4. Usar la sugerencia como presentación predeterminada
 
 Si decidís cambiar de proveedor habitual para un insumo aprovechando una mejor cotización:
 
-1. Tocá el botón **Hacer predeterminada** ubicado junto al insumo sugerido.
+1. Tocá el botón **Usar como predeterminada** ubicado junto al insumo sugerido. Es el mismo diálogo de confirmación que en la ficha del proveedor y en la del insumo.
 2. Un diálogo de confirmación te advertirá el cambio, indicando el nuevo distribuidor, el nuevo costo unitario equivalente y recordando que las recetas que contienen este insumo se recalcularán de forma atómica.
 3. Al pulsar **Confirmar cambio**, el costo activo de la materia prima se actualiza de inmediato en toda la plataforma.
 

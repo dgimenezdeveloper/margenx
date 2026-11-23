@@ -92,7 +92,46 @@ describe('IngredientSupplierList: indicador de cuarentena', () => {
   it('el colaborador no ve proveedores ni el indicador', () => {
     renderList(harina([molino, marjuanc]), true)
 
-    expect(screen.queryByText('Proveedores y Empaques')).not.toBeInTheDocument()
+    expect(screen.queryByText('Proveedores y presentaciones')).not.toBeInTheDocument()
     expect(screen.queryByText('En cuarentena')).not.toBeInTheDocument()
   })
 })
+
+describe('IngredientSupplierList: presentaciones con nombres unificados y estrella (#434)', () => {
+  const directo = { ...marjuanc, isQuarantined: false }
+
+  it('la predeterminada tiene la estrella llena; las demás, la estrella vacía que llama a la acción', async () => {
+    const onMakeDefault = vi.fn()
+    render(
+      <MemoryRouter>
+        <IngredientSupplierList
+          selected={harina([molino, directo])}
+          isCollaborator={false}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={onMakeDefault}
+          money={money}
+        />
+      </MemoryRouter>
+    )
+
+    const filaMolino = screen.getByText('Molino Olavarriense').closest('li') as HTMLElement
+    expect(within(filaMolino).getByRole('img', { name: 'Presentación predeterminada' })).toBeInTheDocument()
+    const estrella = screen.getByRole('button', { name: 'Usar como predeterminada la presentación de Distribuidora MarJuanC Alimentos' })
+    expect(estrella).toHaveAttribute('title', 'Usar como predeterminada')
+    estrella.click()
+    expect(onMakeDefault).toHaveBeenCalledWith(directo)
+  })
+
+  it('usa "presentación" y "precio del bulto" en lugar de "empaque"', () => {
+    renderList(harina([molino]))
+    expect(screen.getByText('Proveedores y presentaciones')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Asociar otra presentación/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar presentación de Molino Olavarriense' })).toBeInTheDocument()
+    const fila = screen.getByText('Molino Olavarriense').closest('li') as HTMLElement
+    expect(fila).toHaveTextContent('Precio del bulto')
+    expect(fila).toHaveTextContent('Costo por unidad')
+    expect(document.body).not.toHaveTextContent(/empaque/i)
+  })
+})
+

@@ -10,9 +10,11 @@ export const supplierPackagingSchema = z.object({
     .max(MAX_NUMERIC_VALUE, 'El tamaño no puede superar 99.999.999,99'),
   packagePrice: z.coerce
     .number({ error: 'Ingresá un precio válido' })
-    .positive('El precio del empaque debe ser mayor a 0')
+    .positive('El precio del bulto debe ser mayor a 0')
     .max(MAX_NUMERIC_VALUE, 'El precio no puede superar $99.999.999,99'),
   isDefault: z.boolean().default(false),
+  /** Código de artículo del proveedor, opcional (#434). Vacío se manda como null. */
+  supplierCode: z.string().trim().max(64, 'El código puede tener hasta 64 caracteres').optional(),
 })
 
 export type SupplierPackagingFormValues = z.infer<typeof supplierPackagingSchema>

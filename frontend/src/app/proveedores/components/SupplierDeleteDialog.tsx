@@ -21,9 +21,6 @@ type DetailResult =
 
 type DetailState = { status: 'loading' } | DetailResult
 
-const joinNames = (names: string[]) =>
-  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
-
 const errorMessage = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback)
 
 function PresentationsSkeleton() {
@@ -44,18 +41,17 @@ function PresentationsSkeleton() {
 }
 
 function ImpactNotes({ presentations }: { presentations: SupplierPresentation[] }) {
-  const defaults = presentations.filter((item) => item.isDefault).map((item) => item.ingredient.name)
+  const hasDefaults = presentations.some((item) => item.isDefault)
   const quarantined = presentations.filter((item) => item.isQuarantined).length
 
   return (
     <ul className="mt-4 space-y-2 text-xs text-gray-700 dark:text-gray-300">
-      {defaults.length > 0 && (
+      {/* Una sola frase (#434): los insumos ya están en la lista, con su estrella. */}
+      {hasDefaults && (
         <li className="flex items-start gap-2 rounded-xl bg-indigo-50 p-3 dark:bg-indigo-950/40">
           <Star className="mt-0.5 size-3.5 shrink-0 text-indigo-600 dark:text-indigo-300" aria-hidden="true" />
           <span>
-            {defaults.length === 1
-              ? `${defaults[0]} conserva su costo actual, pero queda sin proveedor predeterminado hasta que elijas otro.`
-              : `${joinNames(defaults)} conservan su costo actual, pero quedan sin proveedor predeterminado hasta que elijas otro.`}
+            Los insumos en los que este proveedor es predeterminado mantienen su costo actual, pero quedan sin proveedor predeterminado hasta que elijas otro.
           </span>
         </li>
       )}

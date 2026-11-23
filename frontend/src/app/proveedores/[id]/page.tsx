@@ -37,6 +37,7 @@ import { PresentationDeleteDialog } from './components/PresentationDeleteDialog'
 import { PresentationEditDialog } from './components/PresentationEditDialog'
 import { SupplierPresentationsList } from './components/SupplierPresentationsList'
 import { formatMoney } from '@/lib/format'
+import { MakeDefaultDialog } from '@/components/make-default-dialog'
 
 interface ContactChip {
   key: 'phone' | 'email' | 'address'
@@ -158,8 +159,13 @@ export default function SupplierDetailPage() {
     notify(`Presentación de "${deleted.ingredient.name}" eliminada`)
   }
 
+  // Presentación que espera confirmación antes de pasar a ser la predeterminada (#434).
+  const [defaultCandidate, setDefaultCandidate] = useState<SupplierPresentation | null>(null)
+  const [isSettingDefault, setIsSettingDefault] = useState(false)
+
   const handleMakeDefault = async (presentation: SupplierPresentation) => {
     if (!supplier) return
+    setIsSettingDefault(true)
     try {
       const result = await supplierService.addPackaging(getToken, supplier.id, {
         ingredientId: presentation.ingredient.id,
@@ -191,6 +197,9 @@ export default function SupplierDetailPage() {
           : 'No se pudo conmutar la presentación predeterminada.',
         'error'
       )
+    } finally {
+      setIsSettingDefault(false)
+      setDefaultCandidate(null)
     }
   }
 
@@ -329,7 +338,7 @@ export default function SupplierDetailPage() {
                       presentations={presentations}
                       onEdit={(p) => setEditingPresentation(p)}
                       onDelete={(p) => setDeletingPresentation(p)}
-                      onMakeDefault={handleMakeDefault}
+                      onMakeDefault={setDefaultCandidate}
                     />
                     {meta && (
                       <Pagination
@@ -375,6 +384,18 @@ export default function SupplierDetailPage() {
           onDeleted={handleDeletedPresentation}
         />
       )}
+      <MakeDefaultDialog
+        open={defaultCandidate !== null}
+        ingredientName={defaultCandidate?.ingredient.name ?? ''}
+        supplierName={supplier?.name ?? ''}
+        unitCost={defaultCandidate ? (Number(defaultCandidate.packagePrice) || 0) / (Number(defaultCandidate.packageSize) || 1) : 0}
+        unit={defaultCandidate?.packageUnit ?? ''}
+        isSaving={isSettingDefault}
+        onConfirm={() => {
+          if (defaultCandidate) void handleMakeDefault(defaultCandidate)
+        }}
+        onCancel={() => setDefaultCandidate(null)}
+      />
     </main>
   )
 }

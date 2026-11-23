@@ -124,7 +124,7 @@ export function PresentationEditDialog({
 
     if (presentation.isDefault && !data.isDefault) {
       setSubmitError(
-        'No podés quitar el proveedor predeterminado sin asignar otro. Marcá otro proveedor como predeterminado para reemplazarlo.'
+        'No podés quitar la presentación predeterminada sin elegir otra. Marcá otra como predeterminada para reemplazarla.'
       )
       return
     }
@@ -249,7 +249,7 @@ export function PresentationEditDialog({
 
                   <div>
                     <label htmlFor="package-price-input" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                      Precio cerrado ($)
+                      Precio del bulto ($)
                     </label>
                     <NumericInput
                       id="package-price-input"
@@ -289,7 +289,7 @@ export function PresentationEditDialog({
                     </span>
                     <p className="mt-0.5 text-gray-500 dark:text-gray-400">
                       {presentation.isDefault && !watchedIsDefault
-                        ? 'No podés desmarcar el predeterminado sin asignar otro primero.'
+                        ? 'No podés desmarcar la presentación predeterminada sin elegir otra primero.'
                         : watchedIsDefault
                         ? `Al guardar, el costo activo del insumo en recetas pasará a ser ${calculatedUnitCost ? money(calculatedUnitCost) : '$0.00'}.`
                         : 'Almacena la presentación sin alterar el costo activo de recetas.'}
