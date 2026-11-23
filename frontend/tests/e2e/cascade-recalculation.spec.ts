@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { formatPercent } from '../../src/lib/format.js'
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Response } from '@playwright/test'
 
 /**
  * Issue #175. Datos fijos del seed de "Panadería Central" (backend/prisma/seed.ts):
@@ -15,6 +15,24 @@ const PRODUCT_NAME = 'Pan flauta — 1 kg'
 // Viewport móvil angosto pedido por el Gherkin de la issue.
 test.use({ viewport: { width: 360, height: 800 } })
 
+/**
+ * Guarda el costo de la Harina 000 desde la ficha. La Harina tiene presentación predeterminada (HAR188): si el
+ * costo no coincide con el de esa presentación, el PUT responde 409 y la ficha pregunta qué hacer (#427, ADR-011).
+ * Se elige "Actualizar el precio de …", que mantiene la presentación como predeterminada: así, al volver al costo
+ * base, el bulto vuelve a dar ese costo y el resto de las suites no cambia. Devuelve la respuesta del PUT que guardó.
+ */
+async function saveIngredientCost(page: Page) {
+  const isPut = (res: Response) => res.url().includes(`/api/ingredients/${INGREDIENT_ID}`) && res.request().method() === 'PUT'
+  const [first] = await Promise.all([page.waitForResponse(isPut), page.getByRole('button', { name: 'Guardar cambios' }).click()])
+  if (first.status() !== 409) return first
+  const dialog = page.getByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+  const [saved] = await Promise.all([
+    page.waitForResponse(isPut),
+    dialog.getByRole('button', { name: /^Actualizar el precio de / }).click(),
+  ])
+  return saved
+}
+
 async function setIngredientCost(page: Page, cost: string) {
   await page.goto('/insumos')
   await page.getByPlaceholder('Buscar insumos...').fill(INGREDIENT_NAME)
@@ -22,7 +40,7 @@ async function setIngredientCost(page: Page, cost: string) {
   // está oculta por CSS (`hidden md:block`) — Playwright no puede clickearla.
   await page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) }).click()
   await page.getByLabel(/Costo unitario/i).fill(cost)
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await saveIngredientCost(page)
 }
 
 // Evita que una corrida local con varios workers mute el costo compartido de
@@ -49,12 +67,8 @@ test.describe('TC-CASCADA-01: Recálculo en cascada con alerta visual y toast (i
     await page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) }).click()
     await page.getByLabel(/Costo unitario/i).fill(INGREDIENT_CRITICAL_COST)
 
-    const [putResponse] = await Promise.all([
-      page.waitForResponse(
-        (res) => res.url().includes(`/api/ingredients/${INGREDIENT_ID}`) && res.request().method() === 'PUT'
-      ),
-      page.getByRole('button', { name: 'Guardar cambios' }).click(),
-    ])
+    const putResponse = await saveIngredientCost(page)
+    expect(putResponse.status()).toBe(200)
 
     // --- Verificación de red: el payload JSON trae los productos críticos (issue #175) ---
     const body = await putResponse.json()
