@@ -62,6 +62,7 @@ Salida esperada: **0 failures**. El script guarda la evidencia de la corrida (ex
 | Caso | Qué envía | Qué verifica |
 |---|---|---|
 | Precio con muchos decimales | `HAR188` a `18406.387654` | `updated: 1`. Después, con `GET /api/ingredients/:id`, Harina 000 queda en `736.26` por kg: `18406.387654 / 25 = 736,25550616`, redondeado a 2 decimales con `ROUND_HALF_UP` (`calculateUnitCost`). Truncado daría `736.25`. El bulto HAR188 queda en `18406.39`, porque la columna guarda 2 decimales |
+| Precio igual con más decimales (#439) | `HAR188` otra vez a `18406.387654`, con el bulto ya en `18406.39` | `unchanged: 1`, `updated: 0` y `quarantined: 0`: el webhook redondea el precio a 2 decimales (`ROUND_HALF_UP`) antes de comparar, así que es el mismo precio y no recalcula |
 | Código con espacios | `"   HAR188   "` a `18500.00` | `updated: 1`. Después, la presentación HAR188 de Harina 000 queda en `18500` y el insumo, en `740.00` por kg (`18500 / 25`) |
 | Concurrencia | 15 requests a la vez, de 300 filas cada uno, con los 10 códigos reales | Las 15 terminan en menos de **7,5 s** |
 
@@ -107,5 +108,5 @@ El conteo debe ser idéntico antes y después.
 
 - No crea insumos ni proveedores nuevos — solo actualiza `packagePrice`/`currentCost` de los 10 insumos reales vía el mismo endpoint que usa n8n en producción. Se puede correr repetidamente sin ensuciar el catálogo.
 - Las aserciones sobre esos 10 códigos verifican `updated + unchanged + quarantined === 10` (no un bucket fijo), porque la colección es idempotente y el resultado exacto depende de si ya se corrió antes contra la misma base. Si se quiere arrancar de un estado conocido, re-seedear (`npx prisma db seed`) antes de correr.
-- Los casos de muchos decimales y de código con espacios fijan precios conocidos y comparan contra el valor esperado, así que no dependen del estado previo. Corren en ese orden: el primero deja el bulto en `18406.39`, y por eso el segundo siempre es un cambio (`updated: 1`). Las dos variaciones quedan por debajo del 50 % y no entran en cuarentena.
+- Los casos de muchos decimales y de código con espacios fijan precios conocidos y comparan contra el valor esperado, así que no dependen del estado previo. Corren en ese orden: el primero deja el bulto en `18406.39`; el caso de #439 reenvía el mismo precio con más decimales y da `unchanged: 1`; y por eso el de código con espacios siempre es un cambio (`updated: 1`). Las dos variaciones quedan por debajo del 50 % y no entran en cuarentena.
 - Los códigos de relleno (`ART-9999-*`, `TORNILLO-3MM-*`, etc.) son siempre inexistentes a propósito, para ejercitar el camino `NOT_FOUND` a volumen sin depender de más datos de proveedores reales.
