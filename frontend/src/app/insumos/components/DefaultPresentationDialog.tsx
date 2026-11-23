@@ -49,7 +49,8 @@ export function DefaultPresentationDialog({
       <DialogPortal>
         {/* Por encima de la ficha del insumo, que también es un diálogo. */}
         <DialogBackdrop className="z-80" />
-        <DialogPopup className="z-80 max-w-md text-left">
+        {/* Alto máximo con scroll: con el teléfono horizontal (640×360) el diálogo no entra entero. */}
+        <DialogPopup className="z-80 max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto text-left">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
             <AlertTriangle className="size-7" aria-hidden="true" />
           </div>
