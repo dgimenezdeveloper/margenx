@@ -18,13 +18,14 @@ Cada versión tiene un milestone en GitHub con una issue épica. Las épicas se 
 
 Control de márgenes completo: insumos, recetas, margen en vivo, proveedores, ingesta de listas con cuarentena, recálculo en cascada y alertas. Compras sugeridas por **impacto en el margen**, reporte semanal en PDF, invitación de colaboradores y **módulo de ventas** (ticket no fiscal, caja por turnos y ganancia real) detrás del control de módulos por plan y por cuenta (ADR-010). Se publica con el release #400.
 
-## v1.1: stock y reposición (diciembre de 2026)
+## v1.1: stock, reposición y permisos (diciembre de 2026)
 
 Épica #481.
 
 - **Stock de insumos descontado por receta** desde las ventas.
 - **Carga inicial** de stock por comercio e **ingreso de mercadería**.
 - **Reposición en Compras con cantidades reales**: vuelve el pedido sugerido, ahora con el consumo real. `POST /api/purchasing/order-preview`, deprecado en la v1.0.0, se reutiliza para esto o se elimina en esta versión (`docs/api.md` §10).
+- **Permisos granulares y roles intermedios:** invitar a otro `ADMIN` y cambiar el rol de un usuario (ADR-007 y ADR-008). Decisión del Tech Lead del 23/11/2026.
 - Ya asignadas al milestone: monitor de disponibilidad con aviso a Discord (#394), compartir el ticket como imagen por WhatsApp (#459) y movimientos de caja con el fondo del turno siguiente (#461).
 
 ## v1.2: backoffice y planes (diciembre de 2026 a enero de 2027)
@@ -56,7 +57,7 @@ Control de márgenes completo: insumos, recetas, margen en vivo, proveedores, in
 
 ### Fase 2 sin versión asignada
 
-Siguen en la tabla de alcance del SAD §1 como Fase 2 y se asignan a una versión cuando el equipo las priorice: permisos granulares y roles intermedios (invitar a otro `ADMIN` y cambiar roles, ADR-007 y ADR-008) y el aviso al rechazar un precio en cuarentena (*propuesta*, ADR-005).
+Sigue en la tabla de alcance del SAD §1 como Fase 2 y se asigna a una versión cuando el equipo la priorice: el aviso al rechazar un precio en cuarentena (*propuesta*, ADR-005).
 
 ---
 
@@ -80,6 +81,7 @@ Verificados en la documentación oficial de Google el **23/11/2026**. Las reglas
 |---|---|---|
 | La carga inicial de stock es trabajo para cada comercio: sin ella, el stock no sirve | v1.1 | Validarla con los comercios piloto antes de construirla; ofrecer carga por planilla como en los insumos |
 | El stock cambia el dominio de insumos y recetas (migraciones sobre tablas existentes) | v1.1 | Ensayo de las migraciones sobre una copia de producción (`docs/runbook-release.md`) |
+| Los roles intermedios cambian el RBAC: un rol mal acotado puede ver costos o márgenes | v1.1 | Pruebas por rol en la API y en la UI, como las del colaborador (especificación funcional §8) |
 | El rol de plataforma del backoffice abre una vía de escalada de privilegios | v1.2 | Revisión de seguridad del middleware antes del merge (#484) |
 | Borrado de cuenta antes de publicar en Android | Lanzamiento Android | #482 bloqueada por #484 |
 | 14 días de prueba cerrada con 12 testers | Lanzamiento Android | Reclutar testers durante la v1.2 |
@@ -96,7 +98,7 @@ Texto para la lámina "Hoja de ruta" de la presentación de la entrega final (#4
 > **Hacia dónde va MargenX**
 >
 > - **v1.0.0 · 05/12/2026:** control de márgenes, compras por impacto en el margen, reporte semanal y ventas con ticket.
-> - **v1.1 · diciembre:** stock descontado por receta y reposición con cantidades reales.
+> - **v1.1 · diciembre:** stock descontado por receta, reposición con cantidades reales y permisos por rol.
 > - **v1.2 · diciembre a enero:** backoffice, planes Basic, Pro y Business, período de prueba y borrado de cuenta.
 > - **Android · enero de 2027:** MargenX en Google Play.
 > - **2027:** suscripciones, pedidos a proveedores, facturación de ARCA, iOS y multi-sucursal.
