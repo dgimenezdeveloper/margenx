@@ -601,11 +601,11 @@ export default function NewProductPage() {
                               <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                                 {item.name}
                               </strong>
-                              <p className="text-xs text-gray-400">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
                                 Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                               </p>
                               {itemSubtotal > (Number(watchedSalePrice) || 0) && (Number(watchedSalePrice) || 0) > 0 && (
-                                <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                <p className="mt-1 text-[10px] font-bold text-amber-800 dark:text-amber-400">
                                   ⚠️ El costo de esta línea supera el precio de venta.
                                 </p>
                               )}
@@ -626,7 +626,7 @@ export default function NewProductPage() {
                                 <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
                                   {money(itemSubtotal)}
                                 </span>
-                                <span className="text-[10px] text-gray-400">subtotal</span>
+                                <span className="text-[10px] text-gray-600 dark:text-gray-400">subtotal</span>
                               </div>
 
                               <button
