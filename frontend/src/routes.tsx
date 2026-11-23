@@ -2,20 +2,21 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import LandingPage from './app/page'
 import LoginPage from './app/login/page'
+import InstallPage from './app/instalar/page'
+import PrivacyPage from './app/privacidad/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
 import { FeatureRoute } from './components/feature-route'
 import { lazyPage } from './lib/lazyPage'
 
-// Cada pantalla se baja al abrirla (#398). La landing y el login van en el bundle principal: son la primera carga.
+// Cada pantalla con sesión se baja al abrirla (#398). Las públicas (landing, login, privacidad e instalación) van en el
+// bundle principal: se abren por enlace directo y bajarlas aparte demoraba su primer pintado (LCP).
 const DashboardPage = lazyPage(() => import('./app/dashboard/page'))
 const SuppliesPage = lazyPage(() => import('./app/insumos/page'))
 const ProductsPage = lazyPage(() => import('./app/productos/page'))
 const NewProductPage = lazyPage(() => import('./app/productos/nuevo/page'))
 const ProductDetailPage = lazyPage(() => import('./app/productos/[id]/page'))
 const ProfilePage = lazyPage(() => import('./app/perfil/page'))
-const PrivacyPage = lazyPage(() => import('./app/privacidad/page'))
-const InstallPage = lazyPage(() => import('./app/instalar/page'))
 const SuppliersListPage = lazyPage(() => import('./app/proveedores/page'))
 const SupplierDetailPage = lazyPage(() => import('./app/proveedores/[id]/page'))
 const QuarantinePage = lazyPage(() => import('./app/proveedores/cuarentena/page'))

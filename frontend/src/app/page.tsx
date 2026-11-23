@@ -550,7 +550,12 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {steps.map((s) => (
               <div key={s.number} className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <span className="text-4xl font-black text-indigo-600/20 dark:text-indigo-400/20">{s.number}</span>
+                {/* Marca de agua decorativa: el número va en un pseudo-elemento, así no se lee ni se le exige contraste (#398). */}
+                <span
+                  aria-hidden="true"
+                  data-step={s.number}
+                  className="block text-4xl font-black text-indigo-600/20 before:content-[attr(data-step)] dark:text-indigo-400/20"
+                />
                 <h3 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">{s.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{s.desc}</p>
               </div>

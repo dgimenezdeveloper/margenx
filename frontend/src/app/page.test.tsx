@@ -45,6 +45,20 @@ describe('LandingPage', () => {
     expect(getByText(/Control de costos/i)).toBeInTheDocument()
   })
 
+  it('los números grandes de "Cómo funciona" son decorativos: sin texto que lean ni que se audite el contraste (#398)', () => {
+    vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+    vi.mocked(useAuth).mockReturnValue({ isLoaded: true, isSignedIn: false } as unknown as ReturnType<typeof useAuth>)
+
+    const { container } = render(<LandingPage />)
+
+    const marcas = container.querySelectorAll('[data-step]')
+    expect(Array.from(marcas, (m) => m.getAttribute('data-step'))).toEqual(['01', '02', '03'])
+    for (const marca of marcas) {
+      expect(marca).toHaveAttribute('aria-hidden', 'true')
+      expect(marca).toBeEmptyDOMElement()
+    }
+  })
+
   describe('Escenario Gherkin "Sin pantallazo"', () => {
     afterEach(() => {
       vi.useRealTimers()

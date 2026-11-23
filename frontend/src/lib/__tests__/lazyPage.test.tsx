@@ -19,10 +19,10 @@ describe('lazyPage: cada pantalla se baja cuando se abre (#398)', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('el router importa estáticamente solo la landing y el login; el resto va bajo demanda', () => {
+  it('el router importa estáticamente solo las páginas públicas; las de sesión van bajo demanda', () => {
     const fuente = readFileSync(path.resolve(__dirname, '../../routes.tsx'), 'utf8')
     const estaticas = [...fuente.matchAll(/^import \w+ from '\.\/app\/(.+)\/page'$/gm)].map((m) => m[1])
-    expect(estaticas.sort()).toEqual(['login'])
+    expect(estaticas.sort()).toEqual(['instalar', 'login', 'privacidad'])
     expect(fuente).toMatch(/^import LandingPage from '\.\/app\/page'$/m)
     expect(fuente).toContain("lazyPage(() => import('./app/dashboard/page'))")
   })
