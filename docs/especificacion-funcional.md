@@ -422,7 +422,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Ganancia real en el panel y en el reporte semanal | Planificado |
 | Qué módulos trae cada plan (Basic, Pro y Business) | Propuesta (v1.2) |
 | Stock de insumos, compras con pedido y reposición con cantidades | Fase 2 (v1.1) |
-| Facturación electrónica de ARCA | Fase 2 |
+| Facturación electrónica de ARCA | Fase 2 (v1.3) |
 
 ## 12. Decisiones pendientes
 

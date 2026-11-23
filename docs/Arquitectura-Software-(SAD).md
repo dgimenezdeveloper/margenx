@@ -91,7 +91,7 @@ Ante la observación de la cátedra respecto a que las PyMEs argentinas operan c
 
 ### Alcance de la cursada y Fase 2
 
-La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/11/2026), con el congelamiento de funcionalidades el **28/11/2026** (§6). El equipo confirmó el 14/11/2026 que Smart Purchasing, el reporte semanal en PDF y la invitación de colaboradores entran en la cursada. Esta es la **tabla única** de alcance: la especificación funcional y los entregables la citan o la copian sin cambios. El estado de cada capacidad (*Disponible*, *Planificado* o *Propuesta*) está en `docs/especificacion-funcional.md` §11.
+La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/11/2026), con el congelamiento de funcionalidades el **28/11/2026** (§6). El equipo confirmó el 14/11/2026 que Smart Purchasing, el reporte semanal en PDF y la invitación de colaboradores entran en la cursada. Esta es la **tabla única** de alcance: la especificación funcional y los entregables la citan o la copian sin cambios. El estado de cada capacidad (*Disponible*, *Planificado* o *Propuesta*) está en `docs/especificacion-funcional.md` §11. En qué versión de la Fase 2 entra cada capacidad, con sus fechas estimadas, riesgos y milestones, está en la hoja de ruta (`docs/roadmap.md`).
 
 | Capacidad | Alcance | Fuente |
 | :---- | :---- | :---- |
@@ -113,10 +113,11 @@ La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/
 | Monitor de disponibilidad de producción y staging | Fase 2 (v1.1) | §2 |
 | Stock de insumos descontado por receta desde las ventas, compras con pedido y reposición con cantidades | Fase 2 (v1.1) | ADR-010 |
 | Planes pagos sobre el control de módulos (qué módulos trae cada plan) | Fase 2 (v1.2) | ADR-010 |
-| Facturación electrónica de ARCA | Fase 2 | ADR-010 |
+| Facturación electrónica de ARCA | Fase 2 (v1.3) | ADR-010, `docs/roadmap.md` |
 | Permisos granulares y roles intermedios; invitar a otro `ADMIN` y cambiar roles | Fase 2 | ADR-007, ADR-008 |
-| Backoffice interno de cuentas (mientras tanto, Concierge MVP) | Fase 2 | `docs/propuesta-proyecto.md` §13.1, ADR-008 |
-| Moneda y cotización ARS/USD | Fase 2 | `docs/retrospectivas/acta-cierre-sprint-5.md` §5 |
+| Backoffice interno de cuentas, período de prueba y borrado de cuenta (mientras tanto, Concierge MVP) | Fase 2 (v1.2) | `docs/propuesta-proyecto.md` §13.1, ADR-008, `docs/roadmap.md` |
+| Publicación en Google Play como Trusted Web Activity | Fase 2 (lanzamiento Android) | `docs/roadmap.md` |
+| Moneda y cotización ARS/USD | Fase 2 (v1.3) | `docs/retrospectivas/acta-cierre-sprint-5.md` §5, `docs/roadmap.md` |
 | Aviso al rechazar un precio en cuarentena | Fase 2 (propuesta) | ADR-005 |
 | Starter pack por rubro, alta de insumo desde la receta, bandeja de códigos no mapeados, notificación en la app, Telegram y push, y vista de precios para el colaborador | Propuesta sin sprint: no comprometida en la cursada | especificación §11 |
 
