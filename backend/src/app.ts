@@ -24,9 +24,9 @@ export function createApp(): Application {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
-  app.use('/api/webhooks', express.json({ limit: '5mb' }));
-  app.use(express.json({ limit: '256kb' }));
+  app.use(cors()); // Permite solicitudes desde otros orígenes.
+  app.use('/api/webhooks', express.json({ limit: '5mb' })); // Las listas de precios que manda n8n pueden ser grandes.
+  app.use(express.json({ limit: '256kb' })); // Límite general conservador para evitar cuerpos desmedidos en rutas no dedicadas a ingesta.
 
   mountRouter(app, '/api/auth', authRoutes);
   mountRouter(app, '/api/ingredients', ingredientsRoutes);
@@ -37,11 +37,13 @@ export function createApp(): Application {
   mountRouter(app, '/api/webhooks', webhooksRoutes);
   mountRouter(app, '/api/internal/reports', internalReportsRoutes);
   mountRouter(app, '/api/reports', reportsRoutes);
-  mountRouter(app, '/api/sales', salesRouter);
+  mountRouter(app, '/api/sales', salesRouter); // Módulo de ventas: 404 si la cuenta no lo tiene (ADR-010).
   mountRouter(app, '/api/cash-shifts', cashShiftsRouter);
 
+  // Swagger UI en /api/docs y el contrato en /api/docs/openapi.json (público, sin datos de cuentas).
   mountOpenApiDocs(app);
 
+  // Health check: permite comprobar rápidamente si el servidor está funcionando.
   app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -51,6 +53,7 @@ export function createApp(): Application {
     });
   });
 
+  // Middleware global de errores: SIEMPRE al final, después de todas las rutas.
   app.use(errorHandler);
 
   return app;

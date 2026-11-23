@@ -4,6 +4,13 @@ info:
   version: 1.0.0
   description: |
     API REST de MargenX para control de márgenes en tiempo real.
+
+    **Reglas generales del contrato:**
+
+    - Todas las rutas, salvo `/api/health`, `/api/docs` y las rutas que llama n8n (que usan la cabecera `x-margenx-webhook-secret`), exigen `Authorization: Bearer <JWT de Clerk>`.
+    - El `accountId` sale siempre del usuario autenticado; nunca se acepta desde el cliente.
+    - Para el rol `COLLABORATOR`, la API purga los campos financieros (costos, márgenes, precios de compra y cantidades) de las respuestas, y las rutas solo de `ADMIN` responden 403.
+    - Las rutas de `/api/sales` y `/api/cash-shifts` responden 404 si la cuenta no tiene el módulo de ventas (ADR-010).
 servers:
   - url: https://api-dev.margenx.tech
     description: Staging (rama develop)
