@@ -53,7 +53,9 @@ vi.mock('@/lib/useCurrentUser', () => ({
   }),
 }))
 
-vi.mock('@/services/ingredientService', () => ({
+vi.mock('@/services/ingredientService', async (importOriginal) => ({
+  // Lo real (por ejemplo, defaultPresentationMismatch) se conserva; solo se reemplazan las llamadas a la API.
+  ...(await importOriginal<typeof import('@/services/ingredientService')>()),
   ingredientService: {
     getAll: vi.fn(),
     list: vi.fn(),
@@ -650,3 +652,146 @@ describe('SuppliesPageContent - cambios sin guardar y avisos de error (#364)', (
     await waitFor(() => expect(screen.queryByText('Error al actualizar el insumo.')).not.toBeInTheDocument())
   })
 })
+
+describe('SuppliesPageContent - costo manual con presentación predeterminada (#427)', () => {
+  // Harina 000 a $900/kg por la bolsa de 25 kg de Molinera (predeterminada) y una de Sarita.
+  const harina = {
+    id: 'ing-harina',
+    name: 'Harina 000 Olavarriense',
+    unit: 'kg',
+    currentCost: 900,
+    supplierConnections: [
+      {
+        id: 'si-molinera',
+        supplierId: 'sup-molinera',
+        ingredientId: 'ing-harina',
+        packageSize: 25,
+        packageUnit: 'kg',
+        packagePrice: 22500,
+        isDefault: true,
+        isQuarantined: false,
+        supplier: { id: 'sup-molinera', name: 'Distribuidora Mayorista Molinera' },
+      },
+      {
+        id: 'si-sarita',
+        supplierId: 'sup-sarita',
+        ingredientId: 'ing-harina',
+        packageSize: 50,
+        packageUnit: 'kg',
+        packagePrice: 47000,
+        isDefault: false,
+        isQuarantined: false,
+        supplier: { id: 'sup-sarita', name: 'Molino Sarita' },
+      },
+    ],
+  }
+  const CONFLICTO = new ApiError(
+    'El insumo tiene una presentación predeterminada con otro costo. Elegí si actualizás el precio de esa presentación o si dejás de usarla como predeterminada.',
+    409,
+    {
+      code: 'DEFAULT_PRESENTATION_MISMATCH',
+      defaultPresentation: {
+        id: 'si-molinera',
+        supplierId: 'sup-molinera',
+        supplierName: 'Distribuidora Mayorista Molinera',
+        packageSize: '25',
+        packageUnit: 'kg',
+        packagePrice: '22500.00',
+        unitCost: '900.00',
+      },
+    }
+  )
+  const guardado = {
+    ingredient: { id: 'ing-harina', name: 'Harina 000 Olavarriense', unit: 'kg', currentCost: 950 },
+    affectedProductsCount: 0,
+    criticalProducts: [],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    vi.mocked(ingredientService.getProducts).mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } })
+    vi.mocked(ingredientService.list).mockResolvedValue(pagina([harina]) as never)
+  })
+
+  const guardarCosto = async (costo: string) => {
+    const user = userEvent.setup()
+    renderPage()
+    const [fila] = await screen.findAllByText('Harina 000 Olavarriense')
+    fireEvent.click(fila)
+    const campo = await screen.findByLabelText(/Costo unitario/)
+    await user.clear(campo)
+    await user.type(campo, costo)
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    return user
+  }
+
+  it('Escenario "Aviso al cambiar el costo a mano": ofrece actualizar la presentación o dejar de usarla, sin guardar todavía', async () => {
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(CONFLICTO)
+    await guardarCosto('950')
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+    expect(dialogo).toHaveTextContent('Este insumo le comprás a Distribuidora Mayorista Molinera a')
+    expect(dialogo).toHaveTextContent(/900,00 por kg/)
+    expect(within(dialogo).getByRole('button', { name: 'Actualizar el precio de Distribuidora Mayorista Molinera' })).toBeInTheDocument()
+    expect(within(dialogo).getByRole('button', { name: 'Dejar de usar Distribuidora Mayorista Molinera como predeterminado' })).toBeInTheDocument()
+    expect(ingredientService.update).toHaveBeenCalledTimes(1)
+  })
+
+  it('Escenario "Actualizar la presentación": reenvía con update-presentation y vuelve a pedir la lista', async () => {
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(CONFLICTO).mockResolvedValueOnce(guardado as never)
+    const user = await guardarCosto('950')
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+    const listasAntes = vi.mocked(ingredientService.list).mock.calls.length
+    await user.click(within(dialogo).getByRole('button', { name: 'Actualizar el precio de Distribuidora Mayorista Molinera' }))
+
+    await waitFor(() => expect(ingredientService.update).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(ingredientService.update).mock.calls[1]![2]).toMatchObject({ currentCost: 950, defaultPresentationAction: 'update-presentation' })
+    // El precio del bulto lo calcula el backend: la lista se vuelve a pedir para mostrarlo.
+    await waitFor(() => expect(vi.mocked(ingredientService.list).mock.calls.length).toBeGreaterThan(listasAntes))
+  })
+
+  it('Escenario "Quitar el predeterminado": reenvía con clear-default', async () => {
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(CONFLICTO).mockResolvedValueOnce(guardado as never)
+    const user = await guardarCosto('950')
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+    await user.click(within(dialogo).getByRole('button', { name: 'Dejar de usar Distribuidora Mayorista Molinera como predeterminado' }))
+
+    await waitFor(() => expect(ingredientService.update).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(ingredientService.update).mock.calls[1]![2]).toMatchObject({ defaultPresentationAction: 'clear-default' })
+  })
+
+  it('Cancelar no guarda nada y deja la ficha abierta con el costo tipeado', async () => {
+    vi.mocked(ingredientService.update).mockRejectedValueOnce(CONFLICTO)
+    const user = await guardarCosto('950')
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+    await user.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })).toBeNull())
+    expect(ingredientService.update).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog', { name: 'Editar insumo' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Costo unitario/)).toHaveValue('950')
+  })
+
+  it('Escenario "Las tarjetas no desaparecen": después de guardar, el insumo sigue con sus dos proveedores sin recargar', async () => {
+    vi.mocked(ingredientService.update).mockResolvedValueOnce({ ...guardado, ingredient: { ...guardado.ingredient, currentCost: 900 } } as never)
+    // Mismo costo, distinto nombre: guarda directo, sin conflicto.
+    const user = userEvent.setup()
+    renderPage()
+    const [fila] = await screen.findAllByText('Harina 000 Olavarriense')
+    fireEvent.click(fila)
+    await user.click(await screen.findByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(ingredientService.update).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar insumo' })).toBeNull())
+
+    const [filaOtraVez] = await screen.findAllByText('Harina 000 Olavarriense')
+    fireEvent.click(filaOtraVez)
+    const ficha = await screen.findByRole('dialog', { name: 'Editar insumo' })
+    expect(within(ficha).getByText('Distribuidora Mayorista Molinera')).toBeInTheDocument()
+    expect(within(ficha).getByText('Molino Sarita')).toBeInTheDocument()
+  })
+})
+
