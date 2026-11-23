@@ -1,7 +1,14 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
-import { calculateUnitCost } from './marginCalculator';
+import {
+  calculateRecipeTotal,
+  calculateMarginAmount,
+  calculateMarginPercent,
+  classifyProductHealthBucket,
+  HealthBucket,
+  calculateUnitCost,
+} from './marginCalculator';
 
 const ZERO = new Prisma.Decimal(0);
 const HUNDRED = new Prisma.Decimal(100);
@@ -146,6 +153,57 @@ export interface OrderPreviewResponse {
   totalSavings: string;
   totalPackages: number;
   itemsCount: number;
+}
+
+export interface MarginImpactProduct {
+  productId: string;
+  productName: string;
+  salePrice: string;
+  minMarginPercent: string;
+  currentRecipeCost: string;
+  projectedRecipeCost: string;
+  currentMarginAmount: string;
+  projectedMarginAmount: string;
+  currentMarginPercent: string;
+  projectedMarginPercent: string;
+  currentBucket: HealthBucket;
+  projectedBucket: HealthBucket;
+}
+
+export interface MarginImpactDefaultPresentation {
+  supplierIngredientId: string;
+  supplierName: string;
+  unitCost: string;
+}
+
+export interface MarginImpactAlternativePresentation {
+  supplierIngredientId: string;
+  supplierName: string;
+  unitCost: string;
+}
+
+export interface IngredientMarginImpact {
+  ingredientId: string;
+  ingredientName: string;
+  unit: string;
+  currentCost: string;
+  defaultPresentation: MarginImpactDefaultPresentation | null;
+  alternativePresentation: MarginImpactAlternativePresentation;
+  unitCostDifference: string;
+  productsAffectedCount: number;
+  productsLeavingRiskOrLossCount: number;
+  products: MarginImpactProduct[];
+}
+
+export interface MarginImpactSummary {
+  ingredientsWithAlternative: number;
+  productsAffected: number;
+  productsLeavingRiskOrLoss: number;
+}
+
+export interface PurchasingMarginImpactResponse {
+  summary: MarginImpactSummary;
+  byIngredient: IngredientMarginImpact[];
 }
 
 function toPresentationSummary(
@@ -637,5 +695,298 @@ export async function previewPurchasingOrder(
     totalSavings: totalSavings.toFixed(2),
     totalPackages,
     itemsCount: items.length,
+  };
+}
+
+export async function getPurchasingMarginImpact(accountId: string): Promise<PurchasingMarginImpactResponse> {
+  const ingredients = await prisma.ingredient.findMany({
+    where: { accountId },
+    select: {
+      id: true, name: true, unit: true, currentCost: true,
+      suppliers: {
+        where: { supplier: { accountId, isActive: true }, isQuarantined: false },
+        select: { id: true, packageSize: true, packagePrice: true, isDefault: true, isQuarantined: true, supplier: { select: { id: true, name: true, isActive: true } } },
+      },
+      products: {
+        where: { product: { accountId, ingredients: { some: {} } } },
+        select: { product: { select: {
+          id: true, name: true, salePrice: true, minMarginPercent: true,
+          ingredients: { select: { ingredientId: true, quantity: true, ingredient: { select: { id: true, currentCost: true } } } },
+        } } },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  const byIngredient: IngredientMarginImpact[] = [];
+  const affectedProductIds = new Set<string>();
+  const leavingRiskOrLossProductIds = new Set<string>();
+
+  for (const ingredient of ingredients) {
+    const currentCost = new Prisma.Decimal(String(ingredient.currentCost));
+    const defaultRow = ingredient.suppliers.find((row) => row.isDefault);
+    let defaultPresentation: MarginImpactDefaultPresentation | null = null;
+    if (defaultRow) {
+      const unitCost = calculateUnitCost(new Prisma.Decimal(String(defaultRow.packagePrice)), new Prisma.Decimal(String(defaultRow.packageSize)));
+      defaultPresentation = { supplierIngredientId: defaultRow.id, supplierName: defaultRow.supplier.name, unitCost: unitCost.toFixed(2) };
+    }
+
+    const candidates = ingredient.suppliers
+      .filter((row) => !row.isDefault && !row.isQuarantined && row.supplier.isActive !== false)
+      .map((row) => ({
+        row,
+        unitCost: calculateUnitCost(new Prisma.Decimal(String(row.packagePrice)), new Prisma.Decimal(String(row.packageSize))),
+      })).filter((entry) => entry.unitCost.lt(currentCost));
+    if (candidates.length === 0) continue;
+
+    candidates.sort((a, b) => {
+      const costCmp = a.unitCost.comparedTo(b.unitCost); if (costCmp !== 0) return costCmp;
+      const pkgCmp = new Prisma.Decimal(String(a.row.packagePrice)).comparedTo(new Prisma.Decimal(String(b.row.packagePrice))); if (pkgCmp !== 0) return pkgCmp;
+      const nameCmp = a.row.supplier.name.localeCompare(b.row.supplier.name, 'es', { sensitivity: 'base' }); if (nameCmp !== 0) return nameCmp;
+      return a.row.id.localeCompare(b.row.id);
+    });
+
+    const bestAlternative = candidates[0]!;
+    const unitCostDifference = currentCost.sub(bestAlternative.unitCost).toFixed(2);
+    const seenProductIds = new Set<string>();
+    const productsImpact: MarginImpactProduct[] = [];
+    let productsLeavingRiskOrLossCount = 0;
+
+    for (const rel of ingredient.products) {
+      const product = rel.product;
+      if (!product || seenProductIds.has(product.id) || product.ingredients.length === 0) continue;
+      seenProductIds.add(product.id);
+      const salePrice = new Prisma.Decimal(String(product.salePrice));
+      const minMarginPercent = new Prisma.Decimal(String(product.minMarginPercent));
+      const currentRecipeCost = calculateRecipeTotal(product.ingredients.map((pi) => ({ quantity: new Prisma.Decimal(String(pi.quantity)), unitCost: new Prisma.Decimal(String(pi.ingredient.currentCost)) })));
+      const projectedRecipeCost = calculateRecipeTotal(product.ingredients.map((pi) => ({ quantity: new Prisma.Decimal(String(pi.quantity)), unitCost: pi.ingredientId === ingredient.id ? bestAlternative.unitCost : new Prisma.Decimal(String(pi.ingredient.currentCost)) })));
+      const currentMarginAmount = calculateMarginAmount(salePrice, currentRecipeCost);
+      const projectedMarginAmount = calculateMarginAmount(salePrice, projectedRecipeCost);
+      const currentMarginPercent = calculateMarginPercent(salePrice, currentRecipeCost);
+      const projectedMarginPercent = calculateMarginPercent(salePrice, projectedRecipeCost);
+      const currentBucket = classifyProductHealthBucket(currentMarginPercent, minMarginPercent, product.ingredients.length);
+      const projectedBucket = classifyProductHealthBucket(projectedMarginPercent, minMarginPercent, product.ingredients.length);
+
+      if ((currentBucket === 'risk' || currentBucket === 'loss') && (projectedBucket === 'target' || projectedBucket === 'surplus')) {
+        productsLeavingRiskOrLossCount += 1;
+        leavingRiskOrLossProductIds.add(product.id);
+      }
+      affectedProductIds.add(product.id);
+      productsImpact.push({
+        productId: product.id,
+        productName: product.name,
+        salePrice: salePrice.toFixed(2),
+        minMarginPercent: minMarginPercent.toFixed(2),
+        currentRecipeCost: currentRecipeCost.toFixed(2),
+        projectedRecipeCost: projectedRecipeCost.toFixed(2),
+        currentMarginAmount: currentMarginAmount.toFixed(2),
+        projectedMarginAmount: projectedMarginAmount.toFixed(2),
+        currentMarginPercent: currentMarginPercent.toFixed(2),
+        projectedMarginPercent: projectedMarginPercent.toFixed(2),
+        currentBucket,
+        projectedBucket,
+      });
+    }
+
+    productsImpact.sort((a, b) => {
+      const diffA = new Prisma.Decimal(a.projectedMarginPercent).sub(new Prisma.Decimal(a.currentMarginPercent));
+      const diffB = new Prisma.Decimal(b.projectedMarginPercent).sub(new Prisma.Decimal(b.currentMarginPercent));
+      const diffCmp = diffB.comparedTo(diffA); if (diffCmp !== 0) return diffCmp;
+      return a.productName.localeCompare(b.productName, 'es', { sensitivity: 'base' });
+    });
+
+    byIngredient.push({
+      ingredientId: ingredient.id, ingredientName: ingredient.name, unit: ingredient.unit, currentCost: currentCost.toFixed(2),
+      defaultPresentation,
+      alternativePresentation: { supplierIngredientId: bestAlternative.row.id, supplierName: bestAlternative.row.supplier.name, unitCost: bestAlternative.unitCost.toFixed(2) },
+      unitCostDifference, productsAffectedCount: productsImpact.length,
+      productsLeavingRiskOrLossCount, products: productsImpact,
+    });
+  }
+
+  byIngredient.sort((a, b) => {
+    if (b.productsLeavingRiskOrLossCount !== a.productsLeavingRiskOrLossCount) return b.productsLeavingRiskOrLossCount - a.productsLeavingRiskOrLossCount;
+    const maxIncA = a.products.reduce((max, p) => { const diff = new Prisma.Decimal(p.projectedMarginPercent).sub(new Prisma.Decimal(p.currentMarginPercent)); return diff.gt(max) ? diff : max; }, new Prisma.Decimal(0));
+    const maxIncB = b.products.reduce((max, p) => { const diff = new Prisma.Decimal(p.projectedMarginPercent).sub(new Prisma.Decimal(p.currentMarginPercent)); return diff.gt(max) ? diff : max; }, new Prisma.Decimal(0));
+    const incCmp = maxIncB.comparedTo(maxIncA); if (incCmp !== 0) return incCmp;
+    const diffCmp = new Prisma.Decimal(b.unitCostDifference).comparedTo(new Prisma.Decimal(a.unitCostDifference)); if (diffCmp !== 0) return diffCmp;
+    return a.ingredientName.localeCompare(b.ingredientName, 'es', { sensitivity: 'base' });
+  });
+
+  return { summary: { ingredientsWithAlternative: byIngredient.length, productsAffected: affectedProductIds.size, productsLeavingRiskOrLoss: leavingRiskOrLossProductIds.size }, byIngredient };
+}
+
+export async function getIngredientMarginImpact(
+  accountId: string,
+  ingredientId: string,
+  supplierIngredientId: string
+): Promise<IngredientMarginImpact> {
+  const ingredient = await prisma.ingredient.findFirst({
+    where: { id: ingredientId, accountId },
+    select: {
+      id: true,
+      name: true,
+      unit: true,
+      currentCost: true,
+      suppliers: {
+        where: { supplier: { accountId } },
+        select: {
+          id: true,
+          packageSize: true,
+          packagePrice: true,
+          isDefault: true,
+          isQuarantined: true,
+          supplier: { select: { id: true, name: true, isActive: true } },
+        },
+      },
+      products: {
+        where: { product: { accountId, ingredients: { some: {} } } },
+        select: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              salePrice: true,
+              minMarginPercent: true,
+              ingredients: {
+                select: {
+                  ingredientId: true,
+                  quantity: true,
+                  ingredient: { select: { id: true, currentCost: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!ingredient) throw new AppError('Insumo no encontrado.', 404);
+
+  const targetPresentation = ingredient.suppliers.find((row) => row.id === supplierIngredientId);
+  if (!targetPresentation) throw new AppError('Presentación no encontrada.', 404);
+  if (targetPresentation.isQuarantined) {
+    throw new AppError('La presentación está en cuarentena y debe resolverse antes de evaluarla.', 422);
+  }
+  if (!targetPresentation.supplier.isActive) {
+    throw new AppError(
+      `El proveedor "${targetPresentation.supplier.name}" está inactivo y no admite pedidos.`,
+      422
+    );
+  }
+  if (targetPresentation.isDefault) {
+    throw new AppError('La presentación ya es la predeterminada del insumo.', 422);
+  }
+
+  const alternativeUnitCost = calculateUnitCost(
+    new Prisma.Decimal(String(targetPresentation.packagePrice)),
+    new Prisma.Decimal(String(targetPresentation.packageSize))
+  );
+
+  const defaultRow = ingredient.suppliers.find(
+    (row) => row.isDefault && !row.isQuarantined && row.supplier.isActive
+  );
+  let defaultPresentation: MarginImpactDefaultPresentation | null = null;
+  if (defaultRow) {
+    const defaultUnitCost = calculateUnitCost(
+      new Prisma.Decimal(String(defaultRow.packagePrice)),
+      new Prisma.Decimal(String(defaultRow.packageSize))
+    );
+    defaultPresentation = {
+      supplierIngredientId: defaultRow.id,
+      supplierName: defaultRow.supplier.name,
+      unitCost: defaultUnitCost.toFixed(2),
+    };
+  }
+
+  const currentCost = new Prisma.Decimal(String(ingredient.currentCost));
+  const unitCostDifference = currentCost.sub(alternativeUnitCost).toFixed(2);
+  const seenProductIds = new Set<string>();
+  const productsImpact: MarginImpactProduct[] = [];
+  let productsLeavingRiskOrLossCount = 0;
+
+  for (const rel of ingredient.products) {
+    const product = rel.product;
+    if (!product || seenProductIds.has(product.id) || product.ingredients.length === 0) continue;
+    seenProductIds.add(product.id);
+
+    const salePrice = new Prisma.Decimal(String(product.salePrice));
+    const minMarginPercent = new Prisma.Decimal(String(product.minMarginPercent));
+    const currentRecipeCost = calculateRecipeTotal(
+      product.ingredients.map((pi) => ({
+        quantity: new Prisma.Decimal(String(pi.quantity)),
+        unitCost: new Prisma.Decimal(String(pi.ingredient.currentCost)),
+      }))
+    );
+    const projectedRecipeCost = calculateRecipeTotal(
+      product.ingredients.map((pi) => ({
+        quantity: new Prisma.Decimal(String(pi.quantity)),
+        unitCost: pi.ingredientId === ingredient.id
+          ? alternativeUnitCost
+          : new Prisma.Decimal(String(pi.ingredient.currentCost)),
+      }))
+    );
+    const currentMarginAmount = calculateMarginAmount(salePrice, currentRecipeCost);
+    const projectedMarginAmount = calculateMarginAmount(salePrice, projectedRecipeCost);
+    const currentMarginPercent = calculateMarginPercent(salePrice, currentRecipeCost);
+    const projectedMarginPercent = calculateMarginPercent(salePrice, projectedRecipeCost);
+    const currentBucket = classifyProductHealthBucket(
+      currentMarginPercent,
+      minMarginPercent,
+      product.ingredients.length
+    );
+    const projectedBucket = classifyProductHealthBucket(
+      projectedMarginPercent,
+      minMarginPercent,
+      product.ingredients.length
+    );
+
+    if (
+      (currentBucket === 'risk' || currentBucket === 'loss') &&
+      (projectedBucket === 'target' || projectedBucket === 'surplus')
+    ) {
+      productsLeavingRiskOrLossCount += 1;
+    }
+
+    productsImpact.push({
+      productId: product.id,
+      productName: product.name,
+      salePrice: salePrice.toFixed(2),
+      minMarginPercent: minMarginPercent.toFixed(2),
+      currentRecipeCost: currentRecipeCost.toFixed(2),
+      projectedRecipeCost: projectedRecipeCost.toFixed(2),
+      currentMarginPercent: currentMarginPercent.toFixed(2),
+      projectedMarginPercent: projectedMarginPercent.toFixed(2),
+      currentBucket,
+      projectedBucket,
+      currentMarginAmount: currentMarginAmount.toFixed(2),
+      projectedMarginAmount: projectedMarginAmount.toFixed(2),
+    });
+  }
+
+  productsImpact.sort((a, b) => {
+    const diffA = new Prisma.Decimal(a.projectedMarginPercent).sub(new Prisma.Decimal(a.currentMarginPercent));
+    const diffB = new Prisma.Decimal(b.projectedMarginPercent).sub(new Prisma.Decimal(b.currentMarginPercent));
+    const diffCmp = diffB.comparedTo(diffA);
+    if (diffCmp !== 0) return diffCmp;
+    return a.productName.localeCompare(b.productName, 'es', { sensitivity: 'base' });
+  });
+
+  return {
+    ingredientId: ingredient.id,
+    ingredientName: ingredient.name,
+    unit: ingredient.unit,
+    currentCost: currentCost.toFixed(2),
+    defaultPresentation,
+    alternativePresentation: {
+      supplierIngredientId: targetPresentation.id,
+      supplierName: targetPresentation.supplier.name,
+      unitCost: alternativeUnitCost.toFixed(2),
+    },
+    unitCostDifference,
+    productsAffectedCount: productsImpact.length,
+    productsLeavingRiskOrLossCount,
+    products: productsImpact,
   };
 }
