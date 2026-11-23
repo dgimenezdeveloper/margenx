@@ -793,5 +793,20 @@ describe('SuppliesPageContent - costo manual con presentación predeterminada (#
     expect(within(ficha).getByText('Distribuidora Mayorista Molinera')).toBeInTheDocument()
     expect(within(ficha).getByText('Molino Sarita')).toBeInTheDocument()
   })
+
+  it('el aviso de éxito muestra el costo que guardó el backend, que con un bulto fraccionario puede diferir del tipeado', async () => {
+    // Con "Actualizar el precio", el insumo queda en el costo que da el bulto redondeado al centavo (ADR-011):
+    // por ejemplo, $950,15 tipeados con un bulto de 0,5 kg quedan en $950,16.
+    vi.mocked(ingredientService.update)
+      .mockRejectedValueOnce(CONFLICTO)
+      .mockResolvedValueOnce({ ...guardado, ingredient: { ...guardado.ingredient, currentCost: 950.16 } } as never)
+    const user = await guardarCosto('950,15')
+
+    const dialogo = await screen.findByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+    await user.click(within(dialogo).getByRole('button', { name: 'Actualizar el precio de Distribuidora Mayorista Molinera' }))
+
+    expect(await screen.findByText(/Nuevo valor: .*950,16/)).toBeInTheDocument()
+    expect(screen.queryByText(/Nuevo valor: .*950,15/)).toBeNull()
+  })
 })
 
