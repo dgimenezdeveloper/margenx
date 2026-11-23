@@ -428,7 +428,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 
 ## 13. Ventas, caja y ganancia real (módulo opcional)
 
-**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos y la venta con ticket están *Disponibles*. La caja por turnos y la ganancia real están *Planificadas* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
+**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos, la venta con ticket y la caja por turnos están *Disponibles*. La ganancia real está *Planificada* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
 
 ### El problema
 
@@ -446,8 +446,8 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Ticket no fiscal:** número correlativo por cuenta y la leyenda **"Comprobante no válido como factura"**. No reemplaza a la factura.
 - **Medio de pago:** efectivo, transferencia o Mercado Pago, **solo registrado**. MargenX no cobra ni se conecta con ningún medio de pago.
 - **Precio, costo y margen congelados:** cada renglón guarda los valores del momento de la venta. Si mañana sube la harina, la ganancia de las ventas de ayer no cambia. El margen es sobre el precio de venta (ADR-004).
-- **Caja por turnos:** un solo turno abierto por cuenta. Para vender hace falta un turno abierto. Al cierre se comparan lo esperado y lo contado por medio de pago.
-- **Anulación:** una venta no se borra. Se anula, con su motivo, y queda en el historial.
+- **Caja por turnos:** un solo turno abierto por cuenta. Para vender hace falta un turno abierto. ADMIN y COLLABORATOR abren y cierran el turno. Al cierre se comparan lo esperado y lo contado por medio de pago.
+- **Anulación:** una venta no se borra. Se anula, con su motivo, y queda en el historial. Solo mientras su turno siga abierto: el arqueo de un turno cerrado no cambia nunca.
 - **Baja de un colaborador** (ADR-008): sus ventas y turnos quedan, sin usuario.
 - **Colaborador:** vende y ve los montos de venta y el arqueo de su turno, pero **nunca costos ni márgenes** (§8).
 - **Ganancia real:** ventas menos costo congelado, y el margen ponderado por lo vendido (ganancia / ventas), sin las ventas anuladas.
@@ -458,8 +458,22 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Qué guarda:** en una transacción, el número de ticket siguiente de la cuenta y, en cada renglón, el precio y el costo vigentes del producto y su margen (`Prisma.Decimal`, `ROUND_HALF_UP`). El precio y el costo salen siempre de la base, nunca del navegador. Sin turno abierto, responde 409 y la pantalla ofrece abrir el turno.
 - **El ticket** (`/ventas/:id/ticket`): comercio, fecha y hora de Argentina, número, ítems, total, medio de pago y la leyenda no fiscal, con el logo de MargenX arriba y la firma "Emitido con MargenX · margenx.tech" al pie (también en el texto de WhatsApp). Se imprime en ticketera de 58 u 80 mm o en A4, se guarda como PDF desde la ventana de impresión del navegador y se comparte por WhatsApp (enlace `wa.me` con el texto del ticket).
 - **Historial** (`/ventas`): las ventas del día o todas, paginadas. El ADMIN ve las de la cuenta; el colaborador, solo las suyas, y nunca recibe costos ni márgenes.
-- **Anulación:** con motivo, sin borrar. El ADMIN anula cualquier venta; el colaborador, las suyas mientras el turno de la venta siga abierto.
+- **Anulación:** con motivo, sin borrar, y solo mientras el turno de la venta siga abierto (también para el ADMIN). El ADMIN anula cualquier venta del turno; el colaborador, solo las suyas.
 - Contrato: `docs/api.md` §12. Detalle para el usuario: `docs/manual-usuario/09-ventas.md`.
+
+### Caja por turnos · *Disponible*
+
+- **Abrir:** en `/ventas`, con el monto inicial que hay en la caja. ADMIN y COLLABORATOR abren. Un solo turno abierto por cuenta: si ya hay uno, la API responde 409.
+- **Turno abierto:** `/ventas` muestra quién lo abrió, desde cuándo, cuántas ventas lleva y cuánto se vendió; `/ventas/nueva`, desde cuándo está abierto. Sin turno, `/ventas/nueva` avisa al entrar y ofrece abrirlo.
+- **Cerrar** (`/ventas/turnos/:id/cerrar`): por cada medio de pago se ve lo esperado y se carga lo contado. Lo esperado en efectivo es el monto inicial más las ventas en efectivo; en transferencia y Mercado Pago, solo sus ventas; las anuladas no suman. Transferencia y Mercado Pago vienen precargados con lo esperado y el efectivo se cuenta. La diferencia (contado − esperado) se resalta por medio de pago y en total: **Falta** (negativa), **Sobra** (positiva) o **Justo**, con el rótulo además del color. Cerrar pide confirmación y es definitivo: después no se vende ni se anula en ese turno.
+- **Arqueo guardado:** al cierre se guardan lo esperado y lo contado por medio de pago y la diferencia total. Una venta que llega mientras se cierra el turno no queda afuera del arqueo: espera y la API responde que no hay turno abierto.
+- **Resumen del cierre** (`/ventas/turnos/:id`): comercio, quién abrió y cerró y cuándo, monto inicial, ventas, anuladas, lo vendido, el arqueo por medio de pago y la diferencia total, con el logo de MargenX. Se imprime en ticketera de 58 u 80 mm o en A4, y enlaza a las ventas del turno (`/ventas?turno=<id>`).
+- **Historial de turnos** (`/ventas/turnos`): el más reciente primero, con lo vendido y la diferencia. El ADMIN ve todos; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
+- **Historial de ventas:** suma el filtro **Del turno** cuando hay un turno abierto.
+- **Colaborador:** ve los montos de venta y el arqueo de su turno; el arqueo no tiene costos ni márgenes.
+- **Varios vendedores:** todos los usuarios de la cuenta venden en el único turno abierto, y el arqueo es del turno (la caja), no de cada vendedor. Para un arqueo por persona, cada una abre y cierra su propio turno, uno después del otro.
+- **Planificado para la v1.1:** movimientos de caja (gastos y retiros con su motivo, que entran en lo esperado) y el fondo del turno siguiente precargado con lo que quedó. Hasta entonces, un gasto pagado con la caja aparece como faltante en el arqueo.
+- **Fase 2:** el mail con el resumen del cierre al dueño (n8n), y el arqueo por cajero o varias cajas abiertas a la vez si los comercios piloto lo piden.
 
 ### Fuera del módulo (Fase 2)
 

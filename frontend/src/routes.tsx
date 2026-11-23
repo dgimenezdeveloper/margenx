@@ -17,6 +17,9 @@ import PurchasesPage from './app/compras/page'
 import SalesHistoryPage from './app/ventas/page'
 import NewSalePage from './app/ventas/nueva/page'
 import SaleTicketPage from './app/ventas/[id]/ticket/page'
+import CashShiftsPage from './app/ventas/turnos/page'
+import CashShiftSummaryPage from './app/ventas/turnos/[id]/page'
+import CloseCashShiftPage from './app/ventas/turnos/[id]/cerrar/page'
 import NotFoundPage from './app/not-found/page'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminOnlyRoute } from './components/admin-only-route'
@@ -137,6 +140,36 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <FeatureRoute feature="sales">
           <SaleTicketPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CashShiftsPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos/:id',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CashShiftSummaryPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/ventas/turnos/:id/cerrar',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <CloseCashShiftPage />
         </FeatureRoute>
       </ProtectedRoute>
     ),

@@ -500,6 +500,17 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
   5. El Administrador puede revocar una invitación pendiente o dar de baja a un colaborador. La baja borra el usuario en Clerk (cierra sus sesiones e impide que la invitación lo vuelva a dar de alta) y después su fila en `User`.
 - Postcondición: el colaborador queda vinculado a una sola cuenta con rol `COLLABORATOR`, o sin acceso tras la baja.
 
+**CU-07: Venta con ticket no fiscal y caja por turnos** *(módulo opcional, ADR-010)*
+
+- Actores: Administrador y Colaborador.
+- Precondición: la cuenta tiene el módulo de ventas prendido (`AccountFeature` o plan); si no, `/api/sales` y `/api/cash-shifts` responden 404.
+- Flujo:
+  1. Al empezar el turno, cualquiera de los dos roles abre la caja con el monto inicial. Hay un solo turno abierto por cuenta: lo garantiza un índice parcial único, y una segunda apertura responde 409.
+  2. Para cada venta, en una transacción, el backend toma un bloqueo compartido sobre la fila del turno abierto (`FOR SHARE`), toma el precio y el costo vigentes de cada producto desde la base, congela precio, costo y margen en cada renglón y asigna el número de ticket correlativo de la cuenta. Sin turno abierto responde 409. El colaborador nunca recibe costos ni márgenes (CU-02).
+  3. Una venta se anula con su motivo, sin borrarse, solo mientras su turno siga abierto (403 si está cerrado). La anulación toma el mismo bloqueo compartido.
+  4. Al cerrar, en una transacción, el backend pasa el turno a `CLOSED`, suma las ventas completadas por medio de pago y guarda lo esperado (en efectivo, el monto inicial más las ventas en efectivo), lo contado y la diferencia. La actualización del turno espera a las ventas y anulaciones en curso, y una venta que llega durante el cierre encuentra el turno cerrado: ninguna venta queda afuera del arqueo.
+- Postcondición: cada venta queda con su ticket y sus valores congelados para la ganancia real, y cada turno cerrado con un arqueo que ya no cambia.
+
 ---
 
 ## 4. Arquitectura de Despliegue y CI/CD

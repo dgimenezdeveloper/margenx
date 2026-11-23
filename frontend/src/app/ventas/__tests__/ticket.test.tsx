@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 
 import SaleTicketPage from '@/app/ventas/[id]/ticket/page'
+import { PRINT_CSS } from '@/lib/print'
 import { ApiError } from '@/services/api'
 import { saleService, type Sale } from '@/services/saleService'
 
@@ -108,12 +109,12 @@ describe('Ticket de la venta (/ventas/:id/ticket)', () => {
     const { container } = renderPage()
     await screen.findByRole('article')
 
-    // Por defecto, ticketera de 80 mm.
-    expect(container.querySelector('style')?.textContent).toContain('size: 80mm auto')
+    // Por defecto, ticketera de 80 mm: el papel lo pone la impresora y el ticket mide 74 mm.
+    expect(container.querySelector('style')?.textContent).toContain(PRINT_CSS['80'])
 
     fireEvent.change(screen.getByLabelText('Formato de impresión'), { target: { value: '58' } })
     fireEvent.click(screen.getByRole('button', { name: 'Imprimir' }))
-    expect(container.querySelector('style')?.textContent).toContain('size: 58mm auto')
+    expect(container.querySelector('style')?.textContent).toContain(PRINT_CSS['58'])
     expect(print).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF' }))
