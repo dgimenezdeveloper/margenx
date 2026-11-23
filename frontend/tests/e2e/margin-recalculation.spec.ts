@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Response } from '@playwright/test'
 
 /**
  * Issue #47. Datos fijos del seed de "Panadería Central" (backend/prisma/seed.ts).
@@ -37,13 +37,31 @@ function getProductItem(page: Page, productName: string) {
     .or(page.getByRole('link', { name: new RegExp(productName, 'i') }))
 }
 
+/**
+ * Guarda el costo de la Harina 000 desde la ficha. La Harina tiene presentación predeterminada (HAR188): si el
+ * costo no coincide con el de esa presentación, el PUT responde 409 y la ficha pregunta qué hacer (#427, ADR-011).
+ * Se elige "Actualizar el precio de …", que mantiene la presentación como predeterminada: así, al volver al costo
+ * base, el bulto vuelve a dar ese costo y el resto de las suites no cambia. Devuelve la respuesta del PUT que guardó.
+ */
+async function saveIngredientCost(page: Page) {
+  const isPut = (res: Response) => res.url().includes(`/api/ingredients/${INGREDIENT_ID}`) && res.request().method() === 'PUT'
+  const [first] = await Promise.all([page.waitForResponse(isPut), page.getByRole('button', { name: 'Guardar cambios' }).click()])
+  if (first.status() !== 409) return first
+  const dialog = page.getByRole('dialog', { name: '¿Qué hacemos con la presentación predeterminada?' })
+  const [saved] = await Promise.all([
+    page.waitForResponse(isPut),
+    dialog.getByRole('button', { name: /^Actualizar el precio de / }).click(),
+  ])
+  return saved
+}
+
 async function setIngredientCost(page: Page, cost: string) {
   await page.goto('/insumos')
   await page.getByPlaceholder('Buscar insumos...').fill(INGREDIENT_NAME)
   // Se usa el botón/card visible tanto en mobile como en desktop (evita colisión de elementos ocultos)
   await page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) }).click()
   await page.getByLabel(/Costo unitario/i).fill(cost)
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await saveIngredientCost(page)
   // Confirma el guardado esperando que el nuevo costo se refleje en la interfaz de insumos.
   await expect(page.getByRole('button', { name: new RegExp(INGREDIENT_NAME) })).toContainText(money(Number(cost)))
 }

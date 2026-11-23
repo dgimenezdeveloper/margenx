@@ -254,11 +254,27 @@ Carga masiva de insumos por planilla en una única transacción.
 ### `PUT /api/ingredients/:id`
 Actualización de costo o datos del insumo con recálculo en cascada y alertas.
 - **Roles:** Solo `ADMIN`.
-- **Body:** `{ "name": "Harina 000", "unit": "kg", "currentCost": "9500.00" }`
+- **Body:** `{ "name": "Harina 000", "unit": "kg", "currentCost": "9500.00" }`. Campo opcional `defaultPresentationAction`: `"update-presentation"` o `"clear-default"` (ver la regla de la presentación predeterminada). Otro valor responde `400`.
 - **Guarda Zero-Variation:** Si `currentCost` no varía, retorna inmediatamente con `affectedProductsCount: 0`.
 - **Reglas:**
   - **Unidad fija con uso (`409 Conflict`):** Si cambia `unit` y el insumo tiene al menos una receta (`ProductIngredient`) o presentación de proveedor (`SupplierIngredient`), responde `409 Conflict` sin modificar datos ni historial: `"No se puede cambiar la unidad: el insumo está en N receta(s) y M presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad."`. Si no tiene recetas ni presentaciones, permite cambiar la unidad. Nombre y costo siguen siendo editables cuando la unidad no cambia.
   - **Nombre único (`409 Conflict`):** Si el nuevo nombre ya existe en la cuenta (case-insensitive).
+  - **Costo manual con presentación predeterminada (ADR-011):** si el costo cambia, el insumo tiene una presentación predeterminada y el costo nuevo no coincide con el costo unitario de esa presentación:
+    - **Sin `defaultPresentationAction`:** responde `409` sin modificar nada:
+      ```json
+      {
+        "error": "El insumo tiene una presentación predeterminada con otro costo. Elegí si actualizás el precio de esa presentación o si dejás de usarla como predeterminada.",
+        "code": "DEFAULT_PRESENTATION_MISMATCH",
+        "defaultPresentation": {
+          "id": "uuid", "supplierId": "uuid", "supplierName": "Distribuidora Mayorista Molinera",
+          "packageSize": "25", "packageUnit": "kg", "packagePrice": "22500.00", "unitCost": "900.00"
+        }
+      }
+      ```
+    - **`"update-presentation"`:** en la misma transacción, el precio del bulto pasa a `currentCost × packageSize` (`ROUND_HALF_UP`, 2 decimales; con $950 y 25 kg, `23750.00`) y la presentación sigue siendo la predeterminada. El insumo guarda el costo que da ese bulto (precio ÷ tamaño, 2 decimales), así los dos coinciden: con un bulto de tamaño con decimales puede diferir en centavos del enviado (con 0,5 kg y `12090.25`, el bulto queda en `6045.13` y el insumo en `12090.26`), y la respuesta trae el costo guardado.
+    - **Precio del bulto fuera de rango (`422`):** con `"update-presentation"`, si el precio del bulto superaría $99.999.999,99 o daría $0,00, responde `422` sin modificar nada: `"El precio del bulto no puede superar $99.999.999,99. Revisá el costo o dejá de usar esta presentación como predeterminada."`.
+    - **`"clear-default"`:** en la misma transacción, la presentación deja de ser la predeterminada (`isDefault: false`) y el insumo queda con el costo manual.
+    - Sin presentación predeterminada, con el mismo costo o con un costo igual al de la presentación, se guarda como siempre y la acción, si viene, no hace nada.
 - **Respuesta 200:**
   ```json
   {

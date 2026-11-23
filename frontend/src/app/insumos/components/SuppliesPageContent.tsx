@@ -29,12 +29,20 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { ingredientSchema, type IngredientFormValues } from '@/schemas/ingredientSchema'
 import { ApiError } from '@/services/api'
-import { ingredientService, type Ingredient, type IngredientProductUsage } from '@/services/ingredientService'
+import {
+  defaultPresentationMismatch,
+  ingredientService,
+  type DefaultPresentationAction,
+  type DefaultPresentationConflict,
+  type Ingredient,
+  type IngredientProductUsage,
+} from '@/services/ingredientService'
 import { supplierService, type SupplierIngredient } from '@/services/supplierService'
 import { BulkIngredientsModal } from './BulkIngredientsModal'
 import { MakeDefaultDialog } from '@/components/make-default-dialog'
 import { bulkUploadNotice } from '@/lib/bulkUploadNotice'
 import { IngredientUpsertSheet } from './IngredientUpsertSheet'
+import { DefaultPresentationDialog } from './DefaultPresentationDialog'
 import { SuppliesCardsMobile } from './SuppliesCardsMobile'
 import { SuppliesTableDesktop } from './SuppliesTableDesktop'
 
@@ -89,6 +97,13 @@ export default function SuppliesPageContent() {
   const [quarantineReloadKey, setQuarantineReloadKey] = useState(0)
   const [bulkCatalog, setBulkCatalog] = useState<Ingredient[]>([])
   const [selected, setSelected] = useState<Ingredient | null>(null)
+  // Costo manual que contradice la presentación predeterminada: lo que se quiso guardar y la presentación (#427).
+  const [presentationConflict, setPresentationConflict] = useState<{
+    data: z.input<typeof ingredientSchema>
+    cost: number
+    presentation: DefaultPresentationConflict
+  } | null>(null)
+  const [savingAction, setSavingAction] = useState<DefaultPresentationAction | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
@@ -253,6 +268,7 @@ export default function SuppliesPageContent() {
   const handleOpenEdit = (supply: Ingredient) => {
     setSelected(supply)
     setShowDeleteConfirm(false)
+    setPresentationConflict(null)
     const formUnit = supply.unit === 'l' ? 'litro' : supply.unit === 'u' ? 'unidad' : supply.unit
     reset({ name: supply.name, unit: formUnit as IngredientFormValues['unit'], currentCost: toCostInput(supply.currentCost) })
 
@@ -267,6 +283,7 @@ export default function SuppliesPageContent() {
   const handleOpenNew = () => {
     setSelected(null)
     setShowDeleteConfirm(false)
+    setPresentationConflict(null)
     resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
     setNewOpen(true)
@@ -276,6 +293,7 @@ export default function SuppliesPageContent() {
     setSelected(null)
     setNewOpen(false)
     setShowDeleteConfirm(false)
+    setPresentationConflict(null)
     resetUsedProducts()
     reset({ name: '', unit: 'kg', currentCost: '' })
   }
@@ -288,7 +306,7 @@ export default function SuppliesPageContent() {
     handleCloseSheet()
   }
 
-  const executeSave = async (data: z.input<typeof ingredientSchema>) => {
+  const executeSave = async (data: z.input<typeof ingredientSchema>, defaultPresentationAction?: DefaultPresentationAction) => {
     const rawCost = typeof data.currentCost === 'string' ? parseNumeroAR(data.currentCost) : data.currentCost
     const numericCost = Number(rawCost)
     if (!Number.isFinite(numericCost) || numericCost <= 0 || numericCost > MAX_INGREDIENT_COST) {
@@ -301,19 +319,28 @@ export default function SuppliesPageContent() {
       name: data.name.trim(),
       unit: canonicalUnit,
       currentCost: numericCost,
+      ...(defaultPresentationAction ? { defaultPresentationAction } : {}),
     }
 
     try {
       if (selected) {
         const response = await ingredientService.update(getToken, selected.id, input)
-        const ingredient = response.ingredient
+        // La respuesta del PUT no trae los proveedores: se conservan los que ya tenía el insumo, así la
+        // ficha los sigue mostrando sin recargar la página (#427).
+        const ingredient = { ...response.ingredient, supplierConnections: selected.supplierConnections }
 
         setSupplies((current) => current.map((item) => (item.id === ingredient.id ? ingredient : item)))
         setSelected(ingredient)
+        setPresentationConflict(null)
+        // Con una acción sobre la presentación predeterminada, el precio del bulto o la marca de predeterminada
+        // los calcula el backend: se vuelve a pedir la lista para mostrarlos como quedaron.
+        if (defaultPresentationAction) reloadSupplies()
 
         notify(
           `Insumo "${ingredient.name}" actualizado correctamente`,
-          `Nuevo valor: ${money(numericCost)}`,
+          // El costo que guardó el backend: con "Actualizar el precio" y un bulto fraccionario puede diferir en
+          // centavos del tipeado (ADR-011).
+          `Nuevo valor: ${money(ingredient.currentCost)}`,
           'success'
         )
 
@@ -338,6 +365,13 @@ export default function SuppliesPageContent() {
       }
       handleCloseSheet()
     } catch (error: unknown) {
+      // El costo manual contradice la presentación predeterminada: el dueño elige qué hacer (#427, ADR-011).
+      const conflict = defaultPresentationMismatch(error)
+      if (conflict && !defaultPresentationAction) {
+        setPresentationConflict({ data, cost: numericCost, presentation: conflict })
+        return
+      }
+      setPresentationConflict(null)
       if (error instanceof ApiError && error.status === 409) {
         if (/unidad/i.test(error.message)) {
           setError('unit', { type: 'server', message: error.message })
@@ -697,6 +731,18 @@ export default function SuppliesPageContent() {
         onCancel={() => setShowDiscardConfirm(false)}
       />
       <UnsavedChangesDialog open={showLeaveConfirm} onConfirm={confirmLeave} onCancel={cancelLeave} />
+      <DefaultPresentationDialog
+        presentation={presentationConflict?.presentation ?? null}
+        newCost={presentationConflict?.cost ?? 0}
+        unit={selected?.unit ?? ''}
+        savingAction={savingAction}
+        onChoose={(action) => {
+          if (!presentationConflict) return
+          setSavingAction(action)
+          void executeSave(presentationConflict.data, action).finally(() => setSavingAction(null))
+        }}
+        onCancel={() => setPresentationConflict(null)}
+      />
       {selected && (
         <PriceHistoryModal
           isOpen={showHistoryModal}

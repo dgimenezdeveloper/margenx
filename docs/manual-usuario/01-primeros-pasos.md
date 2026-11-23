@@ -63,6 +63,12 @@ Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad 
 2. Modificá el **Nombre del insumo**. Si ingresás un nombre que ya existe en otro insumo de tu comercio (sin importar mayúsculas o minúsculas), MargenX te avisará directamente debajo del campo impidiendo guardar duplicados.
 3. Para cambiar la **Unidad de medida** (`kg`, `litro`, `unidad`): si el insumo todavía no se usa en ninguna receta ni tiene presentaciones de proveedor, podés seleccionar la nueva unidad desde la ficha. Si ya está en uso, los botones aparecen deshabilitados para proteger las cantidades de tus recetas y bultos; para usar otra unidad, sacalo primero de sus recetas y proveedores o creá un insumo nuevo.
 4. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
+5. **Si el insumo tiene una presentación predeterminada** y el costo que escribiste no coincide con el de esa presentación, al tocar **Guardar cambios** MargenX te pregunta qué hacer antes de guardar (ADR-011). Por ejemplo, la harina sale $900 por kg de Distribuidora Mayorista Molinera y vos cargás $950:
+   - **Actualizar el precio de Distribuidora Mayorista Molinera:** el precio del bulto pasa a dar el costo nuevo (la bolsa de 25 kg queda a $23.750) y sigue siendo la presentación predeterminada. Si el bulto tiene un tamaño con decimales (por ejemplo, un pan de manteca de 0,5 kg), el costo puede quedar unos centavos distinto del que cargaste, porque el precio del bulto se redondea al centavo: el aviso de MargenX te muestra el costo que quedó.
+   - **Dejar de usar Distribuidora Mayorista Molinera como predeterminado:** el insumo queda a $950 y sin presentación predeterminada hasta que elijas otra con la estrella. Mientras tanto, las listas de ese proveedor actualizan su presentación pero no el costo del insumo.
+   - **Cancelar:** no se guarda nada y la ficha queda abierta con lo que escribiste.
+
+   Después de guardar, la ficha sigue mostrando todos los proveedores del insumo, sin recargar la página.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-modal-edicion-insumo.webp | Ficha de insumo en edición con nombre, unidad, costo es-AR y bloque Se usa en] -->
 
@@ -131,4 +137,4 @@ Si ingresás un formato ambiguo o texto con letras (como `1.2.3` o `abc`), el si
 En la ficha del insumo, la sección **Proveedores y presentaciones** lista lo que te vende cada proveedor. Con **Asociar otra presentación** cargás una nueva: el proveedor, el tamaño del bulto, el **precio del bulto** y, si querés, el **código de artículo** con que figura en su lista de precios (por ejemplo, `MC-990`); con ese código, las listas del proveedor actualizan el precio solas. Tené en cuenta lo siguiente:
 - Solo una presentación puede ser la **predeterminada** de cada insumo (la marca la **estrella llena**). Su costo por unidad es el que se usa para calcular tus recetas.
 - Para cambiarla, tocá la **estrella vacía** (**Usar como predeterminada**) de otra presentación: MargenX te pide confirmación con el costo nuevo y, al confirmar, desmarca la anterior y recalcula tus productos.
-- Para proteger tus costos, **no podés quitar la presentación predeterminada sin elegir otra**.
+- Para proteger tus costos, **no podés borrar la presentación predeterminada sin elegir otra**. La única forma de dejar un insumo sin presentación predeterminada es cambiar su costo a mano y elegir **Dejar de usar … como predeterminado** (paso 5 de "Modificar un insumo existente"), o dar de baja su proveedor.

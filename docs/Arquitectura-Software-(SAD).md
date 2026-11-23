@@ -441,7 +441,7 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
 
 **CU-01: Actualizar costo de insumo y recalcular márgenes en cascada**
 
-- Actor: Administrador o Colaborador.
+- Actor: Administrador (el Colaborador recibe 403, CU-02).
 - Precondición: el insumo existe y pertenece a la cuenta del usuario autenticado.
 - Flujo:
   1. El sistema valida que el nuevo costo sea numérico y positivo (RNF-05).
@@ -450,6 +450,9 @@ A nivel de base de datos relacional, la relación `ProductIngredient -> Ingredie
   4. Dentro de la misma transacción, se recorren todos los `ProductIngredient` que referencian ese insumo, se recalcula `Product.cost` y `Product.marginPercent` con `Prisma.Decimal` para cada producto afectado.
   5. Se hace commit de la transacción solo si todos los recálculos fueron exitosos (evita estados intermedios inconsistentes si falla un cálculo a mitad de camino).
   6. Tras el commit, se dispara de forma asíncrona (fuera de la transacción) el dispatcher `marginAlertDispatcher.ts`, enriqueciendo el payload con el nombre del comercio y correo del administrador antes de golpear el webhook de n8n.
+- Flujo alternativo, costo que contradice la presentación predeterminada (ADR-011): si el costo cambia, el insumo tiene una presentación predeterminada y el costo nuevo no coincide con su costo unitario, la API responde `409` sin guardar nada hasta que el Administrador elige qué hacer con esa presentación:
+  - **Actualizar su precio:** en la misma transacción que el paso 3, el precio del bulto pasa a costo × tamaño, redondeado al centavo, y el insumo guarda el costo unitario que da ese bulto. Si el precio del bulto no entra en el rango admitido, responde `422` y no guarda nada.
+  - **Dejar de usarla como predeterminada:** en la misma transacción, la presentación deja de ser la predeterminada y el insumo queda con el costo cargado, sin presentación predeterminada hasta que el Administrador elija otra.
 - Postcondición: todos los productos afectados reflejan su margen actualizado; se registran los eventos de alerta correspondientes.
 
 **CU-02: Control de acceso por rol y visibilidad operativa**

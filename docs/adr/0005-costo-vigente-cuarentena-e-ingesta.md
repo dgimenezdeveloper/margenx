@@ -1,6 +1,6 @@
 # 5. Costo Vigente de Insumos, Retención en Cuarentena y Canal de Ingesta Desatendida
 
-* **Estado:** Aceptado
+* **Estado:** Aceptado. Dos reglas reemplazadas en parte por [ADR-011](0011-costo-manual-con-presentacion-predeterminada.md): la sobrescritura de ediciones manuales y la presentación predeterminada obligatoria, para el costo manual de un insumo con presentación predeterminada.
 * **Fecha:** 2026-10-27
 * **Decisores:** Darío Giménez (Tech Lead / DevOps), Mauricio Barreras (Lead Backend), Federico Paal (Lead Frontend), Leandro Herrera (QA Engineer)
 * **Issue:** #234 (SPRINT5-DOCS-01)

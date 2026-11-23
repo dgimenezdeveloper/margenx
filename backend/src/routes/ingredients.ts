@@ -14,6 +14,7 @@ import {
 import { parseArgentineDecimal } from '../utils/argentineNumber';
 import {
   applyIngredientCostChange,
+  calculateUnitCost,
   classifyProductHealthBucket,
 } from '../services/marginCalculator';
 import { dispatchMarginAlertEvent } from '../services/marginAlertDispatcher';
@@ -513,6 +514,31 @@ router.post('/bulk', requireRole(['ADMIN']), async (req: AuthenticatedRequest, r
 /* ------------------------------------------------------------------ */
 /* PUT /api/ingredients/:id                                            */
 /* ------------------------------------------------------------------ */
+/**
+ * Qué hacer con la presentación predeterminada cuando el ADMIN cambia a mano el costo del insumo (#427, ADR-011):
+ * - `update-presentation`: el precio del bulto pasa a costo × tamaño del bulto, para que siga dando el costo nuevo.
+ * - `clear-default`: la presentación deja de ser la predeterminada y el insumo queda con el costo manual.
+ */
+const DEFAULT_PRESENTATION_ACTIONS = ['update-presentation', 'clear-default'] as const;
+type DefaultPresentationAction = (typeof DEFAULT_PRESENTATION_ACTIONS)[number];
+
+function parseDefaultPresentationAction(body: unknown): DefaultPresentationAction | null {
+  const raw = (body as { defaultPresentationAction?: unknown } | null)?.defaultPresentationAction;
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== 'string' || !(DEFAULT_PRESENTATION_ACTIONS as readonly string[]).includes(raw)) {
+    throw new AppError('El campo "defaultPresentationAction" tiene que ser "update-presentation" o "clear-default".', 400);
+  }
+  return raw as DefaultPresentationAction;
+}
+
+function safeUnitCost(packagePrice: Prisma.Decimal, packageSize: Prisma.Decimal): Prisma.Decimal | null {
+  try {
+    return calculateUnitCost(packagePrice, packageSize);
+  } catch {
+    return null;
+  }
+}
+
 router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   if (!req.is('application/json')) {
     throw new AppError('El header Content-Type debe ser application/json.', 400);
@@ -537,6 +563,18 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
           suppliers: true,
         },
       },
+      // La presentación predeterminada, para avisar si el costo manual la contradice (#427).
+      suppliers: {
+        where: { isDefault: true },
+        take: 1,
+        select: {
+          id: true,
+          packageSize: true,
+          packageUnit: true,
+          packagePrice: true,
+          supplier: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -544,8 +582,9 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
     throw new AppError('Insumo no encontrado.', 404);
   }
 
-  const { _count, ...existingIngredient } = existing;
+  const { _count, suppliers: defaultPresentations, ...existingIngredient } = existing;
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
+  const defaultPresentationAction = parseDefaultPresentationAction(req.body);
 
   if (unit !== existing.unit) {
     const recipesCount = _count?.products ?? 0;
@@ -562,6 +601,54 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
   const hasNoActualChange =
     previousCostForComparison.equals(nextCost) && existing.name === name && existing.unit === unit;
+
+  // Costo manual que no coincide con la presentación predeterminada: sin acción elegida, 409 y no se guarda nada
+  // (#427, ADR-011). Con el mismo costo, o si coincide con el de la presentación, se guarda como siempre.
+  const defaultPresentation = defaultPresentations?.[0];
+  const defaultUnitCost = defaultPresentation
+    ? safeUnitCost(defaultPresentation.packagePrice, defaultPresentation.packageSize)
+    : null;
+  const costChanges = !previousCostForComparison.equals(nextCost);
+  const contradictsDefault = Boolean(defaultPresentation && defaultUnitCost && costChanges && !defaultUnitCost.equals(nextCost));
+  if (contradictsDefault && defaultPresentation && defaultUnitCost && !defaultPresentationAction) {
+    return res.status(409).json({
+      error:
+        'El insumo tiene una presentación predeterminada con otro costo. Elegí si actualizás el precio de esa presentación o si dejás de usarla como predeterminada.',
+      code: 'DEFAULT_PRESENTATION_MISMATCH',
+      defaultPresentation: {
+        id: defaultPresentation.id,
+        supplierId: defaultPresentation.supplier.id,
+        supplierName: defaultPresentation.supplier.name,
+        packageSize: defaultPresentation.packageSize.toString(),
+        packageUnit: defaultPresentation.packageUnit,
+        packagePrice: defaultPresentation.packagePrice.toFixed(2),
+        unitCost: defaultUnitCost.toFixed(2),
+      },
+    });
+  }
+
+  // update-presentation: el bulto pasa a costo × tamaño, redondeado al centavo, y el insumo guarda el costo que da ese
+  // bulto. Con un tamaño con decimales (0,5 kg) puede diferir en centavos del tipeado, pero así el insumo y su
+  // presentación predeterminada coinciden siempre (ADR-005, ADR-011). Un bulto fuera de rango no se guarda.
+  let presentationUpdate: { packagePrice: Prisma.Decimal; unitCost: Prisma.Decimal } | null = null;
+  if (contradictsDefault && defaultPresentation && defaultPresentationAction === 'update-presentation') {
+    const packagePrice = nextCost.mul(defaultPresentation.packageSize).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+    if (packagePrice.greaterThan(MAX_MONEY_VALUE)) {
+      throw new AppError(
+        'El precio del bulto no puede superar $99.999.999,99. Revisá el costo o dejá de usar esta presentación como predeterminada.',
+        422
+      );
+    }
+    const unitCost = safeUnitCost(packagePrice, defaultPresentation.packageSize);
+    if (!unitCost) {
+      throw new AppError(
+        'Con ese costo, el precio del bulto no es válido para esta presentación. Revisá el costo o dejá de usar esta presentación como predeterminada.',
+        422
+      );
+    }
+    presentationUpdate = { packagePrice, unitCost };
+  }
+  const costToSave = presentationUpdate?.unitCost ?? nextCost;
 
   if (name.toLowerCase() !== existing.name.toLowerCase()) {
     const duplicate = await prisma.ingredient.findFirst({
@@ -584,13 +671,23 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
   const previousCost = existing.currentCost ?? null;
 
   const result = await prisma.$transaction(async (tx) => {
+    // La decisión sobre la presentación predeterminada va en la misma transacción que el costo (#427).
+    if (presentationUpdate && defaultPresentation) {
+      await tx.supplierIngredient.update({
+        where: { id: defaultPresentation.id },
+        data: { packagePrice: presentationUpdate.packagePrice },
+      });
+    } else if (contradictsDefault && defaultPresentation && defaultPresentationAction === 'clear-default') {
+      await tx.supplierIngredient.update({ where: { id: defaultPresentation.id }, data: { isDefault: false } });
+    }
+
     const ingredient = await tx.ingredient.update({
       where: { id },
       omit: { searchName: true },
-      data: { name, searchName: normalizeSearchText(name), unit, currentCost: nextCost },
+      data: { name, searchName: normalizeSearchText(name), unit, currentCost: costToSave },
     });
 
-    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, nextCost);
+    const { affectedProductsCount, affectedProducts, criticalProducts } = await applyIngredientCostChange(tx, id, previousCost, costToSave);
 
     return { ingredient, affectedProductsCount, affectedProducts, criticalProducts };
   });
