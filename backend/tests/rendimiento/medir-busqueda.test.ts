@@ -159,3 +159,18 @@ describe('medir-busqueda.js: mediana de pedidos con y sin search (#444)', () => 
     ]);
   });
 });
+
+describe('medir-busqueda.js pegado sin la sesión iniciada (#444)', () => {
+  it('avisa que hay que iniciar sesión en lugar de no hacer nada', () => {
+    const errores: string[] = [];
+    cargarScript({
+      window: {},
+      location: { hostname: 'dev.margenx.tech' },
+      console: { error: (mensaje: string) => errores.push(mensaje), log: () => {}, table: () => {} },
+    });
+
+    expect(errores).toEqual([
+      'medir-busqueda: no encontré la sesión de Clerk. Iniciá sesión en dev.margenx.tech con el ADMIN de la cuenta Demo y volvé a pegar el script.',
+    ]);
+  });
+});

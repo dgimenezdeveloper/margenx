@@ -123,7 +123,13 @@
   global.medirBusquedaConfig = CONFIG;
 
   // Pegado en la consola de la app, con la sesión iniciada, corre solo.
-  if (typeof window !== 'undefined' && window.Clerk && window.Clerk.session) {
+  if (typeof window !== 'undefined' && !(window.Clerk && window.Clerk.session)) {
+    console.error(
+      'medir-busqueda: no encontré la sesión de Clerk. Iniciá sesión en dev.margenx.tech con el ADMIN de la cuenta Demo y volvé a pegar el script.'
+    );
+    return;
+  }
+  if (typeof window !== 'undefined') {
     var host = location.hostname;
     if (host !== 'dev.margenx.tech' && host !== 'localhost') {
       console.error('medir-busqueda: se corre en dev.margenx.tech (staging) o en localhost; esta página es ' + host + '.');
