@@ -29,13 +29,13 @@ export function ProductRecipeBOM({
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
-        <span className="text-xs font-semibold text-gray-400">
+        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
           {items.length} {items.length === 1 ? 'ingrediente' : 'ingredientes'}
         </span>
       </div>
 
       {!hasRecipe ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
+        <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-600 dark:border-gray-800 dark:text-gray-400">
           Sin insumos cargados.
         </div>
       ) : (
@@ -56,12 +56,12 @@ export function ProductRecipeBOM({
                     {item.name}
                   </strong>
                   {!isCollaborator && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       Costo base: {money(item.unitCost)} por {formatUnit(item.unit)}
                     </p>
                   )}
                   {itemSubtotal > salePrice && salePrice > 0 && !isCollaborator && (
-                    <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                    <p className="mt-1 text-[10px] font-bold text-amber-800 dark:text-amber-400">
                       ⚠️ El costo de esta línea supera el precio de venta.
                     </p>
                   )}
@@ -83,7 +83,7 @@ export function ProductRecipeBOM({
                       <span className="block text-xs font-black text-gray-900 dark:text-gray-100">
                         {money(itemSubtotal)}
                       </span>
-                      <span className="text-[10px] text-gray-400">subtotal</span>
+                      <span className="text-[10px] text-gray-600 dark:text-gray-400">subtotal</span>
                     </div>
 
                     <button

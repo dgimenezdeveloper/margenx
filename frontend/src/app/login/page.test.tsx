@@ -6,13 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LoginPage from './page'
 
 const clerk = vi.hoisted(() => ({
+  isLoaded: true,
   isSignedIn: false,
   signOut: vi.fn(() => Promise.resolve()),
 }))
 const displayMode = vi.hoisted(() => ({ standalone: false }))
 
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ isLoaded: true, isSignedIn: clerk.isSignedIn }),
+  useAuth: () => ({ isLoaded: clerk.isLoaded, isSignedIn: clerk.isSignedIn }),
   useClerk: () => ({ signOut: clerk.signOut }),
   SignIn: ({ forceRedirectUrl }: { forceRedirectUrl: string }) => (
     <div data-testid="sign-in" data-redirect={forceRedirectUrl} />
@@ -153,5 +154,42 @@ describe('LoginPage: enlace de invitación de un colaborador (#395)', () => {
     expect(screen.getByTestId('sign-in')).toBeInTheDocument()
     expect(screen.queryByTestId('sign-up')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Iniciá sesión en tu comercio' })).toBeInTheDocument()
+  })
+})
+
+describe('LoginPage: sin corrimientos mientras carga Clerk (#398, CLS a 360 px)', () => {
+  beforeEach(() => {
+    vi.spyOn(window.navigator, 'webdriver', 'get').mockReturnValue(false)
+    clearBrowserSession()
+    clerk.isSignedIn = false
+  })
+  afterEach(() => {
+    clerk.isLoaded = true
+    vi.restoreAllMocks()
+  })
+
+  const espacioDelFormulario = () => screen.getByTestId('login-auth-slot').className
+
+  it('el espacio del formulario mide lo mismo con el spinner y con el formulario de Clerk', () => {
+    clerk.isLoaded = false
+    const { unmount } = render(
+      <RouterProvider router={createMemoryRouter([{ path: '/login/*', element: <LoginPage /> }], { initialEntries: ['/login'] })} />
+    )
+    const conSpinner = espacioDelFormulario()
+    unmount()
+
+    clerk.isLoaded = true
+    renderAt('/login')
+    expect(screen.getByTestId('sign-in')).toBeInTheDocument()
+    // El formulario de Clerk mide 402 px en el celular y 384 px en escritorio (medido en staging).
+    expect(espacioDelFormulario()).toContain('min-h-[25.125rem]')
+    expect(espacioDelFormulario()).toBe(conSpinner)
+  })
+
+  it('el logo declara su tamaño, así el navegador le reserva el lugar antes de bajarlo', () => {
+    renderAt('/login')
+    const logo = screen.getByRole('img', { name: 'MargenX' })
+    expect(logo).toHaveAttribute('width', '644')
+    expect(logo).toHaveAttribute('height', '249')
   })
 })

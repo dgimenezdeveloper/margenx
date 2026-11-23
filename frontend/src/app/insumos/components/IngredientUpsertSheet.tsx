@@ -9,6 +9,7 @@ import type { SupplierIngredient } from '@/services/supplierService'
 import { IngredientSupplierList } from './IngredientSupplierList'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { formatQuantityWithUnit } from '@/lib/format'
+import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
 
 const ingredientUnits = ['kg', 'litro', 'unidad'] as const
@@ -82,6 +83,14 @@ export function IngredientUpsertSheet({
   }
 
   const hasDefaultSupplier = selected?.supplierConnections?.some((c) => c.isDefault)
+  const hasSuppliers = (selected?.supplierConnections?.length ?? 0) > 0
+  const isUnitLocked = Boolean(selected && (hasSuppliers || usedCount > 0))
+  const unitDescribedBy = [
+    isUnitLocked ? 'ingredient-unit-locked-hint' : null,
+    errors.unit ? 'ingredient-unit-error' : null,
+  ]
+    .filter(Boolean)
+    .join(' ') || undefined
 
   return (
     <Dialog open={!!selected || newOpen} onOpenChange={(open) => { if (!open) onRequestClose() }}>
@@ -201,26 +210,47 @@ export function IngredientUpsertSheet({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">
+                  <span
+                    id="ingredient-unit-label"
+                    className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2"
+                  >
                     Unidad de medida
-                  </label>
-                  <div className="flex flex-wrap gap-2">
+                  </span>
+                  <div role="group" aria-labelledby="ingredient-unit-label" className="flex flex-wrap gap-2">
                     {ingredientUnits.map((u) => (
                       <button
                         key={u}
                         type="button"
+                        disabled={isUnitLocked}
+                        aria-pressed={selectedUnit === u}
+                        aria-describedby={unitDescribedBy}
                         onClick={() => setValue('unit', u, { shouldValidate: true, shouldDirty: true })}
-                        className={`rounded-xl cursor-pointer border px-3.5 py-2 text-xs font-bold transition ${
+                        className={cn(
+                          'rounded-xl border px-3.5 py-2 text-xs font-bold transition',
+                          CANONICAL_FOCUS_CLASSES,
+                          isUnitLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
                           selectedUnit === u
                             ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                        }`}
+                            : 'border-gray-200 bg-white text-gray-700 enabled:hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:enabled:hover:bg-gray-700'
+                        )}
                       >
                         {u}
                       </button>
                     ))}
                   </div>
-                  {errors.unit && <p className="mt-1 text-xs font-bold text-rose-500">{errors.unit.message}</p>}
+                  {isUnitLocked && (
+                    <p
+                      id="ingredient-unit-locked-hint"
+                      className="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      La unidad no se puede cambiar porque el insumo ya está en recetas o en presentaciones de proveedor.
+                    </p>
+                  )}
+                  {errors.unit && (
+                    <p id="ingredient-unit-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.unit.message}
+                    </p>
+                  )}
                 </div>
 
                 <div>

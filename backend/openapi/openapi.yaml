@@ -208,6 +208,10 @@ paths:
     put:
       tags: [Insumos]
       summary: Actualizar un insumo con recálculo en cascada y alerta (solo ADMIN)
+      description: >-
+        Responde 409 si el nombre ya existe en la cuenta, o si cambia `unit` y el insumo está en al menos una
+        receta o una presentación de proveedor. En ese caso no modifica nada y el mensaje dice cuántas recetas y
+        presentaciones lo usan. El nombre y el costo se pueden editar si la unidad no cambia.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
