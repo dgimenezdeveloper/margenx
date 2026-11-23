@@ -10,7 +10,6 @@ const D = (v: string | number) => new Prisma.Decimal(v);
 const db = vi.hoisted(() => {
   const client = {
     account: { findUnique: vi.fn() },
-    cashShift: { findFirst: vi.fn() },
     product: { findMany: vi.fn() },
     sale: {
       aggregate: vi.fn(),
@@ -22,6 +21,7 @@ const db = vi.hoisted(() => {
       updateMany: vi.fn(),
     },
     $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
   };
   client.$transaction.mockImplementation((arg: unknown) =>
     typeof arg === 'function' ? (arg as (tx: typeof client) => unknown)(client) : Promise.all(arg as unknown[])
@@ -103,7 +103,8 @@ beforeEach(() => {
         : { subscriptionPlan: 'FREE', features: [{ feature: 'sales', enabled: true }] }
     )
   );
-  db.cashShift.findFirst.mockResolvedValue({ id: SHIFT_ID });
+  // Fila del turno abierto, tomada con bloqueo compartido (FOR SHARE).
+  db.$queryRaw.mockResolvedValue([{ id: SHIFT_ID, status: 'OPEN' }]);
   db.product.findMany.mockResolvedValue(productos);
   db.sale.aggregate.mockResolvedValue({ _max: { ticketNumber: 7 } });
   db.sale.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -131,7 +132,9 @@ describe('POST /api/sales (Escenario "Venta con ticket")', () => {
   it('busca productos y turno solo en la cuenta de la sesión, aunque el cliente mande otra', async () => {
     await request(buildApp()).post('/api/sales').send({ ...ventaDeMostrador, accountId: 'acc-quimica-gyj' });
 
-    expect(db.cashShift.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { accountId: ACCOUNT, status: 'OPEN' } }));
+    const [sql, ...values] = db.$queryRaw.mock.calls[0]!;
+    expect((sql as string[]).join('?')).toMatch(/"status" = 'OPEN'[\s\S]*FOR SHARE/);
+    expect(values).toEqual([ACCOUNT]);
     expect(db.product.findMany.mock.calls[0]![0].where.accountId).toBe(ACCOUNT);
     expect(db.sale.aggregate).toHaveBeenCalledWith(expect.objectContaining({ where: { accountId: ACCOUNT } }));
   });
@@ -159,7 +162,7 @@ describe('POST /api/sales (Escenario "Venta con ticket")', () => {
   });
 
   it('Escenario "Sin turno abierto": responde 409 y no registra nada', async () => {
-    db.cashShift.findFirst.mockResolvedValue(null);
+    db.$queryRaw.mockResolvedValue([]);
 
     const res = await request(buildApp()).post('/api/sales').send(ventaDeMostrador);
 
@@ -270,7 +273,7 @@ describe('POST /api/sales/:id/void', () => {
   const motivo = { reason: 'Cobré dos veces la misma venta' };
 
   beforeEach(() => {
-    db.sale.findFirst.mockResolvedValue({ id: SALE_ID, status: 'COMPLETED', soldById: CAJERA.id, cashShift: { status: 'OPEN' } });
+    db.sale.findFirst.mockResolvedValue({ id: SALE_ID, status: 'COMPLETED', soldById: CAJERA.id, cashShiftId: SHIFT_ID });
     db.sale.updateMany.mockResolvedValue({ count: 1 });
     db.sale.findFirstOrThrow.mockResolvedValue(
       ventaGuardada({ status: 'VOIDED', voidedAt: new Date('2026-11-24T13:00:00.000Z'), voidReason: motivo.reason })
@@ -290,27 +293,40 @@ describe('POST /api/sales/:id/void', () => {
   });
 
   it('el colaborador no anula la venta de otro (404) ni una de un turno cerrado (403)', async () => {
-    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'COMPLETED', soldById: 'u-otro', cashShift: { status: 'OPEN' } });
+    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'COMPLETED', soldById: 'u-otro', cashShiftId: SHIFT_ID });
     expect((await request(buildApp()).post(`/api/sales/${SALE_ID}/void`).send(motivo)).status).toBe(404);
 
-    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'COMPLETED', soldById: CAJERA.id, cashShift: { status: 'CLOSED' } });
+    db.$queryRaw.mockResolvedValueOnce([{ status: 'CLOSED' }]);
     const res = await request(buildApp()).post(`/api/sales/${SALE_ID}/void`).send(motivo);
     expect(res.status).toBe(403);
     expect(db.sale.updateMany).not.toHaveBeenCalled();
   });
 
-  it('el ADMIN anula cualquier venta de la cuenta, también de un turno cerrado', async () => {
+  it('el ADMIN anula la venta de otro usuario del turno abierto, con el turno bloqueado mientras anula', async () => {
     currentUser = ADMIN;
-    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'COMPLETED', soldById: CAJERA.id, cashShift: { status: 'CLOSED' } });
 
     const res = await request(buildApp()).post(`/api/sales/${SALE_ID}/void`).send(motivo);
 
     expect(res.status).toBe(200);
     expect(db.sale.findFirst.mock.calls[0]![0].where).toEqual({ id: SALE_ID, accountId: ACCOUNT });
+    const [sql, ...values] = db.$queryRaw.mock.calls[0]!;
+    expect((sql as string[]).join('?')).toMatch(/FOR SHARE/);
+    expect(values).toEqual([SHIFT_ID, ACCOUNT]);
+  });
+
+  it('Escenario "Turno cerrado": tampoco el ADMIN anula una venta de un turno cerrado (403)', async () => {
+    currentUser = ADMIN;
+    db.$queryRaw.mockResolvedValueOnce([{ status: 'CLOSED' }]);
+
+    const res = await request(buildApp()).post(`/api/sales/${SALE_ID}/void`).send(motivo);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/turno abierto/);
+    expect(db.sale.updateMany).not.toHaveBeenCalled();
   });
 
   it('una venta ya anulada responde 409, también si otro la anuló al mismo tiempo', async () => {
-    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'VOIDED', soldById: CAJERA.id, cashShift: { status: 'OPEN' } });
+    db.sale.findFirst.mockResolvedValueOnce({ id: SALE_ID, status: 'VOIDED', soldById: CAJERA.id, cashShiftId: SHIFT_ID });
     expect((await request(buildApp()).post(`/api/sales/${SALE_ID}/void`).send(motivo)).status).toBe(409);
 
     db.sale.updateMany.mockResolvedValueOnce({ count: 0 });

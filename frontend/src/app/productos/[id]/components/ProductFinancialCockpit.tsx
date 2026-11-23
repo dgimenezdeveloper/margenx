@@ -27,7 +27,7 @@ export function ProductFinancialCockpit({ gain, ...simulatorProps }: ProductFina
                   : 'text-rose-700 dark:text-rose-400'
             }`}
           >
-            Ganancia: {!simulatorProps.hasRecipe ? '$0' : money(gain)}
+            Ganancia: {money(simulatorProps.hasRecipe ? gain : 0)}
           </span>
         </div>
 

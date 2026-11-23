@@ -424,14 +424,17 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
-                  <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  <p className="leading-tight">
-                    <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
-                    <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
-                    exclusivamente para este producto sin alterar el resto.
-                  </p>
-                </div>
+                {/* Recién con el perfil cargado: sin el margen global, la frase quedaba a medias (#431). */}
+                {!isLoadingUser && defaultMinMarginPercent !== undefined && (
+                  <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
+                    <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <p className="leading-tight">
+                      <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
+                      <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
+                      exclusivamente para este producto sin alterar el resto.
+                    </p>
+                  </div>
+                )}
               </section>
 
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
@@ -724,7 +727,7 @@ export default function NewProductPage() {
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       )}
                     >
-                      +5%
+                      {formatPercent(5, { signed: true, minDecimals: 0 })}
                     </button>
                     <button
                       type="button"
@@ -737,7 +740,7 @@ export default function NewProductPage() {
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                       )}
                     >
-                      +10%
+                      {formatPercent(10, { signed: true, minDecimals: 0 })}
                     </button>
                     <button
                       type="button"
