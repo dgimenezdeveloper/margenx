@@ -274,7 +274,10 @@ paths:
     get:
       tags: [Productos]
       summary: Listar productos paginados
-      description: Para COLLABORATOR se purgan cost, marginAmount, marginPercent, quantity y packagePrice.
+      description: >-
+        Para COLLABORATOR se purgan cost, marginAmount, marginPercent, quantity y packagePrice, y solo se
+        devuelven productos con receta y salePrice mayor que 0: los borradores no aparecen y meta.total cuenta solo
+        esos productos.
       security: [{ bearerAuth: [] }]
       responses:
         '200': { description: Listado paginado de productos }
@@ -301,6 +304,7 @@ paths:
     get:
       tags: [Productos]
       summary: Obtener detalle de un producto y su receta
+      description: Para COLLABORATOR, un producto sin receta o con salePrice 0 responde 404, igual que uno de otra cuenta.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
