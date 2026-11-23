@@ -209,3 +209,17 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(within(primera).queryByText(/costo/i)).toBeNull()
   })
 })
+describe('MonitoredCatalogGrid sin productos a la venta (#428)', () => {
+  it('el colaborador ve "Todavía no hay productos a la venta", no un texto que le habla al dueño', () => {
+    render(<MonitoredCatalogGrid products={[]} isLoading={false} isCollaborator selectedBucket={null} onClearFilter={vi.fn()} />)
+
+    expect(screen.getByText('Todavía no hay productos a la venta.')).toBeInTheDocument()
+    expect(screen.queryByText(/Aún no tenés productos/)).toBeNull()
+  })
+
+  it('el ADMIN sigue viendo que todavía no cargó productos', () => {
+    render(<MonitoredCatalogGrid products={[]} isLoading={false} isCollaborator={false} selectedBucket={null} onClearFilter={vi.fn()} />)
+
+    expect(screen.getByText('Aún no tenés productos registrados en el catálogo.')).toBeInTheDocument()
+  })
+})
