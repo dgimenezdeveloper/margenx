@@ -1,0 +1,50 @@
+{
+  "medido": "2026-11-23T19:38:44.261Z",
+  "pagina": "dev.margenx.tech",
+  "filas": [
+    {
+      "endpoint": "/api/ingredients",
+      "variante": "sin search",
+      "pedidos": 20,
+      "medianaRespuestaMs": 52.9,
+      "medianaTotalMs": 54.1,
+      "p90TotalMs": 58.1,
+      "minTotalMs": 51.9,
+      "maxTotalMs": 63.1,
+      "encontrados": 225
+    },
+    {
+      "endpoint": "/api/ingredients",
+      "variante": "search=harina",
+      "pedidos": 20,
+      "medianaRespuestaMs": 56.1,
+      "medianaTotalMs": 57.1,
+      "p90TotalMs": 83.4,
+      "minTotalMs": 51.6,
+      "maxTotalMs": 88.4,
+      "encontrados": 23
+    },
+    {
+      "endpoint": "/api/products",
+      "variante": "sin search",
+      "pedidos": 20,
+      "medianaRespuestaMs": 51.7,
+      "medianaTotalMs": 53,
+      "p90TotalMs": 57.5,
+      "minTotalMs": 48.3,
+      "maxTotalMs": 64.4,
+      "encontrados": 343
+    },
+    {
+      "endpoint": "/api/products",
+      "variante": "search=budin",
+      "pedidos": 20,
+      "medianaRespuestaMs": 54.9,
+      "medianaTotalMs": 55.9,
+      "p90TotalMs": 59.4,
+      "minTotalMs": 48.8,
+      "maxTotalMs": 87.2,
+      "encontrados": 24
+    }
+  ]
+}
