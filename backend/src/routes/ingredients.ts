@@ -526,14 +526,38 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
   const existing = await prisma.ingredient.findFirst({
     where: { id, accountId },
-    select: { id: true, name: true, unit: true, currentCost: true },
+    select: {
+      id: true,
+      name: true,
+      unit: true,
+      currentCost: true,
+      _count: {
+        select: {
+          products: true,
+          suppliers: true,
+        },
+      },
+    },
   });
 
   if (!existing) {
     throw new AppError('Insumo no encontrado.', 404);
   }
 
+  const { _count, ...existingIngredient } = existing;
   const { name, unit, currentCost } = parseIngredientInput(req.body as IngredientInputDTO);
+
+  if (unit !== existing.unit) {
+    const recipesCount = _count?.products ?? 0;
+    const presentationsCount = _count?.suppliers ?? 0;
+    if (recipesCount > 0 || presentationsCount > 0) {
+      throw new AppError(
+        `No se puede cambiar la unidad: el insumo está en ${recipesCount} receta(s) y ${presentationsCount} presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.`,
+        409
+      );
+    }
+  }
+
   const nextCost = new Prisma.Decimal(currentCost.toString());
   const previousCostForComparison = existing.currentCost ?? new Prisma.Decimal(0);
   const hasNoActualChange =
@@ -550,7 +574,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res
 
   if (hasNoActualChange) {
     return res.status(200).json({
-      ingredient: existing,
+      ingredient: existingIngredient,
       affectedProductsCount: 0,
       affectedProducts: [],
       criticalProducts: [],
