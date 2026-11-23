@@ -276,4 +276,24 @@ describe('useRecipeStore', () => {
       expect(selectIsUnderMargin(emptyState)).toBe(false);
     });
   });
+
+  describe('Escenario "Mismo costo que la lista" (RC-12, #431)', () => {
+    const receta: RecipeItem[] = [
+      { ingredientId: 'harina-0000', name: 'Harina de trigo 0000 Olavarriense', unit: 'kg', unitCost: 868.77, quantity: 0.779 },
+      { ingredientId: 'huevo', name: 'Huevo grande', unit: 'u', unitCost: 176.17, quantity: 0.964 },
+      { ingredientId: 'leche', name: 'Leche entera larga vida Silvia', unit: 'l', unitCost: 1715, quantity: 0.723 },
+    ];
+
+    it('el costo del simulador redondea cada renglón como el backend: $2.086,55, igual que la lista', () => {
+      useRecipeStore.getState().setItems(receta);
+      expect(useRecipeStore.getState().totalCost()).toBe(2086.55);
+    });
+
+    it('el selector da el mismo costo y el margen se calcula sobre él', () => {
+      const estado: RecipeSelectorState = { items: receta, salePrice: 3000, minMarginPercent: 30 };
+      expect(selectTotalCost(estado)).toBe(2086.55);
+      expect(selectMarginAmount(estado)).toBeCloseTo(913.45, 2);
+    });
+  });
 });
+
