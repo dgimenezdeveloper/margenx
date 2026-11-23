@@ -38,7 +38,7 @@ Recomendado para arrancar rápidamente si ya tenés tu lista de precios en Excel
    - **Válidas:** filas listas para ser importadas al catálogo.
    - **Repetidas:** insumos que ya existen en tu despensa o que se repiten dentro de la misma planilla. El sistema los omite para no alterar los costos vigentes.
    - **Con error:** filas que presentan problemas de formato (ej. unidades inexistentes o costos no numéricos), indicando el número exacto de fila para que puedas corregirlas.
-6. Tocá **Importar insumos**. El sistema confirmará cuántos insumos se crearon y cuántos fueron omitidos.
+6. Tocá **Importar insumos**. Al terminar, un aviso confirma el resultado, por ejemplo *"Se cargaron 12 insumos. 2 repetidos y 1 con error."*, y la lista se actualiza.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-carga-masiva-preview.webp | Modal de carga masiva en móvil mostrando las pestañas Válidas, Repetidas y Con error con sus contadores] -->
 
@@ -59,7 +59,7 @@ Pensado para **actualizar periódicamente los costos** de insumos que ya tenés 
 
 Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad de medida o actualizar manualmente el costo:
 
-1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha de edición.
+1. En **Insumos**, tocá la tarjeta o fila del insumo para abrir la ficha **Editar insumo**.
 2. Modificá el **Nombre del insumo**. Si ingresás un nombre que ya existe en otro insumo de tu comercio (sin importar mayúsculas o minúsculas), MargenX te avisará directamente debajo del campo impidiendo guardar duplicados.
 3. Para cambiar la **Unidad de medida** (`kg`, `litro`, `unidad`): si el insumo todavía no se usa en ninguna receta ni tiene presentaciones de proveedor, podés seleccionar la nueva unidad desde la ficha. Si ya está en uso, los botones aparecen deshabilitados para proteger las cantidades de tus recetas y bultos; para usar otra unidad, sacalo primero de sus recetas y proveedores o creá un insumo nuevo.
 4. El campo **Costo unitario** se presenta con el formato monetario argentino oficial (`2.179,13`). Podés tipear el valor libremente y, al salir del campo, el sistema reacomodará los separadores de miles y decimales de forma automática.
@@ -73,7 +73,7 @@ Si necesitás corregir un error tipográfico en el nombre, rectificar la unidad 
 Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se usa en**:
 
 - Muestra la cantidad total de productos cuya receta técnica utiliza esa materia prima.
-- Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y el precio de venta vigente al público.
+- Cada producto se visualiza en una tarjeta con su nombre comercial, la cantidad requerida en su receta (ej. *Usa: 250 gr*) y, rotulado como **Precio de venta**, el precio vigente al público del producto (no es un costo).
 - Al tocar cualquier producto de la lista, navegarás directamente hacia su ficha técnica para revisar o ajustar su formulación.
 - Si el insumo no forma parte de ninguna receta, la sección te informará claramente que no está siendo utilizado en productos activos.
 - Si un insumo está en más de 100 productos, la sección muestra los primeros 100 y avisa cuántos son en total.
@@ -87,9 +87,15 @@ Al abrir la ficha de cualquier insumo existente, encontrarás la sección **Se u
 Para auditar la evolución de precios de un insumo:
 
 1. Abrí la ficha del insumo y tocá el ícono del reloj (**Historial de precios**) en la esquina superior derecha.
-2. Se desplegará la línea de tiempo con cada variación registrada (costo anterior, costo nuevo, porcentaje de aumento o disminución y fecha exacta).
+2. Se desplegará la línea de tiempo con cada variación registrada (costo anterior, costo nuevo, porcentaje de aumento o disminución y fecha exacta). Cada costo dice por qué unidad es (por ejemplo, *$900,00/kg*): es la unidad actual del insumo, porque el historial no guarda la de cada cambio. Si cambiaste la unidad, los costos anteriores a ese cambio son de la unidad vieja.
 3. **Orden cronológico:** La lista muestra por defecto el cambio más reciente en primer lugar.
 4. Con el botón **Más recientes / Más antiguos**, podés alternar el orden de visualización según tu preferencia de análisis.
+
+---
+
+## Tarjeta "Variaciones recientes"
+
+Arriba de la lista, el Administrador ve cuántos precios de proveedores están retenidos en la cuarentena. Si esa consulta falla (por ejemplo, sin conexión), la tarjeta dice **No se pudo cargar** y ofrece **Reintentar**, en lugar de mostrar un 0 que parecería un dato. El Colaborador no ve esta tarjeta.
 
 ---
 
@@ -120,8 +126,9 @@ Si ingresás un formato ambiguo o texto con letras (como `1.2.3` o `abc`), el si
 
 ---
 
-## Proveedor Predeterminado
+## Presentación predeterminada
 
-Cuando asocies empaques de proveedores a tus insumos, tené en cuenta lo siguiente:
-- Solo un proveedor puede ser el **predeterminado** para cada insumo. El costo de este proveedor es el que se usará para calcular tus recetas.
-- Para proteger tus costos, **no podés quitar el proveedor predeterminado sin elegir otro**. Si querés cambiar de proveedor, simplemente marcá el nuevo como predeterminado y el sistema se encargará de desmarcar el anterior y recalcular tus productos automáticamente.
+En la ficha del insumo, la sección **Proveedores y presentaciones** lista lo que te vende cada proveedor. Con **Asociar otra presentación** cargás una nueva: el proveedor, el tamaño del bulto, el **precio del bulto** y, si querés, el **código de artículo** con que figura en su lista de precios (por ejemplo, `MC-990`); con ese código, las listas del proveedor actualizan el precio solas. Tené en cuenta lo siguiente:
+- Solo una presentación puede ser la **predeterminada** de cada insumo (la marca la **estrella llena**). Su costo por unidad es el que se usa para calcular tus recetas.
+- Para cambiarla, tocá la **estrella vacía** (**Usar como predeterminada**) de otra presentación: MargenX te pide confirmación con el costo nuevo y, al confirmar, desmarca la anterior y recalcula tus productos.
+- Para proteger tus costos, **no podés quitar la presentación predeterminada sin elegir otra**.

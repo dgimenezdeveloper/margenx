@@ -1,6 +1,6 @@
 # API REST — Contratos, Límites, Seguridad y Códigos HTTP
 
-Esta especificación constituye la fuente única de verdad para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
+Esta guía narrativa constituye el contrato histórico de referencia para el Frontend, las automatizaciones de n8n y las suites automatizadas de Postman/Newman (`backend/tests/postman/`). Desde esta entrega, `backend/openapi/openapi.yaml` es la referencia OpenAPI 3.1 para esquemas y operaciones. Explorá la documentación interactiva Swagger UI en [`/api/docs`](https://api-dev.margenx.tech/api/docs) y obtené el contrato JSON en [`/api/docs/openapi.json`](https://api-dev.margenx.tech/api/docs/openapi.json). Las rutas de la aplicación requieren autenticación mediante cabecera `Authorization: Bearer <JWT>` emitido por Clerk; los endpoints satélite usan autenticación por secreto criptográfico.
 
 ---
 
@@ -30,7 +30,7 @@ Esta especificación constituye la fuente única de verdad para el Frontend, las
 - `404 Not Found`: Recurso inexistente o perteneciente a otra cuenta comercial.
 - `409 Conflict`: Violación de unicidad de nombre (case-insensitive) o de protección referencial.
 - `413 Payload Too Large`: Cuerpo de solicitud superior a la cuota permitida o más de 500 filas en carga masiva.
-- `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar el proveedor predeterminado sin asignar un reemplazo).
+- `422 Unprocessable Entity`: Violación de regla de negocio (ej. quitar la presentación predeterminada sin elegir otra).
 - `500 Internal Server Error`: Excepción no controlada en servidor.
 - `502 Bad Gateway`: Falló un servicio externo del que depende la operación (hoy, la Backend API de Clerk al invitar, revocar o dar de baja). La operación no se aplicó y se puede reintentar.
 - `503 Service Unavailable`: Un servicio satélite necesario para completar la solicitud (como el generador de PDF en n8n) no respondió o está deshabilitado.
@@ -734,7 +734,7 @@ Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 For
 - `GET /api/reports/weekly`: devuelve el reporte como JSON.
 - `GET /api/reports/weekly.pdf`: envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día en `America/Argentina/Buenos_Aires`. También envía `Cache-Control: private, no-store` y `Access-Control-Expose-Headers: Content-Disposition`: la app y la API se publican en orígenes distintos, y sin esa cabecera el navegador no deja que la app lea el nombre del archivo. Si n8n no está configurado, falla, expira o devuelve un PDF vacío, responde `503` con un mensaje genérico, sin detalles internos.
 
-El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
+El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. **Ventas de la semana:** si la cuenta tiene el módulo de ventas (ADR-010), el reporte suma `sales` con la ganancia real del mismo período (`salesCount`, `salesTotal`, `costTotal`, `profit`, `marginPercent` y los rankings `topSold` y `topProfit`, con la forma de `GET /api/sales/summary` de §12). Sin el módulo, el campo no viene y el PDF no tiene la sección. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
 
 ## 12. Módulo de Ventas y Caja (`/api/sales` y `/api/cash-shifts`)
 
@@ -790,6 +790,33 @@ Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). 
 - **Alcance:** el ADMIN ve las ventas de toda la cuenta; el colaborador, solo las que registró él.
 - **Respuesta 200 OK:** `{ "data": [{ "id", "ticketNumber", "soldAt", "paymentMethod", "total", "status", "cashShiftId", "itemsCount" }], "meta": { "total", "page", "limit", "totalPages" } }`. Sin costos para ningún rol.
 - **Errores:** `400` `"La fecha tiene que tener el formato AAAA-MM-DD."` · `400` `"El turno indicado no es válido."`
+
+### `GET /api/sales/summary` — Ganancia real (solo ADMIN)
+
+- **Query:** `period` = `day` (hoy), `week` (hoy y los 6 días anteriores, la misma ventana del reporte semanal) o `month` (hoy y los 29 anteriores). Por defecto, `week`. Días calendario de Argentina (UTC−3).
+- **Regla:** ventas menos el **costo congelado** de cada renglón, y el **margen ponderado por lo vendido** (ganancia / ventas × 100, sobre la venta como en ADR-004), con `Prisma.Decimal` y `ROUND_HALF_UP`. **Sin las ventas anuladas.** El período anterior tiene el mismo largo y termina donde empieza el actual.
+- **Respuesta 200 OK:**
+  ```json
+  {
+    "period": "week",
+    "from": "2026-11-18",
+    "to": "2026-11-24",
+    "salesCount": 41,
+    "salesTotal": "100000.00",
+    "costTotal": "62000.00",
+    "profit": "38000.00",
+    "marginPercent": "38.00",
+    "previous": { "from": "2026-11-11", "to": "2026-11-17", "salesCount": 35, "salesTotal": "80000.00", "costTotal": "52000.00", "profit": "28000.00", "marginPercent": "35.00" },
+    "change": { "salesTotal": "25.00", "profit": "35.71" },
+    "topSold": [{ "productId": "<uuid>", "productName": "Pan flauta — 1 kg", "quantity": 80, "salesTotal": "346571.20", "profit": "145571.20", "marginPercent": "42.00" }],
+    "topProfit": [{ "productId": "<uuid>", "productName": "Medialunas de manteca — docena (12 unidades)", "quantity": 30, "salesTotal": "405000.00", "profit": "273000.00", "marginPercent": "67.41" }]
+  }
+  ```
+  - `marginPercent`: `null` si no hubo ventas (nunca divide por cero).
+  - `change`: variación porcentual de las ventas y de la ganancia contra el período anterior; `null` si el anterior fue 0.
+  - `topSold` (por unidades) y `topProfit` (por ganancia): 5 productos cada uno. Un producto dado de baja aparece con `productId: null` y el nombre guardado en la venta.
+- **Errores:** `400` `"El período tiene que ser day, week o month."` · `403` para el colaborador.
+- **Pruebas:** colección `MargenX - Ventas API`, `backend/src/routes/salesSummaryRoutes.test.ts` y `backend/src/services/salesSummaryService.test.ts`.
 
 ### `GET /api/sales/:id` — Detalle y ticket
 

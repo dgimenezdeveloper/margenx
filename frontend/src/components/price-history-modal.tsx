@@ -4,13 +4,15 @@ import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { ingredientService, type PriceHistory } from '@/services/ingredientService'
 import { EmptyState } from '@/components/empty-state'
 import { Dialog, DialogPortal, DialogBackdrop, DialogSheet, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
-import { formatMoney, formatPercent } from '@/lib/format'
+import { formatMoney, formatPercent, formatUnit } from '@/lib/format'
 
 interface PriceHistoryModalProps {
   isOpen: boolean
   onClose: () => void
   ingredientId: string
   ingredientName: string
+  /** Unidad actual del insumo: el historial no la guarda por registro (#433, RC-09). */
+  ingredientUnit?: string
 }
 
 const money = (val: number) => formatMoney(val)
@@ -27,7 +29,8 @@ const formatDate = (isoString: string) => {
   }).format(date)
 }
 
-export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientName }: PriceHistoryModalProps) {
+export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientName, ingredientUnit }: PriceHistoryModalProps) {
+  const perUnit = (value: number) => (ingredientUnit ? `${money(value)}/${formatUnit(ingredientUnit)}` : money(value))
   const getToken = useTokenGetter()
   const [history, setHistory] = useState<PriceHistory[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -151,14 +154,14 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
                           <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase text-gray-400">Anterior</span>
                             <span className="text-sm font-semibold text-gray-500 line-through dark:text-gray-400">
-                              {money(entry.oldCost)}
+                              {perUnit(entry.oldCost)}
                             </span>
                           </div>
 
                           <div className="flex flex-col items-end">
                             <span className="text-[10px] font-bold uppercase text-gray-400">Nuevo</span>
                             <span className="text-base font-black text-gray-900 dark:text-white">
-                              {money(entry.newCost)}
+                              {perUnit(entry.newCost)}
                             </span>
                           </div>
                         </div>

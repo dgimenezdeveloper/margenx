@@ -39,11 +39,17 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-const mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string } = {
+const mockUser: { id: string; role: 'ADMIN' | 'COLLABORATOR'; email: string; features: { sales: boolean } } = {
   id: 'u1',
   role: 'ADMIN',
   email: 'admin@panaderia.com',
+  features: { sales: false },
 }
+
+// La tarjeta de ganancia real tiene su propia prueba: acá solo importa si aparece o no.
+vi.mock('./components/RealProfitCard', () => ({
+  RealProfitCard: () => <section aria-label="Ganancia real" />,
+}))
 
 vi.mock('@/lib/useCurrentUser', () => ({
   useCurrentUser: () => ({
@@ -329,3 +335,36 @@ describe('DashboardPage: descarga del reporte semanal (#392)', () => {
     expect(screen.queryByRole('button', { name: /descargar reporte/i })).toBeNull()
   })
 })
+
+describe('DashboardPage - tarjeta "Ganancia real" (#450)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser.role = 'ADMIN'
+    mockUser.features = { sales: true }
+    vi.mocked(dashboardService.getMetrics).mockResolvedValue({
+      activeIngredientsCount: 0, criticalProductsCount: 0, healthyProductsCount: 0, averageMarginPercent: 0,
+      recentCostVariationsCount: 0, lossCount: 0, riskCount: 0, targetCount: 0, surplusCount: 0, draftCount: 0,
+    } as never)
+    vi.mocked(productService.getAll).mockResolvedValue([])
+  })
+
+  it('el ADMIN con el módulo de ventas ve la tarjeta', async () => {
+    render(<DashboardPage />)
+    expect(await screen.findByRole('region', { name: 'Ganancia real' })).toBeInTheDocument()
+  })
+
+  it('sin el módulo de ventas no aparece', async () => {
+    mockUser.features = { sales: false }
+    render(<DashboardPage />)
+    await waitFor(() => expect(dashboardService.getMetrics).toHaveBeenCalled())
+    expect(screen.queryByRole('region', { name: 'Ganancia real' })).toBeNull()
+  })
+
+  it('Escenario "Colaborador sin ganancia": el colaborador no la ve aunque el módulo esté prendido', async () => {
+    mockUser.role = 'COLLABORATOR'
+    render(<DashboardPage />)
+    await waitFor(() => expect(productService.getAll).toHaveBeenCalled())
+    expect(screen.queryByRole('region', { name: 'Ganancia real' })).toBeNull()
+  })
+})
+

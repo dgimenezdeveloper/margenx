@@ -63,7 +63,7 @@ export function Pagination({
             id={selectId}
             value={limit}
             onChange={(event) => onLimitChange(Number(event.target.value))}
-            className="h-11 cursor-pointer rounded-xl border border-gray-200 bg-white px-3 font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            className="h-11 cursor-pointer rounded-xl border border-gray-200 bg-white px-3 font-bold text-gray-900 outline-none transition hover:bg-gray-50 focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:[color-scheme:dark] dark:hover:bg-gray-800"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>

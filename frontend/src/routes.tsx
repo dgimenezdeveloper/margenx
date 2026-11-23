@@ -18,6 +18,7 @@ import SalesHistoryPage from './app/ventas/page'
 import NewSalePage from './app/ventas/nueva/page'
 import SaleTicketPage from './app/ventas/[id]/ticket/page'
 import CashShiftsPage from './app/ventas/turnos/page'
+import RealProfitPage from './app/ventas/ganancia/page'
 import CashShiftSummaryPage from './app/ventas/turnos/[id]/page'
 import CloseCashShiftPage from './app/ventas/turnos/[id]/cerrar/page'
 import NotFoundPage from './app/not-found/page'
@@ -140,6 +141,19 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <FeatureRoute feature="sales">
           <SaleTicketPage />
+        </FeatureRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    // Ganancia real: datos financieros, solo para el ADMIN (especificación §8 y ADR-010).
+    path: '/ventas/ganancia',
+    element: (
+      <ProtectedRoute>
+        <FeatureRoute feature="sales">
+          <AdminOnlyRoute>
+            <RealProfitPage />
+          </AdminOnlyRoute>
         </FeatureRoute>
       </ProtectedRoute>
     ),

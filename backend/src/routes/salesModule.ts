@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Response } from 'express';
 import { authMiddleware, type AuthenticatedRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { requireFeature } from '../lib/features';
+import { requireRole } from '../middlewares/rbac';
 import { prisma } from '../lib/prisma';
 import {
   closeShift,
@@ -13,6 +14,7 @@ import {
   parseOpeningAmount,
   parseShiftListQuery,
 } from '../services/cashShiftService';
+import { getSalesSummary, parseSummaryPeriod } from '../services/salesSummaryService';
 import {
   createSale,
   findSale,
@@ -72,6 +74,17 @@ salesRouter.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const actor = actorOf(req);
   const query = parseSaleListQuery(req.query as Record<string, unknown>);
   return res.status(200).json(await listSales(actor, query));
+});
+
+/**
+ * Ganancia real (solo ADMIN): ventas, costo congelado, ganancia y margen ponderado del
+ * período, con la comparación y los rankings. Va antes de `/:id` para que "summary" no
+ * se tome como el id de una venta.
+ */
+salesRouter.get('/summary', requireRole(['ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
+  const actor = actorOf(req);
+  const period = parseSummaryPeriod(req.query as Record<string, unknown>);
+  return res.status(200).json(await getSalesSummary(actor.accountId, period));
 });
 
 salesRouter.get('/:id', async (req: AuthenticatedRequest, res: Response) => {

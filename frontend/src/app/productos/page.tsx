@@ -15,6 +15,7 @@ import { Pagination } from '@/components/pagination'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useToast } from '@/hooks/useToast'
 import { ADMIN_ONLY_NOTICE, isAdminOnlyRedirectState } from '@/lib/adminOnlyRedirect'
+import { isProductNoticeState } from '@/lib/productNotice'
 import { MarginBadge } from '@/components/MarginBadge'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import type { PageParams } from '@/services/pagination'
@@ -34,9 +35,15 @@ export default function ProductsPage() {
 
   // Un colaborador que abrió una pantalla del administrador llega acá desde AdminOnlyRoute (#364).
   // El aviso se muestra una vez y se limpia el estado del historial para que recargar no lo repita.
+  // Lo mismo con el aviso de crear o eliminar un producto, que llega desde el formulario o la ficha (#432).
   useEffect(() => {
-    if (!isAdminOnlyRedirectState(location.state)) return
-    notify(ADMIN_ONLY_NOTICE.title, 'info', ADMIN_ONLY_NOTICE.description)
+    if (isAdminOnlyRedirectState(location.state)) {
+      notify(ADMIN_ONLY_NOTICE.title, 'info', ADMIN_ONLY_NOTICE.description)
+    } else if (isProductNoticeState(location.state)) {
+      notify(location.state.productNotice.title, location.state.productNotice.type)
+    } else {
+      return
+    }
     navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
   }, [location.state, location.pathname, location.search, navigate, notify])
 

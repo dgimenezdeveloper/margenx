@@ -118,7 +118,7 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     expect(items).toHaveLength(4)
 
     expect(within(items[0]).getByText('Harina de trigo 000')).toBeInTheDocument()
-    expect(within(items[0]).getByText('SKU: HAR188')).toBeInTheDocument()
+    expect(items[0]).toHaveTextContent('HAR188')
     expect(within(items[0]).getByText('$18.406,25')).toBeInTheDocument()
 
     expect(within(items[1]).getByText('Harina de trigo 0000')).toBeInTheDocument()
@@ -169,10 +169,10 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     // Regresión [RV341-B1]: comprobar que las demás presentaciones predeterminadas conservan su estado
     const list = screen.getByRole('list', { name: 'Presentaciones mayoristas' })
     const items = within(list).getAllByRole('listitem')
-    expect(within(items[0]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[1]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[2]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[3]).queryByText('Predeterminada')).toBeNull()
+    expect(within(items[0]).getByRole('img', { name: 'Presentación predeterminada' })).toBeInTheDocument()
+    expect(within(items[1]).getByRole('img', { name: 'Presentación predeterminada' })).toBeInTheDocument()
+    expect(within(items[2]).getByRole('img', { name: 'Presentación predeterminada' })).toBeInTheDocument()
+    expect(within(items[3]).queryByRole('img', { name: 'Presentación predeterminada' })).toBeNull()
   })
 
   it('Escenario Gherkin "Código repetido": error 409 se muestra en el campo y no se guarda', async () => {
@@ -213,6 +213,9 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     await user.click(screen.getByRole('button', { name: 'Quitar presentación de Harina de trigo 000' }))
 
     expect(screen.getByRole('dialog')).toHaveTextContent('¿Quitar presentación de Harina de trigo 000?')
+    // #434: el modal no repite la presentación ni el precio, y Cancelar tiene hover en modo oscuro.
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('$18.406,25')
+    expect(screen.getByRole('button', { name: 'Cancelar' }).className).toContain('dark:hover:bg-gray-700')
     await user.click(screen.getByRole('button', { name: 'Sí, quitar' }))
 
     expect(
@@ -241,7 +244,13 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     renderPage()
 
     await screen.findByRole('heading', { level: 1, name: 'Distribuidora MarJuanC Alimentos' })
-    await user.click(screen.getByRole('button', { name: 'Hacer predeterminada' }))
+    await user.click(screen.getByRole('button', { name: /Usar como predeterminada la presentación de Manteca/ }))
+
+    // Escenario "Confirmación" (#434): antes de cambiar el costo, pide confirmación.
+    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
+    expect(supplierService.addPackaging).not.toHaveBeenCalled()
+    expect(dialog).toHaveTextContent('Manteca en bloque mayorista')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar cambio' }))
 
     await waitFor(() => {
       expect(supplierService.addPackaging).toHaveBeenCalledWith(
@@ -260,10 +269,9 @@ describe('SupplierDetailPage (/proveedores/:id) — Escenarios Gherkin', () => {
     // Regresión [RV341-B1]: Manteca se vuelve predeterminada sin desmarcar a Harina 000, Harina 0000 ni Azúcar
     const list = screen.getByRole('list', { name: 'Presentaciones mayoristas' })
     const items = within(list).getAllByRole('listitem')
-    expect(within(items[0]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[1]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[2]).getByText('Predeterminada')).toBeInTheDocument()
-    expect(within(items[3]).getByText('Predeterminada')).toBeInTheDocument()
+    for (const item of items) {
+      expect(within(item).getByRole('img', { name: 'Presentación predeterminada' })).toBeInTheDocument()
+    }
   })
 
   it('muestra estado de error con botón Reintentar si falla la carga inicial', async () => {

@@ -330,4 +330,80 @@ describe('IngredientUpsertSheet - Criterios de Aceptación Issue #354', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(serverMessage)
   })
+  describe('textos de la ficha (#433)', () => {
+    const props = {
+      newOpen: false,
+      showDeleteConfirm: false,
+      isCollaborator: false,
+      onSubmit: vi.fn(),
+      onRequestClose: vi.fn(),
+      onRequestDelete: vi.fn(),
+      onDeleteConfirm: vi.fn(),
+      onCancelDelete: vi.fn(),
+      onOpenHistory: vi.fn(),
+      onOpenPackaging: vi.fn(),
+      onEditConnection: vi.fn(),
+      onMakeDefault: vi.fn(),
+      register: vi.fn() as never,
+      setValue: vi.fn() as never,
+      errors: {},
+      selectedUnit: 'kg' as const,
+      money: (v: number) => `$${v}`,
+      onNumericKeyDown: vi.fn(),
+      onDecimalChange: vi.fn(),
+      isLoadingProducts: false,
+    }
+
+    it('RC-09: al editar se llama "Editar insumo" y guarda con "Guardar cambios"; en el alta, "Nuevo insumo"', () => {
+      const { unmount } = render(
+        <MemoryRouter>
+          <IngredientUpsertSheet {...props} selected={mockIngredient} usedProducts={[]} />
+        </MemoryRouter>
+      )
+      expect(screen.getByRole('heading', { name: 'Editar insumo' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+      expect(screen.queryByText('Actualizar Costo')).toBeNull()
+      unmount()
+
+      render(
+        <MemoryRouter>
+          <IngredientUpsertSheet {...props} selected={null} newOpen usedProducts={[]} />
+        </MemoryRouter>
+      )
+      expect(screen.getByRole('heading', { name: 'Nuevo insumo' })).toBeInTheDocument()
+    })
+
+    it('RC-08: en "Se usa en", el monto dice que es el precio de venta del producto', () => {
+      const medialunas: IngredientProductUsage = {
+        id: 'prod-medialunas',
+        name: 'Medialunas de manteca, docena',
+        quantity: 0.6,
+        salePrice: 13500,
+        cost: 4200,
+        marginAmount: 9300,
+        marginPercent: 68.89,
+        minMarginPercent: 40,
+        marginStatus: 'surplus',
+        updatedAt: '2026-11-20T12:00:00.000Z',
+      }
+      render(
+        <MemoryRouter>
+          <IngredientUpsertSheet {...props} selected={mockIngredient} usedProducts={[medialunas]} />
+        </MemoryRouter>
+      )
+
+      const enlace = screen.getByRole('link', { name: /Medialunas de manteca/ })
+      expect(enlace).toHaveTextContent('Precio de venta')
+      expect(enlace).toHaveTextContent('$13500')
+    })
+
+    it('el campo de nombre no se pone blanco al enfocarlo en modo oscuro', () => {
+      render(
+        <MemoryRouter>
+          <IngredientUpsertSheet {...props} selected={mockIngredient} usedProducts={[]} />
+        </MemoryRouter>
+      )
+      expect(screen.getByLabelText('Nombre del insumo').className).toContain('dark:focus:bg-gray-800')
+    })
+  })
 })

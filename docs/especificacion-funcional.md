@@ -132,7 +132,7 @@ Ejemplo: bolsa de 25 kg a $18.406,25 → $736,25 por kg.
 
 ### Reglas vigentes
 
-- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada ("Hacer predeterminado" en la ficha del insumo). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). La justificación y el comportamiento ante ediciones manuales están formalizados en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
+- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada (la estrella **Usar como predeterminada** en la ficha del insumo, en la del proveedor o en Compras, siempre con confirmación). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). La justificación y el comportamiento ante ediciones manuales están formalizados en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
 - Si el administrador edita a mano el costo de un insumo que tiene presentación predeterminada, la próxima actualización de precio de esa presentación lo reemplaza (ADR-005).
 - **Unidad de medida fija cuando el insumo está en uso:** No se permite modificar la unidad de medida (`kg`, `l`, `u`) de un insumo que forme parte de al menos una receta o tenga al menos una presentación de proveedor asociada (la API responde `409 Conflict` y la UI deshabilita la selección explicando el motivo). El nombre y el costo continúan siendo editables.
 - **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo (restricción `@@unique([supplierId, ingredientId])`).
@@ -429,7 +429,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 
 ## 13. Ventas, caja y ganancia real (módulo opcional)
 
-**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos, la venta con ticket y la caja por turnos están *Disponibles*. La ganancia real está *Planificada* para el Sprint 7. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
+**Fuente:** ADR-010. **Estado:** el control de módulos, el modelo de datos, la venta con ticket, la caja por turnos y la ganancia real están *Disponibles*. En la v1.0.0, solo la cuenta Demo tiene el módulo: el 28/11/2026 se decide si se muestra en producción.
 
 ### El problema
 
@@ -475,6 +475,15 @@ MargenX calcula el margen **teórico** de cada producto (precio contra costo de 
 - **Varios vendedores:** todos los usuarios de la cuenta venden en el único turno abierto, y el arqueo es del turno (la caja), no de cada vendedor. Para un arqueo por persona, cada una abre y cierra su propio turno, uno después del otro.
 - **Planificado para la v1.1:** movimientos de caja (gastos y retiros con su motivo, que entran en lo esperado) y el fondo del turno siguiente precargado con lo que quedó. Hasta entonces, un gasto pagado con la caja aparece como faltante en el arqueo.
 - **Fase 2:** el mail con el resumen del cierre al dueño (n8n), y el arqueo por cajero o varias cajas abiertas a la vez si los comercios piloto lo piden.
+
+### Ganancia real · *Disponible*
+
+- **Qué es:** lo que se vendió menos lo que costó cada producto el día de la venta (el costo congelado de cada renglón), y el margen ponderado por lo vendido (ganancia / ventas). No reemplaza al margen teórico de cada producto: lo complementa. Sin las ventas anuladas.
+- **Solo para el ADMIN** (§8): el colaborador no la ve en el panel ni en la API.
+- **Panel:** la tarjeta "Ganancia real" muestra hoy y la semana, con la cantidad de ventas, lo vendido y el margen, y enlaza al detalle. Aparece solo con el módulo de ventas prendido.
+- **Detalle** (`/ventas/ganancia`): hoy, la semana (hoy y los 6 días anteriores) o el mes (hoy y los 29 anteriores), en días de Argentina; ventas, costo, ganancia y margen; la comparación de la ganancia con el período anterior; y los 5 productos más vendidos y los 5 que más ganancia dejan.
+- **Reporte semanal** (ADR-009): con el módulo prendido, el PDF suma la sección "Ventas de la semana" y el mail, la ganancia real de la semana. Sin el módulo, no aparecen.
+- Contrato: `docs/api.md` §11 y §12. Detalle para el usuario: `docs/manual-usuario/09-ventas.md`.
 
 ### Fuera del módulo (Fase 2)
 

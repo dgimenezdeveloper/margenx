@@ -133,7 +133,7 @@ export function IngredientUpsertSheet({
                     {selected ? selected.name : 'Despensa'}
                   </p>
                   <DialogTitle className="mt-1 text-2xl">
-                    {selected ? 'Actualizar Costo' : 'Nuevo Insumo'}
+                    {selected ? 'Editar insumo' : 'Nuevo insumo'}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
                     {selected
@@ -196,7 +196,7 @@ export function IngredientUpsertSheet({
                     aria-invalid={!!errors.name}
                     aria-describedby={errors.name ? 'ingredient-name-error' : undefined}
                     className={cn(
-                      'mt-2 h-12 w-full rounded-2xl border bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500',
+                      'mt-2 h-12 w-full rounded-2xl border bg-gray-50 px-4 text-sm font-semibold text-gray-900 outline-none transition focus:bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-800',
                       errors.name
                         ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:border-rose-500/70'
                         : 'border-gray-200 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-gray-700 dark:focus:border-indigo-500'
@@ -345,8 +345,9 @@ export function IngredientUpsertSheet({
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className="font-semibold text-gray-900 dark:text-white">
-                                    {money(Number(prod.salePrice) || 0)}
+                                  <span className="text-right">
+                                    <span className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400">Precio de venta</span>
+                                    <span className="font-semibold text-gray-900 dark:text-white">{money(Number(prod.salePrice) || 0)}</span>
                                   </span>
                                   <ChevronRight className="size-4 text-gray-400" aria-hidden="true" />
                                 </div>
@@ -379,7 +380,7 @@ export function IngredientUpsertSheet({
                   type="submit"
                   className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition"
                 >
-                  {selected ? 'Guardar Costo' : 'Crear Insumo'}
+                  {selected ? 'Guardar cambios' : 'Crear Insumo'}
                 </button>
               </div>
             </form>

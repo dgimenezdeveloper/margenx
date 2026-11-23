@@ -13,7 +13,6 @@ import {
   DialogPortal,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { formatPackage, formatPackagePrice } from '@/lib/supplierDisplay'
 import { ApiError } from '@/services/api'
 import { supplierService, type SupplierPresentation } from '@/services/supplierService'
 
@@ -81,7 +80,7 @@ export function PresentationDeleteDialog({
                 ¿Quitar presentación de {presentation.ingredient.name}?
               </DialogTitle>
               <DialogDescription className="mt-1 text-xs">
-                {formatPackage(presentation.packageSize, presentation.packageUnit)} · {formatPackagePrice(presentation.packagePrice)}
+                El insumo deja de tener esta presentación de este proveedor.
               </DialogDescription>
             </div>
           </div>
@@ -104,7 +103,7 @@ export function PresentationDeleteDialog({
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
             <DialogClose
               disabled={isDeleting}
-              className="min-h-11 flex-1 cursor-pointer rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              className="min-h-11 flex-1 cursor-pointer rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               Cancelar
             </DialogClose>

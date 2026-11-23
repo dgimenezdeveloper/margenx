@@ -181,7 +181,7 @@ describe('QuarantineList', () => {
     const releaseButtons = screen.getAllByText('Liberar')
     fireEvent.click(releaseButtons[1]) // q2 no es default
 
-    expect(screen.getByText(/no afectará las recetas porque no es el proveedor predeterminado/i)).toBeInTheDocument()
+    expect(screen.getByText(/no afectará las recetas porque no es la presentación predeterminada/i)).toBeInTheDocument()
   })
 
   describe('Escenario Gherkin: error al liberar o rechazar', () => {

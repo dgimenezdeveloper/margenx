@@ -88,6 +88,7 @@ export function SupplierPackagingModal({
       packageSize: existingConnection ? String(existingConnection.packageSize) : '',
       packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
       isDefault: existingConnection?.isDefault || false,
+      supplierCode: existingConnection?.supplierCode ?? '',
     },
   })
 
@@ -109,6 +110,7 @@ export function SupplierPackagingModal({
       packageSize: existingConnection ? String(existingConnection.packageSize) : '',
       packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
       isDefault: existingConnection?.isDefault || false,
+      supplierCode: existingConnection?.supplierCode ?? '',
     })
     onClose()
   }, [existingConnection, onClose, reset])
@@ -128,6 +130,7 @@ export function SupplierPackagingModal({
         packageSize: existingConnection ? String(existingConnection.packageSize) : '',
         packagePrice: existingConnection ? String(existingConnection.packagePrice) : '',
         isDefault: existingConnection?.isDefault || false,
+        supplierCode: existingConnection?.supplierCode ?? '',
       })
     }
   }, [isOpen, existingConnection, reset])
@@ -206,7 +209,7 @@ export function SupplierPackagingModal({
 
   const onSubmit = async (data: SupplierPackagingFormValues) => {
     if (existingConnection?.isDefault && !data.isDefault) {
-      setErrorBanner('No podés quitar el proveedor predeterminado sin asignar otro. Marcá otro proveedor como predeterminado para reemplazarlo.')
+      setErrorBanner('No podés quitar la presentación predeterminada sin elegir otra. Marcá otra como predeterminada para reemplazarla.')
       return
     }
 
@@ -220,6 +223,8 @@ export function SupplierPackagingModal({
         packageUnit: normalizedBaseUnit,
         packagePrice: data.packagePrice,
         isDefault: data.isDefault,
+        // Al editar, el campo viene con el código que tenía: si no se mandara, el backend lo borraría.
+        supplierCode: data.supplierCode?.trim() ? data.supplierCode.trim() : null,
       })
 
       const finalCost =
@@ -483,7 +488,7 @@ export function SupplierPackagingModal({
                     htmlFor="package-price-input"
                     className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    Precio total del bulto ($)
+                    Precio del bulto ($)
                   </label>
                   <NumericInput
                     id="package-price-input"
@@ -502,6 +507,34 @@ export function SupplierPackagingModal({
                   {errors.packagePrice && (
                     <p id="package-price-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
                       {errors.packagePrice.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="package-code-input" className="mb-1 block text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Código de artículo <span className="font-normal text-gray-500 dark:text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    id="package-code-input"
+                    type="text"
+                    autoComplete="off"
+                    maxLength={64}
+                    {...register('supplierCode')}
+                    placeholder="Ej. MC-990"
+                    aria-invalid={!!errors.supplierCode}
+                    aria-describedby={errors.supplierCode ? 'package-code-error' : 'package-code-help'}
+                    className={`min-h-11 h-12 w-full rounded-2xl border bg-gray-50 px-4 font-mono text-sm text-gray-900 outline-none transition focus:border-indigo-600 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-gray-800 ${
+                      errors.supplierCode ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
+                    } ${CANONICAL_FOCUS_CLASSES}`}
+                  />
+                  {errors.supplierCode ? (
+                    <p id="package-code-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
+                      {errors.supplierCode.message}
+                    </p>
+                  ) : (
+                    <p id="package-code-help" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      El código con que el proveedor identifica el artículo en su lista de precios.
                     </p>
                   )}
                 </div>
@@ -572,11 +605,11 @@ export function SupplierPackagingModal({
                   />
                   <div className="text-xs">
                     <span className="font-bold text-gray-900 dark:text-white">
-                      Marcar como proveedor predeterminado
+                      Usar como presentación predeterminada
                     </span>
                     <p className="mt-0.5 text-gray-500 dark:text-gray-400">
                       {existingConnection?.isDefault && !watchedIsDefault
-                        ? <span className="text-rose-500 font-bold">No podés quitar el predeterminado. Marcá otro proveedor para reemplazarlo.</span>
+                        ? <span className="text-rose-500 font-bold">No podés quitar la presentación predeterminada. Marcá otra para reemplazarla.</span>
                         : watchedIsDefault
                         ? `Se actualizará el costo unitario de "${ingredient.name}" al valor calculado (${
                             calculatedUnitCost !== null
@@ -607,7 +640,7 @@ export function SupplierPackagingModal({
                   ) : (
                     <Sparkles className="size-4" />
                   )}
-                  {isSubmitting ? 'Guardando...' : existingConnection ? 'Actualizar Empaque' : 'Asociar Empaque'}
+                  {isSubmitting ? 'Guardando...' : existingConnection ? 'Guardar presentación' : 'Asociar presentación'}
                 </button>
               </div>
             </form>

@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test'
  * predeterminada la presentación de Distribuidora MarJuanC Alimentos y una segunda presentación,
  * más barata por kg, en Distribuidora Mayorista Molinera. Por eso la harina aparece bajo Molinera.
  *
- * Solo lectura: no se toca "Hacer predeterminada" (cambiaría el costo vigente que usan
+ * Solo lectura: no se toca "Usar como predeterminada" (cambiaría el costo vigente que usan
  * cascade-recalculation y margin-recalculation) y POST /api/purchasing/order-preview no persiste nada.
  */
 
