@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import type { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import * as marginCalculator from '../services/marginCalculator';
 
 const authMiddlewareMock = vi.fn((req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   const role = (req.headers['x-role'] as string | undefined) === 'COLLABORATOR' ? 'COLLABORATOR' : 'ADMIN';
@@ -1483,6 +1484,112 @@ describe('PUT /api/ingredients/:id', () => {
       .send({ name: 'Harina', unit: 'kg', currentCost: '10' });
 
     expect(productUpdateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('responde 409 si cambia unit de "kg" a "l" y el insumo tiene recetas, sin modificar ni recalcular', async () => {
+    const applySpy = vi.spyOn(marginCalculator, 'applyIngredientCostChange');
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('736.25'),
+      _count: { products: 2, suppliers: 0 },
+    });
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'l', currentCost: '736.25' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe(
+      'No se puede cambiar la unidad: el insumo está en 2 receta(s) y 0 presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.'
+    );
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(priceHistoryCreateMock).not.toHaveBeenCalled();
+    expect(applySpy).not.toHaveBeenCalled();
+    applySpy.mockRestore();
+  });
+
+  it('responde 409 si cambia unit de "kg" a "l" y el insumo tiene presentaciones de proveedor', async () => {
+    const applySpy = vi.spyOn(marginCalculator, 'applyIngredientCostChange');
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('736.25'),
+      _count: { products: 0, suppliers: 1 },
+    });
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000', unit: 'l', currentCost: '900.00' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe(
+      'No se puede cambiar la unidad: el insumo está en 0 receta(s) y 1 presentación(es) de proveedor. Sacalo de las recetas y de los proveedores, o creá un insumo nuevo con la otra unidad.'
+    );
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(applySpy).not.toHaveBeenCalled();
+    applySpy.mockRestore();
+  });
+
+  it('permite cambiar unit de "kg" a "l" (200) cuando el insumo no tiene recetas ni presentaciones', async () => {
+    findFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Insumo sin uso',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('500.00'),
+      _count: { products: 0, suppliers: 0 },
+    });
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Insumo sin uso',
+      unit: 'l',
+      currentCost: new Prisma.Decimal('500.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Insumo sin uso', unit: 'l', currentCost: '500.00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ingredient.unit).toBe('l');
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: 'ing-1' },
+      omit: { searchName: true },
+      data: expect.objectContaining({ unit: 'l' }),
+    });
+  });
+
+  it('permite editar nombre y costo (200) sobre un insumo con recetas y presentaciones si la unidad no cambia', async () => {
+    findFirstMock
+      .mockResolvedValueOnce({
+        id: 'ing-1',
+        name: 'Harina 000',
+        unit: 'kg',
+        currentCost: new Prisma.Decimal('736.25'),
+        _count: { products: 3, suppliers: 2 },
+      })
+      .mockResolvedValueOnce(null);
+    updateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Harina 000 Olavarriense',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('800.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .put('/api/ingredients/ing-1')
+      .send({ name: 'Harina 000 Olavarriense', unit: 'kg', currentCost: '800.00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ingredient.name).toBe('Harina 000 Olavarriense');
+    expect(res.body.ingredient.unit).toBe('kg');
+    expect(updateMock).toHaveBeenCalled();
   });
 });
 
