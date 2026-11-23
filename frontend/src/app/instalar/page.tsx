@@ -11,6 +11,8 @@ interface GuideStep {
   imageAlt?: string
   /** Capturas apaisadas (escritorio): se muestran más anchas para que se lean, sin pasar el ancho de la tarjeta. */
   imageWide?: boolean
+  /** Ancho y alto reales del PNG: el navegador reserva el lugar antes de bajarlo y la lista no se corre (#398). */
+  imageSize?: { width: number; height: number }
 }
 
 interface GuideSection {
@@ -26,21 +28,25 @@ const guideSections: GuideSection[] = [
       {
         text: 'Abrí MargenX en Chrome. Si arriba aparece el aviso “Instalar MargenX”, tocá “Instalar” y listo.',
         image: '/guia-instalacion/android-1-aviso-instalar.png',
+        imageSize: { width: 640, height: 1323 },
         imageAlt: 'Landing de MargenX en Chrome con el aviso “Instalar MargenX” y su botón Instalar arriba',
       },
       {
         text: 'Si el aviso no aparece o lo cerraste, tocá el botón de menú (tres puntos) en la esquina superior derecha.',
         image: '/guia-instalacion/android-2-chrome-menu.png',
+        imageSize: { width: 640, height: 1323 },
         imageAlt: 'Landing de MargenX en Chrome sin el aviso, con el botón de menú de tres puntos en la esquina superior derecha',
       },
       {
         text: 'Seleccioná “Instalar y crear acceso directo” (en otras versiones de Chrome: “Instalar app” o “Agregar a pantalla de inicio”).',
         image: '/guia-instalacion/android-3-instalar-app.png',
+        imageSize: { width: 640, height: 1323 },
         imageAlt: 'Menú de Chrome abierto con la opción “Instalar y crear acceso directo”',
       },
       {
         text: 'Elegí “Instalar” (no “Crear acceso directo”, que abre MargenX dentro de Chrome) y accederás desde el ícono en la pantalla principal.',
         image: '/guia-instalacion/android-4-confirmar.png',
+        imageSize: { width: 640, height: 338 },
         imageAlt: 'Opciones de Chrome “Instalar” y “Crear acceso directo” para MargenX',
       },
     ],
@@ -52,16 +58,19 @@ const guideSections: GuideSection[] = [
       {
         text: 'Abrí la web en Safari y tocá el botón de compartir en la parte inferior.',
         image: '/guia-instalacion/iphone-1-safari-compartir.png',
+        imageSize: { width: 640, height: 1302 },
         imageAlt: 'Landing de MargenX en Safari con el botón de compartir resaltado en la barra inferior',
       },
       {
         text: 'Elegí “Agregar a Inicio” (puede que tengas que deslizar la lista para encontrarla).',
         image: '/guia-instalacion/iphone-2-agregar-a-inicio.png',
+        imageSize: { width: 640, height: 1302 },
         imageAlt: 'Panel para compartir de Safari con la opción “Agregar a Inicio” visible en la lista',
       },
       {
         text: 'Confirmá el nombre y tocá “Agregar”: el acceso quedará disponible desde tu home screen.',
         image: '/guia-instalacion/iphone-3-confirmar.png',
+        imageSize: { width: 1290, height: 650 },
         imageAlt: 'Diálogo de confirmación “Agregar a Inicio” con el botón Agregar',
       },
     ],
@@ -73,18 +82,21 @@ const guideSections: GuideSection[] = [
       {
         text: 'Entrá a MargenX desde Chrome o Edge.',
         image: '/guia-instalacion/escritorio-1-abrir-margenx.png',
+        imageSize: { width: 940, height: 620 },
         imageAlt: 'MargenX abierto en Edge, con margenx.tech en la barra de direcciones',
         imageWide: true,
       },
       {
         text: 'Buscá el ícono de instalación en la barra de direcciones o el menú de la pestaña.',
         image: '/guia-instalacion/escritorio-2-icono-instalar.png',
+        imageSize: { width: 250, height: 50 },
         imageAlt: 'Ícono de instalación de la app, marcado en la barra de direcciones de Edge',
         imageWide: true,
       },
       {
         text: 'Elegí “Instalar” para crear un acceso directo del sistema en tu computadora.',
         image: '/guia-instalacion/escritorio-3-confirmar.png',
+        imageSize: { width: 502, height: 369 },
         imageAlt: 'Cuadro “Instalar MargenX” de Edge con los botones Instalar y Ahora no',
         imageWide: true,
       },
@@ -146,8 +158,10 @@ export default function InstallPage() {
                           <img
                             src={step.image}
                             alt={step.imageAlt ?? ''}
+                            width={step.imageSize?.width}
+                            height={step.imageSize?.height}
                             loading="lazy"
-                            className={`ml-8 ${step.imageWide ? 'w-56' : 'w-36'} max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700`}
+                            className={`ml-8 h-auto ${step.imageWide ? 'w-56' : 'w-36'} max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700`}
                           />
                         )}
                       </li>

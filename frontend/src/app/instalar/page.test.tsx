@@ -57,4 +57,17 @@ describe('Guía de instalación (/instalar)', () => {
       expect(fs.existsSync(path.join(publicDir, src)), `Falta el archivo: ${src}`).toBe(true)
     }
   })
+
+  it('cada captura declara su ancho y alto reales, así no corre la lista al bajar (#398, CLS a 360 px)', () => {
+    renderInstallPage()
+
+    for (const image of screen.getAllByRole('img')) {
+      const src = image.getAttribute('src') ?? ''
+      const png = fs.readFileSync(path.join(publicDir, src))
+      // Cabecera PNG: ancho y alto en los bytes 16 a 23.
+      expect(image.getAttribute('width'), src).toBe(String(png.readUInt32BE(16)))
+      expect(image.getAttribute('height'), src).toBe(String(png.readUInt32BE(20)))
+      expect(image, src).toHaveClass('h-auto')
+    }
+  })
 })

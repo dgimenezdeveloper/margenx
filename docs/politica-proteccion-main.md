@@ -11,7 +11,7 @@ Para evitar despliegues accidentales o código defectuoso en producción, la ram
 1. **Pull Request Obligatorio:** Ningún usuario (incluidos administradores) puede realizar push directo a `main`. Todo cambio debe ingresar vía Pull Request desde `develop`.
 2. **Bloqueo de Force Push y Deletion:** Protección contra sobreescritura del historial (`git push --force`) y eliminación accidental de la rama.
 3. **Status Checks Requeridos (CI Verde):** El botón de merge permanece bloqueado hasta que los siguientes jobs de `.github/workflows/ci.yml` finalicen en estado exitoso (Passed). Los rulesets los exigen **por nombre**: si se renombra un job, se actualizan los dos rulesets y esta lista en el mismo cambio.
-   - `Backend Build & Tests` (compilación TypeScript y Vitest del backend; todavía no corre linter).
+   - `Backend Build & Tests` (compilación TypeScript, migraciones sobre un PostgreSQL efímero y Vitest del backend con el umbral de cobertura del 90 % y la prueba de integración; todavía no corre linter).
    - `Frontend Lint & Build` (ESLint y compilación de producción con Vite).
    - `Frontend Unit Tests` (Vitest del frontend con el umbral de cobertura del 90 %).
    - `n8n Nodes Tests` (prueba de los nodos de código de los workflows de ingesta).

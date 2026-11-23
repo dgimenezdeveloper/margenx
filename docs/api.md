@@ -293,6 +293,7 @@ Baja de insumo con protección referencial de recetas.
 Catálogo general paginado de productos terminados.
 - **Query Params:** `page` (default 1), `limit` (default 20, max 100), `sortBy` (`name`, `salePrice`, `cost`, `marginPercent`, `updatedAt`; para `COLLABORATOR` solo `name`, `salePrice` o `updatedAt`), `order` (`asc`, `desc`), `search` (opcional, hasta 100 caracteres; búsqueda parcial insensible a mayúsculas y tildes).
 - **Sanitización RBAC:** Si el usuario es `COLLABORATOR`, se purgan recursivamente `cost`, `marginAmount`, `marginPercent`, `minMarginPercent` y `quantity` de la receta. Solo se retorna el nombre y `salePrice`.
+- **Solo productos a la venta para `COLLABORATOR`:** el colaborador recibe únicamente productos con receta (al menos un insumo) y `salePrice` mayor que 0. Los borradores, que pueden tener precio $0, no aparecen. El filtro va en la consulta, así que `meta.total` y `totalPages` cuentan solo esos productos. El `ADMIN` recibe todo el catálogo, borradores incluidos.
 - **Respuesta 200 (ADMIN):**
   ```json
   {
@@ -336,6 +337,7 @@ Creación de ficha técnica de producto.
 ### `GET /api/products/:id`
 Detalle completo de la ficha técnica.
 - **Sanitización RBAC:** Colaboradores acceden a la vista pero la respuesta no contiene `cost`, `marginAmount`, `marginPercent` ni las cantidades numéricas de los ingredientes.
+- **Borradores:** para `COLLABORATOR`, un producto sin receta o con `salePrice` 0 responde `404`, igual que un producto de otra cuenta.
 - **Respuesta 200.**
 
 ### `PUT /api/products/:id`

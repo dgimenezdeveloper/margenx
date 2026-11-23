@@ -11,6 +11,12 @@ import { formatProfit, profitTone } from '@/lib/profit'
 import { cn } from '@/lib/utils'
 import { salesSummaryService, type SalesSummary } from '@/services/salesSummaryService'
 
+/**
+ * Bloque de hoy o de la semana. A 360 px, con ventas, mide 122 px (la línea de ventas y margen ocupa tres
+ * renglones); el esqueleto y el bloque "Sin ventas" reservan lo mismo, así el panel no salta al cargar (#398).
+ */
+const BLOCK_CLASSES = 'min-h-31 min-w-0 rounded-2xl p-3'
+
 const TONE_CLASSES = {
   loss: 'text-rose-700 dark:text-rose-300',
   gain: 'text-emerald-700 dark:text-emerald-300',
@@ -20,7 +26,7 @@ const TONE_CLASSES = {
 function PeriodBlock({ label, summary }: { label: string; summary: SalesSummary }) {
   const hasSales = summary.salesCount > 0
   return (
-    <div role="group" aria-label={label} className="min-w-0 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800/60">
+    <div role="group" aria-label={label} className={cn(BLOCK_CLASSES, 'bg-gray-50 dark:bg-gray-800/60')}>
       <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</p>
       {hasSales ? (
         <>
@@ -109,8 +115,8 @@ export function RealProfitCard() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3" aria-label="Cargando la ganancia real">
-          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
-          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+          <div className={cn(BLOCK_CLASSES, 'animate-pulse bg-gray-100 dark:bg-gray-800')} />
+          <div className={cn(BLOCK_CLASSES, 'animate-pulse bg-gray-100 dark:bg-gray-800')} />
         </div>
       )}
     </section>

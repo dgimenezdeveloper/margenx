@@ -328,7 +328,8 @@ Todas las respuestas de producción y staging incorporan cabeceras defensivas pa
 - `X-Frame-Options: SAMEORIGIN` (Frontend) / `DENY` (API).
 - `Referrer-Policy: strict-origin-when-cross-origin`.
 - `X-Robots-Tag: noindex, nofollow, noarchive` (exclusivo para `dev.margenx.tech`, `api-dev.margenx.tech` y `n8n.margenx.tech`).
-- `Content-Security-Policy-Report-Only`: activa en modo observación sin bloqueo de recursos.
+- `Content-Security-Policy-Report-Only`: activa en modo observación sin bloqueo de recursos. Habilita lo que usa Clerk: su dominio (`clerk.margenx.tech` en producción, `*.clerk.accounts.dev` en staging), el script de su protección antibots (`cdn.protect.clerk.com`), las sondas de esa protección (`*.client.protect.clerk.com`, en varios puertos) y sus workers (`worker-src 'self' blob:`). Si falta alguno, el navegador registra una violación en cada carga y Lighthouse baja *Best Practices* ("Issues were logged in the Issues panel", #398).
+  - El archivo de la VPS no se despliega con el CI: después de cambiar `nginx/margenx.conf`, copiarlo a la VPS, correr `sudo nginx -t` y `sudo systemctl reload nginx` (sección "Verificación de Sintaxis y Recarga de Nginx").
 
 ### Rutas internas y PDF del reporte semanal
 

@@ -77,7 +77,7 @@ export function RecipeQuantityField({ ingredientName, value, recipeUnit, baseUni
           containerClassName="min-h-11 h-11 w-16 border-none bg-transparent px-1 focus-within:ring-0 dark:bg-transparent"
           className="text-xs font-black text-gray-900 dark:text-gray-100 text-right"
         />
-        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 w-6">{recipeUnit}</span>
+        <span className="text-xs font-bold text-gray-600 dark:text-gray-400 w-6">{recipeUnit}</span>
       </div>
       <p
         id={noticeId}

@@ -113,6 +113,17 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     expect(screen.queryByRole('navigation', { name: 'Paginación de productos' })).toBeNull()
   })
 
+  it('el colaborador sin productos a la venta ve "Todavía no hay productos a la venta" (#428)', async () => {
+    currentUser.role = 'COLLABORATOR'
+    vi.mocked(productService.list).mockResolvedValue({ items: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } })
+    renderPage()
+
+    expect(await screen.findByText('Todavía no hay productos a la venta')).toBeInTheDocument()
+    expect(screen.getByText('Cuando el dueño cargue productos con receta y precio, vas a verlos acá.')).toBeInTheDocument()
+    expect(screen.queryByText('Aún no tenés productos cargados')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Crear mi primer producto' })).toBeNull()
+  })
+
   it('el colaborador ve el catálogo paginado sin columnas financieras', async () => {
     currentUser.role = 'COLLABORATOR'
     renderPage()
