@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronRight, LoaderCircle, Plus, Receipt } from 'lucide-react'
 
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
+import { CashShiftPanel } from '@/components/cash-shift-panel'
 import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
@@ -14,22 +15,27 @@ import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { formatMoney } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS, argentinaToday, formatSaleDateTime, formatTicketNumber } from '@/lib/sales'
 import { cn } from '@/lib/utils'
+import { cashShiftService, type CashShift } from '@/services/cashShiftService'
 import { saleService, type SaleListItem } from '@/services/saleService'
 
-type Period = 'today' | 'all'
+type Period = 'today' | 'shift' | 'all'
 
-const PERIODS: Array<{ value: Period; label: string }> = [
-  { value: 'today', label: 'Hoy' },
-  { value: 'all', label: 'Todas' },
-]
+const PERIOD_LABELS: Record<Period, string> = { today: 'Hoy', shift: 'Del turno', all: 'Todas' }
 
 /**
- * Historial de ventas (ADR-010): las del día o todas, la más reciente primero. El ADMIN ve
- * las de la cuenta; el colaborador, las suyas. Cada venta abre su ticket, donde se anula.
+ * Ventas (ADR-010): arriba, el turno de caja (apertura o acceso al cierre); abajo, el
+ * historial del día, del turno o todas, la más reciente primero. El ADMIN ve las ventas de
+ * la cuenta; el colaborador, las suyas. `?turno=<id>` muestra las de un turno puntual
+ * (enlace desde el resumen del cierre). Cada venta abre su ticket, donde se anula.
  */
 export default function SalesHistoryPage() {
   const getToken = useTokenGetter()
-  const [period, setPeriod] = useState<Period>('today')
+  const [searchParams] = useSearchParams()
+  const shiftFromLink = searchParams.get('turno')
+  const [period, setPeriod] = useState<Period>(shiftFromLink ? 'shift' : 'today')
+  const [shift, setShift] = useState<CashShift | null | undefined>(undefined)
+  const [shiftError, setShiftError] = useState(false)
+  const [shiftReloadKey, setShiftReloadKey] = useState(0)
   const [sales, setSales] = useState<SaleListItem[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
@@ -37,10 +43,39 @@ export default function SalesHistoryPage() {
   const [loadError, setLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
+  const filterShiftId = shiftFromLink ?? (shift ? shift.id : undefined)
+  const periods: Period[] = filterShiftId ? ['today', 'shift', 'all'] : ['today', 'all']
+
   useEffect(() => {
     let cancelled = false
+    cashShiftService
+      .current(getToken)
+      .then((current) => {
+        if (!cancelled) setShift(current)
+      })
+      .catch(() => {
+        if (!cancelled) setShiftError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [getToken, shiftReloadKey])
+
+  const reloadShift = () => {
+    setShift(undefined)
+    setShiftError(false)
+    setShiftReloadKey((key) => key + 1)
+  }
+
+  useEffect(() => {
+    if (period === 'shift' && !filterShiftId) return
+    let cancelled = false
+    const filter =
+      period === 'shift'
+        ? { page, cashShiftId: filterShiftId }
+        : { page, date: period === 'today' ? argentinaToday() : undefined }
     saleService
-      .list(getToken, { page, date: period === 'today' ? argentinaToday() : undefined })
+      .list(getToken, filter)
       .then((response) => {
         if (cancelled) return
         setSales((current) => (page === 1 ? response.data : [...current, ...response.data]))
@@ -55,7 +90,7 @@ export default function SalesHistoryPage() {
     return () => {
       cancelled = true
     }
-  }, [getToken, page, period, reloadKey])
+  }, [getToken, page, period, filterShiftId, reloadKey])
 
   const changePeriod = (next: Period) => {
     if (next === period) return
@@ -72,6 +107,14 @@ export default function SalesHistoryPage() {
         <div className="flex flex-col gap-5 pb-28 md:pb-12">
           <Navbar title="Ventas" titleMobileOnly />
 
+          <CashShiftPanel
+            shift={shift}
+            loadError={shiftError}
+            onRetry={reloadShift}
+            onOpened={setShift}
+            onConflict={reloadShift}
+          />
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-black md:text-2xl">Ventas</h2>
             <Link
@@ -87,7 +130,7 @@ export default function SalesHistoryPage() {
           </div>
 
           <div role="group" aria-label="Período" className="inline-flex self-start rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
-            {PERIODS.map(({ value, label }) => (
+            {periods.map((value) => (
               <button
                 key={value}
                 type="button"
@@ -101,7 +144,7 @@ export default function SalesHistoryPage() {
                   CANONICAL_FOCUS_CLASSES
                 )}
               >
-                {label}
+                {PERIOD_LABELS[value]}
               </button>
             ))}
           </div>
@@ -125,7 +168,13 @@ export default function SalesHistoryPage() {
           ) : sales.length === 0 ? (
             <EmptyState
               icon={<Receipt className="size-6" />}
-              title={period === 'today' ? 'Todavía no hay ventas hoy' : 'Todavía no hay ventas'}
+              title={
+                period === 'today'
+                  ? 'Todavía no hay ventas hoy'
+                  : period === 'shift'
+                    ? 'Todavía no hay ventas en este turno'
+                    : 'Todavía no hay ventas'
+              }
               description="Cada venta que cobres queda acá con su ticket."
             />
           ) : (

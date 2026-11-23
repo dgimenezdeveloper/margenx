@@ -6,6 +6,7 @@ import '@testing-library/jest-dom'
 import NewSalePage from '@/app/ventas/nueva/page'
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
+import { cashShiftService } from '@/services/cashShiftService'
 import { saleService } from '@/services/saleService'
 
 vi.mock('@/components/navbar', () => ({ Navbar: () => null }))
@@ -15,6 +16,7 @@ const getToken = vi.hoisted(() => () => Promise.resolve('token-cajera'))
 vi.mock('@/hooks/useTokenGetter', () => ({ useTokenGetter: () => getToken }))
 vi.mock('@/services/productService', () => ({ productService: { getAll: vi.fn() } }))
 vi.mock('@/services/saleService', () => ({ saleService: { create: vi.fn() } }))
+vi.mock('@/services/cashShiftService', () => ({ cashShiftService: { current: vi.fn() } }))
 
 const receta = [{ ingredientId: 'harina-000', quantity: 0.05 }]
 const catalogo: Product[] = [
@@ -42,6 +44,37 @@ describe('Nueva venta (/ventas/nueva)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(productService.getAll).mockResolvedValue(catalogo)
+    vi.mocked(cashShiftService.current).mockResolvedValue({
+      id: '7a1b2c3d-0000-4000-8000-000000000001',
+      status: 'OPEN',
+      openedAt: '2026-11-24T10:00:00.000Z',
+      openedBy: 'cajera.panaderia@seed.example.test',
+      closedAt: null,
+      closedBy: null,
+      openingAmount: '10000.00',
+      salesCount: 0,
+      voidedCount: 0,
+      salesTotal: '0.00',
+      methods: [],
+      expectedTotal: '10000.00',
+      countedTotal: null,
+      difference: null,
+    })
+  })
+
+  it('con el turno abierto lo indica, y sin turno avisa antes de armar la venta', async () => {
+    renderPage()
+    expect(await screen.findByText('Turno abierto desde 24/11/2026 07:00')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('sin turno abierto, el aviso con "Abrir el turno" aparece al entrar', async () => {
+    vi.mocked(cashShiftService.current).mockResolvedValue(null)
+    renderPage()
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent('No hay un turno de caja abierto')
+    expect(within(aviso).getByRole('link', { name: 'Abrir el turno' })).toHaveAttribute('href', '/ventas')
   })
 
   it('solo ofrece productos con receta y precio, y busca sin tildes', async () => {

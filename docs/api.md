@@ -740,7 +740,7 @@ Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). 
 - **Módulo apagado:** cualquier ruta de `/api/sales` o `/api/cash-shifts` responde `404 Not Found` con `{ "error": "Recurso no encontrado." }`, para los dos roles, como si no existiera. La cuenta sale de `req.user`, nunca del cliente.
 - **Sin sesión:** `401 Unauthorized`, antes de consultar el módulo.
 - **Cómo saber si está prendido:** `GET /api/auth/me` → `user.features.sales` (§3).
-- **Rutas de turnos y cierre de caja (`/api/cash-shifts`):** se documentan acá cuando se implementan.
+- **Turnos y cierre de caja (`/api/cash-shifts`):** más abajo, en esta misma sección. ADMIN y COLLABORATOR abren y cierran el turno.
 - **Montos:** todos los importes van como texto con dos decimales (`"3300.00"`), calculados con `Prisma.Decimal` y `ROUND_HALF_UP`. Las fechas, en ISO 8601 (UTC).
 - **Colaborador:** vende, ve sus ventas y su ticket, pero **nunca** recibe `unitCost`, `lineCost`, `marginPercent` ni `totalCost`. La respuesta se arma por rol en el servicio de ventas (no con `sanitizeFinancialData`, que también quitaría la `quantity` de cada renglón). Todas las respuestas llevan `Cache-Control: private, no-store`.
 
@@ -796,7 +796,78 @@ Módulo opcional por cuenta (ADR-010, `docs/especificacion-funcional.md` §13). 
 ### `POST /api/sales/:id/void` — Anular una venta
 
 - **Body:** `{ "reason": "Cobré dos veces la misma venta" }` (de 3 a 200 caracteres).
-- **Regla:** no se borra nada: la venta pasa a `VOIDED` con la fecha, quién la anuló y el motivo, y sigue en el historial. El ADMIN anula cualquier venta de la cuenta. El colaborador, solo las suyas y mientras el turno de la venta siga abierto.
+- **Regla:** no se borra nada: la venta pasa a `VOIDED` con la fecha, quién la anuló y el motivo, y sigue en el historial. **Solo mientras el turno de la venta siga abierto**, también para el ADMIN: así el arqueo de un turno cerrado no cambia nunca. El ADMIN anula cualquier venta del turno; el colaborador, solo las suyas. La anulación toma el mismo bloqueo compartido que la venta (ver el cierre).
 - **Respuesta 200 OK:** la venta anulada, con el mismo cuerpo que el detalle.
-- **Errores:** `400` `"Escribí el motivo de la anulación."` · `403` `"Solo podés anular ventas del turno abierto. Pedile la anulación a un administrador."` (colaborador, turno cerrado) · `404` `"La venta no existe."` (también la venta de otro colaborador) · `409` `"La venta ya está anulada."`
+- **Errores:** `400` `"Escribí el motivo de la anulación."` · `403` `"Solo se pueden anular ventas del turno abierto. El turno de esta venta ya se cerró y su arqueo no cambia."` (los dos roles) · `404` `"La venta no existe."` (también la venta de otro colaborador) · `409` `"La venta ya está anulada."`
 - **Pruebas:** colección `MargenX - Ventas API` (`backend/tests/postman/README-Ventas.md`) y `backend/src/routes/salesRoutes.test.ts`.
+
+### Turnos de caja (`/api/cash-shifts`)
+
+Un solo turno abierto por cuenta (índice parcial único `CashShift_accountId_open_key`). Para vender hace falta un turno abierto. **ADMIN y COLLABORATOR** abren y cierran. El arqueo no tiene costos ni márgenes, así que la respuesta es la misma para los dos roles.
+
+**Resumen del turno** (respuesta de todas las rutas de turnos):
+
+```json
+{
+  "id": "<uuid>",
+  "status": "CLOSED",
+  "openedAt": "2026-11-24T10:00:00.000Z",
+  "openedBy": "cajera.panaderia@seed.example.test",
+  "closedAt": "2026-11-24T18:00:00.000Z",
+  "closedBy": "cajera.panaderia@seed.example.test",
+  "openingAmount": "10000.00",
+  "salesCount": 11,
+  "voidedCount": 1,
+  "salesTotal": "33400.00",
+  "methods": [
+    { "paymentMethod": "CASH", "salesTotal": "25000.00", "expected": "35000.00", "counted": "34500.00", "difference": "-500.00" },
+    { "paymentMethod": "TRANSFER", "salesTotal": "8400.00", "expected": "8400.00", "counted": "8400.00", "difference": "0.00" },
+    { "paymentMethod": "MERCADO_PAGO", "salesTotal": "0.00", "expected": "0.00", "counted": "0.00", "difference": "0.00" }
+  ],
+  "expectedTotal": "43400.00",
+  "countedTotal": "42900.00",
+  "difference": "-500.00"
+}
+```
+
+- `salesCount` y `salesTotal`: solo las ventas completadas. Las anuladas no suman en lo esperado y se cuentan en `voidedCount`.
+- **Esperado:** en efectivo, el monto inicial más las ventas en efectivo; en transferencia y Mercado Pago, solo sus ventas.
+- **Diferencia:** contado − esperado, por medio de pago y total. Negativa = falta plata; positiva = sobra.
+- **Turno abierto:** lo esperado se calcula con las ventas hasta ahora, y `counted`, `difference`, `countedTotal`, `closedAt` y `closedBy` van en `null`.
+- **Turno cerrado:** lo esperado y lo contado son los guardados al cierre.
+- `openedBy` y `closedBy`: el email del usuario, o `null` si se dio de baja (ADR-008).
+- **Montos de entrada** (`openingAmount` y lo contado): número o texto, de 0 a 99.999.999,99, con hasta 2 decimales. Si no, `400` `"Indicá <qué>: un monto de 0 a $99.999.999,99, con hasta 2 decimales."`
+
+#### `POST /api/cash-shifts/open` — Abrir el turno
+
+- **Body:** `{ "openingAmount": 10000 }`.
+- **Respuesta 201 Created:** el resumen del turno abierto.
+- **Errores:** `400` (monto inválido) · `409` `"Ya hay un turno de caja abierto. Cerralo antes de abrir otro."` (también si dos personas abren a la vez: el índice único deja pasar una).
+
+#### `GET /api/cash-shifts/current` — Turno abierto
+
+- **Respuesta 200 OK:** `{ "shift": <resumen> }`, o `{ "shift": null }` si no hay turno abierto. No responde 404: el 404 queda para el módulo apagado.
+
+#### `POST /api/cash-shifts/:id/close` — Cerrar el turno con el arqueo
+
+- **Body:** lo contado en los **tres** medios de pago (obligatorios): `{ "countedCash": 34500, "countedTransfer": 8400, "countedMercadoPago": 0 }`.
+- **Regla:** en **una transacción**:
+  1. pasa el turno a `CLOSED`;
+  2. suma las ventas del turno;
+  3. guarda lo esperado, lo contado y la diferencia total.
+
+  La venta y la anulación toman un bloqueo compartido (`FOR SHARE`) sobre la fila del turno, así que el paso 1 espera a las que están en curso. Una venta que llega durante el cierre espera y responde 409: ninguna venta queda afuera de un arqueo ya calculado.
+- **Respuesta 200 OK:** el resumen del turno cerrado.
+- **Errores:** `400` (falta lo contado de algún medio o es inválido) · `404` `"El turno no existe."` (también de otra cuenta o, para el colaborador, un turno cerrado en el que no trabajó) · `409` `"El turno ya está cerrado."` (también si otra persona lo cerró a la vez).
+
+#### `GET /api/cash-shifts` — Historial de turnos
+
+- **Query:** `page` (por defecto 1) y `limit` (por defecto 20, máximo 100). Orden: el más reciente primero.
+- **Alcance:** el ADMIN ve todos los turnos de la cuenta; el colaborador, el abierto y los que abrió, cerró o en los que vendió.
+- **Respuesta 200 OK:** `{ "data": [<resumen>], "meta": { "total", "page", "limit", "totalPages" } }`.
+
+#### `GET /api/cash-shifts/:id` — Resumen del turno
+
+- **Respuesta 200 OK:** el resumen, más `businessName` (el nombre del comercio, para imprimirlo). Mismo alcance que el historial.
+- **Errores:** `404` `"El turno no existe."`
+- **Pruebas:** colección `MargenX - Ventas API`, `backend/src/routes/cashShiftRoutes.test.ts` y `backend/src/services/cashShiftService.test.ts`.

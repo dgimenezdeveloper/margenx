@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, LoaderCircle, Minus, Plus, Search, ShoppingBag } from 'lucide-react'
+import { AlertTriangle, LoaderCircle, Minus, Plus, Search, ShoppingBag, Wallet } from 'lucide-react'
 
 import { Navbar } from '@/components/navbar'
 import { BottomNav } from '@/components/bottom-nav'
@@ -19,6 +19,7 @@ import {
   addToCart,
   cartItemsForApi,
   cartTotalCents,
+  formatSaleDateTime,
   isSellable,
   removeFromCart,
   type Cart,
@@ -26,6 +27,7 @@ import {
 } from '@/lib/sales'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/services/api'
+import { cashShiftService, type CashShift } from '@/services/cashShiftService'
 import { productService } from '@/services/productService'
 import { saleService, type PaymentMethod } from '@/services/saleService'
 
@@ -54,6 +56,24 @@ export default function NewSalePage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
   const [isCharging, setIsCharging] = useState(false)
   const [noOpenShift, setNoOpenShift] = useState(false)
+  const [shift, setShift] = useState<CashShift | null>(null)
+
+  // El turno se consulta al entrar para avisar antes de armar la venta. Si la consulta falla,
+  // no se bloquea nada: la API igual responde 409 al cobrar sin turno.
+  useEffect(() => {
+    let cancelled = false
+    cashShiftService
+      .current(getToken)
+      .then((current) => {
+        if (cancelled) return
+        setShift(current)
+        setNoOpenShift(current === null)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [getToken])
 
   useEffect(() => {
     let cancelled = false
@@ -114,6 +134,13 @@ export default function NewSalePage() {
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-5 pb-72 md:pb-12">
           <Navbar title="Nueva venta" backHref="/ventas" />
+
+          {shift && !noOpenShift && (
+            <p className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+              <Wallet className="size-3.5" aria-hidden="true" />
+              Turno abierto desde {formatSaleDateTime(shift.openedAt)}
+            </p>
+          )}
 
           {noOpenShift && (
             <div

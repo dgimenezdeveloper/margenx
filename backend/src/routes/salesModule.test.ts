@@ -3,8 +3,10 @@ import express from 'express';
 import request from 'supertest';
 import { errorHandler } from '../middlewares/errorHandler';
 
-const db = vi.hoisted(() => ({ findUnique: vi.fn() }));
-vi.mock('../lib/prisma', () => ({ prisma: { account: { findUnique: db.findUnique } } }));
+const db = vi.hoisted(() => ({ findUnique: vi.fn(), findOpenShift: vi.fn() }));
+vi.mock('../lib/prisma', () => ({
+  prisma: { account: { findUnique: db.findUnique }, cashShift: { findFirst: db.findOpenShift } },
+}));
 
 const MODULE_OFF = { subscriptionPlan: 'FREE', features: [] };
 const MODULE_ON = { subscriptionPlan: 'FREE', features: [{ feature: 'sales', enabled: true }] };
@@ -94,14 +96,14 @@ describe('Módulo de ventas prendido', () => {
     vi.clearAllMocks();
     currentUser = PANADERIA;
     db.findUnique.mockResolvedValue(MODULE_ON);
+    db.findOpenShift.mockResolvedValue(null);
   });
 
   it('pasa la compuerta del módulo: las rutas de la caja llegan a su router', async () => {
     const res = await request(buildApp()).get('/api/cash-shifts/current');
 
-    // Las rutas de turnos llegan con #449: Express responde su 404 por defecto, no el de la compuerta.
-    expect(res.status).toBe(404);
-    expect(res.body).not.toEqual({ error: 'Recurso no encontrado.' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ shift: null });
     expect(db.findUnique).toHaveBeenCalledWith(accountQuery('acc-panaderia-central'));
   });
 });

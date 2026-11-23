@@ -209,6 +209,17 @@ jobs:
           npx prisma migrate deploy
           npx prisma db seed
 
+      # Las E2E de ventas y caja (TC-VENTAS-01/02) necesitan el módulo de ventas prendido para
+      # Panadería Central (ADR-010). Solo en esta base efímera de pruebas: el seed real no lo prende.
+      - name: Prender el módulo de ventas para Panadería Central (base de test)
+        working-directory: ./backend
+        run: |
+          npx prisma db execute --schema prisma/schema.prisma --stdin <<'SQL'
+          INSERT INTO "AccountFeature" ("id", "accountId", "feature", "enabled", "updatedAt")
+          SELECT gen_random_uuid(), "id", 'sales', true, now() FROM "Account" WHERE "slug" = 'panaderia-central'
+          ON CONFLICT ("accountId", "feature") DO UPDATE SET "enabled" = true, "updatedAt" = now();
+          SQL
+
       - name: Levantar Backend en Segundo Plano y Esperar Healthcheck
         working-directory: ./backend
         run: |
