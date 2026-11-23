@@ -155,10 +155,11 @@ export default function ProductsPage() {
             {!isLoading && !loadError && isTotalEmpty && (
               <EmptyState
                 icon={<Package className="size-6" />}
-                title="Aún no tenés productos cargados"
+                // El colaborador solo recibe productos con receta y precio (#428): no le habla de cargarlos.
+                title={isCollaborator ? 'Todavía no hay productos a la venta' : 'Aún no tenés productos cargados'}
                 description={
                   isCollaborator
-                    ? 'No hay productos disponibles en el catálogo.'
+                    ? 'Cuando el dueño cargue productos con receta y precio, vas a verlos acá.'
                     : 'Comienza a crear tu catálogo de productos para monitorear sus márgenes y evitar pérdidas.'
                 }
                 actionLabel={!isCollaborator ? 'Crear mi primer producto' : undefined}

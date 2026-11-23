@@ -31,7 +31,8 @@
           "script": {
             "exec": [
               "pm.test('status 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('sin datos financieros', function () { pm.expect(pm.response.text()).to.not.match(/cost|margin|oldCost|newCost|defaultMinMarginPercent/i); });"
+              "pm.test('sin datos financieros', function () { pm.expect(pm.response.text()).to.not.match(/cost|margin|oldCost|newCost|defaultMinMarginPercent/i); });",
+              "pm.test('#428: solo productos a la venta (con receta y precio mayor que 0), sin borradores a $0', function () { const body = pm.response.json(); const items = body.data || body.products || []; items.forEach(function (p) { pm.expect(Number(p.salePrice), p.name).to.be.above(0); pm.expect((p.ingredients || []).length, p.name).to.be.above(0); }); pm.expect(body.meta.total).to.be.at.least(items.length); });"
             ],
             "type": "text/javascript"
           }

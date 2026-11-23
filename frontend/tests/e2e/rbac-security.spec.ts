@@ -272,3 +272,30 @@ test.describe('TC-RBAC-08: Aviso al colaborador redirigido desde una ruta del ad
     await expect(page.getByText(AVISO)).toHaveCount(0)
   })
 })
+
+test.describe('TC-RBAC-09: El colaborador solo ve productos a la venta (issue #428)', () => {
+  test('el catálogo y el panel no muestran precios de $0,00 y la API no le manda borradores', async ({ page }) => {
+    const productos: Array<{ name?: string; salePrice?: unknown; ingredients?: unknown[] }> = []
+    page.on('response', async (response: Response) => {
+      const url = new URL(response.url())
+      if (!/^\/api\/products\/?$/.test(url.pathname) || !response.ok()) return
+      const body = (await response.json().catch(() => null)) as { data?: typeof productos } | null
+      productos.push(...(body?.data ?? []))
+    })
+
+    await page.goto('/productos')
+    // Control positivo: el catálogo cargó, así que la ausencia de $0,00 no es por una lista vacía.
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    await expect(page.getByText(/\$\s?0,00/)).toHaveCount(0)
+
+    await page.goto('/dashboard')
+    await expect(page.getByRole('heading', { name: /hola, colaborador/i })).toBeVisible()
+    await expect(page.getByText(/\$\s?0,00/)).toHaveCount(0)
+
+    expect(productos.length).toBeGreaterThan(0)
+    for (const producto of productos) {
+      expect(Number(producto.salePrice), producto.name).toBeGreaterThan(0)
+      expect(producto.ingredients?.length ?? 0, producto.name).toBeGreaterThan(0)
+    }
+  })
+})
