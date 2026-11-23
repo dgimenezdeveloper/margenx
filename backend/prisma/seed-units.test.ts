@@ -89,14 +89,21 @@ describe('Auditoría estática de consistencia de unidades en Seeds y Schema (Is
   });
 });
 
+// Sin TEST_DATABASE_URL la prueba de integración se omite, para poder correr `npm test` sin PostgreSQL.
+// En el CI (GitHub Actions define CI=true) es obligatoria: si falta la variable, falla en vez de omitirse (#438).
 const testDbUrl = process.env.TEST_DATABASE_URL;
-const describeOrSkip = testDbUrl ? describe : describe.skip;
+const integrationRequired = process.env.CI === 'true';
+const describeOrSkip = testDbUrl || integrationRequired ? describe : describe.skip;
 
 describeOrSkip('Escenario Gherkin: Datos existentes (Migración SQL contra PostgreSQL real)', () => {
   const TEST_ACCOUNT_ID = '33a00000-0000-4000-8000-000000000099';
   const TEST_SUPPLIER_ID = '33c00000-0000-4000-8000-000000000099';
 
   it('convierte efectivamente registros preexistentes de "unit" a "u" y preserva kg y l mediante rollback', async () => {
+    expect(
+      testDbUrl,
+      'Falta TEST_DATABASE_URL: en el CI esta prueba corre contra PostgreSQL y no puede omitirse'
+    ).toBeTruthy();
     const prisma = new PrismaClient({ datasources: { db: { url: testDbUrl } } });
 
     try {
