@@ -132,7 +132,7 @@ Ejemplo: bolsa de 25 kg a $18.406,25 → $736,25 por kg.
 
 ### Reglas vigentes
 
-- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada (la estrella **Usar como predeterminada** en la ficha del insumo, en la del proveedor o en Compras, siempre con confirmación). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). La justificación y el comportamiento ante ediciones manuales están formalizados en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
+- **Costo vigente del insumo = costo unitario de la presentación predeterminada.** El administrador elige a mano qué presentación es la predeterminada (la estrella **Usar como predeterminada** en la ficha del insumo o en la del proveedor, o **Ya le compro a este proveedor** en Impacto en el margen, siempre con confirmación). Al cambiarla, el costo del insumo pasa a ser el de la nueva presentación y se recalculan las recetas en cascada (§6). La justificación y el comportamiento ante ediciones manuales están formalizados en **ADR-005** (`docs/adr/0005-costo-vigente-cuarentena-e-ingesta.md`). El sistema **no** toma automáticamente el proveedor más barato: el mínimo entre proveedores es información para decidir (§7), no una regla de costo.
 - **Costo manual con presentación predeterminada (ADR-011, reemplaza la regla anterior de ADR-005):** si el administrador cambia a mano el costo de un insumo y no coincide con el costo unitario de su presentación predeterminada, MargenX le pregunta qué hacer antes de guardar: **actualizar el precio de esa presentación** (el bulto pasa a dar el costo nuevo; con un bulto de tamaño con decimales, el costo puede quedar unos centavos distinto, porque el precio del bulto se redondea al centavo) o **dejar de usarla como predeterminada** (el insumo queda con el costo manual y sin presentación predeterminada hasta que elija otra). Si cancela, no se guarda nada.
 - **Unidad de medida fija cuando el insumo está en uso:** No se permite modificar la unidad de medida (`kg`, `l`, `u`) de un insumo que forme parte de al menos una receta o tenga al menos una presentación de proveedor asociada (la API responde `409 Conflict` y la UI deshabilita la selección explicando el motivo). El nombre y el costo continúan siendo editables.
 - **Una sola presentación por par proveedor-insumo.** El modelo no admite, por ejemplo, un pack de 10 × 1 kg y una bolsa de 50 kg del mismo mayorista para el mismo insumo (restricción `@@unique([supplierId, ingredientId])`).
@@ -306,7 +306,7 @@ El backend entrega los datos del reporte semanal mediante `/api/internal/reports
 
 ---
 
-## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible (API) / En transición (UI)*
+## 7. Compras inteligentes (Smart Purchasing, RF-15) · *Disponible*
 
 Compras sugeridas mide el **impacto en el margen** de cambiar el proveedor de un insumo (ADR-010). Sin stock no hay cantidades reales de consumo, por lo que la reposición con cantidades queda para la Fase 2 y `POST /api/purchasing/order-preview` pasa a estado **deprecado** (se conserva en la v1.0.0 hasta que se reutilice con stock o se retire en la v1.1).
 
@@ -318,7 +318,7 @@ Compras sugeridas mide el **impacto en el margen** de cambiar el proveedor de un
   - **Paridad exacta:** calcula con `Prisma.Decimal` y redondeo `ROUND_HALF_UP` por renglón, igual que el recálculo en cascada real al confirmar el cambio de proveedor.
 - **Proyección puntual (`GET /api/purchasing/margin-impact/:ingredientId?supplierIngredientId=...` · *Disponible*, solo `ADMIN`):** calcula el mismo impacto sobre una presentación específica para mostrarlo antes de confirmar *"Ya le compro a este proveedor"*. Responde `404` si el insumo o la presentación no son de la cuenta o no se corresponden, y `422` si está en cuarentena, su proveedor está inactivo o ya es la predeterminada.
 - **Comparativa de ahorro (`GET /api/purchasing/suggestions` · *Disponible*):** compara las presentaciones elegibles contra la predeterminada activa e informa aparte las excluidas por cuarentena.
-- **Pantalla `/compras`:** la vista actual muestra sugerencias por proveedor y cálculo de pedido (`order-preview`, deprecado) hasta que se reemplace por la vista de impacto en el margen (*Planificado*, `#446`).
+- **Pantalla "Impacto en el margen" (`/compras` · *Disponible*, solo `ADMIN`):** se llama así en el título; en los menús el texto visible es **Impacto** y el nombre completo queda para el lector de pantalla y como texto de ayuda. En la barra superior, entre 768 y 1023 px, los enlaces muestran solo el ícono. La ruta no cambia. Arriba, el resumen: insumos con alternativa, productos que mejoran y cuántos salen de **En riesgo** o **Pérdida**. Debajo, una tarjeta por insumo en el orden que devuelve la API, con el proveedor actual contra la alternativa, la diferencia por unidad y cada producto que lo usa con el margen antes y después y su estado (los nombres de estado de §6). El botón **Ya le compro a este proveedor** de cada tarjeta nombra el insumo y el proveedor para el lector de pantalla y abre una confirmación con la proyección puntual (productos y margen nuevo). Al confirmar, la presentación pasa a ser la predeterminada con el mismo alta que usan Proveedores e Insumos (`POST /api/suppliers/:id/ingredients` con `isDefault: true`, §4) y la app avisa *"Listo: {n} productos recalculados"*. Como `margin-impact` identifica la presentación solo por su id, la app toma el proveedor y los datos del bulto de `GET /api/ingredients/:id` antes del alta. La pantalla no tiene calculadora de bultos, pedido semanal ni ahorro por bulto, y no llama a `order-preview`. Si hay precios en cuarentena, un aviso enlaza a **Proveedores › Cuarentena**. Detalle para el usuario: `docs/manual-usuario/07-compras-sugeridas.md`.
 
 La consulta **no cambia** el costo vigente: el administrador decide si confirma el cambio de proveedor predeterminado (§4). Así el costo de las recetas solo cambia por una decisión explícita y queda registrado en el historial (ADR-005).
 
@@ -408,8 +408,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Métricas del panel: 5 buckets sobre todo el catálogo y margen promedio robusto (mediana) | Disponible |
 | Notificación en la app, Telegram y push | Propuesta |
 | Compras inteligentes: impacto en el margen por insumo (API: `margin-impact` y detalle; `order-preview` deprecado) | Disponible |
-| Compras inteligentes: vista de impacto en el margen en `/compras` | Planificado |
-| Compras inteligentes (UI actual de transición en `/compras`: sugerencias y pedido) | Disponible |
+| Compras inteligentes: vista de impacto en el margen en `/compras` | Disponible |
 | Reporte semanal de márgenes (API de datos y descarga PDF desde el panel y Perfil) | Disponible |
 | Workflow automático semanal de reporte PDF por correo (n8n) | Disponible |
 | Receta sin cantidades ni costos para el colaborador | Disponible |
@@ -422,7 +421,7 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Ganancia real en el panel y en el reporte semanal | Planificado |
 | Qué módulos trae cada plan (Basic, Pro y Business) | Propuesta (v1.2) |
 | Stock de insumos, compras con pedido y reposición con cantidades | Fase 2 (v1.1) |
-| Facturación electrónica de ARCA | Fase 2 |
+| Facturación electrónica de ARCA | Fase 2 (v1.3) |
 
 ## 12. Decisiones pendientes
 

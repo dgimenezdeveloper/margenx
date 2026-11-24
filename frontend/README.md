@@ -180,6 +180,30 @@ npm run test:e2e
 ```
 Necesita el backend y el frontend corriendo contra una base con el seed cargado (`npx prisma db seed` en `backend/`).
 
+### Accesibilidad con axe (Playwright)
+
+`tests/e2e/accessibility-axe.spec.ts` (#442) corre axe con `@axe-core/playwright` dentro de la suite E2E, con la sesión de ADMIN, sobre:
+
+- la ficha del producto (Pan flauta — 1 kg, del seed);
+- `/productos/nuevo`;
+- `/insumos`;
+- la carga desde planilla;
+- `/dashboard`.
+
+Cada pantalla se revisa en claro y en oscuro, a 360 px y en escritorio (1280 px): 20 pruebas.
+
+```bash
+npx playwright test tests/e2e/accessibility-axe.spec.ts --project=chromium
+```
+
+Necesita lo mismo que el resto de la E2E: backend, seed y `.env.test`.
+
+- **Qué corta:** una violación `serious` o `critical`. Las `moderate` y `minor` no cortan: se informan.
+- **Reporte:** por pantalla, tema y ancho, un JSON y un resumen en Markdown en `test-results/axe/` (ignorado en git). El resumen también lista las reglas que axe no pudo decidir solo, para revisarlas a mano. En el CI, los resúmenes van al reporte del job de E2E (pestaña *Summary* de la corrida) y la carpeta se sube siempre como artefacto `axe-accesibilidad`.
+- **Exclusiones:** solo para una violación que no se puede corregir a tiempo. Van en `EXCLUDED_RULES` de la spec, con la regla y el motivo; la regla sigue corriendo y en el reporte figura como excluida. Cada exclusión se anota también en `docs/qa/reporte-calidad-sprint7.md` §5. Hoy no hay ninguna.
+- **Límite con Lighthouse (#398):** LHCI mide los puntajes de las páginas públicas. axe revisa en cada PR las pantallas con sesión y encontró violaciones que Lighthouse no marcaba, sobre todo en oscuro y en escritorio.
+- **Pantalla nueva:** se suma a `SCREENS` de la spec, con lo que hay que esperar para que esté cargada.
+
 ### Lighthouse (LHCI, a 360 px)
 
 `lighthouserc.json` audita las páginas públicas (`/`, `/login`, `/instalar` y `/privacidad`) sobre el build servido con `vite preview`: celular de 360 × 640 px, 4G lenta simulada y la mediana de tres corridas (#398). Las metas (90 o más en Performance, Accessibility, Best Practices y SEO) van como advertencia: no cortan el comando ni el CI.

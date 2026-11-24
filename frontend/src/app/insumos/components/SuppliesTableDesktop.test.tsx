@@ -11,23 +11,32 @@ describe('SuppliesTableDesktop - Accesibilidad y Navegación por Teclado', () =>
   ]
   const money = (val: number) => `$${val}`
 
-  it('cada fila es enfocable y cuenta con role="button" y aria-label descriptivo', () => {
+  it('cada fila es enfocable y cuenta con role="button" y un nombre descriptivo', () => {
     render(<SuppliesTableDesktop supplies={mockSupplies} onSelect={vi.fn()} money={money} />)
 
-    const rowHarina = screen.getByRole('button', { name: 'Ver y editar insumo Harina 000' })
+    const rowHarina = screen.getByRole('button', { name: /^Ver y editar insumo Harina 000/ })
     expect(rowHarina).toBeInTheDocument()
     expect(rowHarina).toHaveAttribute('tabindex', '0')
 
-    const rowManteca = screen.getByRole('button', { name: 'Ver y editar insumo Manteca' })
+    const rowManteca = screen.getByRole('button', { name: /^Ver y editar insumo Manteca/ })
     expect(rowManteca).toBeInTheDocument()
     expect(rowManteca).toHaveAttribute('tabindex', '0')
+  })
+
+  it('el nombre de la fila incluye todo el texto visible: insumo, unidad y costo (WCAG 2.5.3, axe, #442)', () => {
+    render(<SuppliesTableDesktop supplies={mockSupplies} onSelect={vi.fn()} money={money} />)
+
+    const rowHarina = screen.getByRole('button', { name: /^Ver y editar insumo Harina 000/ })
+    // Con aria-label, el nombre no contenía la unidad ni el costo que se ven en la fila.
+    expect(rowHarina).not.toHaveAttribute('aria-label')
+    expect(rowHarina).toHaveAccessibleName(/^Ver y editar insumo Harina 000 kg \$736\.25$/)
   })
 
   it('Escenario Gherkin: enfocar fila y presionar Enter dispara onSelect', () => {
     const handleSelect = vi.fn()
     render(<SuppliesTableDesktop supplies={mockSupplies} onSelect={handleSelect} money={money} />)
 
-    const row = screen.getByRole('button', { name: 'Ver y editar insumo Harina 000' })
+    const row = screen.getByRole('button', { name: /^Ver y editar insumo Harina 000/ })
     row.focus()
     expect(row).toHaveFocus()
 
@@ -40,7 +49,7 @@ describe('SuppliesTableDesktop - Accesibilidad y Navegación por Teclado', () =>
     const handleSelect = vi.fn()
     render(<SuppliesTableDesktop supplies={mockSupplies} onSelect={handleSelect} money={money} />)
 
-    const row = screen.getByRole('button', { name: 'Ver y editar insumo Manteca' })
+    const row = screen.getByRole('button', { name: /^Ver y editar insumo Manteca/ })
     row.focus()
     expect(row).toHaveFocus()
 

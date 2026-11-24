@@ -36,10 +36,10 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)
     renderHistograma(catalogoDemo)
 
     const columnas = {
-      loss: screen.getByRole('button', { name: /pérdida: 12 productos/i }),
-      risk: screen.getByRole('button', { name: /en riesgo: 107 productos/i }),
-      target: screen.getByRole('button', { name: /en objetivo: 130 productos/i }),
-      surplus: screen.getByRole('button', { name: /superávit: 40 productos/i }),
+      loss: screen.getByRole('button', { name: /pérdida ?: 12 productos/i }),
+      risk: screen.getByRole('button', { name: /en riesgo ?: 107 productos/i }),
+      target: screen.getByRole('button', { name: /en objetivo ?: 130 productos/i }),
+      surplus: screen.getByRole('button', { name: /superávit ?: 40 productos/i }),
     }
     const suma = Object.values(columnas)
       .map((col) => Number(within(col).getByTestId('bucket-count').textContent))
@@ -77,7 +77,7 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)
       surplus: 'Superávit',
     }
     for (const nombre of Object.values(nombres)) {
-      const columna = screen.getByRole('button', { name: new RegExp(`^${nombre}:`, 'i') })
+      const columna = screen.getByRole('button', { name: new RegExp(`^${nombre} ?:`, 'i') })
       // Un solo rótulo visible por columna: el mismo a 360 px y en escritorio.
       expect(within(columna).getByText(nombre, { exact: true })).toBeInTheDocument()
     }
@@ -85,15 +85,28 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)
     expect(screen.queryByText('Objetivo', { exact: true })).toBeNull()
   })
 
+  it('el nombre de cada columna sale del texto visible: estado, cantidad, porcentaje y rango (WCAG 2.5.3, axe, #442)', () => {
+    renderHistograma(catalogoDemo)
+
+    const riesgo = screen.getByRole('button', { name: /^en riesgo ?: 107 productos/i })
+    // Con aria-label, el nombre no contenía el porcentaje que se ve en la columna.
+    expect(riesgo).not.toHaveAttribute('aria-label')
+    // Los ":" van en un texto oculto aparte: happy-dom y Chrome suman un espacio antes, que el lector no pronuncia.
+    expect(riesgo).toHaveAccessibleName(/^En riesgo ?: 107 productos, 37\u00a0% del catálogo, Bajo su mínimo$/)
+    expect(screen.getByRole('button', { name: /^superávit ?: 40 productos/i })).toHaveAccessibleName(
+      /^Superávit ?: 40 productos, 14\u00a0% del catálogo, > 60\u00a0%$/
+    )
+  })
+
   it('al tocar una columna avisa qué bucket filtrar', () => {
     const onSelect = renderHistograma(catalogoDemo)
-    fireEvent.click(screen.getByRole('button', { name: /en riesgo: 107 productos/i }))
+    fireEvent.click(screen.getByRole('button', { name: /en riesgo ?: 107 productos/i }))
     expect(onSelect).toHaveBeenCalledWith('risk')
   })
 
   it('una columna vacía queda deshabilitada', () => {
     renderHistograma({ ...catalogoDemo, lossCount: 0, criticalProductsCount: 107 })
-    expect(screen.getByRole('button', { name: /pérdida: 0 productos/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /pérdida ?: 0 productos/i })).toBeDisabled()
   })
 
   it('sin productos con receta muestra el aviso y cuenta los borradores', () => {
@@ -126,7 +139,7 @@ describe('HealthDistributionHistogram con los buckets del servidor (#351 / #358)
         onSelectBucket={vi.fn()}
       />
     )
-    expect(screen.getByRole('button', { name: /superávit: 40 productos/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /superávit ?: 40 productos/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /filtrando: superávit \(40\)/i })).toBeInTheDocument()
   })
 

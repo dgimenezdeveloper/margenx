@@ -446,6 +446,9 @@ export default function SuppliesPageContent() {
         packageUnit: conn.packageUnit as 'kg' | 'l' | 'u',
         packagePrice: conn.packagePrice,
         isDefault: true,
+        // El alta reemplaza la presentación entera: sin estos dos campos se borran y se corta la ingesta de precios (#486).
+        supplierCode: conn.supplierCode ?? null,
+        rawDescription: conn.rawDescription ?? null,
       })
 
       const newCost = typeof result.unitCost === 'number' ? result.unitCost : Number(result.unitCost)
@@ -513,7 +516,7 @@ export default function SuppliesPageContent() {
                   <ShieldAlert className="size-4" />
                   Cuarentena
                   {quarantineCount > 0 && (
-                    <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] text-white">
+                    <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] text-amber-950">
                       {quarantineCount}
                     </span>
                   )}

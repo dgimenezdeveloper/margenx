@@ -15,7 +15,7 @@ Las rutas protegidas exigen sesión activa. Si un usuario no autenticado intenta
 | `/proveedores` | Directorio de proveedores mayoristas | Redirige a `/login` | Acceso total, alta, edición y baja | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores/:id` | Ficha y presentaciones de proveedor | Redirige a `/login` | Acceso total, SKU y empaques | **Bloqueado:** Redirige a `/productos` |
 | `/proveedores/cuarentena` | Bandeja de precios retenidos | Redirige a `/login` | Acceso total, liberar y rechazar | **Bloqueado:** Redirige a `/productos` |
-| `/compras` | Sugerencias de compras y armado de pedidos mayoristas | Redirige a `/login` | Acceso total | **Bloqueado:** Redirige a `/productos` |
+| `/compras` | Impacto en el margen: a qué proveedor conviene comprarle cada insumo y cuánto mejora el margen | Redirige a `/login` | Acceso total | **Bloqueado:** Redirige a `/productos` |
 | `/productos` | Catálogo de productos terminados | Redirige a `/login` | Acceso total con semáforos | Acceso a precios de venta de salón |
 | `/productos/nuevo` | Constructor de recetas (BOM) | Redirige a `/login` | Acceso total con simulador | **Bloqueado:** Redirige a `/productos` |
 | `/productos/:id` | Ficha técnica y simulador de precio | Redirige a `/login` | Acceso total con simulador | Solo lectura de precio de salón |

@@ -192,6 +192,17 @@ describe('SuppliesPageContent - tarjeta "Variaciones recientes"', () => {
     expect(valorDeLaTarjeta().getByText('3')).toBeInTheDocument()
   })
 
+  it('el número del botón Cuarentena tiene contraste sobre el ámbar (axe lo deja para revisar a mano, #442)', async () => {
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([enCuarentena('q1'), enCuarentena('q2'), enCuarentena('q3')])
+    renderPage()
+
+    await screen.findByText('Precios en Cuarentena (3)')
+    const numero = within(screen.getByRole('button', { name: /^Cuarentena/ })).getByText('3')
+    // Blanco sobre amber-500 da 2,1:1; amber-950, como el contador de SuppliersTabs, da 7:1.
+    expect(numero).not.toHaveClass('text-white')
+    expect(numero).toHaveClass('bg-amber-500', 'text-amber-950')
+  })
+
   it('muestra 0 si no hay precios en cuarentena', async () => {
     vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
     renderPage()

@@ -474,3 +474,152 @@ productos.
 
 - [x] Medición publicada en el reporte de calidad con su evidencia (§4.3 y
   `evidencias/444/`).
+
+## 5. Pruebas automáticas de accesibilidad con axe (issue #442)
+
+**Estado de esta sección: suite verificada en local y en el CI, con las
+violaciones corregidas. Queda el recorrido manual con teclado y lector de
+pantalla (§5.6).**
+
+### 5.1 Objetivo
+
+Que el CI detecte en cada PR los problemas de accesibilidad de las pantallas
+con sesión, sin depender solo de una auditoría manual antes de la entrega
+(`[RV387-I1]`). La suite falla con violaciones `serious` o `critical`; las
+`moderate` y `minor` se informan en el reporte del job.
+
+### 5.2 Método
+
+- **Herramienta:** axe-core 4.14.1, con `@axe-core/playwright` 4.14.0. Se usan
+  las reglas por defecto: WCAG 2.0 a 2.2, niveles A y AA, más buenas prácticas.
+  Las reglas experimentales quedan afuera.
+- **Prueba:** `frontend/tests/e2e/accessibility-axe.spec.ts`, en el proyecto
+  `chromium`. En el CI corre con la sesión del administrador de Panadería
+  Central del seed. Es de solo lectura.
+- **Pantallas:**
+  - la ficha de Pan flauta — 1 kg;
+  - `/productos/nuevo`;
+  - `/insumos`;
+  - la carga desde planilla;
+  - `/dashboard`.
+- **Variantes:** claro y oscuro, a 360 × 800 y 1280 × 800. Son 20 casos.
+- **Espera:** cada caso espera a que la pantalla cargue y a que terminen las
+  transiciones, como la apertura del diálogo. Las animaciones infinitas no
+  cuentan.
+- **Reporte:**
+  - por caso, un JSON y un resumen en Markdown en `frontend/test-results/axe/`;
+  - el job de E2E pasa los resúmenes a su reporte (*Summary*);
+  - la carpeta se sube siempre como artefacto `axe-accesibilidad`.
+- **Verificación local (24/11/2026):**
+  - En el entorno de desarrollo no hay Clerk ni base con seed. Por eso la
+    prueba real se corrió contra un entorno descartable, que no se commitea.
+  - Ese entorno tenía:
+    - el backend real con PostgreSQL 16 efímero y solo el inicio de sesión
+      simulado;
+    - el frontend con Clerk reemplazado por una sesión de ADMIN fija;
+    - datos de panadería cargados por la API: 7 insumos, 2 proveedores,
+      5 productos (uno en borrador) y un precio en cuarentena.
+
+### 5.3 Resultados
+
+**Antes de corregir fallaban 12 de los 20 casos**, con estas violaciones (todas
+`serious`):
+
+| Regla | Dónde | Medida | Corrección |
+|---|---|---|---|
+| `color-contrast` | Pestaña activa del menú inferior, en oscuro (360 px) | 2,74:1 (indigo-600 sobre gray-900) | `dark:text-indigo-400` |
+| `color-contrast` | "Sistemas en línea", en el pie de escritorio, en claro | 4,39:1 (gray-500 heredado sobre gray-100) | gray-600 |
+| `color-contrast` | "Simulador Financiero" de la ficha, en escritorio y en claro | 2,6:1 (gray-400 sobre blanco) | gray-500, y gray-400 en oscuro |
+| `color-contrast` | `/productos/nuevo`: "Información comercial", ayudas de precio y margen y receta vacía | 2,6:1 en claro y 3,66:1 en oscuro | gray-500, y gray-400 en oscuro |
+| `label-content-name-mismatch` (WCAG 2.5.3) | Columnas del histograma del panel | El nombre ("En riesgo: 2 productos, bajo su mínimo") no incluía el porcentaje que se ve | Sin `aria-label`: el nombre sale del texto visible |
+| `label-content-name-mismatch` (WCAG 2.5.3) | Filas de la tabla de insumos, en escritorio | El nombre ("Ver y editar insumo …") no incluía la unidad ni el costo | Sin `aria-label`: "Ver y editar insumo" queda como texto oculto, seguido del texto de la fila |
+
+- **Panel:**
+  - el lector de pantalla sigue diciendo primero el estado: "En riesgo:
+    2 productos, 50 % del catálogo, Bajo su mínimo";
+  - el orden del código es el de lectura y las clases `order-*` mantienen el
+    diseño;
+  - las capturas de antes y de después a 360 px y en escritorio se ven iguales.
+- **Lighthouse (#398)** dio 100 en Accessibility en `/dashboard` a 360 px y no
+  marcó el histograma. El resto de las violaciones está en oscuro, en escritorio
+  o en pantallas que no midió: `/productos/nuevo` y la planilla.
+- **Fuera de los 20 casos, en la misma pantalla:**
+  - **Ficha de un producto en borrador:** el aviso "Estado del producto" daba
+    4,39:1 en claro y 3,66:1 en oscuro, y la ganancia del simulador usaba
+    gray-400. El seed del CI no tiene productos en borrador, así que la suite no
+    pasa por ese estado. Quedó corregido y cubierto con pruebas de Vitest.
+  - **Botón Cuarentena de `/insumos`:** axe dejó el número para revisar a mano
+    porque es un solo carácter. Blanco sobre amber-500 da 2,1:1. Pasa a
+    amber-950, como el contador de `SuppliersTabs` (7:1), con su prueba de
+    Vitest.
+
+**Después de corregir pasan los 20 casos, sin violaciones de ningún impacto**
+(tampoco `moderate` ni `minor`).
+
+axe deja para revisar a mano lo que no puede decidir solo, y el resumen de
+cada caso lo lista:
+
+- **`color-contrast`, en textos tapados en parte por otra capa:** la barra
+  fija de abajo a 360 px (`/insumos` y `/productos/nuevo`) y el fondo del
+  diálogo de la planilla. axe no puede medir el fondo. Se revisa a ojo en el
+  recorrido manual.
+- **`aria-hidden-focus`, con la planilla abierta:** el diálogo oculta el resto
+  de la página para el lector, y axe no puede confirmar que esos controles
+  queden fuera del Tab. Lo cubre la prueba de foco atrapado de `Dialog`
+  (`dialog.test.tsx`), y se vuelve a mirar con teclado.
+- **`aria-valid-attr-value`, en el selector de insumos de la receta de
+  `/productos/nuevo`:** su `aria-controls` apunta a la lista, que solo existe
+  cuando está abierta (con `aria-expanded="false"`). ARIA lo admite.
+- **`aria-prohibited-attr`, en la ficha a 360 px:** el indicador de margen de
+  la barra de abajo es un `span` con `aria-label` y sin rol. Algunos lectores
+  no leen ese nombre, pero repite el texto visible ("Superávit: 82,1 %"), así
+  que se anuncia lo mismo. Se confirma con el lector.
+
+### 5.4 Exclusiones
+
+Ninguna: `EXCLUDED_RULES` de la prueba está vacía. Si en adelante una violación
+no se puede corregir a tiempo, se excluye ahí con la regla y el motivo, y se
+anota en esta sección.
+
+### 5.5 Límite con #398
+
+Nada de lo que corrigió #398 se volvió a tocar:
+
+- #398 corrigió las pestañas **inactivas** del menú inferior en claro. Esta
+  issue corrige la **activa** en oscuro.
+- La receta y el número "En riesgo" quedaron como los dejó #398, y axe no los
+  marca. El aviso de borrado no se tocó, y esta suite no lo abre.
+
+**Corrida en el CI (24/11/2026):** el job **E2E Tests Suite (Playwright)** del
+PR #488 (corrida 45385106055) pasó con Clerk y el seed real. El artefacto
+`axe-accesibilidad` trae los 40 archivos (JSON y Markdown) de los 20 casos, y
+ninguno registra violaciones de ningún impacto.
+
+### 5.6 Pendiente
+
+- **Recorrido manual (QA), en las mismas pantallas:**
+  - con teclado: orden de Tab, foco visible, y Escape para cerrar la planilla;
+  - con lector de pantalla: TalkBack en Android y VoiceOver en iPhone.
+  - Comprobar que las columnas del panel y las filas de insumos se anuncian con
+    el estado o "Ver y editar insumo" primero.
+  - Revisar también lo que axe dejó para mirar a mano (§5.3).
+- **Corregido en la revisión (`[RV488-I1]`):** axe también las vio en el
+  entorno local, fuera de las pantallas de la suite:
+  - en escritorio, las filas de `/productos` tenían la misma violación
+    `label-content-name-mismatch` (`aria-label` con solo el nombre). Ahora
+    siguen el patrón de las filas de insumos: "Ver detalle del producto" como
+    texto oculto, seguido del texto de la fila;
+  - en `/perfil`, el aviso de las alertas por mail y el pie "© MargenX" usaban
+    gray-400 en claro (2,6:1) y gray-500 en oscuro. Pasan a gray-500 y
+    gray-400.
+  - La suite de axe no abre `/productos` ni `/perfil`: las dos correcciones
+    quedan cubiertas con pruebas de Vitest (`productos/page.test.tsx` y
+    `perfil/page.test.tsx`).
+
+### 5.7 Definition of Done de #442
+
+- [x] Revisado y CI en verde con las pruebas de axe (PR #488, corrida
+  45385106055).
+- [x] Exclusiones, si las hay, justificadas (no hay, §5.4).
+- [x] Documentación actualizada en el mismo PR (`frontend/README.md`,
+  `frontend/tests/e2e/README.md`, este reporte y el CHANGELOG).

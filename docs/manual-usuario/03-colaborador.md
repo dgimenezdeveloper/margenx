@@ -26,7 +26,7 @@ MargenX implementa un blindaje de doble capa:
 | **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Proveedores (`/proveedores` y `/proveedores/:id`)** | Lista de proveedores, presentaciones y contratos | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Cuarentena (`/proveedores/cuarentena`)**| Bandeja de resolución de anomalías | **Bloqueado:** vuelve a `/productos` con aviso |
-| **Compras sugeridas (`/compras`)** | Sugerencias y pedidos a proveedores | **Bloqueado:** vuelve a `/productos` con aviso |
+| **Impacto en el margen (`/compras`)** | Proveedores más baratos y su efecto en el margen | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Ventas (`/ventas`, módulo opcional)** | Cobra, ve todas las ventas del comercio, anula cualquiera del turno abierto, y abre y cierra la caja | Cobra y ve sus ventas y sus tickets, sin costos ni márgenes; anula las suyas con el turno abierto; abre y cierra la caja y ve el arqueo de sus turnos ([Ventas, ticket y caja](09-ventas.md)) |
 | **Perfil (`/perfil`)** | Configuración de margen, estado de las alertas automáticas y sección Colaboradores | Datos de usuario y comercio; sin umbrales, alertas ni Colaboradores |
 
