@@ -13,7 +13,7 @@ Es exclusiva del Administrador. El Colaborador no la ve en los menús y, si escr
 - **Desde la computadora:** en la barra superior, el enlace **Impacto en el margen**.
 - **Desde el celular:** en el menú inferior, la pestaña **Impacto**. El lector de pantalla la anuncia con el nombre completo.
 
-<!-- [CAPTURA 360PX PENDIENTE: 07-impacto-margen-mobile.webp | /compras a 360 px en claro: resumen y la primera tarjeta de insumo. La genera el E2E en test-results/evidencia-360px/compras-impacto-360px.png] -->
+![Impacto en el margen a 360 px en modo claro: el resumen con 2 insumos con alternativa, 5 productos que mejoran y 2 que salen de En riesgo o Pérdida, y la tarjeta de la manteca en bloque](capturas/07-impacto-margen-mobile.webp)
 
 ---
 
@@ -45,7 +45,7 @@ Cada tarjeta calcula el cambio de **ese insumo solo**: los demás insumos quedan
 
 Si ningún producto con receta usa el insumo, la tarjeta lo aclara: cambiarlo solo actualiza su costo.
 
-<!-- [CAPTURA 360PX PENDIENTE: 07-impacto-margen-tarjeta-oscuro.webp | Tarjeta de un insumo a 360 px en modo oscuro, con un producto que sale de En riesgo] -->
+![Tarjeta de la manteca en bloque a 360 px en modo oscuro: hoy se compra a Distribuidora MarJuanC Alimentos y Don Roque la vende $400,94 menos por kg; las medialunas de manteca pasan de 64,7 % a 65,5 % y salen de En riesgo](capturas/07-impacto-margen-tarjeta-oscuro.webp)
 
 ---
 
@@ -64,7 +64,7 @@ Si la confirmación no puede calcular el impacto (por ejemplo, porque ese precio
 
 Es el mismo cambio que la estrella **Usar como predeterminada** de la ficha del proveedor o del insumo ([capítulo 4](04-proveedores-y-listas.md)); acá además ves el efecto en el margen antes de decidir.
 
-<!-- [CAPTURA 360PX PENDIENTE: 07-impacto-margen-confirmacion.webp | Confirmación con el producto afectado y su margen nuevo. La genera el E2E en test-results/evidencia-360px/compras-impacto-confirmacion-360px.png] -->
+![Confirmación "¿Ya le comprás a Don Roque?" a 360 px: la manteca pasa a costar $9.650,00 por kg y se listan los 2 productos con su margen antes y después, con los botones Cancelar y Sí, ya le compro](capturas/07-impacto-margen-confirmacion.webp)
 
 ---
 
