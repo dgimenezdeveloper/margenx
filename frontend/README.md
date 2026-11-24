@@ -190,7 +190,7 @@ Necesita el backend y el frontend corriendo contra una base con el seed cargado 
 - la carga desde planilla;
 - `/dashboard`.
 
-Cada pantalla se revisa en claro y en oscuro, a 360 px y en escritorio (1280 px): 20 pruebas, alrededor de un minuto.
+Cada pantalla se revisa en claro y en oscuro, a 360 px y en escritorio (1280 px): 20 pruebas.
 
 ```bash
 npx playwright test tests/e2e/accessibility-axe.spec.ts --project=chromium

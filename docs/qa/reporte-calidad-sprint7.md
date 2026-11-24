@@ -477,9 +477,9 @@ productos.
 
 ## 5. Pruebas automáticas de accesibilidad con axe (issue #442)
 
-**Estado de esta sección: suite escrita y verificada en local, con las
-violaciones corregidas. Quedan la corrida en el CI y el recorrido manual con
-teclado y lector de pantalla (§5.6).**
+**Estado de esta sección: suite verificada en local y en el CI, con las
+violaciones corregidas. Queda el recorrido manual con teclado y lector de
+pantalla (§5.6).**
 
 ### 5.1 Objetivo
 
@@ -590,27 +590,36 @@ Nada de lo que corrigió #398 se volvió a tocar:
 - La receta y el número "En riesgo" quedaron como los dejó #398, y axe no los
   marca. El aviso de borrado no se tocó, y esta suite no lo abre.
 
+**Corrida en el CI (24/11/2026):** el job **E2E Tests Suite (Playwright)** del
+PR #488 (corrida 45385106055) pasó con Clerk y el seed real. El artefacto
+`axe-accesibilidad` trae los 40 archivos (JSON y Markdown) de los 20 casos, y
+ninguno registra violaciones de ningún impacto.
+
 ### 5.6 Pendiente
 
-- **Corrida en el CI:** el job **E2E Tests Suite (Playwright)** del PR, con el
-  artefacto `axe-accesibilidad` y el resumen en el reporte del job. Es la
-  primera corrida con Clerk y el seed real.
 - **Recorrido manual (QA), en las mismas pantallas:**
   - con teclado: orden de Tab, foco visible, y Escape para cerrar la planilla;
   - con lector de pantalla: TalkBack en Android y VoiceOver en iPhone.
   - Comprobar que las columnas del panel y las filas de insumos se anuncian con
     el estado o "Ver y editar insumo" primero.
   - Revisar también lo que axe dejó para mirar a mano (§5.3).
-- **Fuera del alcance, para el SM:**
-  - en escritorio, las filas de `/productos` tienen la misma violación
-    `label-content-name-mismatch` (5 filas con `aria-label`);
-  - en `/perfil`, un texto gray-400 de las alertas por mail no tiene contraste.
-  - Las dos se vieron con axe en el entorno local, fuera de las pantallas de
-    esta issue.
+- **Corregido en la revisión (`[RV488-I1]`):** axe también las vio en el
+  entorno local, fuera de las pantallas de la suite:
+  - en escritorio, las filas de `/productos` tenían la misma violación
+    `label-content-name-mismatch` (`aria-label` con solo el nombre). Ahora
+    siguen el patrón de las filas de insumos: "Ver detalle del producto" como
+    texto oculto, seguido del texto de la fila;
+  - en `/perfil`, el aviso de las alertas por mail y el pie "© MargenX" usaban
+    gray-400 en claro (2,6:1) y gray-500 en oscuro. Pasan a gray-500 y
+    gray-400.
+  - La suite de axe no abre `/productos` ni `/perfil`: las dos correcciones
+    quedan cubiertas con pruebas de Vitest (`productos/page.test.tsx` y
+    `perfil/page.test.tsx`).
 
 ### 5.7 Definition of Done de #442
 
-- [ ] Revisado y CI en verde con las pruebas de axe (en el PR).
+- [x] Revisado y CI en verde con las pruebas de axe (PR #488, corrida
+  45385106055).
 - [x] Exclusiones, si las hay, justificadas (no hay, §5.4).
 - [x] Documentación actualizada en el mismo PR (`frontend/README.md`,
   `frontend/tests/e2e/README.md`, este reporte y el CHANGELOG).
