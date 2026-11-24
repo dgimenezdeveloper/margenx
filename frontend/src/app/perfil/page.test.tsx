@@ -405,3 +405,23 @@ describe('ProfilePage (/perfil): pie de Soporte y Documentación (#363)', () => 
     expect(dialogo).not.toHaveTextContent(/WhatsApp/i)
   })
 })
+
+describe('ProfilePage (/perfil): contraste AA de los textos secundarios (axe, RV488-I1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    mockIsLoading = false
+  })
+
+  it('el aviso de las alertas por email y el pie no usan gray-400 en claro ni gray-500 en oscuro', () => {
+    render(<ProfilePage />)
+
+    // gray-400 sobre blanco da 2,6:1 y gray-500 sobre el fondo oscuro no llega a 4,5:1.
+    for (const texto of [/Las alertas por email se envían automáticamente/, /^© \d{4} MargenX$/]) {
+      const el = screen.getByText(texto)
+      expect(el).not.toHaveClass('text-gray-400')
+      expect(el).not.toHaveClass('dark:text-gray-500')
+      expect(el).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+  })
+})
