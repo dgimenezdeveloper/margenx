@@ -308,7 +308,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 
-    it('responde 409 sin pedir revocar si la invitación pendiente pertenece a otra cuenta', async () => {
+    it('responde 409 con el próximo paso si la invitación pendiente es de otro comercio, sin pedir revocarla', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.getInvitationList.mockResolvedValue({
         data: [invitation('inv_ajena', 'cajera.quimica@seed.example.test', PANADERIA_ID)],
@@ -320,7 +320,10 @@ describe('Rutas de colaboradores (/api/auth)', () => {
         .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Ya hay una invitación pendiente para ese correo.');
+      // [RV491-I1] Esa invitación no está en la lista de esta cuenta: el mensaje dice qué hacer (RC-25).
+      expect(res.body.error).toBe(
+        'Ese correo tiene una invitación pendiente de otro comercio. Pedile a la persona que use otro correo.'
+      );
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 

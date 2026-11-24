@@ -29,7 +29,7 @@ Si algo no sale, el mensaje aparece debajo del campo:
 | Ingresá un correo electrónico válido. | El correo está incompleto o mal escrito. |
 | Ese correo ya tiene un usuario en MargenX. | La persona ya está en tu comercio: la ves en la lista de colaboradores. |
 | Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra. | Ya la invitaste y todavía no aceptó. |
-| Ya hay una invitación pendiente para ese correo. | Otro comercio ya la invitó con ese correo. |
+| Ese correo tiene una invitación pendiente de otro comercio. Pedile a la persona que use otro correo. | Otro comercio ya la invitó con ese correo: esa invitación no aparece en tu lista y no la podés revocar. |
 | Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo. | La persona ya tiene acceso en otro comercio: con ese correo no puede sumarse al tuyo. |
 | No pudimos comunicarnos con el servicio de cuentas… | Falló el servicio de cuentas. No se creó la invitación: probá de nuevo en unos minutos. |
 

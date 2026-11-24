@@ -27,6 +27,9 @@ const PENDING_INVITATION_EXISTS =
   'Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra.';
 const ACCOUNT_EXISTS_IN_OTHER_TENANT =
   'Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo.';
+const PENDING_INVITATION_IN_OTHER_TENANT =
+  'Ese correo tiene una invitación pendiente de otro comercio. Pedile a la persona que use otro correo.';
+
 const invitationBodySchema = z
   .object({
     email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
@@ -135,10 +138,9 @@ router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res:
       (invitation) => invitation.emailAddress.toLowerCase() === email
     );
     if (existingPending) {
+      // La invitación de otro comercio no aparece en la lista de esta cuenta: no se puede revocar desde acá (RC-25).
       throw new AppError(
-        belongsToAccount(existingPending, accountId)
-          ? PENDING_INVITATION_EXISTS
-          : 'Ya hay una invitación pendiente para ese correo.',
+        belongsToAccount(existingPending, accountId) ? PENDING_INVITATION_EXISTS : PENDING_INVITATION_IN_OTHER_TENANT,
         409
       );
     }
