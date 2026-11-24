@@ -14,7 +14,7 @@ import {
   Moon,
   Package,
   Receipt,
-  ShoppingCart,
+  TrendingUp,
   Sun,
   Truck,
 } from 'lucide-react'
@@ -64,13 +64,14 @@ export function Navbar({
 
   const displayedCompanyName = companyName || businessName
 
-  const navLinks = [
+  // ariaLabel: nombre completo cuando el texto visible se acorta para que la barra entre en una línea.
+  const navLinks: { label: string; ariaLabel?: string; href: string; icon: typeof Boxes }[] = [
     { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Insumos', href: '/insumos', icon: Boxes },
     { label: 'Productos', href: '/productos', icon: Package },
     { label: 'Ventas', href: '/ventas', icon: Receipt },
     { label: 'Proveedores', href: '/proveedores', icon: Truck },
-    { label: 'Compras', href: '/compras', icon: ShoppingCart },
+    { label: 'Impacto', ariaLabel: 'Impacto en el margen', href: '/compras', icon: TrendingUp },
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ].filter(link => isNavLinkVisible(link.href, role, features))
 
@@ -140,21 +141,24 @@ export function Navbar({
 
       {/* Navegación Desktop */}
       <nav className="hidden items-center gap-1 rounded-2xl border border-gray-200/80 bg-white/80 p-1 shadow-sm backdrop-blur md:flex dark:border-gray-800 dark:bg-gray-900/80">
-        {navLinks.map(({ label, href, icon: Icon }) => {
+        {navLinks.map(({ label, ariaLabel, href, icon: Icon }) => {
           const active = isNavLinkActive(pathname, href)
           return (
             <Link
               key={label}
               href={href}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+              aria-label={ariaLabel}
+              title={ariaLabel ?? label}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-2.5 py-1.5 lg:px-3.5 text-xs font-bold transition-all ${
                 active
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
               }`}
             >
-              <Icon className="size-3.5" />
-              <span>{label}</span>
+              <Icon className="size-3.5 shrink-0" />
+              {/* Entre 768 y 1023 px las siete etiquetas no entran: solo ícono, con el texto para lectores de pantalla y en el title. */}
+              <span className="sr-only lg:not-sr-only">{label}</span>
             </Link>
           )
         })}

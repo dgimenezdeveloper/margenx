@@ -241,10 +241,10 @@ test.describe('TC-RBAC-07: Intercepción de ruta administrativa /compras (issue 
     await page.goto('/compras')
 
     await expect(page).toHaveURL(/\/productos$/)
-    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de compras sugeridas.
-    await expect(page.getByRole('heading', { name: /compras sugeridas/i })).toHaveCount(0)
-    // Ni la barra de escritorio ni el menú inferior muestran "Compras" al colaborador.
-    await expect(page.getByRole('link', { name: 'Compras' })).toHaveCount(0)
+    // AdminOnlyRoute reemplazó el árbol: no quedó montada la pantalla de impacto en el margen (#446).
+    await expect(page.getByRole('heading', { name: /impacto en el margen/i })).toHaveCount(0)
+    // Ni la barra de escritorio ni el menú inferior muestran "Impacto en el margen" al colaborador.
+    await expect(page.getByRole('link', { name: 'Impacto en el margen' })).toHaveCount(0)
     await expect(page.getByTestId('bottom-nav-compras')).toHaveCount(0)
   })
 })

@@ -14,47 +14,29 @@ describe('purchasingService', () => {
     vi.mocked(fetchApi).mockReset()
   })
 
-  it('getSuggestions consulta GET /purchasing/suggestions', async () => {
+  it('getMarginImpact consulta GET /purchasing/margin-impact', async () => {
     const mockResponse = {
-      summary: {
-        withSavingsCount: 1,
-        alreadyBestPriceCount: 0,
-        singleSupplierCount: 0,
-        withoutEligibleSupplierCount: 0,
-        withoutActiveDefaultCount: 0,
-        quarantinedExcludedCount: 0,
-      },
+      summary: { ingredientsWithAlternative: 0, productsAffected: 0, productsLeavingRiskOrLoss: 0 },
       byIngredient: [],
-      bySupplier: [],
-      alreadyBestPrice: [],
-      singleSupplier: [],
-      quarantinedExcluded: [],
     }
     vi.mocked(fetchApi).mockResolvedValueOnce(mockResponse)
 
-    const result = await purchasingService.getSuggestions(getToken)
+    const result = await purchasingService.getMarginImpact(getToken)
 
-    expect(fetchApi).toHaveBeenCalledWith('/purchasing/suggestions', getToken)
+    expect(fetchApi).toHaveBeenCalledWith('/purchasing/margin-impact', getToken)
     expect(result).toEqual(mockResponse)
   })
 
-  it('previewOrder envía POST /purchasing/order-preview con items y token', async () => {
-    const mockResponse = {
-      groups: [],
-      total: '44000.00',
-      totalSavings: '1000.00',
-      totalPackages: 2,
-      itemsCount: 1,
-    }
+  it('getIngredientMarginImpact consulta el detalle del insumo con la presentación codificada en la query', async () => {
+    const mockResponse = { ingredientId: 'ing-1', products: [] }
     vi.mocked(fetchApi).mockResolvedValueOnce(mockResponse)
 
-    const items = [{ supplierIngredientId: 'si-1', packages: 2 }]
-    const result = await purchasingService.previewOrder(getToken, items)
+    const result = await purchasingService.getIngredientMarginImpact(getToken, 'ing-1', 'si 2&x')
 
-    expect(fetchApi).toHaveBeenCalledWith('/purchasing/order-preview', getToken, {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-    })
+    expect(fetchApi).toHaveBeenCalledWith(
+      '/purchasing/margin-impact/ing-1?supplierIngredientId=si%202%26x',
+      getToken
+    )
     expect(result).toEqual(mockResponse)
   })
 })
