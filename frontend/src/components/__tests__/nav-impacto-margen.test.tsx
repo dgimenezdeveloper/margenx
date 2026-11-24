@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
@@ -23,7 +24,8 @@ vi.mock('@/lib/useCurrentUser', () => ({
 }))
 
 describe('Enlace "Impacto en el margen" en la navegación (#446)', () => {
-  it('la barra de escritorio y el menú inferior lo nombran "Impacto en el margen" y siguen yendo a /compras', () => {
+  it('la barra de escritorio y el panel del menú del celular lo nombran "Impacto en el margen" y van a /compras', async () => {
+    const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/compras']}>
         <Navbar />
@@ -31,15 +33,17 @@ describe('Enlace "Impacto en el margen" en la navegación (#446)', () => {
       </MemoryRouter>
     )
 
-    const links = screen.getAllByRole('link', { name: 'Impacto en el margen' })
-    expect(links).toHaveLength(2)
-    links.forEach((link) => expect(link).toHaveAttribute('href', '/compras'))
+    const desktop = screen.getByRole('link', { name: 'Impacto en el margen' })
+    expect(desktop).toHaveAttribute('href', '/compras')
     expect(screen.queryByRole('link', { name: 'Compras' })).toBeNull()
 
-    // A 360 px el menú inferior tiene siete pestañas: muestra "Impacto" y el nombre completo queda en aria-label.
-    const tab = screen.getByTestId('bottom-nav-compras')
-    expect(tab).toHaveTextContent(/^Impacto$/)
-    expect(tab).toHaveAttribute('aria-current', 'page')
+    // A 360 px queda en el panel de "Más" (#437), que se marca mientras se está en /compras.
+    expect(screen.queryByTestId('bottom-nav-compras')).toBeNull()
+    expect(screen.getByTestId('bottom-nav-mas')).toHaveClass('text-indigo-600')
+    await user.click(screen.getByTestId('bottom-nav-mas'))
+    const enlace = within(await screen.findByRole('dialog', { name: 'Menú' })).getByRole('link', { name: 'Impacto en el margen' })
+    expect(enlace).toHaveAttribute('href', '/compras')
+    expect(enlace).toHaveAttribute('aria-current', 'page')
   })
 
   it('en la barra de escritorio muestra "Impacto" y ningún enlace parte su texto en varias líneas', () => {

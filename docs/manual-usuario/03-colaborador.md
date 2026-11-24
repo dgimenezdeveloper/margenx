@@ -56,5 +56,6 @@ Al abrir la ficha de un producto terminado (ej. *Medialunas de manteca*):
 ## Navegación Móvil Adaptada
 
 En smartphones, la barra inferior fija de navegación (`BottomNav`) adapta sus accesos según el rol autenticado:
-- Desaparecen los accesos a **Insumos** y **Proveedores**.
-- Se mantienen accesibles únicamente **Inicio** (`/dashboard`), **Productos** (`/productos`) y **Perfil** (`/perfil`).
+- Desaparecen los accesos a **Insumos**, **Proveedores** e **Impacto en el margen**.
+- Quedan **Inicio** (`/dashboard`), **Productos** (`/productos`), **Ventas** (`/ventas`, solo con el módulo de ventas) y **Perfil** (`/perfil`). Son 4 o menos, así que entran todas con el nombre completo y no hace falta **Más**.
+- Arrastrando el dedo hacia la derecha se abre el mismo panel del administrador, con sus pantallas, el **Modo oscuro** y **Salir** (ver [Rutas y roles](02-rutas-y-roles.md)).

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useAuth } from '@clerk/clerk-react'
 import { usePathname } from 'next/navigation'
 import {
   ArrowLeft,
@@ -23,7 +22,7 @@ import { useUserRole } from '@/hooks/useUserRole'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useTheme } from '@/hooks/useTheme'
 import { LogoutDialog } from '@/components/logout-dialog'
-import { clearSessionCaches } from '@/lib/serviceWorkerCache'
+import { useSignOut } from '@/hooks/useSignOut'
 import { isNavLinkActive, isNavLinkVisible } from '@/lib/navigation'
 
 export function ThemeToggle() {
@@ -56,7 +55,6 @@ export function Navbar({
   onLogoClick?: () => void
 }) {
   const pathname = usePathname()
-  const { signOut } = useAuth()
   const { businessName, isLoading } = useCurrentUser()
   const role = useUserRole()
   const { features } = useFeatures()
@@ -75,13 +73,7 @@ export function Navbar({
     { label: 'Perfil', href: '/perfil', icon: CircleUserRound },
   ].filter(link => isNavLinkVisible(link.href, role, features))
 
-  const handleConfirmSignOut = () => {
-    sessionStorage.removeItem('margenx_active_session')
-    document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-    localStorage.removeItem('margenx_last_active')
-    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
-    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
-  }
+  const handleConfirmSignOut = useSignOut()
 
   return (
     <header className="relative flex min-h-12 w-full items-center justify-between gap-4 border-b border-gray-100/80 pb-3 md:border-b-0 md:pb-0 dark:border-gray-800">

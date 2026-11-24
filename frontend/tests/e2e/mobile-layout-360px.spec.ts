@@ -76,3 +76,55 @@ test.describe('TC-LAYOUT-360PX: Diálogos móviles y barra de producto sin desbo
     await page.screenshot({ path: 'test-results/evidencia-360px/producto-footer-360px.png', fullPage: true })
   })
 })
+test.describe('TC-LAYOUT-MENU: menú inferior con "Más" y panel lateral (Issue #437)', () => {
+  test.use({ hasTouch: true })
+
+  test('TC-LAYOUT-03: el menú inferior muestra 4 pestañas y "Más" con los rótulos completos, y "Más" abre el panel con todas las pantallas', async ({ page }) => {
+    await page.goto('/dashboard')
+
+    const menu = page.getByRole('navigation', { name: 'Menú inferior' })
+    await expect(menu.getByRole('link')).toHaveText(['Inicio', 'Productos', 'Insumos', 'Ventas'])
+    // Ningún rótulo queda cortado con "…".
+    for (const rotulo of await menu.locator('a span, button span').all()) {
+      expect(await rotulo.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    }
+
+    const mas = menu.getByRole('button', { name: 'Más' })
+    await mas.click()
+    const panel = page.getByRole('dialog', { name: 'Menú' })
+    await expect(panel.getByRole('link')).toHaveText(['Inicio', 'Productos', 'Insumos', 'Ventas', 'Proveedores', 'Impacto en el margen', 'Perfil'])
+    await expect(panel.getByRole('link', { name: 'Inicio' })).toHaveAttribute('aria-current', 'page')
+    await expect(panel).toBeInViewport()
+    await page.screenshot({ path: 'test-results/evidencia-360px/menu-panel-360px.png' })
+
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+    await expect(mas).toBeFocused()
+  })
+
+  test('TC-LAYOUT-04: arrastrar el dedo hacia la derecha desde el medio de la pantalla abre el panel y arrastrarlo a la izquierda lo cierra', async ({ page }) => {
+    await page.goto('/dashboard')
+    await expect(page.getByRole('navigation', { name: 'Menú inferior' })).toBeVisible()
+
+    // Toques reales de Chromium: Playwright no trae un arrastre táctil propio.
+    const cdp = await page.context().newCDPSession(page)
+    const deslizar = async (desde: number, hasta: number, y: number) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: desde, y }] })
+      const pasos = 8
+      for (let i = 1; i <= pasos; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: desde + ((hasta - desde) * i) / pasos, y }] })
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    }
+
+    await deslizar(120, 320, 400)
+    const panel = page.getByRole('dialog', { name: 'Menú' })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'Proveedores' })).toBeInViewport()
+    // Terminó de abrirse (sin desplazamiento): recién ahí se arrastra para cerrarlo.
+    await expect(panel).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+
+    await deslizar(250, 20, 400)
+    await expect(panel).toBeHidden()
+  })
+})
