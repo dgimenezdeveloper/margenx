@@ -37,8 +37,9 @@ describe('BottomNav: alto que supone ABOVE_BOTTOM_NAV_CLASS', () => {
 
   it('cada pestaña mantiene el ícono de 20 px, la separación de 4 px y la etiqueta de 10 px', () => {
     renderNav()
-    const pestañas = screen.getAllByRole('link')
-    expect(pestañas.length).toBeGreaterThan(0)
+    // Las pestañas y "Más" (#437) miden lo mismo.
+    const pestañas = [...screen.getAllByRole('link'), screen.getByRole('button', { name: 'Más' })]
+    expect(pestañas.length).toBeGreaterThan(1)
 
     for (const pestaña of pestañas) {
       expect(pestaña).toHaveClass('gap-1', 'text-[10px]')

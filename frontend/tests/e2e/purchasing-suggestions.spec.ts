@@ -133,9 +133,14 @@ test.describe('TC-COMPRAS-01: Impacto en el margen (issue #446)', () => {
       await expect(page.getByRole('spinbutton')).toHaveCount(0)
       await expect(page.getByRole('textbox')).toHaveCount(0)
 
-      const tab = page.getByTestId('bottom-nav-compras')
-      await expect(tab).toHaveAttribute('aria-current', 'page')
-      await expect(tab).toHaveAccessibleName('Impacto en el margen')
+      // A 360 px "Impacto en el margen" está en el panel de "Más" (#437), que queda marcado en /compras.
+      const mas = page.getByTestId('bottom-nav-mas')
+      await expect(mas).toHaveAttribute('data-active', 'true')
+      await mas.click()
+      const menu = page.getByRole('dialog', { name: 'Menú' })
+      await expect(menu.getByRole('link', { name: 'Impacto en el margen' })).toHaveAttribute('aria-current', 'page')
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
       await expectNoHorizontalScroll(page)
       await page.screenshot({ path: 'test-results/evidencia-360px/compras-impacto-360px.png', fullPage: true })
 

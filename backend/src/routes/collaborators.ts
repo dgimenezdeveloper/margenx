@@ -23,6 +23,12 @@ const CLERK_PAGE_SIZE = 500;
 const CLERK_UNAVAILABLE = 'No pudimos comunicarnos con el servicio de cuentas. Probá de nuevo en unos minutos.';
 const INVITATION_NOT_FOUND = 'La invitación no existe o ya no está pendiente.';
 const INVALID_EMAIL = 'Ingresá un correo electrónico válido.';
+const PENDING_INVITATION_EXISTS =
+  'Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra.';
+const ACCOUNT_EXISTS_IN_OTHER_TENANT =
+  'Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo.';
+const PENDING_INVITATION_IN_OTHER_TENANT =
+  'Ese correo tiene una invitación pendiente de otro comercio. Pedile a la persona que use otro correo.';
 
 const invitationBodySchema = z
   .object({
@@ -65,11 +71,11 @@ function toAppError(error: unknown): unknown {
   if (!isClerkAPIResponseError(error)) {
     return error;
   }
-  const alreadyExists = error.errors.some(
-    (detail) => detail.code.includes('duplicate') || detail.code.includes('identifier_exists')
-  );
-  if (alreadyExists) {
-    return new AppError('Ese correo ya tiene una cuenta o una invitación pendiente.', 409);
+  if (error.errors.some((detail) => detail.code.includes('duplicate'))) {
+    return new AppError(PENDING_INVITATION_EXISTS, 409);
+  }
+  if (error.errors.some((detail) => detail.code.includes('identifier_exists'))) {
+    return new AppError(ACCOUNT_EXISTS_IN_OTHER_TENANT, 409);
   }
   // Clerk valida el correo más estricto que el formulario (por ejemplo, rechaza dominios reservados).
   if (error.errors.some((detail) => detail.code === 'form_param_format_invalid')) {
@@ -117,15 +123,26 @@ router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res:
   const accountId = req.user!.accountId;
 
   // El correo es único en toda la base (User.email @unique): la consulta no se filtra por cuenta a propósito.
-  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true, accountId: true } });
   if (existingUser) {
-    throw new AppError('Ese correo ya tiene un usuario en MargenX.', 409);
+    // En otro comercio, la persona no puede sumarse a esta cuenta con ese correo (RC-25).
+    throw new AppError(
+      existingUser.accountId === accountId ? 'Ese correo ya tiene un usuario en MargenX.' : ACCOUNT_EXISTS_IN_OTHER_TENANT,
+      409
+    );
   }
 
   try {
     const pending = await listPendingInvitations(email);
-    if (pending.some((invitation) => invitation.emailAddress.toLowerCase() === email)) {
-      throw new AppError('Ya hay una invitación pendiente para ese correo.', 409);
+    const existingPending = pending.find(
+      (invitation) => invitation.emailAddress.toLowerCase() === email
+    );
+    if (existingPending) {
+      // La invitación de otro comercio no aparece en la lista de esta cuenta: no se puede revocar desde acá (RC-25).
+      throw new AppError(
+        belongsToAccount(existingPending, accountId) ? PENDING_INVITATION_EXISTS : PENDING_INVITATION_IN_OTHER_TENANT,
+        409
+      );
     }
 
     const redirectUrl = invitationRedirectUrl();

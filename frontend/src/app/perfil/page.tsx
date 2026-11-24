@@ -14,7 +14,7 @@ import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { USER_MANUAL_URL } from '@/lib/userManual'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/api'
-import { clearSessionCaches } from '@/lib/serviceWorkerCache'
+import { useSignOut } from '@/hooks/useSignOut'
 import { NumericInput } from '@/components/NumericInput'
 import { ToastAlert } from '@/components/ToastAlert'
 import { useToast } from '@/hooks/useToast'
@@ -24,7 +24,7 @@ import { WeeklyReportDownload } from '@/components/weekly-report-download'
 const profileTitle = 'Perfil y Configuración'
 
 export default function ProfilePage() {
-  const { signOut, getToken } = useAuth()
+  const { getToken } = useAuth()
   const { user, businessName, defaultMinMarginPercent, isLoading, refreshUser } = useCurrentUser()
 
   const [customMargin, setCustomMargin] = useState<string | null>(null)
@@ -72,13 +72,7 @@ export default function ProfilePage() {
     }
   }
 
-  const handleConfirmSignOut = () => {
-    sessionStorage.removeItem('margenx_active_session')
-    document.cookie = 'margenx_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-    localStorage.removeItem('margenx_last_active')
-    // Primero se limpian las cachés del service worker: signOut redirige y la página se descarga.
-    void clearSessionCaches().then(() => signOut({ redirectUrl: '/' }))
-  }
+  const handleConfirmSignOut = useSignOut()
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
