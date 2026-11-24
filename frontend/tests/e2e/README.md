@@ -42,6 +42,15 @@ Antes de cada caso lee el estado del insumo con `GET /api/ingredients/:id` y al 
 
 `accessibility-axe.spec.ts` corre con la sesión de `ADMIN` (proyecto `chromium`) y es de solo lectura: abre la ficha de Pan flauta — 1 kg, `/productos/nuevo`, `/insumos`, la carga desde planilla y `/dashboard`, en claro y oscuro (el tema se guarda en `localStorage` antes de abrir la página) y a 360 px y 1280 px. En cada caso espera a que la pantalla cargue y a que terminen las transiciones, corre axe y falla si hay violaciones `serious` o `critical`. Deja un JSON y un resumen en Markdown por caso en `test-results/axe/`: el job de E2E del CI pasa los resúmenes al reporte del job y sube la carpeta como artefacto `axe-accesibilidad`. Cómo correrlo y cómo se excluye una regla: `frontend/README.md`, "Accesibilidad con axe".
 
+### 1.5. Menú del celular con "Más" y arrastre (issue #437)
+
+`mobile-layout-360px.spec.ts` suma dos casos con la sesión de `ADMIN`, a 360 px y con pantalla táctil (`hasTouch`). Son de solo lectura:
+
+- **`TC-LAYOUT-03`:** el menú de abajo muestra Inicio, Productos, Insumos, Ventas y **Más**, sin rótulos cortados. **Más** abre el panel con las 7 pantallas, Inicio marcada como página actual. Escape lo cierra y devuelve el foco a **Más**. La captura queda en `test-results/evidencia-360px/menu-panel-360px.png`.
+- **`TC-LAYOUT-04`:** arrastra el dedo de izquierda a derecha desde el medio de la pantalla y comprueba que el panel se abre. Cuando terminó de abrirse, lo arrastra hacia la izquierda y comprueba que se cierra. Playwright no trae un arrastre táctil, así que los toques se mandan con el protocolo de Chromium (`Input.dispatchTouchEvent`): el caso corre solo en los proyectos de Chromium, como en el CI.
+
+`purchasing-suggestions.spec.ts` (`TC-COMPRAS-01`) verifica a 360 px que **Más** queda marcado en `/compras` y que, en el panel, **Impacto en el margen** es la página actual.
+
 ## 2. Requisitos Previos
 
 ### Variables de Entorno Locales (Obligatorio para correr en local)

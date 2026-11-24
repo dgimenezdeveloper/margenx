@@ -155,6 +155,25 @@ Reglas para un diálogo nuevo:
 
 Pruebas: `src/components/ui/__tests__/dialog.test.tsx` (foco atrapado, Escape, clic en el fondo, devolución del foco, bloqueo de scroll, diálogos apilados) y `src/components/__tests__/dialogos-accesibles.test.tsx` (título, descripción y botones con nombre en cada diálogo de la app). La navegación con Tab se simula con `@testing-library/user-event`.
 
+### Menú del celular (`BottomNav` y `MobileMenu`)
+
+Debajo de 768 px la navegación es el menú de abajo (`src/components/bottom-nav.tsx`). Desde 768 px no se muestra y manda la barra de arriba (`navbar.tsx`).
+
+- **Pestañas:** `splitMobileNav` (`src/lib/navigation.ts`) ordena los destinos visibles del rol (`isNavLinkVisible`) y deja hasta 4 como pestañas. Con más, como el ADMIN, quedan 4 fijas y **Más**: Inicio, Productos, Insumos y Ventas, o Proveedores sin el módulo de ventas. A 360 px, 5 lugares entran con el rótulo completo (#437). **Más** se marca cuando la pantalla actual está en el panel.
+- **Panel** (`src/components/mobile-menu.tsx`): se desliza de izquierda a derecha con todos los destinos del rol agrupados, la pantalla actual con `aria-current="page"`, **Modo oscuro** (`role="switch"`) y **Salir**, que pide confirmar con `LogoutDialog` y cierra la sesión con `useSignOut`.
+  - Es la excepción a la regla de "Diálogos": usa el `Drawer` de Base UI, que extiende `Dialog` con el arrastre para cerrar.
+  - Sigue las mismas convenciones: `modal="trap-focus"`, `useBodyScrollLock`, `Drawer.Title` y `Drawer.Description`, y la X con `aria-label`.
+- **Arrastre para abrir** (`src/hooks/useSwipeToOpen.ts`):
+  - Arranca desde cualquier punto de la pantalla y no solo desde el borde, porque en Android con navegación por gestos y en Safari del iPhone arrastrar desde el borde izquierdo es "Atrás".
+  - Mientras el dedo sigue apoyado, el panel lo acompaña (`--menu-drag-x` y `--menu-drag-progress`). Al soltar, queda abierto si recorrió más de un tercio del panel o si el dedo salió rápido (0,5 px/ms o más).
+  - Solo toma arrastres horizontales hacia la derecha: el scroll vertical sigue andando.
+  - No arranca en campos de texto, en otros diálogos, en zonas con scroll horizontal ni dentro de `[data-swipe-ignore]`.
+  - Escucha en `window`, en fase de captura, porque el `Drawer` corta la propagación de `touchmove` en `document`. También escucha en el elemento donde se apoyó el dedo, porque si ese elemento se vuelve a dibujar mientras el dedo sigue apoyado, el navegador le manda los toques a él, ya fuera del DOM.
+  - Con el panel abierto, el arrastre hacia la izquierda lo resuelve el `Drawer`.
+- **Botón con alternativa:** **Más** es la forma de abrir el panel sin gesto (WCAG 2.5.1), y el colaborador, que no tiene **Más**, igual llega a todas sus pantallas desde el menú de abajo.
+
+Pruebas: `src/components/__tests__/menu-movil.test.tsx` (pestañas por rol y módulo, panel, Escape y foco, modo oscuro, Salir y el arrastre con toques simulados), `src/lib/__tests__/navigation.test.ts` (`splitMobileNav`) y, en la E2E, `TC-LAYOUT-03` y `TC-LAYOUT-04` de `mobile-layout-360px.spec.ts`.
+
 ### Accesibilidad de Tablas y Formularios (WCAG 2.1 AA)
 
 - **Navegación con Teclado en Tablas (`UX-06`):** Las filas interactivas de las tablas de datos (`SuppliesTableDesktop` y `ProductsPage`) implementan `tabIndex={0}`, `role="button"` y handlers accesibles para responder a `Enter` y `Espacio` (con `event.preventDefault()` en barra espaciadora para neutralizar el scroll nativo de ventana). Cuentan con anillos de foco visibles perimetrales en color índigo con la sintaxis canónica de Tailwind (`focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-indigo-600`).
