@@ -10,7 +10,7 @@ Es exclusiva del Administrador. El Colaborador no la ve en los menús y, si escr
 
 ## 1. Dónde se encuentra
 
-- **Desde la computadora:** en la barra superior, el enlace **Impacto en el margen**.
+- **Desde la computadora:** en la barra superior, el enlace **Impacto** (el ícono de la flecha que sube). En pantallas angostas, como una tablet, la barra muestra solo los íconos: al pasar el mouse aparece el nombre.
 - **Desde el celular:** en el menú inferior, la pestaña **Impacto**. El lector de pantalla la anuncia con el nombre completo.
 
 ![Impacto en el margen a 360 px en modo claro: el resumen con 2 insumos con alternativa, 5 productos que mejoran y 2 que salen de En riesgo o Pérdida, y la tarjeta de la manteca en bloque](capturas/07-impacto-margen-mobile.webp)
