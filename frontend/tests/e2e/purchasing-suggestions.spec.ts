@@ -54,10 +54,14 @@ async function adminApi(page: Page, method: 'GET' | 'POST' | 'DELETE', path: str
   return res.json()
 }
 
-async function createFixture(page: Page): Promise<Fixture> {
+// Anota cada id en `fixture` apenas lo crea: si un paso falla a mitad de camino, el `finally` del test borra lo creado.
+async function createFixture(page: Page, fixture: Partial<Fixture>): Promise<void> {
   const { supplier: defaultSupplier } = await adminApi(page, 'POST', '/suppliers', { name: DEFAULT_SUPPLIER, isActive: true })
+  fixture.defaultSupplierId = defaultSupplier.id
   const { supplier: cheaperSupplier } = await adminApi(page, 'POST', '/suppliers', { name: CHEAPER_SUPPLIER, isActive: true })
+  fixture.cheaperSupplierId = cheaperSupplier.id
   const { ingredient } = await adminApi(page, 'POST', '/ingredients', { name: INGREDIENT, unit: 'kg', currentCost: '1000.00' })
+  fixture.ingredientId = ingredient.id
 
   await adminApi(page, 'POST', `/suppliers/${defaultSupplier.id}/ingredients`, {
     ingredientId: ingredient.id,
@@ -79,13 +83,7 @@ async function createFixture(page: Page): Promise<Fixture> {
     minMarginPercent: '40.00',
     ingredients: [{ ingredientId: ingredient.id, quantity: '1.000' }],
   })
-
-  return {
-    defaultSupplierId: defaultSupplier.id,
-    cheaperSupplierId: cheaperSupplier.id,
-    ingredientId: ingredient.id,
-    productId: product.id,
-  }
+  fixture.productId = product.id
 }
 
 // Se borra en orden: el producto libera el insumo, los proveedores se llevan sus presentaciones.
@@ -111,10 +109,10 @@ test.describe('TC-COMPRAS-01: Impacto en el margen (issue #446)', () => {
 
   test('confirmar la alternativa deja el margen que mostraba la confirmación, sin calculadora ni scroll horizontal', async ({ page }) => {
     await page.goto('/compras')
-    let fixture: Partial<Fixture> = {}
+    const fixture: Partial<Fixture> = {}
 
     try {
-      fixture = await createFixture(page)
+      await createFixture(page, fixture)
       await page.reload()
 
       // Impacto visible
