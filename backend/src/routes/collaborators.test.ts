@@ -269,7 +269,7 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 
-    it('responde 409 si ya hay una invitación pendiente para ese correo', async () => {
+    it('responde 409 con acción de revocar si ya hay una invitación pendiente en la propia cuenta', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.getInvitationList.mockResolvedValue({
         data: [invitation('inv_previa', 'cajera.quimica@seed.example.test', QUIMICA_ID)],
@@ -281,7 +281,9 @@ describe('Rutas de colaboradores (/api/auth)', () => {
         .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Ya hay una invitación pendiente para ese correo.');
+      expect(res.body.error).toBe(
+        'Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra.'
+      );
       expect(clerk.getInvitationList).toHaveBeenCalledWith({
         status: 'pending',
         query: 'cajera.quimica@seed.example.test',
@@ -291,7 +293,23 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 
-    it('responde 409 si Clerk informa que el correo ya existe', async () => {
+    it('responde 409 sin pedir revocar si la invitación pendiente pertenece a otra cuenta', async () => {
+      db.findUnique.mockResolvedValue(null);
+      clerk.getInvitationList.mockResolvedValue({
+        data: [invitation('inv_ajena', 'cajera.quimica@seed.example.test', PANADERIA_ID)],
+        totalCount: 1,
+      });
+
+      const res = await request(app)
+        .post('/api/auth/invitations')
+        .send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('Ya hay una invitación pendiente para ese correo.');
+      expect(clerk.createInvitation).not.toHaveBeenCalled();
+    });
+
+    it('responde 409 con mensaje de cuenta existente si Clerk informa form_identifier_exists', async () => {
       db.findUnique.mockResolvedValue(null);
       clerk.createInvitation.mockRejectedValue(clerkError(422, 'form_identifier_exists'));
 
@@ -300,7 +318,23 @@ describe('Rutas de colaboradores (/api/auth)', () => {
         .send({ email: 'cajera.quimica@seed.example.test' });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Ese correo ya tiene una cuenta o una invitación pendiente.');
+      expect(res.body.error).toBe(
+        'Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo.'
+      );
+    });
+
+    it('responde 409 con acción de revocar si Clerk informa duplicate_record', async () => {
+      db.findUnique.mockResolvedValue(null);
+      clerk.createInvitation.mockRejectedValue(clerkError(422, 'duplicate_record'));
+
+      const res = await request(app)
+        .post('/api/auth/invitations')
+        .send({ email: 'cajera.quimica@seed.example.test' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe(
+        'Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra.'
+      );
     });
 
     it('responde 400 si Clerk rechaza el formato del correo', async () => {

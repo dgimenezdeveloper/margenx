@@ -25,8 +25,8 @@ export function BottomNav() {
   // El alto vertical (pt-2.5, ícono size-5, gap-1 y etiqueta de 10 px) es el que supone
   // ABOVE_BOTTOM_NAV_CLASS (lib/mobile-layout.ts) para apoyar las barras fijas sobre esta barra.
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-100 bg-white/95 px-2.5 sm:px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur md:hidden dark:border-gray-800 dark:bg-gray-900/95 print:hidden">
-      <div className="mx-auto flex max-w-md items-center justify-between gap-0.5">
+    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-100 bg-white/95 px-1.5 sm:px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur md:hidden dark:border-gray-800 dark:bg-gray-900/95 print:hidden">
+      <div className="mx-auto flex max-w-md items-center justify-between gap-0.5 px-2">
         {tabs.map(({ label, icon: Icon, href }) => {
           const active = isNavLinkActive(pathname, href)
           return (
@@ -35,12 +35,12 @@ export function BottomNav() {
               href={href}
               aria-current={active ? 'page' : undefined}
               data-testid={`bottom-nav-${href.replace('/', '')}`}
-              className={`flex flex-1 min-w-0 flex-col items-center gap-1 text-[10px] font-medium transition-colors ${
+              className={`flex flex-col items-center gap-1 px-0.5 text-[10px] font-medium transition-colors ${
                 active ? 'font-bold text-indigo-600' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
               <Icon className="size-5 shrink-0" />
-              <span className="truncate max-w-full text-center">{label}</span>
+              <span className="whitespace-nowrap text-center">{label}</span>
             </Link>
           )
         })}

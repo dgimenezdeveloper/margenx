@@ -103,7 +103,7 @@ Si el mail no sale (n8n no responde 2xx, no hay `N8N_INVITATION_WEBHOOK_URL`, co
   }
   ```
   `url` es `null` si Clerk no devolvió el enlace; en ese caso no se intenta mandar el mail.
-- **Errores:** `400` `"Ingresá un correo electrónico válido."` (también si Clerk rechaza el formato del correo) · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` · `409` `"Ese correo ya tiene una cuenta o una invitación pendiente."` (lo informa Clerk) · `502`.
+- **Errores:** `400` `"Ingresá un correo electrónico válido."` (también si Clerk rechaza el formato del correo) · `409` `"Ese correo ya tiene un usuario en MargenX."` · `409` `"Ya hay una invitación pendiente para ese correo."` (si la invitación es de otra cuenta) · `409` `"Ya hay una invitación pendiente para ese correo. Revocala desde la lista para mandar otra."` (invitación pendiente en la cuenta o `duplicate_record` en Clerk) · `409` `"Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo."` (`form_identifier_exists` en Clerk) · `502`.
 
 #### `GET /api/auth/invitations`
 Invitaciones pendientes de la cuenta, de la más nueva a la más vieja.
