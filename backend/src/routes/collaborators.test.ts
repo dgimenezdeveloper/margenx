@@ -253,8 +253,8 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 
-    it('responde 409 si el correo ya tiene usuario en MargenX', async () => {
-      db.findUnique.mockResolvedValue({ id: 'u-existente' });
+    it('responde 409 si el correo ya tiene usuario en la propia cuenta', async () => {
+      db.findUnique.mockResolvedValue({ id: 'u-existente', accountId: QUIMICA_ID });
 
       const res = await request(app)
         .post('/api/auth/invitations')
@@ -264,8 +264,23 @@ describe('Rutas de colaboradores (/api/auth)', () => {
       expect(res.body.error).toBe('Ese correo ya tiene un usuario en MargenX.');
       expect(db.findUnique).toHaveBeenCalledWith({
         where: { email: 'colab.quimica@seed.example.test' },
-        select: { id: true },
+        select: { id: true, accountId: true },
       });
+      expect(clerk.createInvitation).not.toHaveBeenCalled();
+    });
+
+    it('Escenario "Cuenta existente": un correo que ya usa MargenX en otro comercio responde 409 con el mensaje de cuenta existente', async () => {
+      db.findUnique.mockResolvedValue({ id: 'u-panaderia', accountId: PANADERIA_ID });
+
+      const res = await request(app)
+        .post('/api/auth/invitations')
+        .send({ email: 'cajero.panaderia@seed.example.test' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe(
+        'Ese correo ya usa MargenX con otra cuenta. Pedile a la persona que use otro correo.'
+      );
+      expect(clerk.getInvitationList).not.toHaveBeenCalled();
       expect(clerk.createInvitation).not.toHaveBeenCalled();
     });
 

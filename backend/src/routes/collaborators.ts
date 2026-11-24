@@ -120,9 +120,13 @@ router.post('/invitations', ...adminOnly, async (req: AuthenticatedRequest, res:
   const accountId = req.user!.accountId;
 
   // El correo es único en toda la base (User.email @unique): la consulta no se filtra por cuenta a propósito.
-  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true, accountId: true } });
   if (existingUser) {
-    throw new AppError('Ese correo ya tiene un usuario en MargenX.', 409);
+    // En otro comercio, la persona no puede sumarse a esta cuenta con ese correo (RC-25).
+    throw new AppError(
+      existingUser.accountId === accountId ? 'Ese correo ya tiene un usuario en MargenX.' : ACCOUNT_EXISTS_IN_OTHER_TENANT,
+      409
+    );
   }
 
   try {
