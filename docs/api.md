@@ -845,21 +845,207 @@ Calcula el pedido agrupado por proveedor con subtotales, total y ahorro respecto
 
 ## 11. Módulo Reportes Semanales (`/api/reports` y `/api/internal/reports`)
 
+### Parámetros de rango y validaciones comunes (`from` y `to`)
+
+Los endpoints de reporte semanal (`GET /api/internal/reports/weekly/:slug`, `GET /api/reports/weekly` y `GET /api/reports/weekly.pdf`) aceptan los parámetros de consulta opcionales `from` y `to` (fechas ISO 8601 válidas). Si se omiten, `to` toma el instante actual y `from` se calcula 7 días corridos hacia atrás (`to - 7 días`).
+
+- **Errores `400 Bad Request`:**
+  - Si `from` o `to` no tiene formato de fecha ISO válido o se envía repetido en la query (`?from=...&from=...`):
+    `{ "error": "El parámetro \"from\" debe ser una fecha ISO válida." }` (o `"to"`).
+  - Si `from` es posterior a `to` (`from > to`):
+    `{ "error": "El rango de fechas del reporte es inválido." }`.
+
 ### Rutas internas para n8n
 
-Estas rutas requieren la cabecera `x-margenx-webhook-secret`, comparada en tiempo constante. Si falta la cabecera o `INTERNAL_WEBHOOK_SECRET` no está configurado, responden `401 Unauthorized`. Nginx bloquea `/api/internal/` desde el exterior con `403`; n8n las consume por la red interna de Docker.
+Estas rutas requieren la cabecera `x-margenx-webhook-secret`, comparada en tiempo constante. Si falta la cabecera o `INTERNAL_WEBHOOK_SECRET` no está configurado, responden `401 Unauthorized` (`{ "error": "Unauthorized" }`). Nginx bloquea `/api/internal/` desde el exterior con `403`; n8n las consume por la red interna de Docker.
 
-- `GET /api/internal/reports/accounts`: lista las cuentas activas con `id`, `slug`, `businessName` y el correo del ADMIN más antiguo (`ownerEmail`, o `null`).
-- `GET /api/internal/reports/weekly/:slug`: devuelve el reporte semanal calculado para una cuenta activa. Acepta `from` y `to` opcionales como fechas ISO; si no se indican, usa los últimos siete días. Un slug inexistente o inactivo responde `404`.
+#### `GET /api/internal/reports/accounts`
+Lista las cuentas activas (`isActive: true`) ordenadas por `businessName` ascendente, junto con el correo del `ADMIN` más antiguo (`ownerEmail`, o `null` si no tiene).
+
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "accounts": [
+      {
+        "id": "uuid",
+        "slug": "panaderia-central",
+        "businessName": "Panadería Central",
+        "ownerEmail": "admin.panaderia@seed.example.test"
+      }
+    ]
+  }
+  ```
+
+#### `GET /api/internal/reports/weekly/:slug`
+Devuelve el reporte semanal calculado para la cuenta activa indicada por `:slug`.
+
+- **Errores:** `400` (fechas inválidas, `from > to` o slug vacío `"El slug de la cuenta es obligatorio."`) · `401` (`Unauthorized`) · `404` `"No existe una cuenta activa para el slug indicado."`.
 
 ### Rutas de la aplicación
 
-Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 Forbidden`. El reporte se limita a la cuenta del usuario autenticado. `from` y `to` son parámetros opcionales de fecha ISO.
+Ambas rutas requieren JWT de Clerk y rol `ADMIN`; `COLLABORATOR` recibe `403 Forbidden`. El reporte se limita a la cuenta del usuario autenticado (`req.user.accountId`; responde `404` `"Cuenta no encontrada o inactiva."` si la cuenta está inactiva o no existe). Aceptan los mismos query params opcionales `from` y `to` (con las mismas respuestas `400`).
 
-- `GET /api/reports/weekly`: devuelve el reporte como JSON.
-- `GET /api/reports/weekly.pdf`: envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día en `America/Argentina/Buenos_Aires`. También envía `Cache-Control: private, no-store` y `Access-Control-Expose-Headers: Content-Disposition`: la app y la API se publican en orígenes distintos, y sin esa cabecera el navegador no deja que la app lea el nombre del archivo. Si n8n no está configurado, falla, expira o devuelve un PDF vacío, responde `503` con un mensaje genérico, sin detalles internos.
+- **`GET /api/reports/weekly`:** devuelve el reporte semanal como JSON (`200 OK`), con la misma estructura detallada más abajo.
+- **`GET /api/reports/weekly.pdf`:** envía el mismo reporte al webhook `N8N_REPORT_PDF_WEBHOOK_URL` con un timeout de 20 segundos y devuelve el PDF con `Content-Type: application/pdf` y `Content-Disposition: attachment; filename="margenx-reporte-AAAA-MM-DD.pdf"`. La fecha del nombre corresponde al día de `generatedAt` en `America/Argentina/Buenos_Aires`. También envía `Cache-Control: private, no-store` y `Access-Control-Expose-Headers: Content-Disposition`: la app y la API se publican en orígenes distintos, y sin esa cabecera el navegador no deja que la app lea el nombre del archivo. Si n8n no está configurado, falla, expira o devuelve una respuesta sin firma PDF válida (`%PDF-`) o vacía, responde `503 Service Unavailable` con un mensaje genérico (`"No pudimos generar el reporte PDF en este momento. Probá de nuevo en unos minutos."`), sin detalles internos.
 
-El reporte incluye la salud completa del catálogo (con los mismos buckets y mediana que `/api/dashboard/metrics`), hasta 20 productos bajo el mínimo, 10 cambios de costo, 5 presentaciones en cuarentena más antiguas, 5 oportunidades de ahorro de compras y hasta 20 costos desactualizados. **Ventas de la semana:** si la cuenta tiene el módulo de ventas (ADR-010), el reporte suma `sales` con la ganancia real del mismo período (`salesCount`, `salesTotal`, `costTotal`, `profit`, `marginPercent` y los rankings `topSold` y `topProfit`, con la forma de `GET /api/sales/summary` de §12). Sin el módulo, el campo no viene y el PDF no tiene la sección. `staleCosts` considera desactualizado un insumo cuyo último `PriceHistory.changedAt` hasta la fecha `to` (o, si nunca cambió de costo, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) supera los 30 días al cierre del período.
+### Contrato JSON del reporte semanal (`200 OK`)
+
+Respuesta de `GET /api/internal/reports/weekly/:slug` y `GET /api/reports/weekly`:
+
+```json
+{
+  "account": {
+    "id": "uuid",
+    "businessName": "Panadería Central",
+    "slug": "panaderia-central",
+    "defaultMinMarginPercent": "30.00"
+  },
+  "period": {
+    "from": "2026-11-10T03:00:00.000Z",
+    "to": "2026-11-17T03:00:00.000Z",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "fromFormatted": "10/11/2026",
+    "toFormatted": "17/11/2026"
+  },
+  "generatedAt": "2026-11-17T03:00:00.000Z",
+  "catalogHealth": {
+    "totalProducts": 339,
+    "activeIngredientsCount": 218,
+    "criticalProductsCount": 104,
+    "healthyProductsCount": 220,
+    "averageMarginPercent": 45,
+    "lossCount": 40,
+    "riskCount": 64,
+    "targetCount": 130,
+    "surplusCount": 90,
+    "draftCount": 15
+  },
+  "belowMinimumProducts": {
+    "totalCount": 104,
+    "items": [
+      {
+        "productId": "uuid",
+        "name": "Pan dulce especial",
+        "salePrice": "900.00",
+        "cost": "1200.00",
+        "marginPercent": "-33.33",
+        "minMarginPercent": "30.00",
+        "suggestedSalePrice": "1714.29",
+        "status": "loss"
+      }
+    ]
+  },
+  "weeklyCostChanges": {
+    "totalCount": 12,
+    "items": [
+      {
+        "id": "uuid",
+        "ingredientId": "uuid",
+        "ingredientName": "Manteca",
+        "unit": "kg",
+        "oldCost": "8000.00",
+        "newCost": "9500.00",
+        "variationPercent": "18.75",
+        "changedAt": "2026-11-12T12:00:00.000Z",
+        "affectedProductsCount": 8
+      }
+    ]
+  },
+  "quarantine": {
+    "totalCount": 2,
+    "items": [
+      {
+        "supplierIngredientId": "uuid",
+        "ingredientId": "uuid",
+        "ingredientName": "Harina 000",
+        "unit": "kg",
+        "supplierId": "uuid",
+        "supplierName": "Molino Cañuelas",
+        "currentPackagePrice": "10000.00",
+        "pendingPackagePrice": "16000.00",
+        "currentUnitCost": "400.00",
+        "proposedUnitCost": "640.00",
+        "variationPercent": "60.00",
+        "quarantineReason": "VARIACION_MAYOR_50_POR_CIENTO",
+        "quarantinedAt": "2026-11-10T10:00:00.000Z",
+        "isDefault": true
+      }
+    ]
+  },
+  "purchasingSavings": {
+    "totalCount": 3,
+    "items": [
+      {
+        "ingredientId": "uuid",
+        "ingredientName": "Harina 000",
+        "unit": "kg",
+        "currentSupplierName": "Molino Cañuelas",
+        "currentUnitCost": "900.00",
+        "bestSupplierName": "Distribuidora del Centro",
+        "bestUnitCost": "880.00",
+        "packageSize": "25",
+        "packagePrice": "22000.00",
+        "savingsPerUnit": "20.00",
+        "savingsPercent": "2.22",
+        "packageSavings": "500.00"
+      }
+    ]
+  },
+  "staleCosts": {
+    "totalCount": 1,
+    "thresholdDays": 30,
+    "items": [
+      {
+        "ingredientId": "uuid",
+        "name": "Levadura",
+        "unit": "kg",
+        "currentCost": "6000.00",
+        "lastUpdatedAt": "2026-10-01T03:00:00.000Z",
+        "daysWithoutUpdate": 47
+      }
+    ]
+  },
+  "sales": {
+    "salesCount": 41,
+    "salesTotal": "100000.00",
+    "costTotal": "62000.00",
+    "profit": "38000.00",
+    "marginPercent": "38.00",
+    "topSold": [
+      {
+        "productId": "uuid",
+        "productName": "Pan flauta — 1 kg",
+        "quantity": 10,
+        "salesTotal": "46000.00",
+        "profit": "14000.00",
+        "marginPercent": "30.43"
+      }
+    ],
+    "topProfit": [
+      {
+        "productId": "uuid",
+        "productName": "Medialunas de manteca — docena (12 unidades)",
+        "quantity": 4,
+        "salesTotal": "54000.00",
+        "profit": "24000.00",
+        "marginPercent": "44.44"
+      }
+    ]
+  }
+}
+```
+
+#### Detalle por sección
+
+- **`account`:** datos de la cuenta (`id`, `businessName`, `slug`, `defaultMinMarginPercent` como string decimal con 2 decimales).
+- **`period` y `generatedAt`:** ventana solicitada (`from`, `to` y `generatedAt` en ISO 8601 UTC; `generatedAt` coincide con `to`), zona horaria fija `"America/Argentina/Buenos_Aires"` y fechas formateadas `DD/MM/AAAA` (`fromFormatted`, `toFormatted`).
+- **`catalogHealth`:** mismos buckets y mediana que `/api/dashboard/metrics` (§8), más `activeIngredientsCount` (total de insumos de la cuenta). Todos los campos son numéricos (`number`), incluido `averageMarginPercent` (mediana en 2 decimales).
+- **`belowMinimumProducts`:** `totalCount` y hasta **20** `items` en estado `"loss"` o `"risk"`, ordenados por `marginPercent` ascendente y luego `name`. `suggestedSalePrice` calcula el precio objetivo para alcanzar `minMarginPercent` (si `minMarginPercent >= 100`, aplica el factor de respaldo `0.5`).
+- **`weeklyCostChanges`:** `totalCount` y hasta **10** `items` registrados en `PriceHistory` dentro de `[from, to]`, ordenados por `|variationPercent|` descendente, `changedAt` descendente e `ingredientName` ascendente. `id` es el ID del evento de `PriceHistory`; `variationPercent` es `"0.00"` si `oldCost <= 0`.
+- **`quarantine`:** `totalCount` y hasta **5** `items` retenidos en cuarentena más antiguos (ordenados por `quarantinedAt` ascendente e `id` ascendente). Si `pendingPackagePrice` fuera `null`, toma `currentPackagePrice`; `quarantineReason` toma `"SIN_MOTIVO"` si es `null`; `quarantinedAt` puede ser `null`.
+- **`purchasingSavings`:** `totalCount` y hasta **5** `items` de oportunidades de ahorro provenientes de `getPurchasingSuggestions` (§10), ordenados por `packageSavings` descendente, `savingsPercent` descendente e `ingredientName` ascendente. `packageSize` es decimal serializado sin ceros fijos (`toString()`).
+- **`staleCosts`:** `totalCount`, `thresholdDays` (`30`) y hasta **20** `items` ordenados por `lastUpdatedAt` ascendente y luego `name`. Considera desactualizado todo insumo cuyo último `PriceHistory.changedAt` hasta `to` (o, si nunca cambió de costo hasta `to`, `Ingredient.updatedAt`, lo que refleja también ediciones de nombre o unidad) tenga más de 30 días respecto de `to` (`daysWithoutUpdate` entero truncado hacia abajo).
+- **`sales` (opcional, ADR-010):** solo se incluye cuando la cuenta tiene prendido el módulo de ventas (`features.sales === true`); si está apagado, la clave `sales` **no viene** en el JSON y el PDF omite la sección. Calcula la ganancia real y rankings sobre las ventas completadas (sin anuladas) en `[from, to)`: `salesCount`, `salesTotal`, `costTotal`, `profit`, `marginPercent` (`null` si no hubo ventas) y hasta 5 ítems en `topSold` y `topProfit` (con la forma de `GET /api/sales/summary` de §12; un producto dado de baja aparece con `productId: null`).
 
 ## 12. Módulo de Ventas y Caja (`/api/sales` y `/api/cash-shifts`)
 
