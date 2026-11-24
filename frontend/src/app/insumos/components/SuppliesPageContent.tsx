@@ -446,6 +446,9 @@ export default function SuppliesPageContent() {
         packageUnit: conn.packageUnit as 'kg' | 'l' | 'u',
         packagePrice: conn.packagePrice,
         isDefault: true,
+        // El alta reemplaza la presentación entera: sin estos dos campos se borran y se corta la ingesta de precios (#486).
+        supplierCode: conn.supplierCode ?? null,
+        rawDescription: conn.rawDescription ?? null,
       })
 
       const newCost = typeof result.unitCost === 'number' ? result.unitCost : Number(result.unitCost)
