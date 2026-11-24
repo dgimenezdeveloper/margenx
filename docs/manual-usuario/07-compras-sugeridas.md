@@ -1,91 +1,80 @@
-# Manual de Usuario — Compras Sugeridas (Smart Purchasing)
+# Manual de Usuario — Impacto en el margen (Compras sugeridas)
 
-La sección **Compras Sugeridas** (`/compras`) es una herramienta de optimización de costos exclusiva para el Administrador. Analiza en tiempo real las presentaciones mayoristas de todos los distribuidores cargados en el sistema y te indica dónde conviene comprar cada materia prima para maximizar la rentabilidad de tus recetas.
+La pantalla **Impacto en el margen** (`/compras`) te dice en qué insumos te conviene cambiar de proveedor y cuánto mejora el margen de tus productos si lo hacés. Está pensada para decidir en un minuto, sin hacer cuentas.
 
-El personal con rol Colaborador no tiene acceso a esta sección ni puede visualizarla en sus menús de navegación.
+Es exclusiva del Administrador. El Colaborador no la ve en los menús y, si escribe la dirección, vuelve a **Productos** con un aviso.
 
----
-
-## 1. Dónde se encuentra y cómo ingresar
-
-- **Desde la computadora:** en la barra de navegación superior, haciendo clic en el enlace **Compras** (ícono del changuito de supermercado).
-- **Desde el celular:** en el menú de navegación inferior fijo (`BottomNav`), tocando el ícono **Compras**.
-
-<!-- [CAPTURA 360PX SUGERIDA: 07-compras-sugeridas-mobile.webp | Pantalla /compras en vista móvil de 360px mostrando tarjetas KPI y lista de compras sugeridas] -->
+> **Consultar esta pantalla no cambia tus costos ni tus recetas.** Cambian solo cuando confirmás que ya le comprás a otro proveedor.
 
 ---
 
-## 2. Tarjetas de resumen del estado de compras
+## 1. Dónde se encuentra
 
-En la parte superior de la pantalla se despliegan cuatro indicadores esenciales:
+- **Desde la computadora:** en la barra superior, el enlace **Impacto** (el ícono de la flecha que sube). En pantallas angostas, como una tablet, la barra muestra solo los íconos: al pasar el mouse aparece el nombre.
+- **Desde el celular:** en el menú inferior, la pestaña **Impacto**. El lector de pantalla la anuncia con el nombre completo.
 
-| Indicador | Significado |
+![Impacto en el margen a 360 px en modo claro: el resumen con 2 insumos con alternativa, 5 productos que mejoran y 2 que salen de En riesgo o Pérdida, y la tarjeta de la manteca en bloque](capturas/07-impacto-margen-mobile.webp)
+
+---
+
+## 2. Resumen
+
+Arriba de todo hay tres números:
+
+| Indicador | Qué cuenta |
 |---|---|
-| **Con Ahorro Disponible** | Cantidad de materias primas que tienen al menos un proveedor activo con un costo unitario equivalente menor al de tu proveedor predeterminado actual. |
-| **Al Mejor Precio** | Insumos cuya presentación predeterminada actual ya es la opción más barata disponible en el mercado. |
-| **Proveedor Único** | Materias primas que solo tienen cargado un distribuidor. Para habilitar comparativas de ahorro en estos insumos, asociá proveedores adicionales desde la ficha del insumo en **Insumos**. |
-| **Excluidos (Cuarentena)** | Presentaciones que tuvieron variaciones bruscas de precio (>50%) o valores anómalos. No compiten en las sugerencias hasta que las audites y liberes desde **Proveedores › Cuarentena**. |
+| **Insumos con alternativa** | Insumos que algún proveedor activo te vende más barato que su costo actual. |
+| **Productos que mejoran** | Productos con receta que usan alguno de esos insumos. Un producto que usa dos de ellos cuenta una sola vez. |
+| **Salen de En riesgo o Pérdida** | Productos que hoy están **En riesgo** o en **Pérdida** y pasarían a **En objetivo** o **Superávit** con al menos uno de los cambios. |
 
-Si existen presentaciones retenidas en cuarentena, un banner ámbar superior te avisará y te brindará un botón de acceso directo a la bandeja de resolución.
-
----
-
-## 3. Lista de compras sugeridas agrupada por distribuidor
-
-Las sugerencias se consolidan y agrupan por cada distribuidor mayorista recomendado:
-
-- **Encabezado del proveedor:** Muestra la razón social o nombre de fantasía, teléfonos y correos de contacto directo para efectuar el pedido, y el **Ahorro potencial consolidado** si compras un bulto de cada insumo sugerido.
-- **Detalle de cada insumo:**
-  - Nombre del insumo y unidad de costeo base (`kg`, `l`, `u`).
-  - Presentación comercial sugerida (bulto cerrado, factor de empaque y precio facturado).
-  - Código de artículo mayorista (SKU) y descripción de lista si fueron provistos.
-  - Comparativa de costo unitario: **Costo sugerido vs. Costo predeterminado actual**.
-  - Ahorro diferencial resaltado en pesos y porcentaje de descuento.
-
-> **Regla de oro de costos:** Consultar esta pantalla **no modifica tus costos vigentes ni altera las recetas de tus productos**. Solo identifica dónde comprar más barato.
-
-<!-- [CAPTURA 360PX SUGERIDA: 07-compras-agrupadas-proveedor.webp | Desglose de insumos sugeridos agrupados por proveedor con botón Usar como predeterminada] -->
+Si hay precios retenidos en cuarentena, un aviso ámbar te dice cuántos son: no participan del cálculo hasta que los revises. El enlace **Ver cuarentena** te lleva a **Proveedores › Cuarentena**.
 
 ---
 
-## 4. Usar la sugerencia como presentación predeterminada
+## 3. Una tarjeta por insumo
 
-Si decidís cambiar de proveedor habitual para un insumo aprovechando una mejor cotización:
+Las tarjetas vienen ordenadas por lo que más te conviene: primero los insumos que sacan más productos de **En riesgo** o **Pérdida**, después los que más suben el margen.
 
-1. Tocá el botón **Usar como predeterminada** ubicado junto al insumo sugerido. Es el mismo diálogo de confirmación que en la ficha del proveedor y en la del insumo.
-2. Un diálogo de confirmación te advertirá el cambio, indicando el nuevo distribuidor, el nuevo costo unitario equivalente y recordando que las recetas que contienen este insumo se recalcularán de forma atómica.
-3. Al pulsar **Confirmar cambio**, el costo activo de la materia prima se actualiza de inmediato en toda la plataforma.
+Cada tarjeta muestra:
 
----
+- **Hoy le comprás a:** el proveedor de la presentación predeterminada y el costo actual por unidad (kg, litro o unidad). Si el insumo no tiene predeterminada, dice *Sin presentación predeterminada*.
+- **Alternativa más barata:** el proveedor, su costo por unidad y cuánto menos pagarías por unidad.
+- **Margen de los productos que lo usan:** cada producto con su margen de hoy y el que tendría con la alternativa, y su estado con los mismos nombres que en el resto de la app (**Pérdida**, **En riesgo**, **En objetivo**, **Superávit**). Si el producto sale de **En riesgo** o **Pérdida**, la tarjeta lo destaca.
 
-## 5. Armado y cálculo de la orden de compra semanal
+Cada tarjeta calcula el cambio de **ese insumo solo**: los demás insumos quedan con su costo actual. Si dos tarjetas afectan al mismo producto, el efecto de hacer los dos cambios es mayor que el de cada tarjeta por separado.
 
-La pantalla permite armar el pedido de mercadería en minutos:
+Si ningún producto con receta usa el insumo, la tarjeta lo aclara: cambiarlo solo actualiza su costo.
 
-1. Indicá cuántos **Bultos** de cada presentación necesitás encargar utilizando el selector numérico de cada fila (podés ingresar entre 0 y 100.000 bultos por ítem).
-2. Tocá el botón principal **Calcular pedido sugerido**.
-3. Se desplegará la **Previsualización del Pedido Semanal**:
-   - **Total Estimado:** Importe total en pesos sumando todos los proveedores.
-   - **Ahorro Neto Estimado:** Dinero exacto que ahorrás con esta compra en comparación con haber adquirido esa misma cantidad a tus proveedores predeterminados anteriores.
-   - **Desglose por Distribuidor:** Subtotal por proveedor y listado detallado de bultos y cantidades convertidas (ej. `2 bultos de 25 kg = 50 kg`).
+![Tarjeta de la manteca en bloque a 360 px en modo oscuro: hoy se compra a Distribuidora MarJuanC Alimentos y Don Roque la vende $400,94 menos por kg; las medialunas de manteca pasan de 64,7 % a 65,5 % y salen de En riesgo](capturas/07-impacto-margen-tarjeta-oscuro.webp)
 
 ---
 
-## 6. Compartir por WhatsApp o Imprimir la orden
+## 4. "Ya le compro a este proveedor"
 
-Una vez calculada la previsualización:
+Cuando ya le comprás a la alternativa (o decidís empezar a hacerlo):
 
-- **Copiar pedido:** Tocá el botón **Copiar pedido**. El sistema formateará automáticamente el detalle en texto plano estructurado con emojis y saltos de línea, listo para pegar directamente en un chat de WhatsApp o en un correo electrónico dirigido al vendedor.
-- **Imprimir:** Tocá el botón **Imprimir**. La aplicación preparará una hoja de estilos de impresión limpia (`window.print`), ocultando barras de menú, botones y elementos visuales innecesarios, dejando únicamente la orden de compra lista para entregar a cocina o al personal de depósito.
+1. Tocá **Ya le compro a este proveedor** en la tarjeta del insumo.
+2. Se abre una confirmación con el costo nuevo por unidad y la lista de productos afectados con su margen antes y después.
+3. Tocá **Sí, ya le compro**. La presentación de ese proveedor pasa a ser la predeterminada del insumo, su costo cambia y se recalculan las recetas que lo usan.
+4. MargenX te avisa *"Listo: {n} productos recalculados"*. El margen de cada producto queda igual al que mostraba la confirmación.
 
-<!-- [CAPTURA 360PX SUGERIDA: 07-previsualizacion-pedido.webp | Sección de orden de compra calculada con total estimado, ahorro y botones Copiar e Imprimir] -->
+Si cambiaste de idea, tocá **Cancelar**: no se cambia nada.
+
+Si la confirmación no puede calcular el impacto (por ejemplo, porque ese precio entró en cuarentena o el proveedor se desactivó mientras mirabas la pantalla), te muestra el motivo y no deja confirmar.
+
+Es el mismo cambio que la estrella **Usar como predeterminada** de la ficha del proveedor o del insumo ([capítulo 4](04-proveedores-y-listas.md)); acá además ves el efecto en el margen antes de decidir.
+
+![Confirmación "¿Ya le comprás a Don Roque?" a 360 px: la manteca pasa a costar $9.650,00 por kg y se listan los 2 productos con su margen antes y después, con los botones Cancelar y Sí, ya le compro](capturas/07-impacto-margen-confirmacion.webp)
 
 ---
 
-## 7. Preguntas frecuentes
+## 5. Preguntas frecuentes
 
-### ¿Por qué un insumo más barato no se usa automáticamente en mis recetas?
-Porque en la práctica comercial, comprarle a un distribuidor nuevo puede implicar condiciones de pago distintas, fletes mínimos o diferencias de calidad que el dueño debe evaluar. MargenX te muestra la oportunidad de ahorro, pero la decisión de cambiar el costo de tus recetas siempre queda bajo tu control explícito.
+### ¿Dónde quedó la calculadora de bultos y el pedido semanal?
+Se sacaron. Sin stock, MargenX no sabe cuánto consumís de cada insumo, así que las cantidades eran inventadas y el total del pedido no servía para decidir. La reposición con cantidades reales llega con el control de stock, en la Fase 2.
 
-### ¿Qué pasa si cargo 0 bultos en un insumo?
-Ese insumo simplemente se excluye de la orden de compra final. La previsualización solo calcula y agrupa aquellos ítems donde hayas ingresado al menos 1 bulto.
+### ¿Por qué MargenX no cambia solo al proveedor más barato?
+Porque comprarle a otro distribuidor puede implicar otras condiciones de pago, fletes mínimos o diferencias de calidad que solo vos podés evaluar. MargenX te muestra cuánto ganás con el cambio; la decisión de cambiar el costo de tus recetas siempre es tuya.
+
+### No aparece ningún insumo. ¿Qué hago?
+Aparecen solo los insumos que algún proveedor activo vende más barato que su costo actual. Si ves *"No hay proveedores más baratos para tus insumos"*, cargá las listas de otros proveedores desde **Proveedores**.

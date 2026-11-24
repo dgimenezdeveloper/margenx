@@ -1,11 +1,16 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PurchasesPage from './page'
-import { purchasingService } from '@/services/purchasingService'
+import {
+  purchasingService,
+  type IngredientMarginImpact,
+  type MarginImpactResponse,
+} from '@/services/purchasingService'
 import { supplierService } from '@/services/supplierService'
+import { ingredientService } from '@/services/ingredientService'
 import { ApiError } from '@/services/api'
 
 const mockGetToken = vi.fn().mockResolvedValue('token-compras')
@@ -31,566 +36,442 @@ vi.mock('@/lib/useCurrentUser', () => ({
 
 vi.mock('@/services/purchasingService', () => ({
   purchasingService: {
-    getSuggestions: vi.fn(),
-    previewOrder: vi.fn(),
+    getMarginImpact: vi.fn(),
+    getIngredientMarginImpact: vi.fn(),
   },
 }))
 
 vi.mock('@/services/supplierService', () => ({
   supplierService: {
     addPackaging: vi.fn(),
+    getQuarantine: vi.fn(),
   },
 }))
 
-const mockSuggestionsPayload = {
-  summary: {
-    withSavingsCount: 1,
-    alreadyBestPriceCount: 2,
-    singleSupplierCount: 7,
-    withoutEligibleSupplierCount: 0,
-    withoutActiveDefaultCount: 0,
-    quarantinedExcludedCount: 1,
+vi.mock('@/services/ingredientService', () => ({
+  ingredientService: {
+    getById: vi.fn(),
   },
-  byIngredient: [
+}))
+
+// Datos con la forma de docs/api.md §10 (GET /api/purchasing/margin-impact), con insumos y
+// productos de Panadería Central.
+const harinaImpact: IngredientMarginImpact = {
+  ingredientId: 'ing-harina',
+  ingredientName: 'Harina de trigo 000 Olavarriense',
+  unit: 'kg',
+  currentCost: '950.00',
+  defaultPresentation: {
+    supplierIngredientId: 'si-marjuanc',
+    supplierName: 'Distribuidora MarJuanC Alimentos',
+    unitCost: '950.00',
+  },
+  alternativePresentation: {
+    supplierIngredientId: 'si-molinera',
+    supplierName: 'Distribuidora Mayorista Molinera',
+    unitCost: '880.00',
+  },
+  unitCostDifference: '70.00',
+  productsAffectedCount: 2,
+  productsLeavingRiskOrLossCount: 1,
+  products: [
     {
+      productId: 'prod-medialunas',
+      productName: 'Medialunas de manteca x 12',
+      salePrice: '6000.00',
+      minMarginPercent: '35.00',
+      currentRecipeCost: '3950.00',
+      projectedRecipeCost: '3810.00',
+      currentMarginAmount: '2050.00',
+      projectedMarginAmount: '2190.00',
+      currentMarginPercent: '34.17',
+      projectedMarginPercent: '36.50',
+      currentBucket: 'risk',
+      projectedBucket: 'target',
+    },
+    {
+      productId: 'prod-pan',
+      productName: 'Pan de campo',
+      salePrice: '4500.00',
+      minMarginPercent: '30.00',
+      currentRecipeCost: '1800.00',
+      projectedRecipeCost: '1751.00',
+      currentMarginAmount: '2700.00',
+      projectedMarginAmount: '2749.00',
+      currentMarginPercent: '60.00',
+      projectedMarginPercent: '61.09',
+      currentBucket: 'target',
+      projectedBucket: 'surplus',
+    },
+  ],
+}
+
+const mantecaImpact: IngredientMarginImpact = {
+  ingredientId: 'ing-manteca',
+  ingredientName: 'Manteca La Serenísima',
+  unit: 'kg',
+  currentCost: '9800.00',
+  defaultPresentation: null,
+  alternativePresentation: {
+    supplierIngredientId: 'si-lacteos',
+    supplierName: 'Lácteos del Sur',
+    unitCost: '9500.00',
+  },
+  unitCostDifference: '300.00',
+  productsAffectedCount: 0,
+  productsLeavingRiskOrLossCount: 0,
+  products: [],
+}
+
+const marginImpactPayload: MarginImpactResponse = {
+  summary: { ingredientsWithAlternative: 2, productsAffected: 2, productsLeavingRiskOrLoss: 1 },
+  byIngredient: [harinaImpact, mantecaImpact],
+}
+
+const harinaDetail = {
+  id: 'ing-harina',
+  name: 'Harina de trigo 000 Olavarriense',
+  unit: 'kg',
+  currentCost: 950,
+  supplierConnections: [
+    {
+      id: 'si-marjuanc',
+      supplierId: 'sup-marjuanc',
       ingredientId: 'ing-harina',
-      ingredientName: 'Harina 000',
-      unit: 'kg',
-      currentCost: '900.00',
-      defaultPresentation: {
-        supplierIngredientId: 'si-molino',
-        supplierId: 'sup-molino',
-        supplierName: 'Molino Cañuelas',
-        supplierCode: 'MC-990',
-        rawDescription: null,
-        packageSize: '50',
-        packageUnit: 'kg',
-        packagePrice: '45000.00',
-        unitCost: '900.00',
-      },
-      cheapestPresentation: {
-        supplierIngredientId: 'si-centro',
-        supplierId: 'sup-centro',
-        supplierName: 'Distribuidora del Centro',
-        supplierCode: '5521',
-        rawDescription: null,
-        packageSize: '25',
-        packageUnit: 'kg',
-        packagePrice: '22000.00',
-        unitCost: '880.00',
-      },
-      savingsPerUnit: '20.00',
-      savingsPercent: '2.22',
-      packageSavings: '500.00',
+      packageSize: 25,
+      packageUnit: 'kg',
+      packagePrice: 23750,
+      isDefault: true,
+      supplierCode: 'HAR188',
+      rawDescription: 'HARINA 000 X 25 KG',
     },
-  ],
-  bySupplier: [
     {
-      supplierId: 'sup-centro',
-      supplierName: 'Distribuidora del Centro',
-      contactPhone: '+54 11 4000-2000',
-      email: 'ventas@centro.example',
-      address: null,
-      itemsCount: 1,
-      totalPackageSavings: '500.00',
-      items: [
-        {
-          ingredientId: 'ing-harina',
-          ingredientName: 'Harina 000',
-          unit: 'kg',
-          supplierIngredientId: 'si-centro',
-          supplierCode: '5521',
-          rawDescription: null,
-          packageSize: '25',
-          packageUnit: 'kg',
-          packagePrice: '22000.00',
-          unitCost: '880.00',
-          defaultUnitCost: '900.00',
-          defaultSupplierName: 'Molino Cañuelas',
-          savingsPerUnit: '20.00',
-          savingsPercent: '2.22',
-          packageSavings: '500.00',
-        },
-      ],
+      id: 'si-molinera',
+      supplierId: 'sup-molinera',
+      ingredientId: 'ing-harina',
+      packageSize: 25,
+      packageUnit: 'kg',
+      packagePrice: 22000,
+      isDefault: false,
+      supplierCode: 'MOL-000',
+      rawDescription: 'HARINA 000 OLAV. 25 KG',
     },
   ],
-  alreadyBestPrice: [],
-  singleSupplier: [],
-  quarantinedExcluded: [],
 }
 
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/compras']}>
-      <PurchasesPage />
+      <Routes>
+        <Route path="/compras" element={<PurchasesPage />} />
+        <Route path="/proveedores" element={<p>Pantalla de proveedores</p>} />
+      </Routes>
     </MemoryRouter>
   )
 }
 
-describe('PurchasesPage (/compras)', () => {
+async function openHarinaConfirmation() {
+  renderPage()
+  await screen.findByRole('heading', { level: 1, name: 'Impacto en el margen' })
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Ya le compro a este proveedor: Harina de trigo 000 Olavarriense a Distribuidora Mayorista Molinera',
+    })
+  )
+  return screen.findByRole('dialog', { name: '¿Ya le comprás a Distribuidora Mayorista Molinera?' })
+}
+
+describe('PurchasesPage (/compras, Impacto en el margen)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(purchasingService.getSuggestions).mockResolvedValue(mockSuggestionsPayload)
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(marginImpactPayload)
+    vi.mocked(purchasingService.getIngredientMarginImpact).mockResolvedValue(harinaImpact)
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+    vi.mocked(ingredientService.getById).mockResolvedValue(harinaDetail)
   })
 
-  it('Escenario Gherkin "Sugerir compra": muestra la Harina bajo Distribuidora del Centro con ahorro de $20,00 (2,22 %)', async () => {
+  it('Escenario "Impacto visible": muestra el producto con el margen antes y después y el cambio de estado', async () => {
     renderPage()
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })).toBeInTheDocument()
-    expect(screen.getByText('Distribuidora del Centro')).toBeInTheDocument()
-    expect(screen.getByText('Harina 000')).toBeInTheDocument()
-    expect(screen.getByText(/-?\$20,00\/kg \(2,2 %\)/i)).toBeInTheDocument()
-    expect(screen.getByText(/Ahorro bulto: \$500,00/i)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Impacto en el margen' })).toBeInTheDocument()
+    const card = screen.getByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+
+    expect(within(card).getByText('Distribuidora MarJuanC Alimentos')).toBeInTheDocument()
+    expect(within(card).getByText('Distribuidora Mayorista Molinera')).toBeInTheDocument()
+    expect(within(card).getByText(/\$70,00 menos por kg/)).toBeInTheDocument()
+
+    const medialunas = within(card).getByRole('listitem', { name: 'Medialunas de manteca x 12' })
+    expect(within(medialunas).getByText(/34,2\s%/)).toBeInTheDocument()
+    expect(within(medialunas).getByText(/36,5\s%/)).toBeInTheDocument()
+    expect(within(medialunas).getByText('En riesgo')).toBeInTheDocument()
+    expect(within(medialunas).getByText('En objetivo')).toBeInTheDocument()
+    expect(within(medialunas).getByText(/Sale de En riesgo/)).toBeInTheDocument()
+
+    const pan = within(card).getByRole('listitem', { name: 'Pan de campo' })
+    expect(within(pan).getByText('Superávit')).toBeInTheDocument()
+    expect(within(pan).queryByText(/Sale de/)).not.toBeInTheDocument()
   })
 
-  it('muestra las tarjetas de resumen y enlace a Cuarentena si hay ítems excluidos', async () => {
+  it('el resumen cuenta insumos con alternativa, productos que mejoran y los que salen de En riesgo o Pérdida', async () => {
     renderPage()
 
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
+    const summary = await screen.findByRole('region', { name: 'Resumen del impacto' })
+    expect(within(summary).getByText('Insumos con alternativa').parentElement).toHaveTextContent('2')
+    expect(within(summary).getByText('Productos que mejoran').parentElement).toHaveTextContent('2')
+    expect(within(summary).getByText('Salen de En riesgo o Pérdida').parentElement).toHaveTextContent('1')
+  })
 
-    const withSavingsCard = screen.getByText('Con Ahorro Disponible').parentElement as HTMLElement
-    expect(within(withSavingsCard).getByText('1')).toBeInTheDocument()
+  it('respeta el orden de la API y explica los casos sin predeterminada y sin productos', async () => {
+    renderPage()
 
-    const bestPriceCard = screen.getByText('Al Mejor Precio').parentElement as HTMLElement
-    expect(within(bestPriceCard).getByText('2')).toBeInTheDocument()
+    await screen.findByRole('heading', { level: 1, name: 'Impacto en el margen' })
+    const cards = screen.getAllByRole('article')
+    expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual([
+      'Harina de trigo 000 Olavarriense',
+      'Manteca La Serenísima',
+    ])
 
-    const quarantineCard = screen.getByText('Excluidos (Cuarentena)').parentElement as HTMLElement
-    expect(within(quarantineCard).getByText('1')).toBeInTheDocument()
+    const manteca = cards[1]!
+    expect(within(manteca).getByText('Sin presentación predeterminada')).toBeInTheDocument()
+    expect(within(manteca).getByText(/Ningún producto con receta usa este insumo/)).toBeInTheDocument()
+  })
 
-    const quarantineNotice = screen.getByText(/presentación\(es\) retenida\(s\) en cuarentena/i)
-    expect(quarantineNotice).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver Cuarentena' })).toHaveAttribute(
-      'href',
-      '/proveedores/cuarentena'
+  it('cada botón dice de qué insumo y proveedor es (RC-19)', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Impacto en el margen' })
+    const buttons = screen.getAllByRole('button', { name: /^Ya le compro a este proveedor/ })
+    expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Ya le compro a este proveedor: Harina de trigo 000 Olavarriense a Distribuidora Mayorista Molinera',
+      'Ya le compro a este proveedor: Manteca La Serenísima a Lácteos del Sur',
+    ])
+  })
+
+  it('Escenario "Sin calculadora": no hay bultos, pedido semanal ni ahorro por bulto', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Impacto en el margen' })
+    expect(screen.queryByText(/bulto/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/pedido/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('Escenario "Confirmación con impacto": muestra los productos afectados y su margen nuevo', async () => {
+    const dialog = await openHarinaConfirmation()
+
+    expect(purchasingService.getIngredientMarginImpact).toHaveBeenCalledWith(
+      expect.any(Function),
+      'ing-harina',
+      'si-molinera'
     )
+    expect(await within(dialog).findByText('Medialunas de manteca x 12')).toBeInTheDocument()
+    expect(within(dialog).getByText(/2 productos cambian su margen/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/36,5\s%/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/61,1\s%/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/\$880,00 por kg/)).toBeInTheDocument()
   })
 
-  it('Escenario Gherkin "Pedido": carga 2 bultos, calcula pedido y muestra subtotales y ahorro', async () => {
-    const mockOrderPreview = {
-      groups: [
-        {
-          supplierId: 'sup-centro',
-          supplierName: 'Distribuidora del Centro',
-          contactPhone: '+54 11 4000-2000',
-          email: null,
-          address: null,
-          subtotal: '44000.00',
-          savings: '1000.00',
-          items: [
-            {
-              supplierIngredientId: 'si-centro',
-              ingredientId: 'ing-harina',
-              ingredientName: 'Harina 000',
-              unit: 'kg',
-              supplierCode: '5521',
-              rawDescription: null,
-              packageSize: '25',
-              packageUnit: 'kg',
-              packagePrice: '22000.00',
-              unitCost: '880.00',
-              packages: 2,
-              totalQuantity: '50',
-              subtotal: '44000.00',
-              defaultUnitCost: '900.00',
-              savings: '1000.00',
-            },
-          ],
-        },
-      ],
-      total: '44000.00',
-      totalSavings: '1000.00',
-      totalPackages: 2,
-      itemsCount: 1,
-    }
-    vi.mocked(purchasingService.previewOrder).mockResolvedValue(mockOrderPreview)
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-
-    const qtyInput = screen.getByLabelText('Bultos de Harina 000')
-    fireEvent.change(qtyInput, { target: { value: '2' } })
-
-    const calculateBtn = screen.getByRole('button', { name: /Calcular pedido sugerido/i })
-    fireEvent.click(calculateBtn)
-
-    await waitFor(() => {
-      expect(purchasingService.previewOrder).toHaveBeenCalledWith(expect.any(Function), [
-        { supplierIngredientId: 'si-centro', packages: 2 },
-      ])
-    })
-
-    expect(await screen.findByText('Previsualización del Pedido Semanal')).toBeInTheDocument()
-    expect(screen.getAllByText('$44.000,00').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('$1.000,00').length).toBeGreaterThan(0)
-  })
-
-  it('permite copiar la orden generada al portapapeles', async () => {
-    const writeTextMock = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: writeTextMock }, configurable: true })
-
-    vi.mocked(purchasingService.previewOrder).mockResolvedValue({
-      groups: [
-        {
-          supplierId: 'sup-centro',
-          supplierName: 'Distribuidora del Centro',
-          contactPhone: '+54 11 4000-2000',
-          email: null,
-          address: null,
-          subtotal: '22000.00',
-          savings: '500.00',
-          items: [
-            {
-              supplierIngredientId: 'si-centro',
-              ingredientId: 'ing-harina',
-              ingredientName: 'Harina 000',
-              unit: 'kg',
-              supplierCode: '5521',
-              rawDescription: null,
-              packageSize: '25',
-              packageUnit: 'kg',
-              packagePrice: '22000.00',
-              unitCost: '880.00',
-              packages: 1,
-              totalQuantity: '25',
-              subtotal: '22000.00',
-              defaultUnitCost: '900.00',
-              savings: '500.00',
-            },
-          ],
-        },
-      ],
-      total: '22000.00',
-      totalSavings: '500.00',
-      totalPackages: 1,
-      itemsCount: 1,
-    })
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-
-    const copyBtn = await screen.findByRole('button', { name: /Copiar pedido/i })
-    fireEvent.click(copyBtn)
-
-    await waitFor(() => {
-      expect(writeTextMock).toHaveBeenCalled()
-    })
-    expect(await screen.findByText(/Pedido copiado al portapapeles/i)).toBeInTheDocument()
-  })
-
-  it('permite conmutar la presentación como predeterminada tras confirmación modal anunciando al proveedor sugerido', async () => {
+  it('al confirmar hace predeterminada la presentación con sus datos, avisa cuántos productos se recalcularon y recarga', async () => {
     vi.mocked(supplierService.addPackaging).mockResolvedValue({
-      supplierIngredient: {
-        id: 'si-centro',
-        supplierId: 'sup-centro',
+      supplierIngredient: { ...harinaDetail.supplierConnections[1]!, isDefault: true },
+      unitCost: '880.00',
+    })
+    const dialog = await openHarinaConfirmation()
+    await within(dialog).findByText('Medialunas de manteca x 12')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sí, ya le compro' }))
+
+    await waitFor(() => {
+      expect(supplierService.addPackaging).toHaveBeenCalledWith(expect.any(Function), 'sup-molinera', {
         ingredientId: 'ing-harina',
         packageSize: 25,
         packageUnit: 'kg',
         packagePrice: 22000,
         isDefault: true,
-      },
-      unitCost: 880,
+        supplierCode: 'MOL-000',
+        rawDescription: 'HARINA 000 OLAV. 25 KG',
+      })
     })
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    const makeDefaultBtn = screen.getByRole('button', { name: /Usar como predeterminada/i })
-    fireEvent.click(makeDefaultBtn)
-
-    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
-    expect(within(dialog).getByText('Distribuidora del Centro')).toBeInTheDocument()
-
-    const confirmBtn = within(dialog).getByRole('button', { name: 'Confirmar cambio' })
-    fireEvent.click(confirmBtn)
-
-    await waitFor(() => {
-      expect(supplierService.addPackaging).toHaveBeenCalledWith(
-        expect.any(Function),
-        'sup-centro',
-        expect.objectContaining({
-          ingredientId: 'ing-harina',
-          isDefault: true,
-        })
-      )
-    })
-    expect(await screen.findByText(/establecida como predeterminada/i)).toBeInTheDocument()
-    await waitFor(() => {
-      expect(purchasingService.getSuggestions).toHaveBeenCalledTimes(2)
-    })
-    // Terminó la recarga: ya no queda el esqueleto de carga (el aviso de éxito también es role="status").
-    await waitFor(() => {
-      const carga = screen.queryAllByRole('status').filter((el) => !el.textContent?.includes('predeterminada'))
-      expect(carga).toHaveLength(0)
-    })
-    expect(screen.getByText('Distribuidora del Centro')).toBeInTheDocument()
+    expect(ingredientService.getById).toHaveBeenCalledWith(expect.any(Function), 'ing-harina')
+    expect(await screen.findByText('Listo: 2 productos recalculados')).toBeInTheDocument()
+    await waitFor(() => expect(purchasingService.getMarginImpact).toHaveBeenCalledTimes(2))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Ya le comprás/ })).not.toBeInTheDocument()
+    )
   })
 
-  it('presenta ErrorState ante falla de carga y permite reintentar', async () => {
-    vi.mocked(purchasingService.getSuggestions).mockRejectedValueOnce(
+  it('con un solo producto el aviso va en singular', async () => {
+    vi.mocked(purchasingService.getIngredientMarginImpact).mockResolvedValue({
+      ...harinaImpact,
+      productsAffectedCount: 1,
+      products: [harinaImpact.products[0]!],
+    })
+    vi.mocked(supplierService.addPackaging).mockResolvedValue({
+      supplierIngredient: { ...harinaDetail.supplierConnections[1]!, isDefault: true },
+      unitCost: '880.00',
+    })
+    const dialog = await openHarinaConfirmation()
+    expect(await within(dialog).findByText(/1 producto cambia su margen/)).toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sí, ya le compro' }))
+
+    expect(await screen.findByText('Listo: 1 producto recalculado')).toBeInTheDocument()
+  })
+
+  it('si el detalle responde 422 lo muestra en la confirmación y no deja confirmar', async () => {
+    vi.mocked(purchasingService.getIngredientMarginImpact).mockRejectedValue(
+      new ApiError('La presentación está en cuarentena y debe resolverse antes de evaluarla.', 422)
+    )
+    const dialog = await openHarinaConfirmation()
+
+    expect(
+      await within(dialog).findByText('La presentación está en cuarentena y debe resolverse antes de evaluarla.')
+    ).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Sí, ya le compro' })).toBeDisabled()
+    expect(supplierService.addPackaging).not.toHaveBeenCalled()
+  })
+
+  it('si la presentación ya no está en el insumo avisa y no cambia nada', async () => {
+    vi.mocked(ingredientService.getById).mockResolvedValue({
+      ...harinaDetail,
+      supplierConnections: [harinaDetail.supplierConnections[0]!],
+    })
+    const dialog = await openHarinaConfirmation()
+    await within(dialog).findByText('Medialunas de manteca x 12')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sí, ya le compro' }))
+
+    expect(
+      await screen.findByText('Esa presentación ya no está cargada en el insumo. Actualizá la pantalla e intentá de nuevo.')
+    ).toBeInTheDocument()
+    expect(supplierService.addPackaging).not.toHaveBeenCalled()
+  })
+
+  it('si falla el cambio avisa el error, no recarga y deja la confirmación abierta', async () => {
+    vi.mocked(supplierService.addPackaging).mockRejectedValueOnce(
+      new ApiError('El proveedor "Distribuidora Mayorista Molinera" está inactivo.', 422)
+    )
+    const dialog = await openHarinaConfirmation()
+    await within(dialog).findByText('Medialunas de manteca x 12')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sí, ya le compro' }))
+
+    expect(
+      await screen.findByText('El proveedor "Distribuidora Mayorista Molinera" está inactivo.')
+    ).toBeInTheDocument()
+    expect(purchasingService.getMarginImpact).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog', { name: /Ya le comprás/ })).toBeInTheDocument()
+  })
+
+  it('Cancelar cierra la confirmación sin cambiar nada', async () => {
+    const dialog = await openHarinaConfirmation()
+    await within(dialog).findByText('Medialunas de manteca x 12')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Ya le comprás/ })).not.toBeInTheDocument()
+    )
+    expect(supplierService.addPackaging).not.toHaveBeenCalled()
+  })
+
+  it('el detalle de una confirmación anterior que llega tarde no reemplaza el del insumo abierto ahora', async () => {
+    // El detalle de la Harina queda pendiente; el dueño cancela y abre la Manteca, cuyo detalle llega primero.
+    // Cuando por fin llega el de la Harina, la confirmación tiene que seguir mostrando la Manteca.
+    let resolverHarina: (detalle: IngredientMarginImpact) => void = () => {}
+    vi.mocked(purchasingService.getIngredientMarginImpact)
+      .mockImplementationOnce(
+        () =>
+          new Promise<IngredientMarginImpact>((resolve) => {
+            resolverHarina = resolve
+          })
+      )
+      .mockResolvedValueOnce(mantecaImpact)
+
+    const harina = await openHarinaConfirmation()
+    fireEvent.click(within(harina).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Distribuidora Mayorista Molinera/ })).not.toBeInTheDocument()
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Ya le compro a este proveedor: Manteca La Serenísima a Lácteos del Sur' })
+    )
+    const manteca = await screen.findByRole('dialog', { name: '¿Ya le comprás a Lácteos del Sur?' })
+    expect(await within(manteca).findByText(/Ningún producto con receta lo usa/)).toBeInTheDocument()
+
+    await act(async () => {
+      resolverHarina(harinaImpact)
+    })
+
+    expect(within(manteca).queryByText('Medialunas de manteca x 12')).not.toBeInTheDocument()
+    expect(within(manteca).getByText(/\$9\.500,00 por kg/)).toBeInTheDocument()
+    expect(within(manteca).getByText(/Ningún producto con receta lo usa/)).toBeInTheDocument()
+  })
+
+  it('muestra el error de la API y permite reintentar', async () => {
+    vi.mocked(purchasingService.getMarginImpact).mockRejectedValueOnce(
       new ApiError('Error al cargar datos del servidor', 500)
     )
 
     renderPage()
 
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
-    expect(screen.getByText('Error al cargar sugerencias de compra')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudo calcular el impacto en el margen')).toBeInTheDocument()
+    expect(screen.getByText('Error al cargar datos del servidor')).toBeInTheDocument()
 
-    vi.mocked(purchasingService.getSuggestions).mockResolvedValueOnce(mockSuggestionsPayload)
-    const retryBtn = screen.getByRole('button', { name: /reintentar/i })
-    fireEvent.click(retryBtn)
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })).toBeInTheDocument()
+    expect(await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })).toBeInTheDocument()
   })
 
-  it('valida que no se calculen pedidos con más de 100.000 bultos por ítem', async () => {
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-
-    const qtyInput = screen.getByLabelText('Bultos de Harina 000')
-    fireEvent.change(qtyInput, { target: { value: '100001' } })
-
-    const calculateBtn = screen.getByRole('button', { name: /Calcular pedido sugerido/i })
-    fireEvent.click(calculateBtn)
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'El campo "bultos" no puede superar los 100.000 bultos por ítem.'
-    )
-    expect(purchasingService.previewOrder).not.toHaveBeenCalled()
-  })
-
-  it('muestra el esqueleto de carga mientras llegan las sugerencias', async () => {
-    let resolve: (value: typeof mockSuggestionsPayload) => void = () => {}
-    vi.mocked(purchasingService.getSuggestions).mockReturnValueOnce(
-      new Promise((r) => {
-        resolve = r
-      })
-    )
-
-    renderPage()
-
-    expect(screen.getByRole('status')).toHaveTextContent('Cargando sugerencias de compras...')
-    resolve(mockSuggestionsPayload)
-    expect(await screen.findByText('Distribuidora del Centro')).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  })
-
-  it('estado vacío: sin comparativas invita a cargar dos proveedores y lleva a Proveedores', async () => {
-    vi.mocked(purchasingService.getSuggestions).mockResolvedValueOnce({
-      ...mockSuggestionsPayload,
-      summary: {
-        ...mockSuggestionsPayload.summary,
-        withSavingsCount: 0,
-        alreadyBestPriceCount: 0,
-        singleSupplierCount: 0,
-        quarantinedExcludedCount: 0,
-      },
+  it('sin alternativas más baratas invita a cargar proveedores y lleva a Proveedores', async () => {
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue({
+      summary: { ingredientsWithAlternative: 0, productsAffected: 0, productsLeavingRiskOrLoss: 0 },
       byIngredient: [],
-      bySupplier: [],
     })
 
-    render(
-      <MemoryRouter initialEntries={['/compras']}>
-        <Routes>
-          <Route path="/compras" element={<PurchasesPage />} />
-          <Route path="/proveedores" element={<p>Pantalla de proveedores</p>} />
-        </Routes>
-      </MemoryRouter>
-    )
+    renderPage()
 
-    expect(await screen.findByText('No hay comparativas de compra disponibles')).toBeInTheDocument()
-    expect(screen.getByText(/Cargá al menos dos proveedores para un mismo insumo/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Calcular pedido sugerido/i })).not.toBeInTheDocument()
-
+    expect(await screen.findByText('No hay proveedores más baratos para tus insumos')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ir a Proveedores' }))
     expect(await screen.findByText('Pantalla de proveedores')).toBeInTheDocument()
   })
 
-  it('sin ahorro disponible informa que todo está al costo óptimo y no ofrece calcular pedido', async () => {
-    vi.mocked(purchasingService.getSuggestions).mockResolvedValueOnce({
-      ...mockSuggestionsPayload,
-      summary: { ...mockSuggestionsPayload.summary, withSavingsCount: 0, quarantinedExcludedCount: 0 },
-      byIngredient: [],
-      bySupplier: [],
-    })
+  it('muestra el esqueleto de carga mientras llega el cálculo', async () => {
+    vi.mocked(purchasingService.getMarginImpact).mockReturnValue(new Promise(() => {}))
 
     renderPage()
 
-    expect(await screen.findByText('¡Todos tus insumos están al costo óptimo!')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Calcular pedido sugerido/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Ver Cuarentena' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Calculando el impacto en el margen')
   })
 
-  it('aclara que consultar la pantalla no modifica costos ni recetas', async () => {
+  it('con precios en cuarentena avisa y enlaza a la bandeja con hover legible en oscuro', async () => {
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([
+      { id: 'q1' },
+      { id: 'q2' },
+    ] as unknown as Awaited<ReturnType<typeof supplierService.getQuarantine>>)
+
     renderPage()
 
-    expect(await screen.findByText(/no modifica tus costos vigentes ni tus recetas/i)).toBeInTheDocument()
-    expect(supplierService.addPackaging).not.toHaveBeenCalled()
+    const link = await screen.findByRole('link', { name: 'Ver cuarentena' })
+    expect(link).toHaveAttribute('href', '/proveedores/cuarentena')
+    expect(link.className).toContain('dark:hover:text-amber-100')
+    expect(screen.getByText(/2 precios en cuarentena no participan/)).toBeInTheDocument()
   })
 
-  it('muestra la lista como tabla con encabezados de columna (vista desde md)', async () => {
+  it('si falla la consulta de cuarentena igual muestra el impacto, sin el aviso', async () => {
+    vi.mocked(supplierService.getQuarantine).mockRejectedValue(new ApiError('Sin conexión', 503))
+
     renderPage()
 
-    const table = await screen.findByRole('table', { name: /Insumos que conviene comprarle a Distribuidora del Centro/i })
-    const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent)
-    expect(headers).toEqual(['Insumo', 'Bulto', 'Costo unitario', 'Ahorro', 'Bultos', 'Acción'])
-    expect(within(table).getByText('SKU: 5521')).toBeInTheDocument()
-    expect(within(table).getByText(/Sugerido:/)).toHaveTextContent('Sugerido: $880,00/kg vs actual $900,00/kg (Molino Cañuelas)')
+    expect(await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Ver cuarentena' })).not.toBeInTheDocument()
   })
 
-  it('no calcula el pedido si todos los ítems quedan en 0 bultos', async () => {
+  it('aclara que consultar la pantalla no cambia costos ni recetas', async () => {
     renderPage()
 
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.change(screen.getByLabelText('Bultos de Harina 000'), { target: { value: '0' } })
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Ingresá al menos 1 bulto en los insumos que deseás incluir en el pedido.'
-    )
-    expect(purchasingService.previewOrder).not.toHaveBeenCalled()
-  })
-
-  it('muestra el error de la API si falla el cálculo del pedido', async () => {
-    vi.mocked(purchasingService.previewOrder).mockRejectedValueOnce(
-      new ApiError('La presentación indicada no pertenece a la cuenta', 400)
-    )
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('La presentación indicada no pertenece a la cuenta')
-    expect(screen.queryByText('Previsualización del Pedido Semanal')).not.toBeInTheDocument()
-  })
-
-  it('el pedido muestra subtotal por proveedor, cantidad convertida y copia el texto por proveedor', async () => {
-    const writeTextMock = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: writeTextMock }, configurable: true })
-    vi.mocked(purchasingService.previewOrder).mockResolvedValueOnce({
-      groups: [
-        {
-          supplierId: 'sup-centro',
-          supplierName: 'Distribuidora del Centro',
-          contactPhone: '+54 11 4000-2000',
-          email: 'ventas@centro.example',
-          address: null,
-          subtotal: '44000.00',
-          savings: '1000.00',
-          items: [
-            {
-              supplierIngredientId: 'si-centro',
-              ingredientId: 'ing-harina',
-              ingredientName: 'Harina 000',
-              unit: 'kg',
-              supplierCode: '5521',
-              rawDescription: null,
-              packageSize: '25',
-              packageUnit: 'kg',
-              packagePrice: '22000.00',
-              unitCost: '880.00',
-              packages: 2,
-              totalQuantity: '50.000',
-              subtotal: '44000.00',
-              defaultUnitCost: '900.00',
-              savings: '1000.00',
-            },
-          ],
-        },
-      ],
-      total: '44000.00',
-      totalSavings: '1000.00',
-      totalPackages: 2,
-      itemsCount: 1,
-    })
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.change(screen.getByLabelText('Bultos de Harina 000'), { target: { value: '2' } })
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-
-    const preview = await screen.findByRole('region', { name: 'Previsualización del Pedido Semanal' })
-    expect(within(preview).getByText('Subtotal: $44.000,00')).toBeInTheDocument()
-    expect(within(preview).getByText('Ahorro: $1.000,00')).toBeInTheDocument()
-    expect(within(preview).getByText(/2 bulto\(s\) \(50 kg\)/)).toBeInTheDocument()
-
-    fireEvent.click(within(preview).getByRole('button', { name: /Copiar pedido/i }))
-    await waitFor(() => expect(writeTextMock).toHaveBeenCalledTimes(1))
-    const copied = writeTextMock.mock.calls[0][0] as string
-    expect(copied).toContain('Proveedor: Distribuidora del Centro')
-    expect(copied).toContain('Tel: +54 11 4000-2000')
-    expect(copied).toContain('Email: ventas@centro.example')
-    expect(copied).toContain('Harina 000 [SKU: 5521]: 2 bulto(s) de 25 kg ($22.000,00 c/u) = $44.000,00')
-    expect(copied).toContain('Total estimado: $44.000,00 (Ahorro calculado: $1.000,00)')
-  })
-
-  it('avisa si el navegador no deja copiar el pedido', async () => {
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: vi.fn().mockRejectedValue(new Error('NotAllowedError')) },
-      configurable: true,
-    })
-    vi.mocked(purchasingService.previewOrder).mockResolvedValueOnce({
-      groups: [],
-      total: '0.00',
-      totalSavings: '0.00',
-      totalPackages: 0,
-      itemsCount: 0,
-    })
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /Copiar pedido/i }))
-
-    expect(await screen.findByText(/No se pudo copiar automáticamente/i)).toBeInTheDocument()
-  })
-
-  it('Imprimir abre el diálogo del navegador y la lista de sugerencias no se imprime', async () => {
-    const printMock = vi.fn()
-    const originalPrint = window.print
-    Object.defineProperty(window, 'print', { value: printMock, configurable: true, writable: true })
-    vi.mocked(purchasingService.previewOrder).mockResolvedValueOnce({
-      groups: [],
-      total: '0.00',
-      totalSavings: '0.00',
-      totalPackages: 0,
-      itemsCount: 0,
-    })
-
-    renderPage()
-
-    const table = await screen.findByRole('table')
-    const list = table.closest('section')?.parentElement as HTMLElement
-    expect(list).not.toHaveClass('print:hidden')
-
-    fireEvent.click(screen.getByRole('button', { name: /Calcular pedido sugerido/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /Imprimir/i }))
-
-    expect(printMock).toHaveBeenCalledTimes(1)
-    expect(list).toHaveClass('print:hidden')
-    Object.defineProperty(window, 'print', { value: originalPrint, configurable: true, writable: true })
-  })
-
-  it('si falla "Usar como predeterminada" avisa el error, no recarga y deja el diálogo abierto', async () => {
-    vi.mocked(supplierService.addPackaging).mockRejectedValueOnce(
-      new ApiError('La presentación está en cuarentena', 409)
-    )
-
-    renderPage()
-
-    await screen.findByRole('heading', { level: 1, name: 'Compras Sugeridas' })
-    fireEvent.click(screen.getByRole('button', { name: /Usar como predeterminada/i }))
-    const dialog = await screen.findByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cambio' }))
-
-    expect(await screen.findByText('La presentación está en cuarentena')).toBeInTheDocument()
-    expect(purchasingService.getSuggestions).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('dialog', { name: '¿Cambiar la presentación predeterminada?' })).toBeInTheDocument()
+    expect(await screen.findByText(/no cambia tus costos ni tus recetas/i)).toBeInTheDocument()
   })
 })
