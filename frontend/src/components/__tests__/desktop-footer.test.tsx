@@ -94,3 +94,11 @@ describe('DesktopFooter: Política e Instalar (#429)', () => {
     ])
   })
 })
+
+describe('DesktopFooter: contraste AA que marcó axe (#442)', () => {
+  it('"Sistemas en línea" no hereda gray-500 sobre el gris de la píldora (4,39:1)', () => {
+    render(<DesktopFooter />)
+
+    expect(screen.getByText('Sistemas en línea')).toHaveClass('text-gray-600', 'dark:text-gray-400')
+  })
+})

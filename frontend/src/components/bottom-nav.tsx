@@ -36,7 +36,7 @@ export function BottomNav() {
               aria-current={active ? 'page' : undefined}
               data-testid={`bottom-nav-${href.replace('/', '')}`}
               className={`flex flex-1 min-w-0 flex-col items-center gap-1 text-[10px] font-medium transition-colors ${
-                active ? 'font-bold text-indigo-600' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                active ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
               <Icon className="size-5 shrink-0" />

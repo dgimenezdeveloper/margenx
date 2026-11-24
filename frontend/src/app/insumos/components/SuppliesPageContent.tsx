@@ -513,7 +513,7 @@ export default function SuppliesPageContent() {
                   <ShieldAlert className="size-4" />
                   Cuarentena
                   {quarantineCount > 0 && (
-                    <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] text-white">
+                    <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] text-amber-950">
                       {quarantineCount}
                     </span>
                   )}

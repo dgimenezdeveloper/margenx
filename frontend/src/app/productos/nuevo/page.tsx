@@ -357,7 +357,7 @@ export default function NewProductPage() {
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <h2 className="text-base font-bold text-gray-900 dark:text-white">1. Datos Básicos</h2>
-                  <span className="text-xs text-gray-400 font-medium">Información comercial</span>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Información comercial</span>
                 </div>
 
                 <div>
@@ -405,7 +405,7 @@ export default function NewProductPage() {
                       className="text-base font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
                       error={errors.salePrice?.message}
                     />
-                    <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                    <p className="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
                       Separador decimal con coma (ej: 1.250,50).
                     </p>
                   </div>
@@ -429,7 +429,7 @@ export default function NewProductPage() {
                       className="text-right font-bold text-gray-900 dark:text-white dark:placeholder-gray-500"
                       error={errors.minMarginPercent?.message}
                     />
-                    <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                    <p className="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
                       Margen personalizado para este producto.
                     </p>
                   </div>
@@ -571,7 +571,7 @@ export default function NewProductPage() {
                 </div>
 
                 {items.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400 dark:border-gray-800">
+                  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
                     Todavía no sumaste insumos a esta receta. El producto se guardará en estado{' '}
                     <strong>{HEALTH_BUCKET_META.draft.label}</strong> (sin receta).
                   </div>
