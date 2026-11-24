@@ -286,3 +286,28 @@ describe('NewProductPage - Escenario "Sin texto vacío" (RC-21, #431)', () => {
   })
 })
 
+
+describe('NewProductPage - contraste AA que marcó axe (#442)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ingredientService.getAll).mockResolvedValue([levadura])
+  })
+
+  it('el rótulo de la sección, las ayudas de los campos y la receta vacía se leen en claro y en oscuro', async () => {
+    renderPage()
+    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+
+    const textos = [
+      screen.getByText('Información comercial'),
+      screen.getByText('Separador decimal con coma (ej: 1.250,50).'),
+      screen.getByText('Margen personalizado para este producto.'),
+      screen.getByText(/Todavía no sumaste insumos a esta receta/),
+    ]
+    for (const texto of textos) {
+      // gray-400 sobre blanco da 2,6:1 y gray-500 sobre gray-900, 3,66:1: los dos por debajo de 4,5:1.
+      expect(texto).not.toHaveClass('text-gray-400')
+      expect(texto).not.toHaveClass('dark:text-gray-500')
+      expect(texto).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+  })
+})

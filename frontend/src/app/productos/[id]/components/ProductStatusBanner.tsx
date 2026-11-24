@@ -34,13 +34,13 @@ export function ProductStatusBanner({
   if (bucket === 'draft') {
     return (
       <section className="rounded-3xl border-2 border-gray-200 bg-gray-100 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
           Estado del producto
         </p>
         <p className="mt-1 text-2xl font-black text-gray-700 dark:text-gray-300">
           {meta.label}
         </p>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
           Agregá materias primas para empezar a calcular automáticamente el margen de ganancia.
         </p>
       </section>

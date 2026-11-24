@@ -229,7 +229,7 @@ export default function ProfilePage() {
                     {!isLoading && user?.role === 'ADMIN' && <WeeklyReportDownload variant="link" />}
                   </div>
 
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     Las alertas por email se envían automáticamente al administrador cuando cambia el costo de un insumo.
                   </p>
                 </section>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
             <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
             Sistemas en línea
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} MargenX</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">© {new Date().getFullYear()} MargenX</p>
         </div>
 
         <DesktopFooter />

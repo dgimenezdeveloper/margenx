@@ -217,3 +217,23 @@ describe('ProductsPage - Escenario "Aviso al crear" (#432)', () => {
   })
 })
 
+
+describe('ProductsPage - nombre accesible de las filas en escritorio (WCAG 2.5.3, axe, RV488-I1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentUser.role = 'ADMIN'
+    vi.mocked(productService.list).mockResolvedValue({
+      items: [producto(1)],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    })
+  })
+
+  it('la fila no usa aria-label: el nombre empieza por "Ver detalle del producto" y sigue con el texto que se ve', async () => {
+    renderPage()
+
+    const fila = await screen.findByRole('button', { name: /^Ver detalle del producto Medialuna de manteca 1/ })
+    // Con aria-label, el nombre no incluía el costo, el precio ni el margen que se ven en la fila.
+    expect(fila).not.toHaveAttribute('aria-label')
+    expect(fila).toHaveAccessibleName(/^Ver detalle del producto Medialuna de manteca 1 .*950/)
+  })
+})

@@ -169,23 +169,35 @@ export function HealthDistributionHistogram({
                   onClick={() => onSelectBucket(isSelected ? null : bucket.key)}
                   disabled={!hasProducts}
                   aria-pressed={isSelected}
-                  aria-label={`${bucket.title}: ${bucket.count} ${bucket.count === 1 ? 'producto' : 'productos'}, ${bucket.rangeLabel.toLowerCase()}`}
                   className={`group relative flex flex-col justify-end rounded-2xl border px-1.5 py-2 transition-all text-center cursor-pointer select-none sm:p-3.5 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/40'
                       : `${bucket.borderClass} ${hasProducts ? bucket.bgHoverClass : 'opacity-40 cursor-not-allowed'} bg-gray-50/50 dark:bg-gray-800/20`
                   }`}
                 >
-                  <div className="mb-1.5">
+                  {/*
+                    Sin aria-label: el nombre sale del texto visible (WCAG 2.5.3, #442) y el lector dice
+                    "En riesgo: 107 productos, 37 % del catálogo, Bajo su mínimo". El orden del código
+                    es el de lectura; `order-*` mantiene el visual: cantidad, barra, estado y rango.
+                  */}
+                  {/* El mismo nombre en todos los anchos: a 360 px "En objetivo" pasa a dos líneas. */}
+                  <p className="order-3 mt-2 text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 sm:text-xs">
+                    <span>{bucket.title}</span>
+                    <span className="sr-only">:</span>
+                  </p>
+
+                  <div className="order-1 mb-1.5">
                     <span data-testid="bucket-count" className={`block text-base font-black sm:text-xl ${bucket.textClass}`}>
                       {bucket.count}
                     </span>
+                    <span className="sr-only"> {bucket.count === 1 ? 'producto' : 'productos'}, </span>
                     <span className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 sm:text-xs">
                       {formatPercent(bucket.percentage, { decimals: 0 })}
                     </span>
+                    <span className="sr-only"> del catálogo, </span>
                   </div>
 
-                  <div className="flex h-24 w-full items-end justify-center rounded-lg bg-gray-200/50 p-1 dark:bg-gray-800/60 sm:h-28">
+                  <div aria-hidden="true" className="order-2 flex h-24 w-full items-end justify-center rounded-lg bg-gray-200/50 p-1 dark:bg-gray-800/60 sm:h-28">
                     <div
                       style={{ height: `${heightPercent}%` }}
                       className={`w-full rounded-md transition-all duration-300 ${bucket.colorClass} ${
@@ -194,15 +206,9 @@ export function HealthDistributionHistogram({
                     />
                   </div>
 
-                  <div className="mt-2 space-y-0.5">
-                    {/* El mismo nombre en todos los anchos: a 360 px "En objetivo" pasa a dos líneas. */}
-                    <p className="text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 sm:text-xs">
-                      {bucket.title}
-                    </p>
-                    <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 sm:text-[10px]">
-                      {bucket.rangeLabel}
-                    </p>
-                  </div>
+                  <p className="order-4 mt-0.5 text-[9px] font-bold text-gray-500 dark:text-gray-400 sm:text-[10px]">
+                    {bucket.rangeLabel}
+                  </p>
                 </button>
               )
             })}

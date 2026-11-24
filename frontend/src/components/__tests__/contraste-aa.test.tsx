@@ -3,11 +3,16 @@ import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
+import { useForm } from 'react-hook-form'
+
 import { BottomNav } from '@/components/bottom-nav'
+import { ProductFinancialCockpit } from '@/app/productos/[id]/components/ProductFinancialCockpit'
 import { ProductRecipeBOM } from '@/app/productos/[id]/components/ProductRecipeBOM'
 import { RecipeQuantityField } from '@/app/productos/[id]/components/RecipeQuantityField'
 import { HEALTH_BUCKET_META } from '@/lib/healthBucket'
 import type { RecipeItem } from '@/stores/useRecipeStore'
+import type { z } from 'zod'
+import type { productSchema } from '@/schemas/productSchema'
 
 vi.mock('@/lib/useCurrentUser', () => ({
   useCurrentUser: () => ({
@@ -87,5 +92,55 @@ describe('Contraste AA en el modo claro (#398, Lighthouse a 360 px)', () => {
 
   it('el número de productos "En riesgo" del panel no usa rose-600', () => {
     expect(HEALTH_BUCKET_META.risk.textClassName.split(' ')).not.toContain('text-rose-600')
+  })
+})
+
+type ProductInput = z.input<typeof productSchema>
+
+/** El simulador de escritorio de la ficha, con un formulario real. */
+function Simulador({ hasRecipe }: { hasRecipe: boolean }) {
+  const { register, setValue, formState } = useForm<ProductInput>()
+  return (
+    <ProductFinancialCockpit
+      gain={hasRecipe ? 1650 : 0}
+      cost={hasRecipe ? 2850 : 0}
+      margin={hasRecipe ? 36.67 : 0}
+      targetMargin={35}
+      hasRecipe={hasRecipe}
+      watchedSalePrice={4500}
+      isSaving={false}
+      activeStrategy="custom"
+      flashingKey={null}
+      register={register}
+      setValue={setValue}
+      errors={formState.errors}
+      onAdjustPriceFactor={vi.fn()}
+      onApplySuggestedMargin={vi.fn()}
+      onSave={vi.fn()}
+      setActiveStrategy={vi.fn()}
+    />
+  )
+}
+
+describe('Contraste AA que marcó axe en claro y oscuro (#442)', () => {
+  it('la pestaña activa del menú inferior tiene contraste en el modo oscuro', () => {
+    const { getByTestId } = render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <BottomNav />
+      </MemoryRouter>
+    )
+    // indigo-600 sobre el gray-900 del menú da 2,74:1; indigo-400 pasa el AA.
+    expect(getByTestId('bottom-nav-dashboard')).toHaveClass('text-indigo-600', 'dark:text-indigo-400')
+  })
+
+  it('el título del simulador de la ficha y la ganancia sin receta no usan gray-400 sobre blanco', () => {
+    const { getByText, unmount } = render(<Simulador hasRecipe />)
+    expect(getByText('Simulador Financiero')).not.toHaveClass('text-gray-400')
+    expect(getByText('Simulador Financiero')).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    unmount()
+
+    const sinReceta = render(<Simulador hasRecipe={false} />)
+    expect(sinReceta.getByText(/^Ganancia:/)).not.toHaveClass('text-gray-400')
+    expect(sinReceta.getByText(/^Ganancia:/)).toHaveClass('text-gray-500', 'dark:text-gray-400')
   })
 })

@@ -38,6 +38,10 @@ Antes de cada caso lee el estado del insumo con `GET /api/ingredients/:id` y al 
 
 `purchasing-suggestions.spec.ts` corre con la sesión de `ADMIN` y **crea sus propios datos por la API** (dos proveedores, un insumo con la presentación predeterminada a $1.000/kg y una alternativa a $800/kg, y un producto que usa 1 kg a $1.500 con mínimo del 40 %), con un sufijo único por corrida, y los borra al terminar aunque la prueba falle. No toca el catálogo del seed que usan `cascade-recalculation.spec.ts` y `margin-recalculation.spec.ts`. `TC-COMPRAS-01` recorre `/compras` a 360 px: la tarjeta del insumo con el margen del producto de 33,3 % (**En riesgo**) a 46,7 % (**En objetivo**), sin calculadora de bultos ni pedido, con la pestaña **Impacto** activa y sin scroll horizontal; confirma **Ya le compro a este proveedor** y verifica con `GET /api/products/:id` que el margen guardado es el que mostraba la confirmación. En escritorio comprueba el enlace **Impacto en el margen** en la barra superior. Las capturas quedan en `test-results/evidencia-360px/compras-impacto-*.png`. El acceso denegado al colaborador lo cubre `TC-RBAC-07` en `rbac-security.spec.ts`.
 
+### 1.4. Accesibilidad con axe (issue #442)
+
+`accessibility-axe.spec.ts` corre con la sesión de `ADMIN` (proyecto `chromium`) y es de solo lectura: abre la ficha de Pan flauta — 1 kg, `/productos/nuevo`, `/insumos`, la carga desde planilla y `/dashboard`, en claro y oscuro (el tema se guarda en `localStorage` antes de abrir la página) y a 360 px y 1280 px. En cada caso espera a que la pantalla cargue y a que terminen las transiciones, corre axe y falla si hay violaciones `serious` o `critical`. Deja un JSON y un resumen en Markdown por caso en `test-results/axe/`: el job de E2E del CI pasa los resúmenes al reporte del job y sube la carpeta como artefacto `axe-accesibilidad`. Cómo correrlo y cómo se excluye una regla: `frontend/README.md`, "Accesibilidad con axe".
+
 ## 2. Requisitos Previos
 
 ### Variables de Entorno Locales (Obligatorio para correr en local)

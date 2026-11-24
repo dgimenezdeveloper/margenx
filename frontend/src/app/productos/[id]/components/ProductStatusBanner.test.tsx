@@ -83,3 +83,15 @@ describe('ProductStatusBanner - Nomenclatura unificada (#358)', () => {
     expect(screen.getByText('72,5 %')).toBeInTheDocument()
   })
 })
+
+describe('ProductStatusBanner - contraste AA que marcó axe (#442)', () => {
+  it('el aviso de borrador se lee en claro (gris 100) y en oscuro (gris 900)', () => {
+    render(<ProductStatusBanner isCollaborator={false} hasRecipe={false} targetMargin={30} margin={0} />)
+
+    for (const texto of [screen.getByText('Estado del producto'), screen.getByText(/Agregá materias primas/)]) {
+      // gray-500 sobre gray-100 da 4,39:1 y sobre gray-900, 3,66:1.
+      expect(texto).not.toHaveClass('text-gray-500')
+      expect(texto).toHaveClass('text-gray-600', 'dark:text-gray-400')
+    }
+  })
+})
