@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -374,6 +374,40 @@ describe('PurchasesPage (/compras, Impacto en el margen)', () => {
       expect(screen.queryByRole('dialog', { name: /Ya le comprás/ })).not.toBeInTheDocument()
     )
     expect(supplierService.addPackaging).not.toHaveBeenCalled()
+  })
+
+  it('el detalle de una confirmación anterior que llega tarde no reemplaza el del insumo abierto ahora', async () => {
+    // El detalle de la Harina queda pendiente; el dueño cancela y abre la Manteca, cuyo detalle llega primero.
+    // Cuando por fin llega el de la Harina, la confirmación tiene que seguir mostrando la Manteca.
+    let resolverHarina: (detalle: IngredientMarginImpact) => void = () => {}
+    vi.mocked(purchasingService.getIngredientMarginImpact)
+      .mockImplementationOnce(
+        () =>
+          new Promise<IngredientMarginImpact>((resolve) => {
+            resolverHarina = resolve
+          })
+      )
+      .mockResolvedValueOnce(mantecaImpact)
+
+    const harina = await openHarinaConfirmation()
+    fireEvent.click(within(harina).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Distribuidora Mayorista Molinera/ })).not.toBeInTheDocument()
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Ya le compro a este proveedor: Manteca La Serenísima a Lácteos del Sur' })
+    )
+    const manteca = await screen.findByRole('dialog', { name: '¿Ya le comprás a Lácteos del Sur?' })
+    expect(await within(manteca).findByText(/Ningún producto con receta lo usa/)).toBeInTheDocument()
+
+    await act(async () => {
+      resolverHarina(harinaImpact)
+    })
+
+    expect(within(manteca).queryByText('Medialunas de manteca x 12')).not.toBeInTheDocument()
+    expect(within(manteca).getByText(/\$9\.500,00 por kg/)).toBeInTheDocument()
+    expect(within(manteca).getByText(/Ningún producto con receta lo usa/)).toBeInTheDocument()
   })
 
   it('muestra el error de la API y permite reintentar', async () => {
