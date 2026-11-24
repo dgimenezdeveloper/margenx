@@ -1,159 +1,66 @@
 import { fetchApi, type TokenGetter } from './api'
+import type { ActiveHealthBucket } from '@/lib/healthBucket'
 
-export interface PurchasingPresentationSummary {
+/** Presentación tal como la resume `GET /api/purchasing/margin-impact` (docs/api.md §10). */
+export interface MarginImpactPresentation {
   supplierIngredientId: string
-  supplierId: string
   supplierName: string
-  supplierCode: string | null
-  rawDescription: string | null
-  packageSize: string
-  packageUnit: string
-  packagePrice: string
   unitCost: string
 }
 
-export interface IngredientPurchasingSuggestion {
+/** Un producto con receta que usa el insumo: margen hoy y con la alternativa. */
+export interface MarginImpactProduct {
+  productId: string
+  productName: string
+  salePrice: string
+  minMarginPercent: string
+  currentRecipeCost: string
+  projectedRecipeCost: string
+  currentMarginAmount: string
+  projectedMarginAmount: string
+  currentMarginPercent: string
+  projectedMarginPercent: string
+  currentBucket: ActiveHealthBucket
+  projectedBucket: ActiveHealthBucket
+}
+
+export interface IngredientMarginImpact {
   ingredientId: string
   ingredientName: string
   unit: string
   currentCost: string
-  defaultPresentation: PurchasingPresentationSummary
-  cheapestPresentation: PurchasingPresentationSummary
-  savingsPerUnit: string
-  savingsPercent: string
-  packageSavings: string
+  /** `null` si el insumo no tiene presentación predeterminada activa. */
+  defaultPresentation: MarginImpactPresentation | null
+  alternativePresentation: MarginImpactPresentation
+  unitCostDifference: string
+  productsAffectedCount: number
+  productsLeavingRiskOrLossCount: number
+  products: MarginImpactProduct[]
 }
 
-export interface SupplierSuggestionItem {
-  ingredientId: string
-  ingredientName: string
-  unit: string
-  supplierIngredientId: string
-  supplierCode: string | null
-  rawDescription: string | null
-  packageSize: string
-  packageUnit: string
-  packagePrice: string
-  unitCost: string
-  defaultUnitCost: string
-  defaultSupplierName: string
-  savingsPerUnit: string
-  savingsPercent: string
-  packageSavings: string
-}
-
-export interface SupplierSuggestionGroup {
-  supplierId: string
-  supplierName: string
-  contactPhone: string | null
-  email: string | null
-  address: string | null
-  itemsCount: number
-  totalPackageSavings: string
-  items: SupplierSuggestionItem[]
-}
-
-export interface AlreadyBestPriceItem {
-  ingredientId: string
-  ingredientName: string
-  unit: string
-  unitCost: string
-  defaultPresentation: PurchasingPresentationSummary
-}
-
-export interface SingleSupplierItem {
-  ingredientId: string
-  ingredientName: string
-  unit: string
-  presentation: PurchasingPresentationSummary
-}
-
-export interface QuarantinedExcludedItem {
-  supplierIngredientId: string
-  supplierId: string
-  ingredientId: string
-  ingredientName: string
-  unit: string
-  supplierName: string
-  packageSize: string
-  packageUnit: string
-  packagePrice: string
-  pendingPackagePrice: string | null
-  quarantineReason: string | null
-  quarantinedAt: string | null
-  isDefault: boolean
-}
-
-export interface PurchasingSuggestionsResponse {
+export interface MarginImpactResponse {
   summary: {
-    withSavingsCount: number
-    alreadyBestPriceCount: number
-    singleSupplierCount: number
-    withoutEligibleSupplierCount: number
-    withoutActiveDefaultCount: number
-    quarantinedExcludedCount: number
+    ingredientsWithAlternative: number
+    productsAffected: number
+    productsLeavingRiskOrLoss: number
   }
-  byIngredient: IngredientPurchasingSuggestion[]
-  bySupplier: SupplierSuggestionGroup[]
-  alreadyBestPrice: AlreadyBestPriceItem[]
-  singleSupplier: SingleSupplierItem[]
-  quarantinedExcluded: QuarantinedExcludedItem[]
-}
-
-export interface OrderPreviewItemInput {
-  supplierIngredientId: string
-  packages: number
-}
-
-export interface OrderPreviewLine {
-  supplierIngredientId: string
-  ingredientId: string
-  ingredientName: string
-  unit: string
-  supplierCode: string | null
-  rawDescription: string | null
-  packageSize: string
-  packageUnit: string
-  packagePrice: string
-  unitCost: string
-  packages: number
-  totalQuantity: string
-  subtotal: string
-  defaultUnitCost: string | null
-  savings: string
-}
-
-export interface OrderPreviewSupplierGroup {
-  supplierId: string
-  supplierName: string
-  contactPhone: string | null
-  email: string | null
-  address: string | null
-  subtotal: string
-  savings: string
-  items: OrderPreviewLine[]
-}
-
-export interface OrderPreviewResponse {
-  groups: OrderPreviewSupplierGroup[]
-  total: string
-  totalSavings: string
-  totalPackages: number
-  itemsCount: number
+  byIngredient: IngredientMarginImpact[]
 }
 
 export const purchasingService = {
-  async getSuggestions(getToken: TokenGetter): Promise<PurchasingSuggestionsResponse> {
-    return fetchApi<PurchasingSuggestionsResponse>('/purchasing/suggestions', getToken)
+  async getMarginImpact(getToken: TokenGetter): Promise<MarginImpactResponse> {
+    return fetchApi<MarginImpactResponse>('/purchasing/margin-impact', getToken)
   },
 
-  async previewOrder(
+  /** Impacto de cambiar a una presentación puntual, para la confirmación de "Ya le compro a este proveedor". */
+  async getIngredientMarginImpact(
     getToken: TokenGetter,
-    items: OrderPreviewItemInput[]
-  ): Promise<OrderPreviewResponse> {
-    return fetchApi<OrderPreviewResponse>('/purchasing/order-preview', getToken, {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-    })
+    ingredientId: string,
+    supplierIngredientId: string
+  ): Promise<IngredientMarginImpact> {
+    return fetchApi<IngredientMarginImpact>(
+      `/purchasing/margin-impact/${encodeURIComponent(ingredientId)}?supplierIngredientId=${encodeURIComponent(supplierIngredientId)}`,
+      getToken
+    )
   },
 }
