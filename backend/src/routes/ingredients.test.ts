@@ -381,6 +381,30 @@ describe('GET /api/ingredients/:id/products', () => {
     );
   });
 
+  it('Gherkin "Mínimo propio": usa el mínimo de cada producto y devuelve "risk" si tiene margen 35 % y mínimo 40 %', async () => {
+    findFirstMock.mockResolvedValue({ id: 'ing-1' });
+    productIngredientFindManyMock.mockResolvedValue([
+      buildUsageRow(1, {
+        name: 'Medialunas de manteca',
+        marginPercent: '35.00',
+        minMarginPercent: '40.00',
+      }),
+    ]);
+    productIngredientCountMock.mockResolvedValue(1);
+
+    const res = await request(buildApp()).get('/api/ingredients/ing-1/products');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      id: 'prod-1',
+      name: 'Medialunas de manteca',
+      marginPercent: '35',
+      minMarginPercent: '40',
+      marginStatus: 'risk',
+    });
+  });
+
   it('pagina de a 20 por defecto cuando hay 27 productos (page 1 -> 20, page 2 -> 7)', async () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1' });
     productIngredientFindManyMock.mockResolvedValue(Array.from({ length: 7 }, (_, i) => buildUsageRow(21 + i)));
@@ -1420,6 +1444,8 @@ describe('PUT /api/ingredients/:id', () => {
     expect(res.status).toBe(500);
     expect(transactionMock).toHaveBeenCalledTimes(1);
   });
+
+
 
   it('recalcula cost/marginAmount/marginPercent de cada producto afectado por el nuevo costo del insumo', async () => {
     findFirstMock.mockResolvedValue({ id: 'ing-1', name: 'Harina', unit: 'kg' });
