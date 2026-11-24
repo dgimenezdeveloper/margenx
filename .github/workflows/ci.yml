@@ -386,6 +386,28 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      # Issue #442: accessibility-axe.spec.ts deja un JSON y un resumen en Markdown por
+      # pantalla, tema y ancho. El resumen (con las moderate y minor, que no cortan el CI)
+      # va al reporte del job; el detalle se sube siempre como artefacto.
+      - name: Resumen de accesibilidad (axe) en el reporte del job
+        if: always()
+        working-directory: ./frontend
+        run: |
+          if compgen -G "test-results/axe/*.md" > /dev/null; then
+            { echo "## Accesibilidad con axe (#442)"; echo; cat test-results/axe/*.md; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No se generó el reporte de axe." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Subir reporte de accesibilidad (axe)
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: axe-accesibilidad
+          path: frontend/test-results/axe/
+          retention-days: 7
+          if-no-files-found: warn
+
   notify-ci-failure:
     name: Notificar Fallo en Discord
     runs-on: ubuntu-latest
