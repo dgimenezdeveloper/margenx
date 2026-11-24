@@ -135,7 +135,7 @@ test.describe('TC-COMPRAS-01: Impacto en el margen (issue #446)', () => {
 
       // A 360 px "Impacto en el margen" está en el panel de "Más" (#437), que queda marcado en /compras.
       const mas = page.getByTestId('bottom-nav-mas')
-      await expect(mas).toHaveClass(/text-indigo-600/)
+      await expect(mas).toHaveAttribute('data-active', 'true')
       await mas.click()
       const menu = page.getByRole('dialog', { name: 'Menú' })
       await expect(menu.getByRole('link', { name: 'Impacto en el margen' })).toHaveAttribute('aria-current', 'page')

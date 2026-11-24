@@ -106,10 +106,12 @@ describe('Menú inferior a 360 px (#437)', () => {
 
   it('"Más" queda marcado cuando la pantalla actual está en el panel', () => {
     const { unmount } = renderMenu('/compras')
+    expect(screen.getByTestId('bottom-nav-mas')).toHaveAttribute('data-active', 'true')
     expect(screen.getByTestId('bottom-nav-mas')).toHaveClass('text-indigo-600', 'dark:text-indigo-400')
     unmount()
 
     renderMenu('/productos')
+    expect(screen.getByTestId('bottom-nav-mas')).not.toHaveAttribute('data-active')
     expect(screen.getByTestId('bottom-nav-mas')).not.toHaveClass('text-indigo-600')
     expect(screen.getByTestId('bottom-nav-productos')).toHaveAttribute('aria-current', 'page')
   })
@@ -179,6 +181,31 @@ describe('Panel del menú (#437)', () => {
 
     expect(interruptor).toHaveAttribute('aria-checked', 'true')
     expect(document.documentElement).toHaveClass('dark')
+  })
+
+  it('[RV491-I2] si la pantalla pasa a 768 px o más con el panel abierto (por ejemplo, al girar el celular), el panel se cierra', async () => {
+    const oyentes: ((evento: MediaQueryListEvent) => void)[] = []
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('max-width'),
+          media: query,
+          addEventListener: (_tipo: string, oyente: (evento: MediaQueryListEvent) => void) => oyentes.push(oyente),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList
+    )
+    const user = userEvent.setup()
+    renderMenu()
+
+    await user.click(screen.getByRole('button', { name: 'Más' }))
+    await screen.findByRole('dialog', { name: 'Menú' })
+    expect(oyentes.length).toBeGreaterThan(0)
+    // El panel y su fondo están ocultos desde 768 px (md:hidden): abierto, dejaría la página bloqueada.
+    act(() => {
+      for (const oyente of oyentes) oyente({ matches: false, media: '(max-width: 767px)' } as MediaQueryListEvent)
+    })
+
+    await waitFor(() => expect(panel()).toBeNull())
   })
 
   it('"Salir" cierra el panel y pide confirmar el cierre de sesión', async () => {

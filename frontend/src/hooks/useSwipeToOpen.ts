@@ -12,7 +12,7 @@ export interface SwipeToOpenHandlers {
 }
 
 /** El menú inferior y su panel existen solo debajo de 768 px; desde ahí manda la barra de arriba. */
-const MOBILE_QUERY = '(max-width: 767px)'
+export const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
 /** Hasta acá un toque todavía puede ser un tap o un scroll vertical. */
 const SLOP_PX = 10
 /** El arrastre cuenta como horizontal si avanza más en x que en y, con margen. */
@@ -36,7 +36,7 @@ function startsOnIgnoredElement(target: EventTarget | null): boolean {
   return false
 }
 
-const isMobileViewport = () => typeof window.matchMedia === 'function' && window.matchMedia(MOBILE_QUERY).matches
+const isMobileViewport = () => typeof window.matchMedia === 'function' && window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
 const isAnotherDialogOpen = () => document.querySelector('[role="dialog"], [role="alertdialog"]') !== null
 
 /**

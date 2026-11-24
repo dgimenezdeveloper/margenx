@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Drawer } from '@base-ui/react/drawer'
 import { Building2, LogOut, Moon, X, type LucideIcon } from 'lucide-react'
@@ -8,7 +8,7 @@ import { LogoutDialog } from '@/components/logout-dialog'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useSignOut } from '@/hooks/useSignOut'
-import { useSwipeToOpen } from '@/hooks/useSwipeToOpen'
+import { MOBILE_VIEWPORT_QUERY, useSwipeToOpen } from '@/hooks/useSwipeToOpen'
 import { useTheme } from '@/hooks/useTheme'
 import { useUserRole } from '@/hooks/useUserRole'
 import { isNavLinkActive } from '@/lib/navigation'
@@ -32,7 +32,7 @@ const GROUP_TITLES: Record<MobileMenuGroup, string> = {
 
 /** Ancho del panel si todavía no se puede medir (296 px: el 82 % de una pantalla de 360 px). */
 const FALLBACK_PANEL_WIDTH = 296
-/** Al soltar, queda abierto si el dedo recorrió más de un tercio del panel o lo lanzó rápido. */
+/** Al soltar, queda abierto si el dedo recorrió el 35 % del panel o más (algo más de un tercio) o lo lanzó rápido. */
 const OPEN_DISTANCE_RATIO = 0.35
 const OPEN_VELOCITY_PX_PER_MS = 0.5
 
@@ -65,6 +65,18 @@ export function MobileMenu({ open, onOpenChange, links, pathname }: MobileMenuPr
   const dragRef = useRef<number | null>(null)
 
   useBodyScrollLock(open)
+
+  // [RV491-I2] Desde 768 px el panel y su fondo están ocultos (md:hidden). Si la pantalla pasa ese ancho con el
+  // panel abierto (por ejemplo, al girar el celular), se cierra: si no, la página queda bloqueada y sin foco.
+  useEffect(() => {
+    if (!open || typeof window.matchMedia !== 'function') return
+    const mobileViewport = window.matchMedia(MOBILE_VIEWPORT_QUERY)
+    const closeOutsideMobile = (event: MediaQueryListEvent) => {
+      if (!event.matches) onOpenChange(false)
+    }
+    mobileViewport.addEventListener('change', closeOutsideMobile)
+    return () => mobileViewport.removeEventListener('change', closeOutsideMobile)
+  }, [open, onOpenChange])
 
   const panelWidth = () => popupRef.current?.offsetWidth || FALLBACK_PANEL_WIDTH
 

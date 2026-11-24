@@ -10,7 +10,7 @@ import { useFeatures } from '@/hooks/useFeatures'
 import { isNavLinkActive, isNavLinkVisible, splitMobileNav } from '@/lib/navigation'
 
 /** Todos los destinos del celular, en el orden del panel. El menú inferior toma los primeros (splitMobileNav). */
-const DESTINATIONS: (MobileMenuLink & { tabLabel?: string })[] = [
+const DESTINATIONS: MobileMenuLink[] = [
   { label: 'Inicio', icon: LayoutDashboard, href: '/dashboard', group: 'negocio' },
   { label: 'Productos', icon: Package, href: '/productos', group: 'negocio' },
   { label: 'Insumos', icon: Boxes, href: '/insumos', group: 'negocio' },
@@ -49,7 +49,7 @@ export function BottomNav() {
         className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-100 bg-white/95 px-2.5 sm:px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur md:hidden dark:border-gray-800 dark:bg-gray-900/95 print:hidden"
       >
         <div className="mx-auto flex max-w-md items-center justify-between gap-0.5">
-          {tabDestinations.map(({ label, tabLabel, icon: Icon, href }) => {
+          {tabDestinations.map(({ label, icon: Icon, href }) => {
             const active = isNavLinkActive(pathname, href)
             return (
               <Link
@@ -60,7 +60,7 @@ export function BottomNav() {
                 className={`${TAB_CLASSES} ${active ? ACTIVE_CLASSES : INACTIVE_CLASSES}`}
               >
                 <Icon className="size-5 shrink-0" />
-                <span className="truncate max-w-full text-center">{tabLabel ?? label}</span>
+                <span className="truncate max-w-full text-center">{label}</span>
               </Link>
             )
           })}
@@ -71,6 +71,7 @@ export function BottomNav() {
               aria-haspopup="dialog"
               aria-expanded={isMenuOpen}
               data-testid="bottom-nav-mas"
+              data-active={isMoreActive ? 'true' : undefined}
               className={`${TAB_CLASSES} cursor-pointer ${isMoreActive ? ACTIVE_CLASSES : INACTIVE_CLASSES}`}
             >
               <Menu className="size-5 shrink-0" />

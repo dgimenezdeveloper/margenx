@@ -165,7 +165,7 @@ Debajo de 768 px la navegación es el menú de abajo (`src/components/bottom-nav
   - Sigue las mismas convenciones: `modal="trap-focus"`, `useBodyScrollLock`, `Drawer.Title` y `Drawer.Description`, y la X con `aria-label`.
 - **Arrastre para abrir** (`src/hooks/useSwipeToOpen.ts`):
   - Arranca desde cualquier punto de la pantalla y no solo desde el borde, porque en Android con navegación por gestos y en Safari del iPhone arrastrar desde el borde izquierdo es "Atrás".
-  - Mientras el dedo sigue apoyado, el panel lo acompaña (`--menu-drag-x` y `--menu-drag-progress`). Al soltar, queda abierto si recorrió más de un tercio del panel o si el dedo salió rápido (0,5 px/ms o más).
+  - Mientras el dedo sigue apoyado, el panel lo acompaña (`--menu-drag-x` y `--menu-drag-progress`). Al soltar, queda abierto si recorrió el 35 % del panel o más (`OPEN_DISTANCE_RATIO`) o si el dedo salió rápido (0,5 px/ms o más).
   - Solo toma arrastres horizontales hacia la derecha: el scroll vertical sigue andando.
   - No arranca en campos de texto, en otros diálogos, en zonas con scroll horizontal ni dentro de `[data-swipe-ignore]`.
   - Escucha en `window`, en fase de captura, porque el `Drawer` corta la propagación de `touchmove` en `document`. También escucha en el elemento donde se apoyó el dedo, porque si ese elemento se vuelve a dibujar mientras el dedo sigue apoyado, el navegador le manda los toques a él, ya fuera del DOM.
