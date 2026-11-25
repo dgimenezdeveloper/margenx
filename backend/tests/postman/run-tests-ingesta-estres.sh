@@ -17,31 +17,33 @@ ADMIN_TOKEN="$1"
 shift
 
 cd "$(dirname "$0")"
-mkdir -p reports
 
+# Si quien llama elige sus reporters (por ejemplo, run-regresion.sh con cli,junit), la
+# evidencia la guarda quien llama, con los tokens tapados: no se agrega htmlextra (no hace
+# falta el plugin) ni se escribe la copia de consola en reports/, que quedaría sin tapar.
+for arg in "$@"; do
+  if [ "$arg" = "--reporters" ] || [ "$arg" = "-r" ] || [[ "$arg" == --reporters=* ]]; then
+    newman run "ingesta-estres.json" \
+      -e "ingesta-estres.postman_environment.json" \
+      --env-var "adminToken=$ADMIN_TOKEN" \
+      "$@"
+    exit $?
+  fi
+done
+
+mkdir -p reports
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CLI_LOG="reports/ingesta-estres-${TIMESTAMP}.cli.log"
 HTML_REPORT="reports/ingesta-estres-${TIMESTAMP}.html"
 
-# Si quien llama elige sus reporters (por ejemplo, run-regresion.sh con cli,junit),
-# no se agrega htmlextra: no hace falta el plugin ni queda un HTML con los tokens.
-REPORTER_ARGS=(--reporters cli,htmlextra --reporter-htmlextra-export "$HTML_REPORT")
-for arg in "$@"; do
-  if [ "$arg" = "--reporters" ] || [ "$arg" = "-r" ] || [[ "$arg" == --reporters=* ]]; then
-    REPORTER_ARGS=()
-    HTML_REPORT=""
-  fi
-done
-
 newman run "ingesta-estres.json" \
   -e "ingesta-estres.postman_environment.json" \
   --env-var "adminToken=$ADMIN_TOKEN" \
-  ${REPORTER_ARGS[@]+"${REPORTER_ARGS[@]}"} \
+  --reporters cli,htmlextra \
+  --reporter-htmlextra-export "$HTML_REPORT" \
   "$@" | tee "$CLI_LOG"
 
 echo ""
 echo "Evidencia guardada en:"
 echo "  - $CLI_LOG"
-if [ -n "$HTML_REPORT" ]; then
-  echo "  - $HTML_REPORT"
-fi
+echo "  - $HTML_REPORT"

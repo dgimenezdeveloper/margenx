@@ -120,8 +120,11 @@ nuevas desde entonces:
 - [ ] **Ventas, caja y ganancia real** (si el módulo está prendido en la
   Demo): abrir turno, vender, ver el ticket, anular y cerrar. Como
   colaborador, el ticket sin costos.
-- [ ] **Colaboradores desde Perfil:** invitar con un correo ficticio y ver
-  el 409 de invitación pendiente.
+- [ ] **Colaboradores desde Perfil:** invitar con un correo del equipo, ver
+  el 409 de invitación pendiente y revocarla. No se usa un correo ficticio:
+  el mail de invitación sale por n8n y Brevo (una sola instancia de n8n para
+  staging y producción, `docs/process/revision-de-prs.md` §5), y un rebote
+  perjudica la reputación del remitente.
 - [ ] **`/api/docs`:** la documentación interactiva carga y lista los
   módulos.
 - [ ] **Mail de alerta de margen:** llega, se lee en el celular y el enlace
