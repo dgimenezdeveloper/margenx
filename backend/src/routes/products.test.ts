@@ -191,6 +191,38 @@ describe('GET /api/products - paginación', () => {
       })
     );
   });
+
+  it.each([
+    ['marginPercent', 'asc'],
+    ['cost', 'desc'],
+    ['salePrice', 'desc'],
+  ])('RF-09: el ADMIN ordena por %s (%s)', async (sortBy, order) => {
+    productFindManyMock.mockResolvedValue([]);
+    productCountMock.mockResolvedValue(0);
+
+    const res = await request(buildApp()).get(`/api/products?sortBy=${sortBy}&order=${order}`);
+
+    expect(res.status).toBe(200);
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { [sortBy]: order } })
+    );
+  });
+
+  it.each(['marginPercent', 'cost'])(
+    'RNF-09: el COLLABORATOR no puede ordenar por %s, porque el orden revelaría el margen; vuelve al orden por nombre',
+    async (sortBy) => {
+      setAuthRole('COLLABORATOR');
+      productFindManyMock.mockResolvedValue([]);
+      productCountMock.mockResolvedValue(0);
+
+      const res = await request(buildApp()).get(`/api/products?sortBy=${sortBy}&order=desc`);
+
+      expect(res.status).toBe(200);
+      expect(productFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { name: 'desc' } })
+      );
+    }
+  );
 });
 
 describe('GET /api/products - Búsqueda por nombre (search)', () => {

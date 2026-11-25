@@ -4,7 +4,8 @@ Este documento empieza con el recorrido de cliente en staging del 21/11/2026,
 que dio origen a las issues de arreglos del Sprint 7 (`[SPRINT7-QA7-nn]`) y al
 reenfoque de Compras sugeridas (`[SPRINT7-R-0n]`). Las demás issues de QA del
 Sprint 7 suman sus propias secciones más abajo cuando se ejecuten: axe (#442),
-tiempos de búsqueda (#444), Lighthouse (#398) y la regresión final (#399).
+tiempos de búsqueda (#444) y Lighthouse (#398). La regresión final (#399) tiene
+su propio reporte: [`reporte-calidad-final.md`](reporte-calidad-final.md).
 
 ## 1. Recorrido de cliente en staging (21/11/2026)
 

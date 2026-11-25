@@ -17,8 +17,21 @@ ADMIN_TOKEN="$1"
 shift
 
 cd "$(dirname "$0")"
-mkdir -p reports
 
+# Si quien llama elige sus reporters (por ejemplo, run-regresion.sh con cli,junit), la
+# evidencia la guarda quien llama, con los tokens tapados: no se agrega htmlextra (no hace
+# falta el plugin) ni se escribe la copia de consola en reports/, que quedaría sin tapar.
+for arg in "$@"; do
+  if [ "$arg" = "--reporters" ] || [ "$arg" = "-r" ] || [[ "$arg" == --reporters=* ]]; then
+    newman run "ingesta-estres.json" \
+      -e "ingesta-estres.postman_environment.json" \
+      --env-var "adminToken=$ADMIN_TOKEN" \
+      "$@"
+    exit $?
+  fi
+done
+
+mkdir -p reports
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CLI_LOG="reports/ingesta-estres-${TIMESTAMP}.cli.log"
 HTML_REPORT="reports/ingesta-estres-${TIMESTAMP}.html"
