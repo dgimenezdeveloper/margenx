@@ -58,6 +58,40 @@ INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-tests-reportes.sh "$TOKE
 
 Salida esperada: **0 failures** en las 12.
 
+Todos los `run-tests*.sh` aceptan opciones de Newman después de sus argumentos, por ejemplo `./run-tests-compras.sh "$TOKEN_A" "$TOKEN_COLLAB" --reporters cli,junit --reporter-junit-export compras.xml`.
+
+## Regresión: las 13 de una vez
+
+`run-regresion.sh` (#399) corre las 12 de arriba y, al final, la de estrés de ingesta (`README-IngestaEstres.md`), que cambia precios del seed. Pide un token nuevo de Clerk para cada colección, así que no hace falta generarlos antes:
+
+```bash
+cd backend/tests/postman
+INTERNAL_WEBHOOK_SECRET=<el del .env del backend> ./run-regresion.sh <carpeta de evidencia>
+```
+
+- **Qué deja en la carpeta, por colección:** la salida de consola (`NN-newman-<colección>.txt`, con fecha, commit, versiones y comando en el encabezado) y el reporte JUnit (`NN-newman-<colección>.xml`).
+- **El resumen:** `00-resumen.md`, con una tabla para pegar en el reporte.
+- **Limpieza:** tapa los tokens y el secreto del webhook con `[TOKEN]` y `[SECRETO]`, y saca los códigos de color.
+- **Si algo falla:** sigue con las demás y sale con 1 si alguna falló o no se pudo correr.
+- **Repetir solo algunas:** con `SOLO="03 11"`. El resumen de esa corrida queda en `00-resumen-parcial.md`.
+
+Para la regresión final, la carpeta es `../../../docs/qa/evidencias/399`. Antes de subirla, revisá que no tenga correos fuera de los permitidos (`docs/qa/evidencias/README.md`).
+
+## Antes de la regresión final: usuarios de Química GyJ en Clerk
+
+Insumos, Productos y Proveedores prueban el aislamiento entre cuentas con un token de `quimica-admin` (Cuenta B). Esos usuarios todavía no existen en la instancia de Clerk de QA, y sin ellos la carpeta de aislamiento (la "02" en Insumos y Productos, la "05" en Proveedores) da 401 ([Sprint 7 §2.4](reporte-calidad-sprint7.md#24-lo-no-cubierto)). Los pasos:
+
+1. **Crear los usuarios (Scrum Master o Tech Lead, con acceso al panel de Clerk).** En la instancia de QA, la de la `CLERK_SECRET_KEY` de `backend/.env`, crear dos usuarios con los correos ficticios del seed: `admin.quimica@seed.example.test` y `colab.quimica@seed.example.test`.
+2. **Anotar sus IDs en el repositorio.** Clerk asigna el ID (`user_…`) y no se puede elegir. Reemplazar los de `quimica-admin` y `quimica-colab`:
+   - en `backend/prisma/seed.ts`, cuenta Química GyJ;
+   - en `USERS` de `backend/scripts/get-test-token.ts`.
+
+   El backend busca al usuario por ese ID (`backend/src/middlewares/auth.ts`). En producción no cambia nada: el seed no pisa el ID de un usuario que ya existe.
+3. **Actualizar la base local.** Por esa misma regla, una base ya sembrada conserva los IDs viejos. Hay dos caminos:
+   - crearla de nuevo y volver a sembrarla;
+   - actualizar esos dos usuarios solo en la base local.
+4. **Comprobar.** `npx tsx scripts/get-test-token.ts quimica-admin` (desde `backend/`) devuelve un token, y la carpeta "02" de Insumos pasa.
+
 ## Reproducibilidad
 
 - Insumos se autolimpia (borra el insumo de prueba al final).
