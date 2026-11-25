@@ -1,9 +1,9 @@
 #!/bin/bash
-# Uso: ./run-tests-proveedores.sh <token_cuenta_A> <token_cuenta_B>
+# Uso: ./run-tests-proveedores.sh <token_cuenta_A> <token_cuenta_B> [opciones de newman]
 set -euo pipefail
 
-if [ $# -ne 2 ]; then
-  echo "Uso: ./run-tests-proveedores.sh <token_cuenta_A> <token_cuenta_B>"
+if [ "$#" -lt 2 ]; then
+  echo "Uso: ./run-tests-proveedores.sh <token_cuenta_A> <token_cuenta_B> [opciones de newman]"
   exit 1
 fi
 
@@ -14,4 +14,5 @@ newman run "MargenX - Proveedores y Conversiones.postman_collection.json" \
   --env-var "accountId_cuentaA=30a00000-0000-4000-8000-000000000001" \
   --env-var "accountId_cuentaB=30a00000-0000-4000-8000-000000000002" \
   --env-var "token_cuenta_A=$1" \
-  --env-var "token_cuenta_B=$2"
+  --env-var "token_cuenta_B=$2" \
+  "${@:3}"

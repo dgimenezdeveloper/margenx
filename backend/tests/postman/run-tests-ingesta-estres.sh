@@ -23,14 +23,25 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CLI_LOG="reports/ingesta-estres-${TIMESTAMP}.cli.log"
 HTML_REPORT="reports/ingesta-estres-${TIMESTAMP}.html"
 
+# Si quien llama elige sus reporters (por ejemplo, run-regresion.sh con cli,junit),
+# no se agrega htmlextra: no hace falta el plugin ni queda un HTML con los tokens.
+REPORTER_ARGS=(--reporters cli,htmlextra --reporter-htmlextra-export "$HTML_REPORT")
+for arg in "$@"; do
+  if [ "$arg" = "--reporters" ] || [ "$arg" = "-r" ] || [[ "$arg" == --reporters=* ]]; then
+    REPORTER_ARGS=()
+    HTML_REPORT=""
+  fi
+done
+
 newman run "ingesta-estres.json" \
   -e "ingesta-estres.postman_environment.json" \
   --env-var "adminToken=$ADMIN_TOKEN" \
-  --reporters cli,htmlextra \
-  --reporter-htmlextra-export "$HTML_REPORT" \
+  ${REPORTER_ARGS[@]+"${REPORTER_ARGS[@]}"} \
   "$@" | tee "$CLI_LOG"
 
 echo ""
 echo "Evidencia guardada en:"
 echo "  - $CLI_LOG"
-echo "  - $HTML_REPORT"
+if [ -n "$HTML_REPORT" ]; then
+  echo "  - $HTML_REPORT"
+fi
