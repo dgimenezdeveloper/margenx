@@ -415,11 +415,12 @@ La entrega final de la cursada es el **05/12/2026**. Qué entra antes de esa fec
 | Receta sin cantidades ni costos para el colaborador | Disponible |
 | Vista de precios vigentes para el colaborador | Propuesta |
 | Invitar y dar de baja colaboradores desde Perfil | Disponible |
+| App instalable (PWA): sesión persistente en la app instalada (ADR-006), página sin conexión y guía en `/instalar` | Disponible |
 | Control de módulos por plan y por cuenta, y módulos de la cuenta en `GET /api/auth/me` | Disponible |
 | Módulo de ventas: modelo de ventas y caja, y ventas de prueba en la cuenta Demo | Disponible (solo la cuenta Demo de staging tiene el módulo) |
-| Venta rápida con ticket no fiscal | Planificado |
-| Turnos y cierre de caja | Planificado |
-| Ganancia real en el panel y en el reporte semanal | Planificado |
+| Venta rápida con ticket no fiscal | Disponible (solo la cuenta Demo de staging tiene el módulo, §13) |
+| Turnos y cierre de caja | Disponible (solo la cuenta Demo de staging tiene el módulo, §13) |
+| Ganancia real en el panel y en el reporte semanal | Disponible (solo la cuenta Demo de staging tiene el módulo, §13) |
 | Qué módulos trae cada plan (Basic, Pro y Business) | Propuesta (v1.2) |
 | Stock de insumos, compras con pedido y reposición con cantidades | Fase 2 (v1.1) |
 | Facturación electrónica de ARCA | Fase 2 (v1.3) |

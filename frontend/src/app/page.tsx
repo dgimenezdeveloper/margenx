@@ -275,7 +275,7 @@ export default function LandingPage() {
             </Link>
             <a
               href="#diferencial"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-950 cursor-pointer"
             >
               <Play className="size-4 fill-current text-indigo-600" /> Ver innovaciones
             </a>
@@ -514,10 +514,10 @@ export default function LandingPage() {
                   </div>
                   <hr className="border-slate-100 dark:border-slate-800" />
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
-                    <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                       <EyeOff className="size-3.5" /> Empleado (colaborador)
                     </span>
-                    <span className="text-[11px] text-slate-500">Solo precio al público ($13.500)</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Solo precio al público ($13.500)</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -547,7 +547,7 @@ export default function LandingPage() {
                   El mayorista vende por bulto cerrado; tus recetas pesan en gramos o mililitros:
                 </p>
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs dark:border-emerald-900/60 dark:bg-slate-900">
-                  <div className="flex items-center justify-between text-slate-500 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-500 text-[11px] dark:text-slate-400">
                     <span>Bulto del distribuidor:</span>
                     <strong className="text-slate-700 dark:text-slate-300">Bolsa de 25 kg a $18.000</strong>
                   </div>
@@ -730,7 +730,7 @@ export default function LandingPage() {
           </a>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-7 py-4 text-base font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-7 py-4 text-base font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-950 cursor-pointer"
           >
             Iniciar sesión
           </Link>
