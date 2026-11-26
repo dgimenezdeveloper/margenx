@@ -335,3 +335,25 @@ describe('Turno y cierre: ancho de escritorio (#495)', () => {
     expect(clases).not.toContain('md:max-w-3xl')
   })
 })
+
+describe('Cierre del turno: formulario y panel fijo en escritorio (#495)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(cashShiftService.getById).mockResolvedValue(turnoAbierto())
+  })
+
+  it('el formulario de arqueo sigue angosto y alineado con su panel, y el panel no tapa el último medio de pago', async () => {
+    const { container } = renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
+    const efectivo = await screen.findByRole('group', { name: 'Efectivo' })
+
+    // El formulario queda en 3xl aunque la pantalla use el ancho de las demás, igual que el panel de abajo.
+    const formulario = efectivo.parentElement as HTMLElement
+    expect(formulario.className.split(/\s+/)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-3xl']))
+    const panel = screen.getByRole('region', { name: 'Resultado del arqueo' }).firstElementChild as HTMLElement
+    expect(panel.className.split(/\s+/)).toContain('md:max-w-3xl')
+
+    const contenido = container.querySelector('main > div > div') as HTMLElement
+    expect(contenido.className.split(/\s+/)).toContain('md:pb-48')
+    expect(contenido.className.split(/\s+/)).not.toContain('md:pb-12')
+  })
+})
