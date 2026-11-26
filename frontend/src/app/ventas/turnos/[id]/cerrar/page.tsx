@@ -157,102 +157,107 @@ function CloseCashShift({ id }: { id: string }) {
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-3xl md:px-8">
-        <div className="flex flex-col gap-5 pb-60 md:pb-12">
+      {/* Ancho de las demás pantallas, para que entre la barra de escritorio (#495). */}
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
+        {/* Lugar abajo para el panel fijo del resultado del arqueo, también en escritorio (#495). */}
+        <div className="flex flex-col gap-5 pb-60 md:pb-48">
           <Navbar title="Cerrar turno" backHref="/ventas" />
 
-          {isLoading ? (
-            <div className="h-80 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" aria-label="Cargando el turno" />
-          ) : error === 'not-found' ? (
-            <EmptyState icon={<Wallet className="size-6" />} title="El turno no existe" description="Puede que el enlace esté mal o que el turno sea de otra persona." />
-          ) : error || !shift ? (
-            <ErrorState
-              title="No pudimos cargar el turno"
-              description="Revisá tu conexión e intentá de nuevo."
-              onRetry={() => {
-                setIsLoading(true)
-                setError(null)
-                setReloadKey((key) => key + 1)
-              }}
-            />
-          ) : (
-            <>
-              <div>
-                <h2 className="text-xl font-black">Arqueo de caja</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Turno abierto el {formatSaleDateTime(shift.openedAt)}
-                  {shift.openedBy ? ` por ${shift.openedBy}` : ''} · {shift.salesCount}{' '}
-                  {shift.salesCount === 1 ? 'venta' : 'ventas'}
-                  {shift.voidedCount > 0 ? ` · ${shift.voidedCount} ${shift.voidedCount === 1 ? 'anulada' : 'anuladas'}` : ''}
-                </p>
-              </div>
+          {/* El formulario sigue angosto y alineado con el panel de abajo. */}
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+            {isLoading ? (
+              <div className="h-80 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" aria-label="Cargando el turno" />
+            ) : error === 'not-found' ? (
+              <EmptyState icon={<Wallet className="size-6" />} title="El turno no existe" description="Puede que el enlace esté mal o que el turno sea de otra persona." />
+            ) : error || !shift ? (
+              <ErrorState
+                title="No pudimos cargar el turno"
+                description="Revisá tu conexión e intentá de nuevo."
+                onRetry={() => {
+                  setIsLoading(true)
+                  setError(null)
+                  setReloadKey((key) => key + 1)
+                }}
+              />
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-xl font-black">Arqueo de caja</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Turno abierto el {formatSaleDateTime(shift.openedAt)}
+                    {shift.openedBy ? ` por ${shift.openedBy}` : ''} · {shift.salesCount}{' '}
+                    {shift.salesCount === 1 ? 'venta' : 'ventas'}
+                    {shift.voidedCount > 0 ? ` · ${shift.voidedCount} ${shift.voidedCount === 1 ? 'anulada' : 'anuladas'}` : ''}
+                  </p>
+                </div>
 
-              {expectedChanged && (
-                <p
-                  role="alert"
-                  className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100"
-                >
-                  Mientras contabas entraron o se anularon ventas. Ya actualizamos lo esperado: revisá lo contado y volvé a
-                  cerrar el turno.
-                </p>
-              )}
-
-              {rows.map((row) => {
-                const inputId = `counted-${row.paymentMethod}`
-                const invalid = counted[row.paymentMethod].trim() !== '' && row.countedCents === null
-                return (
-                  <fieldset
-                    key={row.paymentMethod}
-                    className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                {expectedChanged && (
+                  <p
+                    role="alert"
+                    className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100"
                   >
-                    <legend className="sr-only">{PAYMENT_METHOD_LABELS[row.paymentMethod]}</legend>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p aria-hidden="true" className="font-bold">
-                        {PAYMENT_METHOD_LABELS[row.paymentMethod]}
-                      </p>
-                      <p className="text-right text-sm">
-                        <span className="block text-xs text-gray-600 dark:text-gray-400">Esperado</span>
-                        <span className="text-base font-black">{formatMoney(row.expected)}</span>
-                      </p>
-                    </div>
-                    {row.paymentMethod === 'CASH' && (
-                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                        Inicial {formatMoney(shift.openingAmount)} + ventas {formatMoney(row.salesTotal)}
-                      </p>
-                    )}
-                    <label htmlFor={inputId} className="mt-3 block text-sm font-semibold">
-                      Contado<span className="sr-only"> {COUNTED_SUFFIX[row.paymentMethod]}</span>
-                    </label>
-                    <input
-                      id={inputId}
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      value={counted[row.paymentMethod]}
-                      onChange={(event) => setCounted((current) => ({ ...current, [row.paymentMethod]: event.target.value }))}
-                      placeholder={row.paymentMethod === 'CASH' ? 'Contá la plata de la caja' : undefined}
-                      aria-invalid={invalid ? true : undefined}
-                      aria-describedby={invalid ? `${inputId}-error` : undefined}
-                      className={cn(
-                        'mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-base dark:border-gray-700 dark:bg-gray-900',
-                        CANONICAL_INPUT_CLASSES
+                    Mientras contabas entraron o se anularon ventas. Ya actualizamos lo esperado: revisá lo contado y volvé a
+                    cerrar el turno.
+                  </p>
+                )}
+
+                {rows.map((row) => {
+                  const inputId = `counted-${row.paymentMethod}`
+                  const invalid = counted[row.paymentMethod].trim() !== '' && row.countedCents === null
+                  return (
+                    <fieldset
+                      key={row.paymentMethod}
+                      className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                    >
+                      <legend className="sr-only">{PAYMENT_METHOD_LABELS[row.paymentMethod]}</legend>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p aria-hidden="true" className="font-bold">
+                          {PAYMENT_METHOD_LABELS[row.paymentMethod]}
+                        </p>
+                        <p className="text-right text-sm">
+                          <span className="block text-xs text-gray-600 dark:text-gray-400">Esperado</span>
+                          <span className="text-base font-black">{formatMoney(row.expected)}</span>
+                        </p>
+                      </div>
+                      {row.paymentMethod === 'CASH' && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                          Inicial {formatMoney(shift.openingAmount)} + ventas {formatMoney(row.salesTotal)}
+                        </p>
                       )}
-                    />
-                    {invalid && (
-                      <p id={`${inputId}-error`} className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-300">
-                        {INVALID_AMOUNT_MESSAGE}
-                      </p>
-                    )}
-                    {row.differenceCents !== null && (
-                      <p className="mt-2 text-sm" aria-live="polite">
-                        <CashShiftDifference cents={row.differenceCents} testId="difference" />
-                      </p>
-                    )}
-                  </fieldset>
-                )
-              })}
-            </>
-          )}
+                      <label htmlFor={inputId} className="mt-3 block text-sm font-semibold">
+                        Contado<span className="sr-only"> {COUNTED_SUFFIX[row.paymentMethod]}</span>
+                      </label>
+                      <input
+                        id={inputId}
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={counted[row.paymentMethod]}
+                        onChange={(event) => setCounted((current) => ({ ...current, [row.paymentMethod]: event.target.value }))}
+                        placeholder={row.paymentMethod === 'CASH' ? 'Contá la plata de la caja' : undefined}
+                        aria-invalid={invalid ? true : undefined}
+                        aria-describedby={invalid ? `${inputId}-error` : undefined}
+                        className={cn(
+                          'mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-base dark:border-gray-700 dark:bg-gray-900',
+                          CANONICAL_INPUT_CLASSES
+                        )}
+                      />
+                      {invalid && (
+                        <p id={`${inputId}-error`} className="mt-1 text-sm font-semibold text-rose-700 dark:text-rose-300">
+                          {INVALID_AMOUNT_MESSAGE}
+                        </p>
+                      )}
+                      {row.differenceCents !== null && (
+                        <p className="mt-2 text-sm" aria-live="polite">
+                          <CashShiftDifference cents={row.differenceCents} testId="difference" />
+                        </p>
+                      )}
+                    </fieldset>
+                  )
+                })}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

@@ -132,7 +132,8 @@ export default function NewSalePage() {
       {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismiss} />}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-        <div className="flex flex-col gap-5 pb-72 md:pb-12">
+        {/* Lugar abajo para el panel de cobro fijo: en el celular va sobre el menú inferior y en escritorio, al pie (#495). */}
+        <div className="flex flex-col gap-5 pb-72 md:pb-52">
           <Navbar title="Nueva venta" backHref="/ventas" />
 
           {shift && !noOpenShift && (
@@ -171,9 +172,10 @@ export default function NewSalePage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar producto"
+              // Las clases canónicas van primero: traen px-3, y si fueran después pisarían el pl-9 que deja lugar a la lupa (#495).
               className={cn(
-                'min-h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900',
-                CANONICAL_INPUT_CLASSES
+                CANONICAL_INPUT_CLASSES,
+                'min-h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900'
               )}
             />
           </label>
@@ -263,7 +265,8 @@ export default function NewSalePage() {
           'md:bottom-0'
         )}
       >
-        <div className="mx-auto flex max-w-md flex-col gap-3 md:max-w-5xl lg:max-w-6xl">
+        {/* Mismo ancho y relleno que la grilla de productos (#495). */}
+        <div className="mx-auto flex max-w-md flex-col gap-3 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-gray-600 dark:text-gray-300">
               Total{unitsInCart > 0 ? ` · ${unitsInCart} ${unitsInCart === 1 ? 'unidad' : 'unidades'}` : ''}

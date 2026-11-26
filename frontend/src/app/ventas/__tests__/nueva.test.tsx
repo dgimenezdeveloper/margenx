@@ -197,9 +197,10 @@ describe('Nueva venta: maquetación (#495)', () => {
     renderPage()
 
     const buscador = await screen.findByRole('searchbox', { name: 'Buscar producto' })
+    // tailwind-merge conserva px-3 y aplica pl-9 después; el defecto era que pl-9 desaparecía.
     const clases = buscador.className.split(/\s+/)
     expect(clases).toContain('pl-9')
-    expect(clases).not.toContain('px-3')
+    if (clases.includes('px-3')) expect(clases.indexOf('pl-9')).toBeGreaterThan(clases.indexOf('px-3'))
   })
 
   it('Escenario "El panel de cobro no tapa productos": en escritorio el contenido deja lugar abajo y el panel tiene el ancho de la grilla', async () => {
