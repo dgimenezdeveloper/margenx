@@ -19,7 +19,9 @@ vi.mock('@/hooks/useTheme', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>
+  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
 }))
 
 describe('LandingPage', () => {
@@ -226,6 +228,35 @@ describe('LandingPage', () => {
       expect(texto).not.toMatch(/ni cobra/i)
       expect(texto).not.toMatch(/m[oó]dulo de ventas|cierre de caja|ticket/i)
       expect(texto).toContain('no emite facturas fiscales')
+    })
+
+    it('Botones claros: en modo oscuro el hover tiene su propio fondo y no vuelve al gris claro ([RV494-I1])', () => {
+      renderLanding()
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+
+      // Con fondo blanco y hover gris claro, sin un dark:hover el fondo se aclara en modo oscuro
+      // y el texto claro deja de leerse (el "Iniciar sesión" del cierre quedaba en 1,18:1).
+      const claros = Array.from(document.querySelectorAll<HTMLElement>('a, button')).filter(
+        (el) => /(^|\s)bg-white(\s|$)/.test(el.className) && /(^|\s)hover:bg-slate-\d+/.test(el.className),
+      )
+      const nombre = (el: HTMLElement) => el.textContent?.trim() || el.getAttribute('aria-label')
+      expect(claros.map(nombre)).toContain('Iniciar sesión')
+      const sinHoverOscuro = claros.filter((el) => !/(^|\s)dark:hover:bg-/.test(el.className)).map(nombre)
+      expect(sinHoverOscuro).toEqual([])
+    })
+
+    it('Textos grises: en modo oscuro tienen su propio color para llegar a contraste AA ([RV494-I1])', () => {
+      renderLanding()
+
+      // text-slate-500 sobre el fondo oscuro de las tarjetas (slate-900) da 3,74:1; con dark:text-slate-400, 6,78:1.
+      const grises = Array.from(document.querySelectorAll<HTMLElement>('body *')).filter(
+        (el) => !(el instanceof SVGElement) && /(^|\s)text-slate-500(\s|$)/.test(el.getAttribute('class') ?? ''),
+      )
+      expect(grises.length).toBeGreaterThan(0)
+      const sinColorOscuro = grises
+        .filter((el) => !/(^|\s)dark:text-/.test(el.getAttribute('class') ?? ''))
+        .map((el) => el.textContent?.trim())
+      expect(sinColorOscuro).toEqual([])
     })
 
     it('Escenario "Qué necesita una PyME": la pregunta explica cómo empezar, sin términos técnicos', () => {
