@@ -315,3 +315,23 @@ describe('Historial de turnos (/ventas/turnos)', () => {
     expect(await screen.findByText('Todavía no hay turnos')).toBeInTheDocument()
   })
 })
+
+// Recorrida estética del 26/11 (#495): con md:max-w-3xl la barra de escritorio tapaba el botón de volver y el título.
+describe('Turno y cierre: ancho de escritorio (#495)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([
+    ['el detalle del turno', `/ventas/turnos/${SHIFT_ID}`, () => turnoCerrado()],
+    ['el cierre del turno', `/ventas/turnos/${SHIFT_ID}/cerrar`, () => turnoAbierto()],
+  ])('Escenario "El encabezado no queda tapado": %s usa el ancho de las demás pantallas', async (_nombre, ruta, turno) => {
+    vi.mocked(cashShiftService.getById).mockResolvedValue(turno())
+    const { container } = renderAt(ruta)
+    await waitFor(() => expect(cashShiftService.getById).toHaveBeenCalled())
+
+    const clases = (container.querySelector('main > div') as HTMLElement).className.split(/\s+/)
+    expect(clases).toEqual(expect.arrayContaining(['md:max-w-5xl', 'lg:max-w-6xl']))
+    expect(clases).not.toContain('md:max-w-3xl')
+  })
+})
