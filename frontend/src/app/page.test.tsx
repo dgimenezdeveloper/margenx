@@ -169,4 +169,74 @@ describe('LandingPage', () => {
       expect(queryByText(/saludable|cr[ií]tico/i)).toBeNull()
     })
   })
+
+  describe('Portada al día con la v1.0.0 (#493)', () => {
+    function renderLanding() {
+      vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: true, isSignedIn: false } as unknown as ReturnType<typeof useAuth>)
+      return render(<LandingPage />)
+    }
+
+    // Texto visible con cada pregunta frecuente abierta (se abre una por vez).
+    function textoConPreguntasAbiertas() {
+      renderLanding()
+      const partes = [document.body.textContent ?? '']
+      for (const pregunta of screen.getAllByRole('button', { name: /\?$/ })) {
+        fireEvent.click(pregunta)
+        partes.push(document.body.textContent ?? '')
+      }
+      return partes.join('\n')
+    }
+
+    it('Escenario "Sin botones sin salida": no hay "Probar demo" y cada botón lleva a iniciar sesión o a cómo funciona', () => {
+      renderLanding()
+      // El menú del celular también tiene su botón de entrada.
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+
+      expect(screen.queryByText(/probar demo/i)).toBeNull()
+      const entradas = screen.getAllByRole('link', { name: /iniciar sesi[oó]n/i })
+      expect(entradas.length).toBeGreaterThanOrEqual(3)
+      for (const entrada of entradas) expect(entrada).toHaveAttribute('href', '/login')
+      expect(screen.getByRole('link', { name: 'Ver cómo funciona' })).toHaveAttribute('href', '#como-funciona')
+    })
+
+    it('Escenario "El precio lo decide el comercio": muestra el precio necesario para el margen objetivo, y el precio final es del comercio', () => {
+      const texto = textoConPreguntasAbiertas()
+
+      expect(screen.getByRole('button', { name: '¿MargenX decide el precio de venta?' })).toBeInTheDocument()
+      expect(texto).toContain('el precio que necesitás para llegar a tu margen objetivo')
+      expect(texto).toContain('el precio final lo decidís vos')
+      expect(texto).toMatch(/oferta y (la )?demanda/i)
+      expect(texto).not.toMatch(/sugiere el precio/i)
+      expect(texto).not.toMatch(/Fijá tus precios/i)
+    })
+
+    it('Escenario "Lo que se muestra existe": "También incluye" lista solo capacidades disponibles y no anuncia ventas', () => {
+      const texto = textoConPreguntasAbiertas()
+
+      const seccion = screen.getByRole('region', { name: 'También incluye' })
+      const titulos = Array.from(seccion.querySelectorAll('h3'), (h) => h.textContent)
+      expect(titulos).toEqual([
+        'Antes de comprar, el impacto en tu margen',
+        'Reporte semanal por correo',
+        'Tu equipo, invitado por correo',
+        'Se instala en el celular',
+      ])
+      // El módulo de ventas solo está en la Demo de staging (especificación funcional §11): la portada no lo anuncia.
+      expect(texto).not.toMatch(/ni cobra/i)
+      expect(texto).not.toMatch(/m[oó]dulo de ventas|cierre de caja|ticket/i)
+      expect(texto).toContain('no emite facturas fiscales')
+    })
+
+    it('Escenario "Qué necesita una PyME": la pregunta explica cómo empezar, sin términos técnicos', () => {
+      renderLanding()
+
+      fireEvent.click(screen.getByRole('button', { name: '¿Qué necesito para empezar?' }))
+
+      const texto = document.body.textContent ?? ''
+      expect(texto).toContain('Un celular o una computadora con internet')
+      expect(texto).toMatch(/Excel o CSV/)
+      expect(texto).toContain('El alta de tu comercio la hace el equipo de MargenX')
+    })
+  })
 })
