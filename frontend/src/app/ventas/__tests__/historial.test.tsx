@@ -14,6 +14,15 @@ vi.mock('@/components/desktop-footer', () => ({ DesktopFooter: () => null }))
 const getToken = vi.hoisted(() => () => Promise.resolve('token-cajera'))
 vi.mock('@/hooks/useTokenGetter', () => ({ useTokenGetter: () => getToken }))
 vi.mock('@/services/saleService', () => ({ saleService: { list: vi.fn() } }))
+const rol = vi.hoisted(() => ({ isCollaborator: false }))
+vi.mock('@/hooks/useUserRole', () => ({
+  useUserRole: () => ({
+    role: rol.isCollaborator ? 'COLLABORATOR' : 'ADMIN',
+    isCollaborator: rol.isCollaborator,
+    isAdmin: !rol.isCollaborator,
+    isLoading: false,
+  }),
+}))
 vi.mock('@/services/cashShiftService', () => ({ cashShiftService: { current: vi.fn(), open: vi.fn() } }))
 vi.mock('@/lib/sales', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/sales')>()),
@@ -188,5 +197,50 @@ describe('Historial de ventas: textos que no se parten a 360 px (#497)', () => {
     for (const texto of ['Mercado Pago', '2 productos', /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/]) {
       expect(within(fila).getByText(texto), String(texto)).toHaveClass('whitespace-nowrap')
     }
+  })
+})
+
+describe('Historial de ventas: cada dato dice de quién es (#497, decisión del Tech Lead)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    rol.isCollaborator = false
+    vi.mocked(cashShiftService.current).mockResolvedValue(turno)
+    vi.mocked(saleService.list).mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } })
+  })
+
+  it('260: la tarjeta del turno dice "N ventas en el turno": es el total del turno, también para el colaborador', async () => {
+    rol.isCollaborator = true
+    renderPage()
+
+    const panel = await screen.findByRole('region', { name: 'Turno de caja' })
+    expect(panel).toHaveTextContent('11 ventas en el turno · $33.400,00')
+  })
+
+  it('260: el colaborador ve "Tus ventas del turno" y, si todavía no cobró, "Todavía no cobraste ventas en este turno"', async () => {
+    rol.isCollaborator = true
+    renderPage()
+    await screen.findByRole('region', { name: 'Turno de caja' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Del turno' }))
+    expect(await screen.findByRole('heading', { name: 'Tus ventas del turno' })).toBeInTheDocument()
+    expect(await screen.findByText('Todavía no cobraste ventas en este turno')).toBeInTheDocument()
+    expect(screen.queryByText('Todavía no hay ventas en este turno')).toBeNull()
+  })
+
+  it('260: el administrador ve las ventas de todos: sin "Tus ventas del turno" y con el mensaje vacío de siempre', async () => {
+    renderPage()
+    await screen.findByRole('region', { name: 'Turno de caja' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Del turno' }))
+    expect(await screen.findByText('Todavía no hay ventas en este turno')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Tus ventas del turno' })).toBeNull()
+  })
+
+  it('260: con "Hoy" o "Todas" el colaborador no ve el título del turno', async () => {
+    rol.isCollaborator = true
+    renderPage()
+    await screen.findByRole('region', { name: 'Turno de caja' })
+
+    expect(screen.queryByRole('heading', { name: 'Tus ventas del turno' })).toBeNull()
   })
 })
