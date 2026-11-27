@@ -556,4 +556,34 @@ describe('PurchasesPage: el color dice el estado y la mejora va aparte (#497, de
     expect(within(fila).getByText(/36,5\s%/)).toHaveClass(...HEALTH_BUCKET_META.target.textClassName.split(' '))
     expect(within(fila).getByText('▲ 2,3 pp')).toBeInTheDocument()
   })
+
+  it('la mejora es la resta de los dos márgenes que se ven: 76,1 % → 77,5 % da 1,4 pp y no 1,3 ([RV504-M2])', async () => {
+    const conDecimales: MarginImpactResponse = {
+      ...marginImpactPayload,
+      byIngredient: [
+        {
+          ...harinaImpact,
+          products: [
+            {
+              ...harinaImpact.products[0]!,
+              productId: 'prod-medialunas-docena',
+              productName: 'Medialunas de manteca — docena',
+              currentMarginPercent: '76.14',
+              projectedMarginPercent: '77.46',
+              currentBucket: 'surplus' as const,
+              projectedBucket: 'surplus' as const,
+            },
+          ],
+        },
+      ],
+    }
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(conDecimales)
+    renderPage()
+
+    const fila = await screen.findByRole('listitem', { name: 'Medialunas de manteca — docena' })
+    expect(fila).toHaveTextContent(/76,1\s%/)
+    expect(fila).toHaveTextContent(/77,5\s%/)
+    expect(within(fila).getByText('▲ 1,4 pp')).toBeInTheDocument()
+    expect(fila).toHaveTextContent('mejora 1,4 puntos')
+  })
 })
