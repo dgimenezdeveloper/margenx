@@ -12,8 +12,8 @@ import { describe, expect, it } from 'vitest'
 // Vitest corre desde frontend/ (npm test y el job "Frontend Unit Tests").
 const SRC = resolve(process.cwd(), 'src')
 
-// La portada la reescribe #494: se suma al barrido cuando entre.
-const SIN_REVISAR = new Set(['app/page.tsx'])
+// Sin excepciones: la portada entró al barrido cuando se fusionó #494.
+const SIN_REVISAR = new Set<string>([])
 
 /**
  * Palabras que van con mayúscula en medio de un texto:
@@ -35,6 +35,8 @@ const PERMITIDAS = new Set([
   'Cuarentena',
   // Datos de ejemplo de los comercios piloto (placeholders y plantilla de carga)
   'Medialunas', 'Pan', 'Detergente', 'Molino', 'Olavarriense', 'Av', 'Pringles', 'Olavarría', 'Silvia', 'Leche', 'Harina',
+  // Comercios piloto y marcas de los productos de ejemplo de la portada
+  'Central', 'Química', 'GyJ', 'Magistral', 'Vivere', 'Johnson',
 ])
 
 function archivosFuente(dir: string): string[] {
