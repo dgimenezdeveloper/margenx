@@ -174,7 +174,6 @@ export function IngredientUpsertSheet({
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
-                
 
                 <div>
                   <label htmlFor="ingredient-name" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
@@ -330,7 +329,7 @@ export function IngredientUpsertSheet({
                       <>
                         <ul
                           aria-label="Productos que usan este insumo"
-                           className="grid grid-cols-1 gap-2"
+                          className="grid grid-cols-1 gap-2"
                         >
                           {usedProducts.map((prod) => (
                             <li key={prod.id}>

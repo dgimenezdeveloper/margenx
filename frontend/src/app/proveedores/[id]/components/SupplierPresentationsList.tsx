@@ -61,7 +61,7 @@ export function SupplierPresentationsList({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <p
                     title={item.ingredient.name}
-                    className="min-w-0 break-words   text-sm font-bold text-gray-900 dark:text-gray-100"
+                    className="min-w-0 break-words text-sm font-bold text-gray-900 dark:text-gray-100"
                   >
                     {item.ingredient.name}
                   </p>
