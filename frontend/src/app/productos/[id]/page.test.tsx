@@ -333,3 +333,21 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
   })
 })
 
+
+describe('ProductDetailPage - ancho de escritorio igual al de las demás pantallas (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(productService.getById).mockResolvedValue(mockProduct)
+    vi.mocked(ingredientService.getAll).mockResolvedValue([])
+  })
+
+  it('265: el relleno lateral va dentro del contenedor, como en Panel o Productos, así la barra de arriba no se corre al entrar a la ficha', async () => {
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
+
+    const main = screen.getByRole('main')
+    expect(main).not.toHaveClass('md:px-8')
+    expect(main).not.toHaveClass('lg:px-12')
+    expect(main.firstElementChild).toHaveClass('px-4', 'md:max-w-5xl', 'md:px-8', 'lg:max-w-6xl', 'lg:px-12')
+  })
+})

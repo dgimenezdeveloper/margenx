@@ -315,3 +315,17 @@ describe('Historial de turnos (/ventas/turnos)', () => {
     expect(await screen.findByText('Todavía no hay turnos')).toBeInTheDocument()
   })
 })
+
+describe('Historial de turnos: la fecha y la hora no se separan (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('263: en los turnos cerrados, la fecha y la hora quedan en el mismo renglón aunque la diferencia les quite lugar', async () => {
+    vi.mocked(cashShiftService.list).mockResolvedValue({ data: [turnoCerrado()], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } })
+    renderAt('/ventas/turnos')
+
+    const cerrado = await screen.findByRole('link', { name: /Falta −\$500,00/ })
+    expect(within(cerrado).getByText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)).toHaveClass('whitespace-nowrap')
+  })
+})

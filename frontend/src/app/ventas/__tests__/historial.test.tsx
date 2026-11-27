@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
@@ -168,5 +168,25 @@ describe('Historial de ventas (/ventas)', () => {
     await screen.findByRole('link', { name: /000009/ })
     expect(saleService.list).toHaveBeenCalledWith(getToken, { page: 1, cashShiftId: SHIFT_ID })
     expect(screen.getByRole('button', { name: 'Del turno' })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+describe('Historial de ventas: textos que no se parten a 360 px (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(cashShiftService.current).mockResolvedValue(null)
+  })
+
+  it('257: la fecha y hora, el medio de pago y la cantidad de productos no se parten en dos renglones', async () => {
+    vi.mocked(saleService.list).mockResolvedValue({
+      data: [venta(635, { paymentMethod: 'MERCADO_PAGO', itemsCount: 2 })],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    })
+    renderPage()
+
+    const fila = await screen.findByRole('link', { name: /000635/ })
+    for (const texto of ['Mercado Pago', '2 productos', /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/]) {
+      expect(within(fila).getByText(texto), String(texto)).toHaveClass('whitespace-nowrap')
+    }
   })
 })

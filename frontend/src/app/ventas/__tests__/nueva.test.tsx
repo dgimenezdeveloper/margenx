@@ -184,3 +184,18 @@ describe('Nueva venta (/ventas/nueva)', () => {
     expect(await screen.findByText('No hay productos para vender')).toBeInTheDocument()
   })
 })
+
+describe('Nueva venta: "1 kg" no se parte (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(cashShiftService.current).mockResolvedValue(null)
+  })
+
+  it('256: en la tarjeta, el número y la unidad van unidos con un espacio no separable', async () => {
+    vi.mocked(productService.getAll).mockResolvedValue([{ id: 'p-pan-campo', name: 'Pan de campo — 1 kg', salePrice: 3800, ingredients: receta }])
+    renderPage()
+
+    const nombre = await screen.findByText('Pan de campo — 1 kg')
+    expect(nombre.textContent).toBe('Pan de campo — 1 kg')
+  })
+})

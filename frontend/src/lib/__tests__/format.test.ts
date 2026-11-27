@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, formatPercent, formatQuantity, formatQuantityWithUnit, formatUnit } from '@/lib/format'
+import { formatMoney, formatPercent, formatQuantity, formatQuantityWithUnit, formatUnit, keepQuantityTogether } from '@/lib/format'
 
 const NBSP = ' '
 
@@ -64,5 +64,18 @@ describe('formatQuantity y formatUnit', () => {
   it('combina cantidad y unidad', () => {
     expect(formatQuantityWithUnit(0.7, 'kg')).toBe('0,7 kg')
     expect(formatQuantityWithUnit(3, 'u')).toBe('3 unidad')
+  })
+})
+
+describe('keepQuantityTogether (#497)', () => {
+  it('une el número y la unidad con un espacio no separable, para que "1 kg" no quede en dos renglones', () => {
+    expect(keepQuantityTogether('Pan de campo — 1 kg')).toBe('Pan de campo — 1 kg')
+    expect(keepQuantityTogether('Bizcochos de grasa — 1/2 kg (línea económica)')).toBe('Bizcochos de grasa — 1/2 kg (línea económica)')
+    expect(keepQuantityTogether('Leche entera 1 l y crema 200 ml')).toBe('Leche entera 1 l y crema 200 ml')
+  })
+
+  it('no toca los nombres sin cantidad ni las palabras que empiezan como una unidad', () => {
+    expect(keepQuantityTogether('Medialunas de manteca — docena')).toBe('Medialunas de manteca — docena')
+    expect(keepQuantityTogether('Torta 2 leches')).toBe('Torta 2 leches')
   })
 })

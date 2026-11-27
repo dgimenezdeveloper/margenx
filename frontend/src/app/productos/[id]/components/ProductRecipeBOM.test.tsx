@@ -42,3 +42,21 @@ describe('ProductRecipeBOM - importes con centavos (#359)', () => {
     expect(screen.queryByText(/Costo base/)).not.toBeInTheDocument()
   })
 })
+
+describe('ProductRecipeBOM: nombres largos de insumos (#497)', () => {
+  it('264: el nombre del insumo no se corta con "…": pasa a dos renglones si no entra', () => {
+    render(
+      <ProductRecipeBOM
+        isCollaborator
+        items={[{ ...MANTECA, ingredientId: 'ing-chocolate', name: 'Chocolate cobertura semiamargo Santa Inés' }]}
+        salePrice={34728}
+        onAddIngredient={vi.fn()}
+        onRemoveIngredient={vi.fn()}
+      />
+    )
+
+    const nombre = screen.getByText('Chocolate cobertura semiamargo Santa Inés')
+    expect(nombre).not.toHaveClass('truncate')
+    expect(nombre).toHaveClass('break-words')
+  })
+})

@@ -475,3 +475,34 @@ describe('PurchasesPage (/compras, Impacto en el margen)', () => {
     expect(await screen.findByText(/no cambia tus costos ni tus recetas/i)).toBeInTheDocument()
   })
 })
+
+describe('PurchasesPage: alineación de las tarjetas (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(marginImpactPayload)
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+  })
+
+  it('253: cada producto tiene la misma forma con nombre corto o largo: margen abajo en el celular y a la derecha en escritorio', async () => {
+    renderPage()
+    const card = await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+
+    for (const nombre of ['Medialunas de manteca x 12', 'Pan de campo']) {
+      const fila = within(card).getByRole('listitem', { name: nombre }).firstElementChild as HTMLElement
+      // Con flex-wrap, la forma dependía del largo del nombre.
+      expect(fila, nombre).not.toHaveClass('flex-wrap')
+      expect(fila, nombre).toHaveClass('flex-col', 'sm:flex-row')
+      expect(within(fila).getByText(nombre)).toHaveClass('min-w-0', 'flex-1')
+      expect(within(fila).getByText(nombre).nextElementSibling, nombre).toHaveClass('shrink-0', 'whitespace-nowrap')
+    }
+  })
+
+  it('258: en escritorio, "Hoy le comprás a" y "Alternativa más barata" tienen el mismo alto', async () => {
+    renderPage()
+    const card = await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+
+    const cajas = within(card).getByText('Hoy le comprás a').closest('dl') as HTMLElement
+    expect(cajas).not.toHaveClass('sm:items-center')
+    expect(cajas).toHaveClass('sm:items-stretch')
+  })
+})
