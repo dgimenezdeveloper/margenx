@@ -173,10 +173,8 @@ export default function NewSalePage() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar producto"
               // Las clases canónicas van primero: traen px-3, y si fueran después pisarían el pl-9 que deja lugar a la lupa (#495).
-              className={cn(
-                CANONICAL_INPUT_CLASSES,
-                'min-h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900'
-              )}
+              // Después va solo lo propio del buscador, para que se vea como los demás campos ([RV496-M2]).
+              className={cn(CANONICAL_INPUT_CLASSES, 'min-h-11 pl-9')}
             />
           </label>
 
@@ -262,7 +260,8 @@ export default function NewSalePage() {
         className={cn(
           'fixed inset-x-0 z-10 border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95',
           ABOVE_BOTTOM_NAV_CLASS,
-          'md:bottom-0'
+          // Desde md el relleno lo pone el contenido, igual que en la grilla ([RV496-M1]).
+          'md:bottom-0 md:px-0'
         )}
       >
         {/* Mismo ancho y relleno que la grilla de productos (#495). */}

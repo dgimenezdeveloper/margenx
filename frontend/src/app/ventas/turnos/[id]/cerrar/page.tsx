@@ -267,7 +267,8 @@ function CloseCashShift({ id }: { id: string }) {
           className={cn(
             'fixed inset-x-0 z-10 border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95',
             ABOVE_BOTTOM_NAV_CLASS,
-            'md:bottom-0'
+            // Mismo relleno lateral que el contenedor del formulario, para que el panel no quede más ancho ([RV496-M3]).
+            'md:bottom-0 md:px-8'
           )}
         >
           <div className="mx-auto flex max-w-md flex-col gap-2 md:max-w-3xl">
