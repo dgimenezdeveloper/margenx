@@ -349,8 +349,11 @@ describe('Cierre del turno: formulario y panel fijo en escritorio (#495)', () =>
     // El formulario queda en 3xl aunque la pantalla use el ancho de las demás, igual que el panel de abajo.
     const formulario = efectivo.parentElement as HTMLElement
     expect(formulario.className.split(/\s+/)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-3xl']))
-    const panel = screen.getByRole('region', { name: 'Resultado del arqueo' }).firstElementChild as HTMLElement
+    const seccion = screen.getByRole('region', { name: 'Resultado del arqueo' })
+    const panel = seccion.firstElementChild as HTMLElement
     expect(panel.className.split(/\s+/)).toContain('md:max-w-3xl')
+    // Mismo relleno lateral que el contenedor del formulario: con px-4, a 768 px el panel quedaba 16 px más ancho por lado ([RV496-M3]).
+    expect(seccion.className.split(/\s+/)).toContain('md:px-8')
 
     const contenido = container.querySelector('main > div > div') as HTMLElement
     expect(contenido.className.split(/\s+/)).toContain('md:pb-48')

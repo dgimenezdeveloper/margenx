@@ -203,6 +203,15 @@ describe('Nueva venta: maquetación (#495)', () => {
     if (clases.includes('px-3')) expect(clases.indexOf('pl-9')).toBeGreaterThan(clases.indexOf('px-3'))
   })
 
+  it('el buscador se ve como los demás campos: solo el relleno izquierdo cambia para la lupa ([RV496-M2])', async () => {
+    renderPage()
+
+    const clases = (await screen.findByRole('searchbox', { name: 'Buscar producto' })).className.split(/\s+/)
+    expect(clases).toEqual(expect.arrayContaining(['rounded-lg', 'border-slate-300', 'dark:border-slate-700', 'dark:bg-slate-900']))
+    expect(clases).not.toContain('rounded-xl')
+    expect(clases).not.toContain('border-gray-200')
+  })
+
   it('Escenario "El panel de cobro no tapa productos": en escritorio el contenido deja lugar abajo y el panel tiene el ancho de la grilla', async () => {
     const { container } = renderPage()
     await screen.findByText('Medialuna de manteca')
@@ -212,10 +221,13 @@ describe('Nueva venta: maquetación (#495)', () => {
     expect(contenido.className.split(/\s+/)).not.toContain('md:pb-12')
 
     const anchoContenido = (container.querySelector('main > div') as HTMLElement).className.split(/\s+/)
-    const anchoPanel = (screen.getByRole('region', { name: 'Cobro' }).firstElementChild as HTMLElement).className.split(/\s+/)
+    const panel = screen.getByRole('region', { name: 'Cobro' })
+    const anchoPanel = (panel.firstElementChild as HTMLElement).className.split(/\s+/)
     for (const clase of ['md:max-w-5xl', 'md:px-8', 'lg:max-w-6xl', 'lg:px-12']) {
       expect(anchoContenido, `contenido: ${clase}`).toContain(clase)
       expect(anchoPanel, `panel: ${clase}`).toContain(clase)
     }
+    // El relleno lo pone el contenido del panel: si la sección sumara su px-4, el panel quedaría 16 px adentro de la grilla entre 768 y 1183 px ([RV496-M1]).
+    expect(panel.className.split(/\s+/)).toContain('md:px-0')
   })
 })
