@@ -16,8 +16,8 @@ import {
 const money = (val: number) => formatMoney(val)
 
 /**
- * "Ver catálogo completo" es un enlace aunque, con un filtro activo, solo lo quite:
- * usa siempre el color de enlace y nunca el de una alerta (#362).
+ * "Ver catálogo completo" (sin filtro) y "Restablecer" (con un filtro activo, que solo lo quita)
+ * usan siempre el color de enlace y nunca el de una alerta (#362, #498).
  */
 const CATALOG_LINK_CLASSES = `inline-flex min-h-11 items-center rounded-md text-xs font-bold text-indigo-700 underline-offset-2 transition hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200 ${CANONICAL_FOCUS_CLASSES}`
 
@@ -133,8 +133,8 @@ export function MonitoredCatalogGrid({
               onClick={onClearFilter}
               className={`${CATALOG_LINK_CLASSES} cursor-pointer`}
             >
-              <span className="sm:hidden">Restablecer</span>
-              <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
+              {/* El mismo texto en todos los tamaños: "Ver catálogo completo" es el enlace a /productos sin filtro (#498). */}
+              Restablecer
             </button>
           )}
           {(!selectedBucket || isCollaborator) && (
