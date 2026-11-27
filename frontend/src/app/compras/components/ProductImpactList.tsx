@@ -23,11 +23,12 @@ export function ProductImpactList({ products }: { products: MarginImpactProduct[
           aria-label={product.productName}
           className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0"
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="min-w-0 text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {/* Misma forma con nombre corto o largo: en el celular el margen va abajo y en escritorio, a la derecha (#497). */}
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <span className="min-w-0 flex-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
               {product.productName}
             </span>
-            <span className="inline-flex items-center gap-1.5 text-sm tabular-nums">
+            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm tabular-nums">
               <span className="sr-only">Margen hoy </span>
               <span className="text-gray-600 dark:text-gray-400">{formatPercent(product.currentMarginPercent)}</span>
               <ArrowRight className="size-3.5 text-gray-400" aria-hidden="true" />

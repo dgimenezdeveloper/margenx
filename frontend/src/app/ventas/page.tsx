@@ -195,9 +195,13 @@ export default function SalesHistoryPage() {
                             </span>
                           )}
                         </p>
+                        {/* Cada dato entero en su renglón: a 360 px se partían "Mercado Pago" y "2 productos" (#497). */}
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {formatSaleDateTime(sale.soldAt)} · {PAYMENT_METHOD_LABELS[sale.paymentMethod]} · {sale.itemsCount}{' '}
-                          {sale.itemsCount === 1 ? 'producto' : 'productos'}
+                          <span className="whitespace-nowrap">{formatSaleDateTime(sale.soldAt)}</span> ·{' '}
+                          <span className="whitespace-nowrap">{PAYMENT_METHOD_LABELS[sale.paymentMethod]}</span> ·{' '}
+                          <span className="whitespace-nowrap">
+                            {sale.itemsCount} {sale.itemsCount === 1 ? 'producto' : 'productos'}
+                          </span>
                         </p>
                       </div>
                       <span className={cn('text-sm font-black', sale.status === 'VOIDED' && 'text-gray-500 line-through')}>

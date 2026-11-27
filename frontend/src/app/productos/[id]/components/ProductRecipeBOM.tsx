@@ -52,7 +52,7 @@ export function ProductRecipeBOM({
                 className="flex flex-col gap-2 py-3.5 transition sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0 flex-1">
-                  <strong className="block text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                  <strong className="block break-words text-sm font-bold text-gray-900 dark:text-gray-100">
                     {item.name}
                   </strong>
                   {!isCollaborator && (
