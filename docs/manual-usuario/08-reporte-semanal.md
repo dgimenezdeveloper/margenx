@@ -27,7 +27,7 @@ Desde el **panel** (Inicio, `/dashboard`):
 2. Mientras se arma, el botón dice **Generando reporte…** y no se puede volver a tocar. Suele tardar unos segundos.
 3. Se descarga el archivo `margenx-reporte-AAAA-MM-DD.pdf`, con la fecha de hoy. Según el navegador, se guarda en Descargas o se abre para que lo guardes o lo compartas.
 
-Desde el **Perfil**: en **Alertas automáticas**, debajo de "Reporte Semanal en PDF", tocá **Descargar el último reporte**. Funciona igual que el botón del panel.
+Desde el **Perfil**: en **Alertas automáticas**, debajo de "Reporte semanal en PDF", tocá **Descargar el último reporte**. Funciona igual que el botón del panel.
 
 El reporte descargado cubre los últimos 7 días hasta el momento en que lo pedís, así que puede tener datos más nuevos que el del último lunes.
 

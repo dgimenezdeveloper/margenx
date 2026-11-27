@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { HEALTH_BUCKET_META } from '@/lib/healthBucket'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -473,5 +474,116 @@ describe('PurchasesPage (/compras, Impacto en el margen)', () => {
     renderPage()
 
     expect(await screen.findByText(/no cambia tus costos ni tus recetas/i)).toBeInTheDocument()
+  })
+})
+
+describe('PurchasesPage: alineación de las tarjetas (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(marginImpactPayload)
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+  })
+
+  it('253: cada producto tiene la misma forma con nombre corto o largo: margen abajo en el celular y a la derecha en escritorio', async () => {
+    renderPage()
+    const card = await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+
+    for (const nombre of ['Medialunas de manteca x 12', 'Pan de campo']) {
+      const fila = within(card).getByRole('listitem', { name: nombre }).firstElementChild as HTMLElement
+      // Con flex-wrap, la forma dependía del largo del nombre.
+      expect(fila, nombre).not.toHaveClass('flex-wrap')
+      expect(fila, nombre).toHaveClass('flex-col', 'sm:flex-row')
+      expect(within(fila).getByText(nombre)).toHaveClass('min-w-0', 'flex-1')
+      expect(within(fila).getByText(nombre).nextElementSibling, nombre).toHaveClass('shrink-0', 'whitespace-nowrap')
+    }
+  })
+
+  it('258: en escritorio, "Hoy le comprás a" y "Alternativa más barata" tienen el mismo alto', async () => {
+    renderPage()
+    const card = await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+
+    const cajas = within(card).getByText('Hoy le comprás a').closest('dl') as HTMLElement
+    expect(cajas).not.toHaveClass('sm:items-center')
+    expect(cajas).toHaveClass('sm:items-stretch')
+  })
+})
+
+describe('PurchasesPage: el color dice el estado y la mejora va aparte (#497, decisión del Tech Lead)', () => {
+  const sigueEnPerdida: MarginImpactResponse = {
+    ...marginImpactPayload,
+    byIngredient: [
+      {
+        ...harinaImpact,
+        products: [
+          {
+            ...harinaImpact.products[0]!,
+            productId: 'prod-alfajores',
+            productName: 'Alfajores de chocolate — unidad',
+            currentMarginPercent: '-93.10',
+            projectedMarginPercent: '-86.80',
+            currentBucket: 'loss' as const,
+            projectedBucket: 'loss' as const,
+          },
+        ],
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supplierService.getQuarantine).mockResolvedValue([])
+  })
+
+  it('261: si sigue en pérdida, el margen nuevo va en rojo, y la mejora en verde con flecha y signo', async () => {
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(sigueEnPerdida)
+    renderPage()
+
+    const fila = await screen.findByRole('listitem', { name: 'Alfajores de chocolate — unidad' })
+    const nuevo = within(fila).getByText(/-86,8\s%/)
+    expect(nuevo).not.toHaveClass('text-emerald-700')
+    expect(nuevo).toHaveClass(...HEALTH_BUCKET_META.loss.textClassName.split(' '))
+    const mejora = within(fila).getByText('▲ 6,3 pp')
+    expect(mejora.closest('span[class*="text-emerald"]')).not.toBeNull()
+    expect(fila).toHaveTextContent('mejora 6,3 puntos')
+  })
+
+  it('261: si pasa a objetivo, el margen nuevo va en verde porque ese es su estado', async () => {
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(marginImpactPayload)
+    renderPage()
+
+    const card = await screen.findByRole('article', { name: 'Harina de trigo 000 Olavarriense' })
+    const fila = within(card).getByRole('listitem', { name: 'Medialunas de manteca x 12' })
+    expect(within(fila).getByText(/36,5\s%/)).toHaveClass(...HEALTH_BUCKET_META.target.textClassName.split(' '))
+    expect(within(fila).getByText('▲ 2,3 pp')).toBeInTheDocument()
+  })
+
+  it('la mejora es la resta de los dos márgenes que se ven: 76,1 % → 77,5 % da 1,4 pp y no 1,3 ([RV504-M2])', async () => {
+    const conDecimales: MarginImpactResponse = {
+      ...marginImpactPayload,
+      byIngredient: [
+        {
+          ...harinaImpact,
+          products: [
+            {
+              ...harinaImpact.products[0]!,
+              productId: 'prod-medialunas-docena',
+              productName: 'Medialunas de manteca — docena',
+              currentMarginPercent: '76.14',
+              projectedMarginPercent: '77.46',
+              currentBucket: 'surplus' as const,
+              projectedBucket: 'surplus' as const,
+            },
+          ],
+        },
+      ],
+    }
+    vi.mocked(purchasingService.getMarginImpact).mockResolvedValue(conDecimales)
+    renderPage()
+
+    const fila = await screen.findByRole('listitem', { name: 'Medialunas de manteca — docena' })
+    expect(fila).toHaveTextContent(/76,1\s%/)
+    expect(fila).toHaveTextContent(/77,5\s%/)
+    expect(within(fila).getByText('▲ 1,4 pp')).toBeInTheDocument()
+    expect(fila).toHaveTextContent('mejora 1,4 puntos')
   })
 })

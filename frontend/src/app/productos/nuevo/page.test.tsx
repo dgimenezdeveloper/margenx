@@ -53,7 +53,7 @@ const avisoDeLinea = (texto: string) => screen.getAllByRole('status').find((el) 
 async function agregarLevadura() {
   const user = userEvent.setup()
   renderPage()
-  const agregar = await screen.findByRole('button', { name: /Agregar Insumo a la Receta/i })
+  const agregar = await screen.findByRole('button', { name: /Agregar insumo a la receta/i })
   await vi.waitFor(() => expect(agregar).toBeEnabled())
   await user.click(agregar)
   // Se agrega con la cantidad por defecto del formulario: 100 gr
@@ -114,7 +114,7 @@ describe('NewProductPage - selector de insumos que busca en la API (#350)', () =
     await user.click(await screen.findByRole('option', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
     expect(ingredientService.list).toHaveBeenLastCalledWith(getToken, { page: 1, limit: 100, search: 'sesamo' })
 
-    await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
+    await user.click(screen.getByRole('button', { name: /Agregar insumo a la receta/i }))
     expect(useRecipeStore.getState().items[0]?.ingredientId).toBe('ing-sesamo')
   })
 
@@ -150,11 +150,11 @@ describe('NewProductPage - selector de la receta: repetidos y alta rápida (#357
   it('después de sumar la levadura no queda preseleccionada y figura como "Ya en la receta"', async () => {
     const user = userEvent.setup()
     renderPage()
-    const agregar = await screen.findByRole('button', { name: /Agregar Insumo a la Receta/i })
+    const agregar = await screen.findByRole('button', { name: /Agregar insumo a la receta/i })
     await vi.waitFor(() => expect(agregar).toBeEnabled())
     await user.click(agregar)
 
-    const trigger = screen.getByRole('combobox', { name: /Seleccionar Insumo de la Despensa/ })
+    const trigger = screen.getByRole('combobox', { name: /Seleccionar insumo de la despensa/ })
     expect(trigger).toHaveTextContent('Manteca La Serenísima')
 
     await user.click(trigger)
@@ -176,14 +176,14 @@ describe('NewProductPage - selector de la receta: repetidos y alta rápida (#357
     expect(await screen.findByRole('dialog', { name: 'Nuevo insumo' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Azafrán en hebras')
     await user.type(screen.getByLabelText(/Costo unitario/), '85000,50')
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo insumo' })).not.toBeInTheDocument())
     expect(ingredientService.create).toHaveBeenCalledWith(getToken, { name: 'Azafrán en hebras', unit: 'kg', currentCost: 85000.5 })
     expect(productService.create).not.toHaveBeenCalled()
     expect(screen.getByRole('combobox', { name: /Azafrán en hebras/ })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Agregar Insumo a la Receta/i }))
+    await user.click(screen.getByRole('button', { name: /Agregar insumo a la receta/i }))
     expect(useRecipeStore.getState().items[0]?.ingredientId).toBe('ing-azafran')
   })
 })
@@ -196,7 +196,7 @@ describe('NewProductPage - barra de abajo en mobile y zona segura de iOS (#406)'
 
   it('la barra de guardado queda apoyada sobre la BottomNav, a la misma altura que en la ficha del producto', async () => {
     renderPage()
-    const botones = await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    const botones = await screen.findAllByRole('button', { name: /Guardar producto/i })
     const barra = botones.map((boton) => boton.closest('footer')).find(Boolean)
 
     // La BottomNav mide 3.125rem más su relleno inferior, que incluye la zona segura
@@ -205,7 +205,7 @@ describe('NewProductPage - barra de abajo en mobile y zona segura de iOS (#406)'
 
   it('el final del formulario deja lugar a la barra de guardado, la BottomNav y la zona segura de iOS', async () => {
     renderPage()
-    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    await screen.findAllByRole('button', { name: /Guardar producto/i })
 
     // Barra de guardado (90 px) + BottomNav (50 px + max(12 px, zona segura)) entran en 11rem + zona segura
     expect(screen.getByRole('main')).toHaveClass('pb-[calc(11rem+env(safe-area-inset-bottom))]')
@@ -248,8 +248,8 @@ describe('NewProductPage - Escenario "Aviso al crear" (#432)', () => {
     const user = userEvent.setup()
 
     await user.type(await screen.findByLabelText(/Nombre del producto/), 'Bizcochitos de grasa — 1 kg')
-    await user.type(screen.getByLabelText('Precio de Venta'), '3200')
-    await user.click(screen.getAllByRole('button', { name: /Guardar Producto/i })[0]!)
+    await user.type(screen.getByLabelText('Precio de venta'), '3200')
+    await user.click(screen.getAllByRole('button', { name: /Guardar producto/i })[0]!)
 
     await waitFor(() => expect(productService.create).toHaveBeenCalled())
     await waitFor(() => expect(router.state.location.pathname).toBe('/productos'))
@@ -273,14 +273,14 @@ describe('NewProductPage - Escenario "Sin texto vacío" (RC-21, #431)', () => {
   it('mientras el perfil carga no muestra la frase del margen global a medias', async () => {
     usuario.actual = { defaultMinMarginPercent: undefined, isLoading: true }
     renderPage()
-    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    await screen.findAllByRole('button', { name: /Guardar producto/i })
 
     expect(screen.queryByText(/tu margen global de/i)).toBeNull()
   })
 
   it('con el perfil cargado muestra el margen global con su valor', async () => {
     renderPage()
-    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    await screen.findAllByRole('button', { name: /Guardar producto/i })
 
     expect(screen.getByText(/tu margen global de/i).closest('p')).toHaveTextContent(/tu margen global de\s*30\s%/)
   })
@@ -295,7 +295,7 @@ describe('NewProductPage - contraste AA que marcó axe (#442)', () => {
 
   it('el rótulo de la sección, las ayudas de los campos y la receta vacía se leen en claro y en oscuro', async () => {
     renderPage()
-    await screen.findAllByRole('button', { name: /Guardar Producto/i })
+    await screen.findAllByRole('button', { name: /Guardar producto/i })
 
     const textos = [
       screen.getByText('Información comercial'),

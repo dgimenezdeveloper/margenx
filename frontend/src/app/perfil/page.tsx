@@ -20,8 +20,10 @@ import { ToastAlert } from '@/components/ToastAlert'
 import { useToast } from '@/hooks/useToast'
 import { CollaboratorsSection } from '@/components/collaborators-section'
 import { WeeklyReportDownload } from '@/components/weekly-report-download'
+import { EmailText } from '@/components/email-text'
+import { cn } from '@/lib/utils'
 
-const profileTitle = 'Perfil y Configuración'
+const profileTitle = 'Perfil y configuración'
 
 export default function ProfilePage() {
   const { getToken } = useAuth()
@@ -86,7 +88,8 @@ export default function ProfilePage() {
             {profileTitle}
           </h1>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* El colaborador no ve Margen ni Alertas: con una sola columna no queda media pantalla vacía (#497). */}
+          <div className={cn('grid grid-cols-1 gap-6', !isCollaborator && 'md:grid-cols-2')}>
             {/* Columna Izquierda: Usuario y Comercio con Skeletons */}
             <div className="space-y-6">
               <section className="flex items-center gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -98,12 +101,13 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  {/* A 360 px la etiqueta del rol baja de renglón en vez de cortar el nombre con "…" (#497). */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     {isLoading ? (
                       <div className="h-6 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                     ) : (
                       <>
-                        <h2 className="truncate font-bold text-lg">
+                        <h2 className="break-words font-bold text-lg">
                           {isCollaborator ? 'Colaborador' : 'Administrador'}
                         </h2>
                         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
@@ -115,8 +119,8 @@ export default function ProfilePage() {
                   {isLoading ? (
                     <div className="mt-1.5 h-4 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                   ) : (
-                    <p className="truncate text-xs text-gray-500 mt-0.5">
-                      {user?.email}
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {user?.email ? <EmailText email={user.email} /> : null}
                     </p>
                   )}
                 </div>
@@ -125,7 +129,7 @@ export default function ProfilePage() {
               <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 className="size-5 text-indigo-600" />
-                  <h3 className="font-bold text-sm">Empresa / Comercio</h3>
+                  <h3 className="font-bold text-sm">Empresa / comercio</h3>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50">
                   <div>
@@ -134,7 +138,7 @@ export default function ProfilePage() {
                     ) : (
                       <p className="font-bold text-base">{businessName}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-0.5">Plan Profesional • Activo</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Plan Profesional • Activo</p>
                   </div>
                   <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                     PRO
@@ -151,23 +155,23 @@ export default function ProfilePage() {
                 <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                   <div className="flex items-center gap-2">
                     <Target className="size-5 text-indigo-600" />
-                    <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
+                    <h3 className="font-bold text-sm">Margen objetivo global</h3>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
                     Es el margen que te sugerimos al crear un producto nuevo. Cada producto tiene su propio mínimo, y las alertas usan ese mínimo.
                   </p>
 
                   <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800 focus-within:border-indigo-600">
-                    <span className="text-sm font-bold">Margen Mínimo Sugerido</span>
+                    <span className="text-sm font-bold">Margen mínimo sugerido</span>
                     <NumericInput
-                      aria-label="Margen Mínimo Sugerido"
+                      aria-label="Margen mínimo sugerido"
                       value={currentMarginValue}
                       onChange={setCustomMargin}
                       suffixSymbol="%"
-                      suffixClassName="font-bold text-sm text-gray-400"
+                      suffixClassName="font-bold text-sm text-gray-500 dark:text-gray-400"
                       disabled={isSavingGlobalMargin}
                       containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
-                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50 dark:text-indigo-400"
                     />
                   </div>
 
@@ -186,7 +190,7 @@ export default function ProfilePage() {
                     ) : (
                       <Save className="size-4" />
                     )}
-                    {isSavingGlobalMargin ? 'Guardando Margen...' : 'Guardar Margen'}
+                    {isSavingGlobalMargin ? 'Guardando margen...' : 'Guardar margen'}
                   </button>
                 </section>
 
@@ -199,7 +203,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between gap-4 pt-1">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">Alerta de margen mínimo</p>
-                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
                       <ShieldCheck className="size-3.5" aria-hidden="true" />
@@ -211,8 +215,8 @@ export default function ProfilePage() {
                     {/* En pantallas angostas el badge baja debajo del texto: no entra al lado sin partir el título. */}
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                       <div className="min-w-0 flex-1 basis-48">
-                        <p className="whitespace-nowrap text-sm font-semibold">Reporte Semanal en PDF</p>
-                        <p className="text-xs text-gray-500">Te llega por email con el PDF de los últimos 7 días</p>
+                        <p className="whitespace-nowrap text-sm font-semibold">Reporte semanal en PDF</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Te llega por email con el PDF de los últimos 7 días</p>
                       </div>
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
                         <Clock className="size-3.5" aria-hidden="true" />
@@ -241,7 +245,7 @@ export default function ProfilePage() {
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 py-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100/60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950 md:hidden"
             >
               <LogOut className="size-4" />
-              Cerrar Sesión
+              Cerrar sesión
             </button>
           </div>
         </div>

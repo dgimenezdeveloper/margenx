@@ -126,7 +126,7 @@ export function HealthDistributionHistogram({
           <div className="flex items-center gap-2">
             <BarChart3 className="size-4 text-indigo-600 dark:text-indigo-400" />
             <h2 className="text-base font-bold text-gray-900 dark:text-white md:text-lg">
-              Distribución de Salud Financiera
+              Distribución de salud financiera
             </h2>
           </div>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">

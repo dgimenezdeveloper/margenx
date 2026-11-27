@@ -11,6 +11,7 @@ import { DesktopFooter } from '@/components/desktop-footer'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
+import { useUserRole } from '@/hooks/useUserRole'
 import { CANONICAL_FOCUS_CLASSES } from '@/lib/accessibility'
 import { formatMoney } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS, argentinaToday, formatSaleDateTime, formatTicketNumber } from '@/lib/sales'
@@ -43,6 +44,8 @@ export default function SalesHistoryPage() {
   const [loadError, setLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
+  // El colaborador ve solo sus ventas (visibleSalesWhere): los textos de la lista lo dicen (#497).
+  const { isCollaborator } = useUserRole()
   const filterShiftId = shiftFromLink ?? (shift ? shift.id : undefined)
   const periods: Period[] = filterShiftId ? ['today', 'shift', 'all'] : ['today', 'all']
 
@@ -105,7 +108,9 @@ export default function SalesHistoryPage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-5 pb-28 md:pb-12">
-          <Navbar title="Ventas" titleMobileOnly />
+          {/* Pantalla principal del menú: la barra muestra el logo y el comercio, como el Panel, y el título
+              de la pantalla es el "Ventas" de abajo, sin repetirlo en el celular (#502). */}
+          <Navbar />
 
           <CashShiftPanel
             shift={shift}
@@ -116,7 +121,7 @@ export default function SalesHistoryPage() {
           />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-black md:text-2xl">Ventas</h2>
+            <h1 className="text-xl font-black md:text-2xl">Ventas</h1>
             <Link
               to="/ventas/nueva"
               className={cn(
@@ -149,6 +154,8 @@ export default function SalesHistoryPage() {
             ))}
           </div>
 
+          {isCollaborator && period === 'shift' && <h2 className="text-base font-bold">Tus ventas del turno</h2>}
+
           {loadError ? (
             <ErrorState
               title="No pudimos cargar las ventas"
@@ -172,7 +179,9 @@ export default function SalesHistoryPage() {
                 period === 'today'
                   ? 'Todavía no hay ventas hoy'
                   : period === 'shift'
-                    ? 'Todavía no hay ventas en este turno'
+                    ? isCollaborator
+                      ? 'Todavía no cobraste ventas en este turno'
+                      : 'Todavía no hay ventas en este turno'
                     : 'Todavía no hay ventas'
               }
               description="Cada venta que cobres queda acá con su ticket."
@@ -195,9 +204,13 @@ export default function SalesHistoryPage() {
                             </span>
                           )}
                         </p>
+                        {/* Cada dato entero en su renglón: a 360 px se partían "Mercado Pago" y "2 productos" (#497). */}
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {formatSaleDateTime(sale.soldAt)} · {PAYMENT_METHOD_LABELS[sale.paymentMethod]} · {sale.itemsCount}{' '}
-                          {sale.itemsCount === 1 ? 'producto' : 'productos'}
+                          <span className="whitespace-nowrap">{formatSaleDateTime(sale.soldAt)}</span> ·{' '}
+                          <span className="whitespace-nowrap">{PAYMENT_METHOD_LABELS[sale.paymentMethod]}</span> ·{' '}
+                          <span className="whitespace-nowrap">
+                            {sale.itemsCount} {sale.itemsCount === 1 ? 'producto' : 'productos'}
+                          </span>
                         </p>
                       </div>
                       <span className={cn('text-sm font-black', sale.status === 'VOIDED' && 'text-gray-500 line-through')}>

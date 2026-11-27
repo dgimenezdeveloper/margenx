@@ -135,8 +135,8 @@ describe('Contraste AA que marcó axe en claro y oscuro (#442)', () => {
 
   it('el título del simulador de la ficha y la ganancia sin receta no usan gray-400 sobre blanco', () => {
     const { getByText, unmount } = render(<Simulador hasRecipe />)
-    expect(getByText('Simulador Financiero')).not.toHaveClass('text-gray-400')
-    expect(getByText('Simulador Financiero')).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    expect(getByText('Simulador financiero')).not.toHaveClass('text-gray-400')
+    expect(getByText('Simulador financiero')).toHaveClass('text-gray-500', 'dark:text-gray-400')
     unmount()
 
     const sinReceta = render(<Simulador hasRecipe={false} />)

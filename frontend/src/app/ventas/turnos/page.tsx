@@ -55,8 +55,8 @@ export default function CashShiftsPage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-5 pb-28 md:pb-12">
+          {/* El título va solo en la barra (su encabezado de nivel 1), como en Nueva venta (#502). */}
           <Navbar title="Turnos de caja" backHref="/ventas" />
-          <h2 className="text-xl font-black md:text-2xl">Turnos de caja</h2>
 
           {loadError ? (
             <ErrorState
@@ -91,7 +91,8 @@ export default function CashShiftsPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold">
-                          {formatSaleDateTime(shift.openedAt)}
+                          {/* La fecha y la hora no se separan aunque la diferencia de la derecha les quite lugar (#497). */}
+                          <span className="whitespace-nowrap">{formatSaleDateTime(shift.openedAt)}</span>
                           <span
                             className={cn(
                               'ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold',

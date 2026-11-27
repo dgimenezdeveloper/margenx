@@ -96,7 +96,7 @@ export function IngredientSupplierList({
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-gray-900 dark:text-white">
-                    {conn.supplier?.name || 'Proveedor Desconocido'}
+                    {conn.supplier?.name || 'Proveedor desconocido'}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {formatPackage(conn.packageSize, conn.packageUnit)} · Precio del bulto: {money(conn.packagePrice)}

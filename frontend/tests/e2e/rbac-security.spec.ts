@@ -134,7 +134,7 @@ test.describe('TC-RBAC-01: Ocultamiento de costo y margen en /productos (issue #
 
     // Confirma que la ficha realmente cargó (nombre + precio de venta,
     // únicos datos que la Historia de Usuario permite ver al colaborador).
-    await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
+    await expect(page.getByText(/Precio de venta al público/i)).toBeVisible()
 
     await expect(page.getByText(/subtotal/i)).toHaveCount(0)
     await expect(page.getByText(COSTO_TEXT)).toHaveCount(0)
@@ -165,7 +165,7 @@ test.describe('TC-RBAC-03: Fuga de datos financieros en tráfico de red (issue #
     await expect(page.locator('tbody tr').first()).toBeVisible()
     await page.locator('tbody tr').first().click()
     await expect(page).toHaveURL(/\/productos\/.+/)
-    await expect(page.getByText(/Precio de Venta al Público/i)).toBeVisible()
+    await expect(page.getByText(/Precio de venta al público/i)).toBeVisible()
 
     // Deja un margen para que las promesas de response.json() (asíncronas,
     // fuera del ciclo de vida que Playwright espera automáticamente) terminen

@@ -34,7 +34,7 @@ export function ProductMasterDataForm({
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
       <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-        <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del Producto</h2>
+        <h2 className="text-base font-bold text-gray-900 dark:text-white">Datos del producto</h2>
         {!isCollaborator && isDirty && (
           <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
             Cambios sin guardar
@@ -54,7 +54,7 @@ export function ProductMasterDataForm({
           </div>
           <div>
             <span className="block text-xs font-bold text-gray-500 dark:text-gray-400">
-              Precio de Venta al Público
+              Precio de venta al público
             </span>
             <p className="mt-1 text-lg font-black text-gray-900 dark:text-white">
               {money(Number(salePrice) || 0)}
@@ -87,11 +87,11 @@ export function ProductMasterDataForm({
 
           <div>
             <label htmlFor="product-min-margin" className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-              Margen Mínimo Objetivo (%)
+              Margen mínimo objetivo (%)
             </label>
             <NumericInput
               id="product-min-margin"
-              aria-label="Margen Mínimo Objetivo (%)"
+              aria-label="Margen mínimo objetivo (%)"
               value={watchedMinMargin}
               onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
               suffixSymbol="%"

@@ -124,7 +124,7 @@ export default function DashboardPage() {
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {isCollaborator
-                  ? 'Consulta los precios de venta al público para atención de salón.'
+                  ? 'Consultá los precios de venta al público para atención de salón.'
                   : 'Acá tenés el resumen de rentabilidad de tu negocio en tiempo real.'}
               </p>
             </div>
@@ -138,13 +138,13 @@ export default function DashboardPage() {
                     href="/insumos"
                     className="whitespace-nowrap rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-bold shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                   >
-                    Actualizar Insumos
+                    Actualizar insumos
                   </Link>
                   <Link
                     href="/productos/nuevo"
                     className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700"
                   >
-                    <Plus className="size-4" /> Nuevo Producto
+                    <Plus className="size-4" /> Nuevo producto
                   </Link>
                 </div>
               </div>

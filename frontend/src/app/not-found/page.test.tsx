@@ -39,7 +39,7 @@ describe('NotFoundPage', () => {
     expect(screen.getByText('Error 404')).toBeInTheDocument()
     expect(screen.getByText(/La página que estás buscando no existe/i)).toBeInTheDocument()
 
-    const button = screen.getByRole('button', { name: /Volver al Dashboard/i })
+    const button = screen.getByRole('button', { name: /Volver al inicio/i })
     fireEvent.click(button)
 
     expect(navigateMock).toHaveBeenCalledWith('/dashboard')

@@ -19,7 +19,9 @@ vi.mock('@/hooks/useTheme', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>
+  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
 }))
 
 describe('LandingPage', () => {
@@ -167,6 +169,111 @@ describe('LandingPage', () => {
       expect(getByText('28,1% En riesgo')).toBeInTheDocument()
       expect(getByText('40,8%')).toBeInTheDocument()
       expect(queryByText(/saludable|cr[ií]tico/i)).toBeNull()
+    })
+  })
+
+  describe('Portada al día con la v1.0.0 (#493)', () => {
+    function renderLanding() {
+      vi.mocked(useRouter).mockReturnValue({ replace: vi.fn() } as unknown as ReturnType<typeof useRouter>)
+      vi.mocked(useAuth).mockReturnValue({ isLoaded: true, isSignedIn: false } as unknown as ReturnType<typeof useAuth>)
+      return render(<LandingPage />)
+    }
+
+    // Texto visible con cada pregunta frecuente abierta (se abre una por vez).
+    function textoConPreguntasAbiertas() {
+      renderLanding()
+      const partes = [document.body.textContent ?? '']
+      for (const pregunta of screen.getAllByRole('button', { name: /\?$/ })) {
+        fireEvent.click(pregunta)
+        partes.push(document.body.textContent ?? '')
+      }
+      return partes.join('\n')
+    }
+
+    it('Escenario "Sin botones sin salida": no hay "Probar demo" y cada botón lleva a iniciar sesión o a cómo funciona', () => {
+      renderLanding()
+      // El menú del celular también tiene su botón de entrada.
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+
+      expect(screen.queryByText(/probar demo/i)).toBeNull()
+      const entradas = screen.getAllByRole('link', { name: /iniciar sesi[oó]n/i })
+      expect(entradas.length).toBeGreaterThanOrEqual(3)
+      for (const entrada of entradas) expect(entrada).toHaveAttribute('href', '/login')
+      expect(screen.getByRole('link', { name: 'Ver cómo funciona' })).toHaveAttribute('href', '#como-funciona')
+    })
+
+    it('Escenario "El precio lo decide el comercio": muestra el precio necesario para el margen objetivo, y el precio final es del comercio', () => {
+      const texto = textoConPreguntasAbiertas()
+
+      expect(screen.getByRole('button', { name: '¿MargenX decide el precio de venta?' })).toBeInTheDocument()
+      expect(texto).toContain('el precio que necesitás para llegar a tu margen objetivo')
+      expect(texto).toContain('el precio final lo decidís vos')
+      expect(texto).toMatch(/oferta y (la )?demanda/i)
+      expect(texto).not.toMatch(/sugiere el precio/i)
+      expect(texto).not.toMatch(/Fijá tus precios/i)
+    })
+
+    it('Escenario "Lo que se muestra existe": "También incluye" lista solo capacidades disponibles, con ventas primero', () => {
+      const texto = textoConPreguntasAbiertas()
+
+      const seccion = screen.getByRole('region', { name: 'También incluye' })
+      const titulos = Array.from(seccion.querySelectorAll('h3'), (h) => h.textContent)
+      expect(titulos).toEqual([
+        'Ventas con ticket y caja por turno',
+        'Antes de comprar, el impacto en tu margen',
+        'Reporte semanal por correo',
+        'Tu equipo, invitado por correo',
+        'Se instala en el celular',
+      ])
+      // "Destacada": la de ventas ocupa toda la fila desde 640 px; las demás, una columna de la grilla ([RV494-M1]).
+      const [ventas, ...otras] = Array.from(seccion.querySelectorAll('article'), (tarjeta) => tarjeta.className.split(/\s+/))
+      expect(ventas).toEqual(expect.arrayContaining(['sm:col-span-2', 'lg:col-span-4']))
+      for (const otra of otras) expect(otra.some((clase) => clase.includes('col-span'))).toBe(false)
+      // Ventas se prende en la Demo de producción con la v1.0.0 (decisión del 27/11, especificación funcional §11).
+      // El ticket no es fiscal: la portada lo dice y no promete facturar.
+      expect(texto).toContain('ticket no fiscal')
+      expect(texto).toContain('no emite facturas fiscales')
+      expect(texto).not.toMatch(/ni cobra/i)
+    })
+
+    it('Botones claros: en modo oscuro el hover tiene su propio fondo y no vuelve al gris claro ([RV494-I1])', () => {
+      renderLanding()
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+
+      // Con fondo blanco y hover gris claro, sin un dark:hover el fondo se aclara en modo oscuro
+      // y el texto claro deja de leerse (el "Iniciar sesión" del cierre quedaba en 1,18:1).
+      const claros = Array.from(document.querySelectorAll<HTMLElement>('a, button')).filter(
+        (el) => /(^|\s)bg-white(\s|$)/.test(el.className) && /(^|\s)hover:bg-slate-\d+/.test(el.className),
+      )
+      const nombre = (el: HTMLElement) => el.textContent?.trim() || el.getAttribute('aria-label')
+      expect(claros.map(nombre)).toContain('Iniciar sesión')
+      const sinHoverOscuro = claros.filter((el) => !/(^|\s)dark:hover:bg-/.test(el.className)).map(nombre)
+      expect(sinHoverOscuro).toEqual([])
+    })
+
+    it('Textos grises: en modo oscuro tienen su propio color para llegar a contraste AA ([RV494-I1])', () => {
+      renderLanding()
+
+      // text-slate-500 sobre el fondo oscuro de las tarjetas (slate-900) da 3,74:1; con dark:text-slate-400, 6,78:1.
+      const grises = Array.from(document.querySelectorAll<HTMLElement>('body *')).filter(
+        (el) => !(el instanceof SVGElement) && /(^|\s)text-slate-500(\s|$)/.test(el.getAttribute('class') ?? ''),
+      )
+      expect(grises.length).toBeGreaterThan(0)
+      const sinColorOscuro = grises
+        .filter((el) => !/(^|\s)dark:text-/.test(el.getAttribute('class') ?? ''))
+        .map((el) => el.textContent?.trim())
+      expect(sinColorOscuro).toEqual([])
+    })
+
+    it('Escenario "Qué necesita una PyME": la pregunta explica cómo empezar, sin términos técnicos', () => {
+      renderLanding()
+
+      fireEvent.click(screen.getByRole('button', { name: '¿Qué necesito para empezar?' }))
+
+      const texto = document.body.textContent ?? ''
+      expect(texto).toContain('Un celular o una computadora con internet')
+      expect(texto).toMatch(/Excel o CSV/)
+      expect(texto).toContain('El alta de tu comercio la hace el equipo de MargenX')
     })
   })
 })

@@ -12,7 +12,7 @@ import { ToastAlert } from '@/components/ToastAlert'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { useToast } from '@/hooks/useToast'
 import { CANONICAL_FOCUS_CLASSES, CANONICAL_INPUT_CLASSES } from '@/lib/accessibility'
-import { formatMoney } from '@/lib/format'
+import { formatMoney, keepQuantityTogether } from '@/lib/format'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import {
   PAYMENT_METHOD_LABELS,
@@ -132,7 +132,8 @@ export default function NewSalePage() {
       {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismiss} />}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
-        <div className="flex flex-col gap-5 pb-72 md:pb-12">
+        {/* Lugar abajo para el panel de cobro fijo: en el celular va sobre el menú inferior y en escritorio, al pie (#495). */}
+        <div className="flex flex-col gap-5 pb-72 md:pb-52">
           <Navbar title="Nueva venta" backHref="/ventas" />
 
           {shift && !noOpenShift && (
@@ -171,10 +172,9 @@ export default function NewSalePage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar producto"
-              className={cn(
-                'min-h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900',
-                CANONICAL_INPUT_CLASSES
-              )}
+              // Las clases canónicas van primero: traen px-3, y si fueran después pisarían el pl-9 que deja lugar a la lupa (#495).
+              // Después va solo lo propio del buscador, para que se vea como los demás campos ([RV496-M2]).
+              className={cn(CANONICAL_INPUT_CLASSES, 'min-h-11 pl-9')}
             />
           </label>
 
@@ -215,7 +215,7 @@ export default function NewSalePage() {
                     )}
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight">{product.name}</p>
+                      <p className="text-sm font-semibold leading-tight">{keepQuantityTogether(product.name)}</p>
                       <p className="mt-1 text-sm font-bold text-gray-700 dark:text-gray-200">{formatMoney(product.salePrice)}</p>
                     </div>
                     <div className="flex items-center justify-between gap-1">
@@ -260,10 +260,12 @@ export default function NewSalePage() {
         className={cn(
           'fixed inset-x-0 z-10 border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95',
           ABOVE_BOTTOM_NAV_CLASS,
-          'md:bottom-0'
+          // Desde md el relleno lo pone el contenido, igual que en la grilla ([RV496-M1]).
+          'md:bottom-0 md:px-0'
         )}
       >
-        <div className="mx-auto flex max-w-md flex-col gap-3 md:max-w-5xl lg:max-w-6xl">
+        {/* Mismo ancho y relleno que la grilla de productos (#495). */}
+        <div className="mx-auto flex max-w-md flex-col gap-3 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-gray-600 dark:text-gray-300">
               Total{unitsInCart > 0 ? ` · ${unitsInCart} ${unitsInCart === 1 ? 'unidad' : 'unidades'}` : ''}

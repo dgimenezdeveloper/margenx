@@ -114,7 +114,7 @@ function SaleTicket({ id }: { id: string }) {
         </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-3xl md:px-8 print:m-0 print:max-w-none print:p-0">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12 print:m-0 print:max-w-none print:p-0">
         <div className="flex flex-col gap-5 pb-28 md:pb-12 print:gap-0 print:pb-0">
           <div className="print:hidden">
             <Navbar title="Ticket" backHref="/ventas" />

@@ -47,7 +47,7 @@ En `/login`, los enlaces **Política de privacidad** y **Guía de instalación**
 En **Perfil**:
 
 - El **margen objetivo global** es el margen que MargenX te sugiere al crear un producto nuevo. Cada producto tiene su propio margen mínimo, y las alertas usan el mínimo de cada producto, no el global.
-- **Cerrar sesión:** en el celular, con **Salir** en el panel del menú o con el botón **Cerrar Sesión** al final de Perfil. En la computadora, con **Salir**, arriba a la derecha en todas las pantallas.
+- **Cerrar sesión:** en el celular, con **Salir** en el panel del menú o con el botón **Cerrar sesión** al final de Perfil. En la computadora, con **Salir**, arriba a la derecha en todas las pantallas.
 - **Política de privacidad e instalación:** en el pie, con **Política** e **Instalar**. En la computadora están en el pie de todas las pantallas con sesión; en el celular, en el pie de Perfil.
 
 <!-- [CAPTURA 360PX SUGERIDA: 02-rutas-bottom-nav-comparativa.webp | Menú de abajo a 360 px: 4 pestañas y "Más" para ADMIN, 4 pestañas para COLLABORATOR, y el panel de "Más" abierto] -->

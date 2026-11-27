@@ -164,3 +164,21 @@ describe('Ticket de la venta (/ventas/:id/ticket)', () => {
     expect(await screen.findByRole('article')).toBeInTheDocument()
   })
 })
+
+// Recorrida estética del 26/11 (#495): con md:max-w-3xl la barra de escritorio tapaba el botón de volver y el título.
+describe('Ticket: ancho de escritorio (#495)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(saleService.getById).mockResolvedValue(venta)
+  })
+
+  it('Escenario "El encabezado no queda tapado": usa el ancho de las demás pantallas, y el ticket sigue centrado y angosto', async () => {
+    const { container } = renderPage()
+    const ticket = await screen.findByRole('article', { name: 'Ticket N.º 000008' })
+
+    const clases = (container.querySelector('main > div') as HTMLElement).className.split(/\s+/)
+    expect(clases).toEqual(expect.arrayContaining(['md:max-w-5xl', 'lg:max-w-6xl']))
+    expect(clases).not.toContain('md:max-w-3xl')
+    expect(ticket.className.split(/\s+/)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-sm']))
+  })
+})

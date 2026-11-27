@@ -382,7 +382,7 @@ export function IngredientUpsertSheet({
                   type="submit"
                   className="flex-1 min-h-11 cursor-pointer rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition"
                 >
-                  {selected ? 'Guardar cambios' : 'Crear Insumo'}
+                  {selected ? 'Guardar cambios' : 'Crear insumo'}
                 </button>
               </div>
             </form>

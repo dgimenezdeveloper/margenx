@@ -15,7 +15,7 @@ export function SupportDocsModal({ isOpen, onClose }: SupportDocsModalProps) {
         <DialogBackdrop />
         <DialogPopup className="max-w-md text-left">
           <div className="flex items-center justify-between mb-6">
-            <DialogTitle className="text-xl">Soporte y Documentación</DialogTitle>
+            <DialogTitle className="text-xl">Soporte y documentación</DialogTitle>
             <DialogClose aria-label="Cerrar soporte y documentación" className="flex min-h-11 min-w-11 items-center justify-center cursor-pointer rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
               <X className="size-5" />
             </DialogClose>
@@ -33,7 +33,7 @@ export function SupportDocsModal({ isOpen, onClose }: SupportDocsModalProps) {
                 <Mail className="size-5" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Correo de Asistencia</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Correo de asistencia</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">soporte@margenx.tech</p>
               </div>
             </a>
@@ -48,7 +48,7 @@ export function SupportDocsModal({ isOpen, onClose }: SupportDocsModalProps) {
                 <FileText className="size-5" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Guía de Usuario</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Guía de usuario</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Manual de uso de MargenX<span className="sr-only"> (se abre en una pestaña nueva)</span>
                 </p>
