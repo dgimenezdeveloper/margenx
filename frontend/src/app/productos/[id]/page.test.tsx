@@ -114,7 +114,7 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     await user.tab()
 
     // 3. Ejecutar el guardado diferido mediante el botón principal
-    const saveButton = screen.getByRole('button', { name: /Guardar Cambios/i })
+    const saveButton = screen.getByRole('button', { name: /Guardar cambios/i })
     await user.click(saveButton)
 
     // 4. Confirmar que la API recibió la mutación con el valor editado
@@ -179,7 +179,7 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     )
     expect(campoHarina()).toHaveValue('250')
 
-    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+    await user.click(screen.getByRole('button', { name: /Guardar cambios/i }))
     await waitFor(() => expect(productService.update).toHaveBeenCalledTimes(1))
     expect(vi.mocked(productService.update).mock.calls[0]?.[1]).toMatchObject({
       ingredients: [{ ingredientId: 'ing-1', quantity: 0.25 }],
@@ -202,7 +202,7 @@ describe('ProductDetailPage - Guardado diferido y manejo de errores', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Se guarda como 1 gr (0,001 kg): hasta 3 decimales en kg.')
     expect(campoHarina()).toHaveValue('1')
 
-    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+    await user.click(screen.getByRole('button', { name: /Guardar cambios/i }))
     await waitFor(() => expect(productService.update).toHaveBeenCalledTimes(1))
     expect(vi.mocked(productService.update).mock.calls[0]?.[1]).toMatchObject({
       ingredients: [{ ingredientId: 'ing-1', quantity: 0.001 }],
@@ -238,7 +238,7 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
   const cambiarPrecio = async (user: ReturnType<typeof userEvent.setup>) => {
     expect(await screen.findByRole('heading', { name: 'Pan flauta' })).toBeInTheDocument()
     // Hay un campo de precio en el panel de escritorio y otro en la hoja del simulador mobile.
-    const precio = screen.getAllByLabelText('Precio de Venta al Público ($)')[0]
+    const precio = screen.getAllByLabelText('Precio de venta al público ($)')[0]
     await user.clear(precio)
     await user.type(precio, '1800')
   }
@@ -260,7 +260,7 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
     await waitFor(() => expect(screen.queryByText('¿Descartar cambios?')).not.toBeInTheDocument())
     expect(router.state.location.pathname).toBe('/productos/prod-1')
     // El borrador sigue en el campo (NumericInput lo muestra con separador de miles es-AR).
-    expect((screen.getAllByLabelText('Precio de Venta al Público ($)')[0] as HTMLInputElement).value).toMatch(/^1\.?800$/)
+    expect((screen.getAllByLabelText('Precio de venta al público ($)')[0] as HTMLInputElement).value).toMatch(/^1\.?800$/)
   })
 
   it('Escenario Gherkin "Cambios sin guardar": "Descartar" deja salir de la ficha', async () => {
@@ -308,7 +308,7 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
     renderPage()
     await cambiarPrecio(user)
 
-    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }))
+    await user.click(screen.getByRole('button', { name: /Guardar cambios/i }))
 
     const alerta = await screen.findByRole('alert')
     expect(alerta).toHaveTextContent('Error al actualizar el producto.')
@@ -323,7 +323,7 @@ describe('ProductDetailPage - avisos y cambios sin guardar (#364)', () => {
     const user = userEvent.setup()
     const router = renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Eliminar Producto/ }))
+    await user.click(await screen.findByRole('button', { name: /Eliminar producto/ }))
     await user.click(await screen.findByRole('button', { name: 'Sí, eliminar' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/productos'))

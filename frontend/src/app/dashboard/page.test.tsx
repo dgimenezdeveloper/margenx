@@ -316,7 +316,7 @@ describe('DashboardPage: descarga del reporte semanal (#392)', () => {
     render(<DashboardPage />)
 
     const boton = await screen.findByRole('button', { name: 'Descargar reporte (PDF)' })
-    for (const el of [boton, screen.getByText('Actualizar Insumos'), screen.getByText('Nuevo Producto').closest('a')!]) {
+    for (const el of [boton, screen.getByText('Actualizar insumos'), screen.getByText('Nuevo producto').closest('a')!]) {
       expect(el.className).toMatch(/whitespace-nowrap/)
     }
     // Con tres acciones, el saludo y los botones van en fila recién desde lg (en md no entran).

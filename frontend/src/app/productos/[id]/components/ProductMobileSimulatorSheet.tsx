@@ -25,7 +25,7 @@ export function ProductMobileSimulatorSheet({
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
             <div>
               <DialogTitle className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Simulador de Precio (Costo: {money(simulatorProps.cost)})
+                Simulador de precio (costo: {money(simulatorProps.cost)})
               </DialogTitle>
               <DialogDescription className="sr-only">
                 Ajustá el precio de venta y mirá cómo cambian el margen y la ganancia del producto.

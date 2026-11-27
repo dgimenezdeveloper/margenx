@@ -21,7 +21,7 @@ function Harness({ existing = [] as string[], onCreate = vi.fn() }) {
   return (
     <>
       <button type="button">Botón externo</button>
-      <RecipeIngredientCombobox supplies={[HARINA, MANTECA]} selectedSupply={selected} existingIngredientIds={existing} isOpen={open} onOpenChange={setOpen} onSelect={setSelected} onOpenQuickCreate={onCreate} label="Seleccionar Insumo" />
+      <RecipeIngredientCombobox supplies={[HARINA, MANTECA]} selectedSupply={selected} existingIngredientIds={existing} isOpen={open} onOpenChange={setOpen} onSelect={setSelected} onOpenQuickCreate={onCreate} label="Seleccionar insumo" />
     </>
   )
 }

@@ -38,7 +38,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={onAdd} />
     )
 
-    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar insumo/i }))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'sesamo')
     await user.click(await screen.findByRole('option', { name: /Semillas de sésamo La Molinera/ }, BUSQUEDA))
 
@@ -59,7 +59,7 @@ describe('ProductAddIngredientModal - búsqueda en la API (#350)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar insumo/i }))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'azafran')
 
     expect(screen.getByText('Buscando insumos...')).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('ProductAddIngredientModal - selector de la receta (#357)', () => {
       <ProductAddIngredientModal isOpen onClose={vi.fn()} availablePantry={[harina, sesamo]} existingIngredientIds={[harina.id]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    const trigger = screen.getByRole('combobox', { name: /Seleccionar Insumo/i })
+    const trigger = screen.getByRole('combobox', { name: /Seleccionar insumo/i })
     expect(trigger).toHaveTextContent('Semillas de sésamo La Molinera')
     expect(trigger).not.toHaveTextContent('Harina de trigo 000 Olavarriense')
 
@@ -102,14 +102,14 @@ describe('ProductAddIngredientModal - selector de la receta (#357)', () => {
       <ProductAddIngredientModal isOpen onClose={onClose} availablePantry={[harina, sesamo]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar insumo/i }))
     expect(screen.getByRole('listbox')).toBeInTheDocument()
 
     await user.keyboard('{Escape}')
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'Sumar Insumo a la Receta' })).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: /Seleccionar Insumo/i })).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: 'Sumar insumo a la receta' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /Seleccionar insumo/i })).toHaveFocus()
     expect(onClose).not.toHaveBeenCalled()
 
     // Con la lista cerrada, Escape sí cierra el modal.
@@ -124,11 +124,11 @@ describe('ProductAddIngredientModal - selector de la receta (#357)', () => {
       <ProductAddIngredientModal isOpen onClose={onClose} availablePantry={[harina, sesamo]} isLoadingSupplies={false} onAdd={vi.fn()} />
     )
 
-    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar insumo/i }))
     await user.click(screen.getByLabelText('Cantidad utilizada'))
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'Sumar Insumo a la Receta' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Sumar insumo a la receta' })).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
   })
 
@@ -142,7 +142,7 @@ describe('ProductAddIngredientModal - selector de la receta (#357)', () => {
       <ProductAddIngredientModal isOpen onClose={onClose} availablePantry={[harina]} existingIngredientIds={[harina.id]} isLoadingSupplies={false} onAdd={onAdd} onIngredientCreated={onIngredientCreated} />
     )
 
-    await user.click(screen.getByRole('combobox', { name: /Seleccionar Insumo/i }))
+    await user.click(screen.getByRole('combobox', { name: /Seleccionar insumo/i }))
     await user.type(screen.getByPlaceholderText(/Filtrar/), 'Azafrán en hebras')
     // "Crear" aparece recién cuando termina la búsqueda (#432).
     await user.click(await screen.findByRole('option', { name: '+ Crear nuevo insumo' }))
@@ -150,12 +150,12 @@ describe('ProductAddIngredientModal - selector de la receta (#357)', () => {
     expect(await screen.findByRole('dialog', { name: 'Nuevo insumo' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Azafrán en hebras')
     await user.type(screen.getByLabelText(/Costo unitario/), '85000,50')
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
 
     await vi.waitFor(() => expect(onIngredientCreated).toHaveBeenCalledWith(azafran))
     expect(ingredientService.create).toHaveBeenCalledWith(getToken, { name: 'Azafrán en hebras', unit: 'kg', currentCost: 85000.5 })
     await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo insumo' })).not.toBeInTheDocument())
-    expect(screen.getByRole('combobox', { name: /Seleccionar Insumo/i })).toHaveTextContent('Azafrán en hebras')
+    expect(screen.getByRole('combobox', { name: /Seleccionar insumo/i })).toHaveTextContent('Azafrán en hebras')
     expect(onClose).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: /Agregar/i }))

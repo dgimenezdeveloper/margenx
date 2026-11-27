@@ -13,11 +13,11 @@ Según cuántos insumos tengas y de dónde salgan sus costos, podés elegir entr
 Recomendado para comercios con pocos insumos o para dar de alta materias primas puntuales.
 
 1. Entrá a la sección **Insumos** desde la barra de navegación.
-2. Tocá el botón **+ Nuevo Insumo**.
+2. Tocá el botón **+ Nuevo insumo**.
 3. Escribí el nombre del insumo (mínimo 2 caracteres).
 4. Seleccioná la unidad de costeo base: `kg` (kilogramo), `litro` o `unidad`.
 5. Ingresá el costo unitario de compra actual en pesos argentinos (ej. `736,25`).
-6. Tocá **Crear Insumo**.
+6. Tocá **Crear insumo**.
 
 <!-- [CAPTURA 360PX SUGERIDA: 01-modal-nuevo-insumo.webp | Bottom sheet de alta manual de insumo con campos Nombre, Unidad y Costo Unitario] -->
 
@@ -25,7 +25,7 @@ Recomendado para comercios con pocos insumos o para dar de alta materias primas 
 
 Recomendado para arrancar rápidamente si ya tenés tu lista de precios en Excel o CSV (admite hasta 500 insumos por lote).
 
-1. Entrá a **Insumos** y tocá el botón **Cargar desde planilla** (en el celular se identifica con el ícono de la planilla de cálculo al lado de *Nuevo Insumo*). Si la despensa está vacía, también podés usar el enlace directo en pantalla.
+1. Entrá a **Insumos** y tocá el botón **Cargar desde planilla** (en el celular se identifica con el ícono de la planilla de cálculo al lado de *Nuevo insumo*). Si la despensa está vacía, también podés usar el enlace directo en pantalla.
 2. Presioná **Descargar plantilla**. Se descargará `plantilla-insumos-margenx.xlsx` con dos hojas:
    - *Insumos*: los títulos con el color de MargenX, la primera fila fija y cinco ejemplos en gris (borralos antes de subirla). La columna **Unidad** tiene una lista desplegable y la columna **Costo** ya tiene formato de pesos (`$ 1.234,56`) y no acepta valores negativos ni en cero, en las 500 filas que admite un lote.
    - *Instrucciones*: los pasos para completarla, la tabla de unidades con ejemplos y qué pasa al subirla.
@@ -125,7 +125,7 @@ Para facilitar la carga de datos y evitar errores, MargenX está adaptado al for
 - **Decimales:** Utilizá la **coma (`,`)** para separar los centavos o cantidades fraccionarias. Ejemplo: `1234,56` o `12,5`.
 - **Miles y millones:** Podés usar el **punto (`.`)** para separar los miles. Ejemplo: `1.234,56` o montos redondos como `1.500.000`.
 - **Atajo para montos cerrados:** Si escribís un número con puntos que separan bloques de exactamente tres dígitos (por ejemplo: `1.234` o `1.500.000`), el sistema los interpretará automáticamente como miles y millones (`1234` y `1500000`), no como números decimales.
-- **Cantidades en recetas:** Al armar una receta, podés ingresar las cantidades en la unidad que te resulte más cómoda (por ejemplo, gramos o mililitros). MargenX se encarga de convertirla automáticamente a la unidad base del insumo (kilos o litros) para calcular el costo. La cantidad se puede corregir directamente en la lista de la receta. La base guarda hasta 3 decimales en la unidad del insumo: si escribís 0,5 g de un insumo que se compra por kilo, MargenX te avisa que se guarda como 1 g; si la cantidad no llega a 1 g (o 1 ml), te avisa y conserva la cantidad anterior. Los cambios de la receta se guardan con "Guardar Cambios".
+- **Cantidades en recetas:** Al armar una receta, podés ingresar las cantidades en la unidad que te resulte más cómoda (por ejemplo, gramos o mililitros). MargenX se encarga de convertirla automáticamente a la unidad base del insumo (kilos o litros) para calcular el costo. La cantidad se puede corregir directamente en la lista de la receta. La base guarda hasta 3 decimales en la unidad del insumo: si escribís 0,5 g de un insumo que se compra por kilo, MargenX te avisa que se guarda como 1 g; si la cantidad no llega a 1 g (o 1 ml), te avisa y conserva la cantidad anterior. Los cambios de la receta se guardan con "Guardar cambios".
 - **Formateo automático:** Al terminar de escribir y salir del campo, el sistema acomodará visualmente el número al formato oficial argentino (ej. `1.234,56` o `1.500.000`) para que puedas confirmar de un vistazo que se interpretó correctamente.
 
 Si ingresás un formato ambiguo o texto con letras (como `1.2.3` o `abc`), el sistema te mostrará un mensaje de error debajo del campo y no te permitirá guardar hasta que lo corrijas.

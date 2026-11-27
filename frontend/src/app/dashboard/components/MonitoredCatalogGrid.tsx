@@ -121,7 +121,7 @@ export function MonitoredCatalogGrid({
                 </span>
               </span>
             ) : (
-              <span>Catálogo Monitoreado</span>
+              <span>Catálogo monitoreado</span>
             )}
           </h2>
         </div>

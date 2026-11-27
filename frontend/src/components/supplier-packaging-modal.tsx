@@ -279,7 +279,7 @@ export function SupplierPackagingModal({
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                   <Truck className="size-3.5" />
-                  <span>Compras Mayoristas</span>
+                  <span>Compras mayoristas</span>
                 </div>
                 <DialogTitle
                   id="packaging-modal-title"
@@ -543,7 +543,7 @@ export function SupplierPackagingModal({
                   <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 mb-1.5">
                     <Calculator className="size-4" />
                     <span className="text-xs font-black uppercase tracking-wider">
-                      Calculadora de Equivalencia
+                      Calculadora de equivalencia
                     </span>
                   </div>
 

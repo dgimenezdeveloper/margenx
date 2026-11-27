@@ -132,10 +132,10 @@ describe('SuppliesPageContent - encabezado y tarjetas (#362)', () => {
     return within(titulo.closest('section') as HTMLElement)
   }
 
-  it('ordena el encabezado: Cuarentena, después las dos altas, con "Nuevo Insumo" (la acción principal) al final', async () => {
+  it('ordena el encabezado: Cuarentena, después las dos altas, con "Nuevo insumo" (la acción principal) al final', async () => {
     renderPage()
     const botones = (await encabezado()).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())
-    expect(botones).toEqual(['Cuarentena', 'Cargar desde planilla', 'Nuevo Insumo'])
+    expect(botones).toEqual(['Cuarentena', 'Cargar desde planilla', 'Nuevo insumo'])
   })
 
   it('"Cargar desde planilla" responde al pasar el mouse en claro y en oscuro, y muestra el foco', async () => {

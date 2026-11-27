@@ -121,7 +121,7 @@ export default function ProductsPage() {
                   href="/productos/nuevo"
                   className="hidden md:inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
                 >
-                  <Plus className="size-4" /> Nuevo Producto
+                  <Plus className="size-4" /> Nuevo producto
                 </Link>
               )}
             </div>
@@ -223,11 +223,11 @@ export default function ProductsPage() {
                   <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
                       <tr>
-                        <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del Producto</th>
+                        <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del producto</th>
                         {!isCollaborator && (
-                          <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (Receta)</th>
+                          <th className="px-5 py-4 font-bold whitespace-nowrap">Costo (receta)</th>
                         )}
-                        <th className="px-5 py-4 font-bold whitespace-nowrap">Precio de Venta</th>
+                        <th className="px-5 py-4 font-bold whitespace-nowrap">Precio de venta</th>
                         {!isCollaborator && (
                           <th className="px-5 py-4 font-bold whitespace-nowrap">Margen</th>
                         )}

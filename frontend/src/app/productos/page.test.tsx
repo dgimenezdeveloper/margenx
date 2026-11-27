@@ -129,7 +129,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     renderPage()
 
     await screen.findByText('Mostrando 1–20 de 339 productos')
-    expect(screen.queryByText('Costo (Receta)')).toBeNull()
+    expect(screen.queryByText('Costo (receta)')).toBeNull()
     expect(screen.queryByText('Margen')).toBeNull()
   })
 

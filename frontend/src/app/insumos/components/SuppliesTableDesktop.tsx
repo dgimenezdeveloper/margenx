@@ -32,9 +32,9 @@ export function SuppliesTableDesktop({ supplies, onSelect, money }: SuppliesTabl
       <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
         <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
           <tr>
-            <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del Insumo</th>
-            <th className="px-5 py-4 font-bold whitespace-nowrap">Unidad de Medida</th>
-            <th className="px-5 py-4 font-bold whitespace-nowrap">Costo Actual</th>
+            <th className="px-5 py-4 font-bold whitespace-nowrap">Nombre del insumo</th>
+            <th className="px-5 py-4 font-bold whitespace-nowrap">Unidad de medida</th>
+            <th className="px-5 py-4 font-bold whitespace-nowrap">Costo actual</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

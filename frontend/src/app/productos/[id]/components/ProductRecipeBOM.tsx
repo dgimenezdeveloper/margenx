@@ -28,7 +28,7 @@ export function ProductRecipeBOM({
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / Receta</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / receta</h2>
         <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
           {items.length} {items.length === 1 ? 'ingrediente' : 'ingredientes'}
         </span>
@@ -109,7 +109,7 @@ export function ProductRecipeBOM({
           onClick={onAddIngredient}
           className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 py-3 text-sm font-bold text-indigo-600 transition hover:bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40 cursor-pointer"
         >
-          <Plus className="size-4" /> Agregar Insumo a la Receta
+          <Plus className="size-4" /> Agregar insumo a la receta
         </button>
       )}
     </section>
