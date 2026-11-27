@@ -74,7 +74,7 @@ describe('QuarantinePage', () => {
     renderPage()
 
     expect(screen.queryByRole('link', { name: 'Volver' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Cuarentena de Precios')).not.toBeInTheDocument()
+    expect(screen.queryByText(/cuarentena de precios/i)).not.toBeInTheDocument()
     expect(tabs().getByRole('link', { name: 'Proveedores' })).toHaveAttribute('href', '/proveedores')
     expect(tabs().getByRole('link', { name: 'Cuarentena, 1 precio retenido' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getAllByText('Manteca').length).toBeGreaterThan(0)

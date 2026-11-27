@@ -85,7 +85,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
               <DialogTitle className="mt-1 wrap-break-word">
                 {ingredientName}
               </DialogTitle>
-              <DialogDescription className="sr-only wrap-break-word">
+              <DialogDescription className="sr-only">
                 Variaciones registradas en el costo unitario de {ingredientName}.
               </DialogDescription>
             </div>

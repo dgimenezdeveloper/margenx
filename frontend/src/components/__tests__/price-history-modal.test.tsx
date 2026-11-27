@@ -134,9 +134,6 @@ describe('PriceHistoryModal - Criterios de Aceptación Issue #354', () => {
 
     const closeBtn = screen.getByRole('button', { name: 'Cerrar historial de costos' })
     expect(closeBtn.parentElement?.className).toContain('shrink-0')
-
-    const desc = screen.getByText(`Variaciones registradas en el costo unitario de ${nombreLargo}.`)
-    expect(desc.className).toContain('wrap-break-word')
   })
 })
 

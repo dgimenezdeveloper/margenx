@@ -492,7 +492,7 @@
                   "pm.test('currentCost quedó en 1.68 tras el cambio de predeterminado', function () {",
                   "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('1.68');",
                   "});",
-                 "",
+                  "",
                   "pm.test('E7: tras cambiar de proveedor predeterminado queda exactamente una presentación con isDefault: true', function () {",
                   "    const suppliers = pm.response.json().ingredient.suppliers;",
                   "    pm.expect(suppliers).to.be.an('array').with.lengthOf(2);",
