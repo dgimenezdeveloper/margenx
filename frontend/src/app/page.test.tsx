@@ -225,6 +225,10 @@ describe('LandingPage', () => {
         'Tu equipo, invitado por correo',
         'Se instala en el celular',
       ])
+      // "Destacada": la de ventas ocupa toda la fila desde 640 px; las demás, una columna de la grilla ([RV494-M1]).
+      const [ventas, ...otras] = Array.from(seccion.querySelectorAll('article'), (tarjeta) => tarjeta.className.split(/\s+/))
+      expect(ventas).toEqual(expect.arrayContaining(['sm:col-span-2', 'lg:col-span-4']))
+      for (const otra of otras) expect(otra.some((clase) => clase.includes('col-span'))).toBe(false)
       // Ventas se prende en la Demo de producción con la v1.0.0 (decisión del 27/11, especificación funcional §11).
       // El ticket no es fiscal: la portada lo dice y no promete facturar.
       expect(texto).toContain('ticket no fiscal')
