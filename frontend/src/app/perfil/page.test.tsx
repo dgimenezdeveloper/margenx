@@ -425,3 +425,66 @@ describe('ProfilePage (/perfil): contraste AA de los textos secundarios (axe, RV
     }
   })
 })
+
+describe('ProfilePage (/perfil): recorrida del 26 y 27/11 (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    mockIsLoading = false
+  })
+
+  it('245: en oscuro, el número del margen mínimo usa indigo-400 (4,7:1) y no el indigo-600 del claro (2,3:1)', () => {
+    render(<ProfilePage />)
+
+    const margen = screen.getByRole('textbox', { name: /margen mínimo sugerido/i })
+    expect(margen).toHaveClass('text-indigo-600', 'dark:text-indigo-400')
+  })
+
+  it('262: el "%" del margen mínimo usa gray-500 en claro (4,6:1) y gray-400 en oscuro', () => {
+    render(<ProfilePage />)
+
+    const porcentaje = screen.getByText('%')
+    expect(porcentaje).not.toHaveClass('text-gray-400')
+    expect(porcentaje).toHaveClass('text-gray-500', 'dark:text-gray-400')
+  })
+
+  it('246: el correo, el plan y las descripciones tienen su propio gris en oscuro (gray-400, más de 6:1)', () => {
+    render(<ProfilePage />)
+
+    for (const texto of [/Plan Profesional • Activo/, /Es el margen que te sugerimos/, /Aviso inmediato por email/, /Te llega por email con el PDF/]) {
+      const el = screen.getByText(texto)
+      expect(el, String(texto)).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+    const correo = screen.getByText('admin.panaderia@seed.example.test').closest('p') as HTMLElement
+    expect(correo).toHaveClass('text-gray-500', 'dark:text-gray-400')
+  })
+
+  it('248: a 360 px el nombre no se corta con "…": la etiqueta del rol baja de renglón si no entra', () => {
+    render(<ProfilePage />)
+
+    const nombre = screen.getByRole('heading', { level: 2, name: 'Administrador' })
+    expect(nombre).not.toHaveClass('truncate')
+    expect(nombre.parentElement).toHaveClass('flex-wrap')
+  })
+
+  it('248: el correo no se corta con "…" y, si no entra, se parte antes de "@" o de un punto', () => {
+    render(<ProfilePage />)
+
+    const correo = screen.getByText('admin.panaderia@seed.example.test').closest('p') as HTMLElement
+    expect(correo).not.toHaveClass('truncate')
+    expect(correo).toHaveTextContent('admin.panaderia@seed.example.test')
+    expect(correo.querySelectorAll('wbr').length).toBeGreaterThan(0)
+  })
+
+  it('266: en escritorio, el administrador tiene dos columnas y el colaborador una sola (sin media pantalla vacía)', () => {
+    const { unmount } = render(<ProfilePage />)
+    const grillaAdmin = screen.getByRole('heading', { level: 2, name: 'Administrador' }).closest('.grid') as HTMLElement
+    expect(grillaAdmin).toHaveClass('md:grid-cols-2')
+    unmount()
+
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+    const grillaColaborador = screen.getByRole('heading', { level: 2, name: 'Colaborador' }).closest('.grid') as HTMLElement
+    expect(grillaColaborador).not.toHaveClass('md:grid-cols-2')
+  })
+})

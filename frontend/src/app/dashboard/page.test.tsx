@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '@testing-library/jest-dom'
 import DashboardPage from './page'
 import { dashboardService } from '@/services/dashboardService'
@@ -368,3 +368,22 @@ describe('DashboardPage - tarjeta "Ganancia real" (#450)', () => {
   })
 })
 
+
+describe('DashboardPage: voseo en el saludo del colaborador (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(productService.getAll).mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    mockUser.role = 'ADMIN'
+  })
+
+  it('252: el subtítulo del colaborador dice "Consultá", como el resto de la app', async () => {
+    mockUser.role = 'COLLABORATOR'
+    render(<DashboardPage />)
+
+    expect(await screen.findByText('Consultá los precios de venta al público para atención de salón.')).toBeInTheDocument()
+    expect(screen.queryByText(/^Consulta los precios/)).toBeNull()
+  })
+})
