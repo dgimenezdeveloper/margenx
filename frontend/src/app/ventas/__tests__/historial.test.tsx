@@ -162,7 +162,7 @@ describe('Historial de ventas (/ventas)', () => {
     const panel = await screen.findByRole('region', { name: 'Turno de caja' })
     expect(panel).toHaveTextContent('Turno abierto')
     expect(panel).toHaveTextContent('cajera.panaderia@seed.example.test')
-    expect(panel).toHaveTextContent('11 ventas · $33.400,00')
+    expect(panel).toHaveTextContent('11 ventas en el turno · $33.400,00')
     expect(screen.getByRole('link', { name: 'Cerrar turno' })).toHaveAttribute('href', `/ventas/turnos/${SHIFT_ID}/cerrar`)
     expect(screen.getByRole('link', { name: 'Ver turnos' })).toHaveAttribute('href', '/ventas/turnos')
 
