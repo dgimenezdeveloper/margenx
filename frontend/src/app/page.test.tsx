@@ -213,21 +213,23 @@ describe('LandingPage', () => {
       expect(texto).not.toMatch(/Fijá tus precios/i)
     })
 
-    it('Escenario "Lo que se muestra existe": "También incluye" lista solo capacidades disponibles y no anuncia ventas', () => {
+    it('Escenario "Lo que se muestra existe": "También incluye" lista solo capacidades disponibles, con ventas primero', () => {
       const texto = textoConPreguntasAbiertas()
 
       const seccion = screen.getByRole('region', { name: 'También incluye' })
       const titulos = Array.from(seccion.querySelectorAll('h3'), (h) => h.textContent)
       expect(titulos).toEqual([
+        'Ventas con ticket y caja por turno',
         'Antes de comprar, el impacto en tu margen',
         'Reporte semanal por correo',
         'Tu equipo, invitado por correo',
         'Se instala en el celular',
       ])
-      // El módulo de ventas solo está en la Demo de staging (especificación funcional §11): la portada no lo anuncia.
-      expect(texto).not.toMatch(/ni cobra/i)
-      expect(texto).not.toMatch(/m[oó]dulo de ventas|cierre de caja|ticket/i)
+      // Ventas se prende en la Demo de producción con la v1.0.0 (decisión del 27/11, especificación funcional §11).
+      // El ticket no es fiscal: la portada lo dice y no promete facturar.
+      expect(texto).toContain('ticket no fiscal')
       expect(texto).toContain('no emite facturas fiscales')
+      expect(texto).not.toMatch(/ni cobra/i)
     })
 
     it('Botones claros: en modo oscuro el hover tiene su propio fondo y no vuelve al gris claro ([RV494-I1])', () => {
