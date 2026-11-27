@@ -107,7 +107,7 @@ La entrega final de la cursada es el **05/12/2026** (aviso de la docente del 12/
 | Reporte semanal de márgenes en PDF por correo y descarga desde la app | Cursada (Sprint 6) | §2, §6 |
 | Documentación interactiva de la API (Swagger / OpenAPI) | Cursada (Sprint 7) | §6 |
 | Lighthouse > 90 a 360 px (RNF-01, RNF-02) | Cursada (Sprint 7) | §6 |
-| Módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos por plan y por cuenta (prendido solo en la cuenta Demo; el 28/11 se decide si se muestra en producción) | Cursada (Sprint 7) | ADR-010, especificación §13 |
+| Módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos por plan y por cuenta (prendido en la cuenta Demo de staging y, desde la v1.0.0, en la de producción, por decisión del 27/11) | Cursada (Sprint 7) | ADR-010, especificación §13 |
 | Compras sugeridas por impacto en el margen (sin calculadora de bultos ni pedido semanal) | Cursada (Sprint 7) | ADR-010, especificación §7 |
 | Release `v1.0.0` | Cursada (Sprint 7) | §6, `docs/runbook-release.md` |
 | Monitor de disponibilidad de producción y staging | Fase 2 (v1.1) | §2 |
@@ -853,7 +853,7 @@ La distribución del trabajo adopta un enfoque **Contract-First**: en los primer
 * **Hito Cátedra:** Entrega final de la cursada (05/12/2026). Entre el 21/11 y el 05/12 la revisión de la cátedra es en línea.
 * **Congelamiento de funcionalidades:** 28/11/2026. Desde ese día `develop` solo recibe correcciones de defectos de la regresión y documentación.
 * **Entregable:** Release `v1.0.0` en producción, documentación interactiva de la API, regresión completa con matriz de trazabilidad, documentos finales actualizados, video demo comercial de 3 minutos y defensa ensayada.
-* **Cambio de alcance del 22/11/2026:** entra el módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos (ADR-010). El 28/11 se decide si se muestra en producción. El monitor de disponibilidad pasa a la Fase 2 (v1.1).
+* **Cambio de alcance del 22/11/2026:** entra el módulo de ventas con ticket no fiscal, caja por turnos y ganancia real, detrás del control de módulos (ADR-010). El 27/11 se decidió mostrarlo también en la cuenta Demo de producción, desde la v1.0.0. El monitor de disponibilidad pasa a la Fase 2 (v1.1).
 * **Backend:**
   * [BE] Documentación interactiva de la API con Swagger / OpenAPI en `/api/docs`.
   * [BE] Compras sugeridas por impacto en el margen (sin calculadora de bultos ni pedido semanal).
