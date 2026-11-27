@@ -127,7 +127,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     await screen.findByText('cajera.quimica@seed.example.test')
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')
 
-    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar enlace de la invitación de cajera.quimica@seed.example.test' }))
 
     expect(writeText).toHaveBeenCalledWith(ENLACE_CAJERA)
     expect(onNotify).toHaveBeenCalledWith('Enlace copiado: mandáselo a cajera.quimica@seed.example.test')
@@ -138,7 +138,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     await screen.findByText('cajera.quimica@seed.example.test')
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('NotAllowedError'))
 
-    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar enlace de la invitación de cajera.quimica@seed.example.test' }))
 
     expect(await screen.findByRole('textbox', { name: 'Enlace de la invitación de cajera.quimica@seed.example.test' })).toHaveValue(ENLACE_CAJERA)
     expect(onNotify).not.toHaveBeenCalled()
@@ -149,7 +149,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     renderSection()
     await screen.findByText('cajera.quimica@seed.example.test')
 
-    expect(screen.queryByRole('button', { name: /Copiar el enlace/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Copiar enlace/ })).not.toBeInTheDocument()
   })
 
   it('valida el correo antes de llamar a la API', async () => {

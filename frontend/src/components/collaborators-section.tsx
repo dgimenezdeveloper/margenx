@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link2, LoaderCircle, Mail, Send, UserMinus, Users, X } from 'lucide-react'
 import { ErrorState } from '@/components/error-state'
+import { EmailText } from '@/components/email-text'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import {
   Dialog,
@@ -232,8 +233,8 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
           aria-label="Aviso de invitación"
           className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
         >
-          <p className="break-all font-bold">
-            Creamos la invitación para {mailNotSentTo}, pero no pudimos enviar el mail.
+          <p className="break-words font-bold">
+            Creamos la invitación para <EmailText email={mailNotSentTo} />, pero no pudimos enviar el mail.
           </p>
           <p className="mt-1">
             Tocá <strong>Copiar enlace</strong> en Invitaciones pendientes y mandáselo por WhatsApp o por otro medio.
@@ -281,7 +282,9 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
                     className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
                   >
                     <div className="min-w-0 flex-1 basis-40">
-                      <p className="break-all text-sm font-semibold">{invitation.email}</p>
+                      <p className="text-sm font-semibold">
+                        <EmailText email={invitation.email} />
+                      </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">Creada el {formatDate(invitation.createdAt)}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -289,7 +292,8 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
                         <button
                           type="button"
                           onClick={() => void copyInvitationLink(invitation)}
-                          aria-label={`Copiar el enlace de la invitación de ${invitation.email}`}
+                          // El nombre accesible empieza con el texto visible, para quien usa el control por voz (WCAG 2.5.3, #497).
+                          aria-label={`Copiar enlace de la invitación de ${invitation.email}`}
                           className="flex min-h-11 cursor-pointer items-center gap-1 rounded-xl px-3 text-xs font-bold text-indigo-700 transition hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
                         >
                           <Link2 className="size-4" aria-hidden="true" />
@@ -342,7 +346,9 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
                     className="flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="break-all text-sm font-semibold">{member.email}</p>
+                      <p className="text-sm font-semibold">
+                        <EmailText email={member.email} />
+                      </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">Desde el {formatDate(member.createdAt)}</p>
                     </div>
                     <button
@@ -372,12 +378,19 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
             <DialogTitle>
               {pendingAction?.kind === 'remove' ? '¿Dar de baja al colaborador?' : '¿Revocar la invitación?'}
             </DialogTitle>
-            <DialogDescription className="break-all">
-              {pendingAction?.kind === 'remove'
-                ? `${pendingAction.member.email} ya no va a poder entrar a MargenX. Si vuelve, lo podés invitar de nuevo.`
-                : pendingAction?.kind === 'revoke'
-                  ? `El enlace que le llegó a ${pendingAction.invitation.email} deja de funcionar.`
-                  : ''}
+            <DialogDescription className="break-words">
+              {pendingAction?.kind === 'remove' ? (
+                <>
+                  <EmailText email={pendingAction.member.email} /> ya no va a poder entrar a MargenX. Si vuelve, lo podés
+                  invitar de nuevo.
+                </>
+              ) : pendingAction?.kind === 'revoke' ? (
+                <>
+                  El enlace que le llegó a <EmailText email={pendingAction.invitation.email} /> deja de funcionar.
+                </>
+              ) : (
+                ''
+              )}
             </DialogDescription>
             {actionError && (
               <p role="alert" className="mt-3 text-xs font-bold text-rose-700 dark:text-rose-400">

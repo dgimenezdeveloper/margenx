@@ -94,7 +94,7 @@ export default function ProductsPage() {
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold md:text-3xl">Productos</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {isCollaborator
                   ? 'Catálogo de precios de venta al público.'
                   : 'Rendimiento y costos de tu catálogo.'}
@@ -207,7 +207,7 @@ export default function ProductsPage() {
                             Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
                           </span>
                         ) : (
-                          <span className="text-[11px] font-medium text-gray-400">Atención al público</span>
+                          <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Atención al público</span>
                         )}
                         <span className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
                           Precio: <span className="text-sm">{money(product.salePrice)}</span>

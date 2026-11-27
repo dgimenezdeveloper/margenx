@@ -20,6 +20,8 @@ import { ToastAlert } from '@/components/ToastAlert'
 import { useToast } from '@/hooks/useToast'
 import { CollaboratorsSection } from '@/components/collaborators-section'
 import { WeeklyReportDownload } from '@/components/weekly-report-download'
+import { EmailText } from '@/components/email-text'
+import { cn } from '@/lib/utils'
 
 const profileTitle = 'Perfil y Configuración'
 
@@ -86,7 +88,8 @@ export default function ProfilePage() {
             {profileTitle}
           </h1>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* El colaborador no ve Margen ni Alertas: con una sola columna no queda media pantalla vacía (#497). */}
+          <div className={cn('grid grid-cols-1 gap-6', !isCollaborator && 'md:grid-cols-2')}>
             {/* Columna Izquierda: Usuario y Comercio con Skeletons */}
             <div className="space-y-6">
               <section className="flex items-center gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -98,12 +101,13 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  {/* A 360 px la etiqueta del rol baja de renglón en vez de cortar el nombre con "…" (#497). */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     {isLoading ? (
                       <div className="h-6 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                     ) : (
                       <>
-                        <h2 className="truncate font-bold text-lg">
+                        <h2 className="break-words font-bold text-lg">
                           {isCollaborator ? 'Colaborador' : 'Administrador'}
                         </h2>
                         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
@@ -115,8 +119,8 @@ export default function ProfilePage() {
                   {isLoading ? (
                     <div className="mt-1.5 h-4 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                   ) : (
-                    <p className="truncate text-xs text-gray-500 mt-0.5">
-                      {user?.email}
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {user?.email ? <EmailText email={user.email} /> : null}
                     </p>
                   )}
                 </div>
@@ -134,7 +138,7 @@ export default function ProfilePage() {
                     ) : (
                       <p className="font-bold text-base">{businessName}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-0.5">Plan Profesional • Activo</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Plan Profesional • Activo</p>
                   </div>
                   <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                     PRO
@@ -153,7 +157,7 @@ export default function ProfilePage() {
                     <Target className="size-5 text-indigo-600" />
                     <h3 className="font-bold text-sm">Margen Objetivo Global</h3>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
                     Es el margen que te sugerimos al crear un producto nuevo. Cada producto tiene su propio mínimo, y las alertas usan ese mínimo.
                   </p>
 
@@ -164,10 +168,10 @@ export default function ProfilePage() {
                       value={currentMarginValue}
                       onChange={setCustomMargin}
                       suffixSymbol="%"
-                      suffixClassName="font-bold text-sm text-gray-400"
+                      suffixClassName="font-bold text-sm text-gray-500 dark:text-gray-400"
                       disabled={isSavingGlobalMargin}
                       containerClassName="w-24 border-none bg-transparent px-0 focus-within:ring-0 focus-within:border-transparent dark:bg-transparent"
-                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50"
+                      className="text-right font-black text-xl text-indigo-600 disabled:opacity-50 dark:text-indigo-400"
                     />
                   </div>
 
@@ -199,7 +203,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between gap-4 pt-1">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">Alerta de margen mínimo</p>
-                      <p className="text-xs text-gray-500">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Aviso inmediato por email cuando un producto queda por debajo de tu margen mínimo</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
                       <ShieldCheck className="size-3.5" aria-hidden="true" />
@@ -212,7 +216,7 @@ export default function ProfilePage() {
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                       <div className="min-w-0 flex-1 basis-48">
                         <p className="whitespace-nowrap text-sm font-semibold">Reporte Semanal en PDF</p>
-                        <p className="text-xs text-gray-500">Te llega por email con el PDF de los últimos 7 días</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Te llega por email con el PDF de los últimos 7 días</p>
                       </div>
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300">
                         <Clock className="size-3.5" aria-hidden="true" />
