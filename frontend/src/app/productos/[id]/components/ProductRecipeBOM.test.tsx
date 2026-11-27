@@ -60,3 +60,13 @@ describe('ProductRecipeBOM: nombres largos de insumos (#497)', () => {
     expect(nombre).toHaveClass('break-words')
   })
 })
+
+describe('ProductRecipeBOM: título y cantidad de ingredientes separados (#497)', () => {
+  it('259: con "Composición / receta" en una línea, el contador no queda pegado al título', () => {
+    renderBOM(true)
+
+    const encabezado = screen.getByRole('heading', { name: 'Composición / receta' }).parentElement as HTMLElement
+    expect(encabezado.className).toMatch(/\bgap-/)
+    expect(screen.getByText('1 ingrediente')).toHaveClass('shrink-0')
+  })
+})
