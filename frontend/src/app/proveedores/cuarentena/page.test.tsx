@@ -70,10 +70,11 @@ describe('QuarantinePage', () => {
     storeState.error = null
   })
 
-  it('queda integrada en Proveedores: pestaña Cuarentena activa y Volver lleva a /proveedores', () => {
+  it('C4: queda integrada en Proveedores sin botón Volver duplicado (se vuelve con la pestaña)', () => {
     renderPage()
 
-    expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/proveedores')
+    expect(screen.queryByRole('link', { name: 'Volver' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/cuarentena de precios/i)).not.toBeInTheDocument()
     expect(tabs().getByRole('link', { name: 'Proveedores' })).toHaveAttribute('href', '/proveedores')
     expect(tabs().getByRole('link', { name: 'Cuarentena, 1 precio retenido' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getAllByText('Manteca').length).toBeGreaterThan(0)

@@ -109,12 +109,12 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
               key={item.id}
               className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/50 dark:bg-gray-900"
             >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">{item.ingredient.name}</h3>
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="wrap-break-word font-bold text-gray-900 dark:text-white">{item.ingredient.name}</h3>
                   <p className="text-xs text-gray-500">{item.supplier.name}</p>
                 </div>
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
                   {reason}
                 </span>
               </div>
@@ -134,7 +134,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
 
               <div className="flex items-center justify-between mt-4">
                 <span
-                  className={`flex items-center gap-1 text-xs font-bold ${
+                  className={`flex items-center gap-1 whitespace-nowrap text-xs font-bold ${
                     isIncrease ? 'text-rose-600' : 'text-emerald-600'
                   }`}
                 >
@@ -187,11 +187,11 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                     <p className="font-bold text-gray-900 dark:text-white">{item.ingredient.name}</p>
                     <p className="text-xs text-gray-500">{item.supplier.name}</p>
                   </td>
-                  <td className="px-4 py-3 text-gray-500 line-through">{money(actual)}</td>
-                  <td className="px-4 py-3 font-black text-gray-900 dark:text-white">{money(proposed)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-gray-500 line-through">{money(actual)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap font-black text-gray-900 dark:text-white">{money(proposed)}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${
                         isIncrease
                           ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-400'
                           : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400'
@@ -202,7 +202,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="rounded-md bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                    <span className="inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
                       {reason}
                     </span>
                   </td>

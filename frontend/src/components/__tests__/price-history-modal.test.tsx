@@ -107,5 +107,33 @@ describe('PriceHistoryModal - Criterios de Aceptación Issue #354', () => {
     expect(await screen.findByText('$900,00/litro')).toBeInTheDocument()
     expect(screen.getByText('$950,00/litro')).toBeInTheDocument()
   })
+  
+  it('E2 / C3: con un nombre muy largo, el encabezado no desborda el contenedor ni oculta los botones', async () => {
+    const nombreLargo =
+      'Harina_de_trigo_0000_orgánica_molida_a_piedra_superespecial_x_50_kg_sin_espacios'
+    vi.mocked(ingredientService.getHistory).mockResolvedValueOnce(mockHistory)
+
+    render(
+      <PriceHistoryModal
+        isOpen
+        onClose={vi.fn()}
+        ingredientId="ing-1"
+        ingredientName={nombreLargo}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando historial...')).not.toBeInTheDocument()
+    })
+
+    const heading = screen.getByRole('heading', { name: nombreLargo })
+    expect(heading.className).toContain('wrap-break-word')
+    expect(heading.className).not.toContain('max-w-62.5')
+    expect(heading.parentElement?.className).toContain('min-w-0')
+    expect(heading.parentElement?.className).toContain('flex-1')
+
+    const closeBtn = screen.getByRole('button', { name: 'Cerrar historial de costos' })
+    expect(closeBtn.parentElement?.className).toContain('shrink-0')
+  })
 })
 

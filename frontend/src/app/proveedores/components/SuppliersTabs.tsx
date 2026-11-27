@@ -10,7 +10,7 @@ interface SuppliersTabsProps {
 }
 
 const baseClass =
-  'inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition md:flex-none'
+  'inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 text-[13px] font-bold transition sm:gap-2 sm:px-4 sm:text-sm md:flex-none'
 const activeClass = 'bg-white text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300'
 const idleClass = 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
 
@@ -34,8 +34,8 @@ export function SuppliersTabs({ active, quarantineCount }: SuppliersTabsProps) {
         aria-current={active === 'suppliers' ? 'page' : undefined}
         className={`${baseClass} ${active === 'suppliers' ? activeClass : idleClass}`}
       >
-        <Truck className="size-4" aria-hidden="true" />
-        Proveedores
+        <Truck className="size-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">Proveedores</span>
       </Link>
       <Link
         href="/proveedores/cuarentena"
@@ -43,12 +43,12 @@ export function SuppliersTabs({ active, quarantineCount }: SuppliersTabsProps) {
         aria-current={active === 'quarantine' ? 'page' : undefined}
         className={`${baseClass} ${active === 'quarantine' ? activeClass : idleClass}`}
       >
-        <ShieldAlert className="size-4" aria-hidden="true" />
-        Cuarentena
+        <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">Cuarentena</span>
         {hasPending && (
           <span
             aria-hidden="true"
-            className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-black text-amber-950"
+            className="shrink-0 rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-black text-amber-950 sm:px-2"
           >
             {quarantineCount}
           </span>

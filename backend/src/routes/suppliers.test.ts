@@ -39,8 +39,10 @@ const productFindManyMock = vi.fn(async ({ where }: { where: { id: { in: string[
   return found.filter(Boolean);
 });
 const accountFindUniqueMock = vi.fn();
+const queryRawMock = vi.fn().mockResolvedValue([]);
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
   return callback({
+    $queryRaw: queryRawMock,
     supplierIngredient: {
       create: supplierIngredientCreateMock,
       findFirst: supplierIngredientFindFirstMock,
@@ -127,6 +129,8 @@ beforeEach(() => {
   productFindUniqueMock.mockReset();
   productUpdateMock.mockReset();
   accountFindUniqueMock.mockReset();
+  queryRawMock.mockReset();
+  queryRawMock.mockResolvedValue([]);
   transactionMock.mockClear();
   accountFindUniqueMock.mockResolvedValue({
     id: 'account-1',
@@ -1448,6 +1452,106 @@ describe('POST /api/suppliers/:id/ingredients (Upsert)', () => {
     expect(supplierIngredientCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ supplierId: 's-1', ingredientId: 'ing-1' }),
     });
+  });
+  it('E7: bloquea el insumo y desmarca predeterminadas previas ANTES de marcar la nueva', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-2', accountId: 'account-1', name: 'Abastecedora El Trébol S.A.' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Manteca',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('12000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue({ id: 'si-2', isDefault: false });
+    supplierIngredientUpdateManyMock.mockResolvedValue({ count: 1 });
+    supplierIngredientUpdateMock.mockResolvedValue({
+      id: 'si-2',
+      supplierId: 's-2',
+      ingredientId: 'ing-1',
+      packageSize: new Prisma.Decimal('1'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('21000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('21000.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-2/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '1',
+        packageUnit: 'kg',
+        packagePrice: '21000',
+        isDefault: true,
+      });
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock).toHaveBeenCalledTimes(1);
+    expect(supplierIngredientUpdateManyMock).toHaveBeenCalledWith({
+      where: { ingredientId: 'ing-1', supplierId: { not: 's-2' }, isDefault: true },
+      data: { isDefault: false },
+    });
+
+    const lockOrder = queryRawMock.mock.invocationCallOrder[0];
+    const clearOrder = supplierIngredientUpdateManyMock.mock.invocationCallOrder[0];
+    const setOrder = supplierIngredientUpdateMock.mock.invocationCallOrder[0];
+    expect(lockOrder).toBeDefined();
+    expect(clearOrder).toBeDefined();
+    expect(setOrder).toBeDefined();
+    expect(lockOrder!).toBeLessThan(clearOrder!);
+    expect(clearOrder!).toBeLessThan(setOrder!);
+  });
+
+  it('E7: en alta nueva con isDefault true también desmarca predeterminadas previas ANTES de crear', async () => {
+    findFirstMock.mockResolvedValue({ id: 's-2', accountId: 'account-1', name: 'Proveedor Nuevo' });
+    ingredientFindFirstMock.mockResolvedValue({
+      id: 'ing-1',
+      accountId: 'account-1',
+      name: 'Manteca',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('12000.00'),
+    });
+    supplierIngredientFindFirstMock.mockResolvedValue(null);
+    supplierIngredientUpdateManyMock.mockResolvedValue({ count: 1 });
+    supplierIngredientCreateMock.mockResolvedValue({
+      id: 'si-2',
+      supplierId: 's-2',
+      ingredientId: 'ing-1',
+      packageSize: new Prisma.Decimal('1'),
+      packageUnit: 'kg',
+      packagePrice: new Prisma.Decimal('21000'),
+      isDefault: true,
+    });
+    ingredientUpdateMock.mockResolvedValue({
+      id: 'ing-1',
+      name: 'Manteca',
+      unit: 'kg',
+      currentCost: new Prisma.Decimal('21000.00'),
+    });
+    productIngredientFindManyMock.mockResolvedValue([]);
+
+    const res = await request(buildApp())
+      .post('/api/suppliers/s-2/ingredients')
+      .send({
+        ingredientId: 'ing-1',
+        packageSize: '1',
+        packageUnit: 'kg',
+        packagePrice: '21000',
+        isDefault: true,
+      });
+
+    expect(res.status).toBe(201);
+    const clearOrder = supplierIngredientUpdateManyMock.mock.invocationCallOrder[0];
+    const createOrder = supplierIngredientCreateMock.mock.invocationCallOrder[0];
+    expect(clearOrder).toBeDefined();
+    expect(createOrder).toBeDefined();
+    expect(clearOrder!).toBeLessThan(createOrder!);
   });
 });
 

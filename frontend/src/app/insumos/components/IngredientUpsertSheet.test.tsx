@@ -407,3 +407,84 @@ describe('IngredientUpsertSheet - Criterios de Aceptación Issue #354', () => {
     })
   })
 })
+
+describe('IngredientUpsertSheet - E1: un solo scroll en la edición de insumo (#499)', () => {
+  it('mantiene un único contenedor scrolleable en el formulario (sin scroll anidado en proveedores ni en "Se usa en")', () => {
+    const conProveedores: Ingredient = {
+      ...mockIngredient,
+      supplierConnections: [
+        {
+          id: 'si-1',
+          supplierId: 'sup-1',
+          ingredientId: 'ing-1',
+          packageSize: 25,
+          packageUnit: 'kg',
+          packagePrice: 18406.25,
+          isDefault: true,
+          supplier: { id: 'sup-1', name: 'Distribuidora MarJuanC Alimentos' },
+        },
+        {
+          id: 'si-2',
+          supplierId: 'sup-2',
+          ingredientId: 'ing-1',
+          packageSize: 25,
+          packageUnit: 'kg',
+          packagePrice: 18000,
+          isDefault: false,
+          supplier: { id: 'sup-2', name: 'Distribuidora Mayorista Molinera' },
+        },
+      ],
+    }
+    const productos: IngredientProductUsage[] = [
+      {
+        id: 'prod-1',
+        name: 'Pan flauta — 1 kg',
+        quantity: 1,
+        salePrice: 4332.14,
+        cost: 749.3,
+        marginAmount: 3582.84,
+        marginPercent: 82.7,
+        minMarginPercent: 55,
+        marginStatus: 'surplus',
+        updatedAt: '2026-10-14T12:00:00.000Z',
+      },
+    ]
+
+    render(
+      <MemoryRouter>
+        <IngredientUpsertSheet
+          selected={conProveedores}
+          newOpen={false}
+          showDeleteConfirm={false}
+          isCollaborator={false}
+          onSubmit={vi.fn()}
+          onRequestClose={vi.fn()}
+          onRequestDelete={vi.fn()}
+          onDeleteConfirm={vi.fn()}
+          onCancelDelete={vi.fn()}
+          onOpenHistory={vi.fn()}
+          onOpenPackaging={vi.fn()}
+          onEditConnection={vi.fn()}
+          onMakeDefault={vi.fn()}
+          register={vi.fn() as never}
+          setValue={vi.fn() as never}
+          errors={{}}
+          selectedUnit="kg"
+          money={(v) => `$${v}`}
+          onNumericKeyDown={vi.fn()}
+          onDecimalChange={vi.fn()}
+          usedProducts={productos}
+          usedProductsTotal={1}
+          isLoadingProducts={false}
+        />
+      </MemoryRouter>
+    )
+
+    const form = screen.getByRole('dialog', { name: 'Editar insumo' }).querySelector('form') as HTMLElement
+    const scrollContainers = form.querySelectorAll('.overflow-y-auto, .overflow-auto, .overflow-y-scroll')
+    expect(scrollContainers).toHaveLength(1)
+
+    const usedProductsList = screen.getByRole('list', { name: 'Productos que usan este insumo' })
+    expect(usedProductsList.className).not.toMatch(/overflow-y-auto|max-h-/)
+  })
+})

@@ -129,4 +129,13 @@ describe('SupplierPresentationsList - Escenario "Tabla legible" (#434)', () => {
     )
     expect([...filaDe(CACAO).children][4]).toHaveTextContent('Sin código')
   })
+
+  it('E5: encabezado y filas usan un ancho fijo en la columna Acciones (sin auto que desalinee filas de 2 y 3 botones)', () => {
+    renderLista()
+
+    const encabezado = screen.getByTestId('supplier-presentations-header')
+    expect(encabezado.className).not.toContain('_auto]')
+    expect(encabezado.className).toContain('_9.25rem]')
+    expect(filaDe(CACAO).className).toContain('_9.25rem]')
+  })
 })

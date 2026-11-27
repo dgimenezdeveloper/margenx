@@ -491,6 +491,14 @@
                   "",
                   "pm.test('currentCost quedó en 1.68 tras el cambio de predeterminado', function () {",
                   "    pm.expect(pm.response.json().ingredient.currentCost).to.eql('1.68');",
+                  "});",
+                  "",
+                  "pm.test('E7: tras cambiar de proveedor predeterminado queda exactamente una presentación con isDefault: true', function () {",
+                  "    const suppliers = pm.response.json().ingredient.suppliers;",
+                  "    pm.expect(suppliers).to.be.an('array').with.lengthOf(2);",
+                  "    const defaults = suppliers.filter((s) => s.isDefault === true);",
+                  "    pm.expect(defaults).to.have.lengthOf(1);",
+                  "    pm.expect(defaults[0].supplierId).to.eql(pm.environment.get('supplierId_cuentaA_2'));",
                   "});"
                 ]
               }
@@ -549,6 +557,54 @@
               "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}/history",
               "host": ["{{baseUrl}}"],
               "path": ["ingredients", "{{ingredientId_cuentaA}}", "history"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT E7 - Actualizar costo manual con update-presentation mantiene una sola predeterminada (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/ingredients/' + pm.environment.get('ingredientId_cuentaA'),",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('token_cuenta_A') }",
+                  "}, function (err, res) {",
+                  "    pm.test('El insumo sigue teniendo exactamente una presentación predeterminada', function () {",
+                  "        pm.expect(err).to.eql(null);",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const defaults = res.json().ingredient.suppliers.filter((s) => s.isDefault === true);",
+                  "        pm.expect(defaults).to.have.lengthOf(1);",
+                  "        pm.expect(defaults[0].supplierId).to.eql(pm.environment.get('supplierId_cuentaA_2'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_cuenta_A}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aceite de Girasol QA {{$timestamp}}\",\n  \"unit\": \"l\",\n  \"currentCost\": \"2.50\",\n  \"defaultPresentationAction\": \"update-presentation\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/{{ingredientId_cuentaA}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "{{ingredientId_cuentaA}}"]
             }
           },
           "response": []

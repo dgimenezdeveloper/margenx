@@ -163,7 +163,7 @@ Si no hay nada para revisar, el mail lo dice. Al final está el resumen en núme
 
 ## Revisar la cuarentena
 
-Entrá a **Proveedores** y tocá la pestaña **Cuarentena**. También llegás desde el aviso **Revisar** de la lista, desde la columna **Cuarentena** de cada proveedor o desde la ficha del insumo.
+Entrá a **Proveedores** y tocá la pestaña **Cuarentena**. También llegás desde el aviso **Revisar** de la lista, desde la columna **Cuarentena** de cada proveedor o desde la ficha del insumo. Para volver al listado de proveedores tocá la pestaña **Proveedores** arriba; si venías de **Insumos**, volvé desde el menú.
 
 Por cada precio retenido ves el insumo y el proveedor, el costo **Actual** y el **Propuesto** (por unidad), la **Variación** en porcentaje y el **Motivo** (por ejemplo, "Aumento > 50%" o "Costo casi nulo"). Si no hay ninguno, la bandeja dice "Bandeja limpia".
 
@@ -183,4 +183,4 @@ Si algo falla (por ejemplo, se cortó la conexión), el mensaje de error aparece
 
 ## El aviso en la ficha del insumo
 
-Si un insumo tiene un precio retenido, al abrir su ficha en **Insumos** la sección **Proveedores y presentaciones** muestra un aviso ("1 precio de este insumo está retenido en cuarentena") con el enlace **Revisar en Cuarentena**, y la presentación de ese proveedor lleva la marca **En cuarentena**.
+Si un insumo tiene un precio retenido, al abrir su ficha en **Insumos** la sección **Proveedores y presentaciones** muestra un aviso ("1 precio de este insumo está retenido en cuarentena") con el enlace **Revisar en Cuarentena**, y la presentación de ese proveedor lleva la marca **En cuarentena**. Si esa presentación no es la predeterminada (por ejemplo, porque elegiste otro proveedor como predeterminado), el aviso aclara que no afecta el costo actual del insumo hasta que la liberes o la rechaces en Cuarentena.

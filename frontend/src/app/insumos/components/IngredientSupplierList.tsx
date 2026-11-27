@@ -38,10 +38,11 @@ export function IngredientSupplierList({
     return null
   }
 
-  const quarantinedCount = selected.supplierConnections?.filter((conn) => conn.isQuarantined).length ?? 0
-
+  const quarantinedConnections = selected.supplierConnections?.filter((conn) => conn.isQuarantined) ?? []
+  const quarantinedCount = quarantinedConnections.length
+  const hasDefaultQuarantined = quarantinedConnections.some((conn) => conn.isDefault)
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-6 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
@@ -65,9 +66,13 @@ export function IngredientSupplierList({
         >
           <p className="flex items-start gap-2 text-xs font-semibold text-amber-900 dark:text-amber-300">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {quarantinedCount === 1
-              ? '1 precio de este insumo está retenido en cuarentena. El costo no cambia hasta que decidas.'
-              : `${quarantinedCount} precios de este insumo están retenidos en cuarentena. El costo no cambia hasta que decidas.`}
+            {hasDefaultQuarantined
+              ? quarantinedCount === 1
+                ? '1 precio de este insumo está retenido en cuarentena. El costo no cambia hasta que decidas.'
+                : `${quarantinedCount} precios de este insumo están retenidos en cuarentena. El costo no cambia hasta que decidas.`
+              : quarantinedCount === 1
+                ? '1 precio de este insumo está retenido en cuarentena (no es la presentación predeterminada, así que no afecta el costo del insumo).'
+                : `${quarantinedCount} precios de este insumo están retenidos en cuarentena (ninguno es la presentación predeterminada, así que no afectan el costo del insumo).`}
           </p>
           <Link
             href="/proveedores/cuarentena"
@@ -79,7 +84,7 @@ export function IngredientSupplierList({
       )}
 
       {selected.supplierConnections && selected.supplierConnections.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+        <ul className="grid grid-cols-1 gap-2">
           {selected.supplierConnections.map((conn) => {
             const unitCost = conn.packagePrice / conn.packageSize
             return (

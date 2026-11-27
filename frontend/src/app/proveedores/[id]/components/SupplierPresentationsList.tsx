@@ -20,8 +20,7 @@ interface SupplierPresentationsListProps {
  * código y acciones. El insumo es la más ancha y se lee completo (#362). En el celular, cada fila
  * es una tarjeta con los mismos datos en el mismo orden.
  */
-const DESKTOP_GRID =
-  'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1.2fr)_auto] md:items-center md:gap-4'
+const DESKTOP_GRID = 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1.2fr)_9.25rem] md:items-center md:gap-4'
 
 const ICON_BUTTON = 'inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl border bg-white transition dark:bg-gray-800'
 

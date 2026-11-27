@@ -265,4 +265,23 @@ describe('QuarantineList', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
+
+  it('con un nombre largo, los badges de Motivo y Variación no se parten en dos líneas', () => {
+    const itemLargo: QuarantinedItem = {
+      ...mockItems[0]!,
+      ingredient: {
+        id: 'ing-largo',
+        name: 'Cacao amargo de la deliciosa fabrica de chocolate (demo)',
+        currentCost: 13000,
+      },
+    }
+    render(<QuarantineList items={[itemLargo]} onShowToast={vi.fn()} />)
+
+    for (const badge of screen.getAllByText('Aumento > 50%')) {
+      expect(badge.className).toContain('whitespace-nowrap')
+    }
+    for (const badge of screen.getAllByText('+171,6 %')) {
+      expect(badge.className).toContain('whitespace-nowrap')
+    }
+  })
 })

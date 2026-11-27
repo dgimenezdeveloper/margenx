@@ -765,6 +765,17 @@ async function main() {
             );
           }
 
+          if (item.isDefault) {
+            await tx.supplierIngredient.updateMany({
+              where: {
+                ingredientId: item.ingredientId,
+                supplierId: { not: supplier.id },
+                isDefault: true,
+              },
+              data: { isDefault: false },
+            });
+          }
+
           await tx.supplierIngredient.upsert({
             where: {
               supplierId_ingredientId: {

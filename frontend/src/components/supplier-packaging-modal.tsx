@@ -12,7 +12,6 @@ import {
   ChevronDown,
   LoaderCircle,
   Plus,
-  Sparkles,
   TrendingDown,
   TrendingUp,
   Truck,
@@ -329,7 +328,7 @@ export function SupplierPackagingModal({
                   </div>
 
                   {isAddingQuickSupplier ? (
-                    <div className="flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-2 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-2 dark:border-indigo-900/60 dark:bg-indigo-950/30">
                       <input
                         type="text"
                         value={quickSupplierName}
@@ -337,13 +336,13 @@ export function SupplierPackagingModal({
                         placeholder="Nombre del proveedor..."
                         aria-label="Nombre del nuevo proveedor"
                         autoFocus
-                        className="min-h-11 h-11 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500"
+                        className="min-h-11 h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-900 outline-none focus:border-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-500"
                       />
                       <button
                         type="button"
                         onClick={handleQuickCreateSupplier}
                         disabled={isCreatingSupplier || !quickSupplierName.trim()}
-                        className="min-h-11 h-11 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                        className="min-h-11 h-11 shrink-0 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
                       >
                         {isCreatingSupplier ? (
                           <LoaderCircle className="size-4 animate-spin" />
@@ -358,7 +357,7 @@ export function SupplierPackagingModal({
                           setQuickSupplierName('')
                         }}
                         aria-label="Cancelar alta de proveedor"
-                        className="min-h-11 h-11 rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                        className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                       >
                         <X className="size-4" />
                       </button>
@@ -399,7 +398,7 @@ export function SupplierPackagingModal({
                             onBlur={field.onBlur}
                             aria-invalid={!!errors.supplierId}
                             aria-describedby={errors.supplierId ? 'supplier-error' : undefined}
-                            className={`flex min-h-11 h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border bg-gray-50 px-4 text-left text-xs font-bold text-gray-900 transition hover:border-indigo-300 data-[popup-open]:border-indigo-600 data-[popup-open]:bg-white dark:bg-gray-800 dark:text-white dark:hover:border-indigo-700 dark:data-[popup-open]:border-indigo-500 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60 ${CANONICAL_FOCUS_CLASSES} ${
+                            className={`flex min-h-11 h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border bg-gray-50 px-4 text-left text-xs font-bold text-gray-900 transition hover:border-indigo-300 data-[popup-open]:border-indigo-600 data-[popup-open]:bg-white dark:bg-gray-800 dark:text-white dark:hover:border-indigo-700 dark:data-[popup-open]:bg-gray-800 dark:data-[popup-open]:border-indigo-500 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60 ${CANONICAL_FOCUS_CLASSES} ${
                               errors.supplierId ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
                             }`}
                           >
@@ -456,6 +455,7 @@ export function SupplierPackagingModal({
                         errors.packageSize ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
                       }`}
                       className="text-sm font-bold text-gray-900 dark:text-white"
+                      maxLength={13}
                     />
                     {errors.packageSize && (
                       <p id="package-size-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
@@ -503,6 +503,7 @@ export function SupplierPackagingModal({
                       errors.packagePrice ? 'border-rose-500' : 'border-gray-200 dark:border-gray-700'
                     }`}
                     className="text-sm font-bold text-gray-900 dark:text-white"
+                    maxLength={13}
                   />
                   {errors.packagePrice && (
                     <p id="package-price-error" role="alert" className="mt-1 text-xs font-bold text-rose-500">
@@ -622,23 +623,21 @@ export function SupplierPackagingModal({
                 </label>
               </div>
 
-              <div className="mt-6 flex shrink-0 gap-3 pt-2">
+              <div className="mt-6 flex shrink-0 flex-col-reverse gap-2 pt-2 sm:flex-row sm:gap-3">
                 <button
                   type="button"
                   onClick={requestClose}
-                  className="min-h-11 flex-1 cursor-pointer rounded-2xl border border-gray-200 bg-white py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                  className="min-h-11 w-full cursor-pointer rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-bold text-gray-700 transition hover:bg-gray-50 sm:flex-1 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || suppliers.length === 0}
-                  className="min-h-11 flex-1 cursor-pointer rounded-2xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                  className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50 sm:flex-1"
                 >
-                  {isSubmitting ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
+                  {isSubmitting && (
+                    <LoaderCircle className="size-4 shrink-0 animate-spin" />
                   )}
                   {isSubmitting ? 'Guardando...' : existingConnection ? 'Guardar presentación' : 'Asociar presentación'}
                 </button>
