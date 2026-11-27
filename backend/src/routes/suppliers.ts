@@ -708,6 +708,19 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
   }
 
   const result = await prisma.$transaction(async (tx: any) => {
+    // Serializa cambios concurrentes de presentación predeterminada para el mismo insumo
+    // y evita violaciones P2002 del índice único parcial al reemplazar la predeterminada.
+    if (typeof tx.$queryRaw === 'function') {
+      await tx.$queryRaw`SELECT 1 FROM "Ingredient" WHERE "id" = ${ingredientId} FOR UPDATE`;
+    }
+
+    if (typeof tx.supplierIngredient.updateMany === 'function') {
+      await tx.supplierIngredient.updateMany({
+        where: { ingredientId, supplierId: { not: supplierId }, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
     const supplierIngredient = existingAssociation
       ? await tx.supplierIngredient.update({
         where: { id: existingAssociation.id },
@@ -720,13 +733,6 @@ router.post('/:id/ingredients', async (req: AuthenticatedRequest, res: Response)
           ...associationData,
         },
       });
-
-    if (typeof tx.supplierIngredient.updateMany === 'function') {
-      await tx.supplierIngredient.updateMany({
-        where: { ingredientId, id: { not: supplierIngredient.id } },
-        data: { isDefault: false },
-      });
-    }
 
     const finder = tx.ingredient.findUnique ?? tx.ingredient.findFirst;
     const ingredientOnTx = await finder.call(tx.ingredient, {

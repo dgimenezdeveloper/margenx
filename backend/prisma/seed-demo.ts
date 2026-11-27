@@ -312,6 +312,18 @@ async function main() {
           quarantinedAt: quarantined ? new Date() : null,
           quarantineReason: quarantined ? item.quarantineReason ?? null : null,
         };
+
+        if (item.isDefault) {
+          await tx.supplierIngredient.updateMany({
+            where: {
+              ingredientId: item.ingredientId,
+              supplierId: { not: supplier.id },
+              isDefault: true,
+            },
+            data: { isDefault: false },
+          });
+        }
+
         await tx.supplierIngredient.upsert({
           where: { supplierId_ingredientId: { supplierId: supplier.id, ingredientId: item.ingredientId } },
           create: { id: item.id, supplierId: supplier.id, ingredientId: item.ingredientId, ...values },

@@ -100,6 +100,9 @@ model SupplierIngredient {
   supplier            Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   ingredient          Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
+  // Solo puede existir una presentación predeterminada por insumo: lo garantiza el índice
+  // parcial único registrado en la migración SQL:
+  // CREATE UNIQUE INDEX "SupplierIngredient_ingredientId_default_key" ON "SupplierIngredient"("ingredientId") WHERE "isDefault" = true;
   @@unique([supplierId, ingredientId])
   @@unique([supplierId, supplierCode])
 }
