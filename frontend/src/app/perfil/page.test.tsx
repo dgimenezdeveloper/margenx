@@ -117,15 +117,15 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(screen.getByText('Activa')).toBeInTheDocument()
 
     // El reporte semanal en PDF ya está activo (#392); dejó de ser "Próximamente"
-    expect(screen.getByText('Reporte Semanal en PDF')).toBeInTheDocument()
+    expect(screen.getByText('Reporte semanal en PDF')).toBeInTheDocument()
     expect(screen.getByText('Activo · lunes 08:00')).toBeInTheDocument()
     expect(screen.queryByText('Próximamente')).toBeNull()
   })
 
-  it('Escenario Gherkin "Porcentaje": el símbolo % aparece una sola vez en Margen Mínimo Sugerido', () => {
+  it('Escenario Gherkin "Porcentaje": el símbolo % aparece una sola vez en Margen mínimo sugerido', () => {
     render(<ProfilePage />)
 
-    const label = screen.getByText('Margen Mínimo Sugerido')
+    const label = screen.getByText('Margen mínimo sugerido')
     const container = label.parentElement
     expect(container).not.toBeNull()
 
@@ -134,7 +134,7 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(percentMatches).toHaveLength(1)
 
     // El input numérico tiene su accesibilidad y valor formateado
-    const input = screen.getByLabelText('Margen Mínimo Sugerido')
+    const input = screen.getByLabelText('Margen mínimo sugerido')
     expect(input).toBeInTheDocument()
     expect(input).toHaveValue('30')
   })
@@ -147,9 +147,9 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     expect(screen.getByText('COLABORADOR')).toBeInTheDocument()
 
     // Secciones restringidas no deben montarse
-    expect(screen.queryByText('Margen Objetivo Global')).toBeNull()
+    expect(screen.queryByText('Margen objetivo global')).toBeNull()
     expect(screen.queryByText('Alertas automáticas')).toBeNull()
-    expect(screen.queryByLabelText('Margen Mínimo Sugerido')).toBeNull()
+    expect(screen.queryByLabelText('Margen mínimo sugerido')).toBeNull()
   })
 
   it('Guarda exitosamente la actualización del margen global', async () => {
@@ -161,10 +161,10 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 
     render(<ProfilePage />)
 
-    const input = screen.getByLabelText('Margen Mínimo Sugerido')
+    const input = screen.getByLabelText('Margen mínimo sugerido')
     fireEvent.change(input, { target: { value: '35' } })
 
-    const saveButton = screen.getByRole('button', { name: /Guardar Margen/i })
+    const saveButton = screen.getByRole('button', { name: /Guardar margen/i })
     fireEvent.click(saveButton)
 
     await waitFor(() => {
@@ -178,10 +178,10 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
   it('Valida límites numéricos (0 a 100) y rechaza valores fuera de rango sin llamar a la API', async () => {
     render(<ProfilePage />)
 
-    const input = screen.getByLabelText('Margen Mínimo Sugerido')
+    const input = screen.getByLabelText('Margen mínimo sugerido')
     fireEvent.change(input, { target: { value: '120' } })
 
-    const saveButton = screen.getByRole('button', { name: /Guardar Margen/i })
+    const saveButton = screen.getByRole('button', { name: /Guardar margen/i })
     fireEvent.click(saveButton)
 
     expect(await screen.findByText('El margen debe estar entre 0% y 100%.')).toBeInTheDocument()
@@ -195,10 +195,10 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 
     render(<ProfilePage />)
 
-    const input = screen.getByLabelText('Margen Mínimo Sugerido')
+    const input = screen.getByLabelText('Margen mínimo sugerido')
     fireEvent.change(input, { target: { value: '40' } })
 
-    const saveButton = screen.getByRole('button', { name: /Guardar Margen/i })
+    const saveButton = screen.getByRole('button', { name: /Guardar margen/i })
     fireEvent.click(saveButton)
 
     // Se usa findAllByText porque el error se presenta en el párrafo de error y en el toast
@@ -213,8 +213,8 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
 
     render(<ProfilePage />)
 
-    fireEvent.change(screen.getByLabelText('Margen Mínimo Sugerido'), { target: { value: '40' } })
-    fireEvent.click(screen.getByRole('button', { name: /Guardar Margen/i }))
+    fireEvent.change(screen.getByLabelText('Margen mínimo sugerido'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar margen/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Error al conectar con el servidor')
 
@@ -222,10 +222,10 @@ describe('ProfilePage (/perfil) - Criterios de Aceptación Issue #356', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 
-  it('Apertura de LogoutDialog al tocar Cerrar Sesión', async () => {
+  it('Apertura de LogoutDialog al tocar Cerrar sesión', async () => {
     render(<ProfilePage />)
 
-    const logoutButtons = screen.getAllByRole('button', { name: /Cerrar Sesión/i })
+    const logoutButtons = screen.getAllByRole('button', { name: /Cerrar sesión/i })
     fireEvent.click(logoutButtons[0])
 
     expect(await screen.findByRole('dialog', { name: '¿Cerrar sesión?' })).toBeInTheDocument()
@@ -273,7 +273,7 @@ describe('ProfilePage (/perfil): textos y accesos sin duplicar (#429)', () => {
   it('en escritorio, Cerrar sesión queda solo en el navbar: el botón de Perfil se muestra únicamente en el celular', () => {
     render(<ProfilePage />)
 
-    const botonPerfil = screen.getByRole('button', { name: /Cerrar Sesión/i })
+    const botonPerfil = screen.getByRole('button', { name: /Cerrar sesión/i })
     expect(botonPerfil.parentElement).toHaveClass('md:hidden')
     // El "Salir" del navbar es el acceso de escritorio (hidden md:inline-flex).
     expect(screen.getByRole('button', { name: 'Salir' })).toHaveClass('hidden', 'md:inline-flex')
@@ -286,15 +286,15 @@ describe('ProfilePage (/perfil): sección Colaboradores (#395)', () => {
     mockIsLoading = false
   })
 
-  it('queda debajo de Empresa / Comercio, en la columna de la cuenta', () => {
+  it('queda debajo de Empresa / comercio, en la columna de la cuenta', () => {
     mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
     render(<ProfilePage />)
 
-    const empresa = screen.getByText('Empresa / Comercio').closest('section')!
+    const empresa = screen.getByText('Empresa / comercio').closest('section')!
     const colaboradores = screen.getByRole('region', { name: 'Colaboradores' })
     expect(empresa.parentElement).toBe(colaboradores.parentElement)
     expect(empresa.compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('Margen Objetivo Global').compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(screen.getByText('Margen objetivo global').compareDocumentPosition(colaboradores) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
   })
 
   it('no se monta mientras el rol todavía se está cargando (evita pedidos 403 de un colaborador)', () => {
@@ -346,9 +346,9 @@ describe('ProfilePage (/perfil): reporte semanal en PDF (#392)', () => {
 
     const fila = screen.getByText('Activo · lunes 08:00').parentElement!
     expect(fila.className).toMatch(/flex-wrap/)
-    const texto = screen.getByText('Reporte Semanal en PDF').parentElement!
+    const texto = screen.getByText('Reporte semanal en PDF').parentElement!
     expect(texto.className).toMatch(/basis-48/)
-    expect(screen.getByText('Reporte Semanal en PDF').className).toMatch(/whitespace-nowrap/)
+    expect(screen.getByText('Reporte semanal en PDF').className).toMatch(/whitespace-nowrap/)
   })
 
   it('no monta la descarga mientras el rol se está cargando', () => {
@@ -362,12 +362,12 @@ describe('ProfilePage (/perfil): reporte semanal en PDF (#392)', () => {
     mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
     render(<ProfilePage />)
 
-    expect(screen.queryByText('Reporte Semanal en PDF')).toBeNull()
+    expect(screen.queryByText('Reporte semanal en PDF')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Descargar el último reporte' })).toBeNull()
   })
 })
 
-describe('ProfilePage (/perfil): pie de Soporte y Documentación (#363)', () => {
+describe('ProfilePage (/perfil): pie de Soporte y documentación (#363)', () => {
   const MANUAL_EN_MAIN = 'https://github.com/dgimenezdeveloper/margenx/tree/main/docs/manual-usuario'
 
   beforeEach(() => {
@@ -400,7 +400,7 @@ describe('ProfilePage (/perfil): pie de Soporte y Documentación (#363)', () => 
     expect(soporteMovil.className).toContain('focus-visible:outline-2')
     fireEvent.click(soporteMovil)
 
-    const dialogo = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })
+    const dialogo = await screen.findByRole('dialog', { name: 'Soporte y documentación' })
     expect(dialogo).toHaveTextContent('soporte@margenx.tech')
     expect(dialogo).not.toHaveTextContent(/WhatsApp/i)
   })
@@ -423,5 +423,68 @@ describe('ProfilePage (/perfil): contraste AA de los textos secundarios (axe, RV
       expect(el).not.toHaveClass('dark:text-gray-500')
       expect(el).toHaveClass('text-gray-500', 'dark:text-gray-400')
     }
+  })
+})
+
+describe('ProfilePage (/perfil): recorrida del 26 y 27/11 (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUser = { id: 'u-admin', role: 'ADMIN', email: 'admin.panaderia@seed.example.test' }
+    mockIsLoading = false
+  })
+
+  it('245: en oscuro, el número del margen mínimo usa indigo-400 (4,7:1) y no el indigo-600 del claro (2,3:1)', () => {
+    render(<ProfilePage />)
+
+    const margen = screen.getByRole('textbox', { name: /margen mínimo sugerido/i })
+    expect(margen).toHaveClass('text-indigo-600', 'dark:text-indigo-400')
+  })
+
+  it('262: el "%" del margen mínimo usa gray-500 en claro (4,6:1) y gray-400 en oscuro', () => {
+    render(<ProfilePage />)
+
+    const porcentaje = screen.getByText('%')
+    expect(porcentaje).not.toHaveClass('text-gray-400')
+    expect(porcentaje).toHaveClass('text-gray-500', 'dark:text-gray-400')
+  })
+
+  it('246: el correo, el plan y las descripciones tienen su propio gris en oscuro (gray-400, más de 6:1)', () => {
+    render(<ProfilePage />)
+
+    for (const texto of [/Plan Profesional • Activo/, /Es el margen que te sugerimos/, /Aviso inmediato por email/, /Te llega por email con el PDF/]) {
+      const el = screen.getByText(texto)
+      expect(el, String(texto)).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+    const correo = screen.getByText('admin.panaderia@seed.example.test').closest('p') as HTMLElement
+    expect(correo).toHaveClass('text-gray-500', 'dark:text-gray-400')
+  })
+
+  it('248: a 360 px el nombre no se corta con "…": la etiqueta del rol baja de renglón si no entra', () => {
+    render(<ProfilePage />)
+
+    const nombre = screen.getByRole('heading', { level: 2, name: 'Administrador' })
+    expect(nombre).not.toHaveClass('truncate')
+    expect(nombre.parentElement).toHaveClass('flex-wrap')
+  })
+
+  it('248: el correo no se corta con "…" y, si no entra, se parte antes de "@" o de un punto', () => {
+    render(<ProfilePage />)
+
+    const correo = screen.getByText('admin.panaderia@seed.example.test').closest('p') as HTMLElement
+    expect(correo).not.toHaveClass('truncate')
+    expect(correo).toHaveTextContent('admin.panaderia@seed.example.test')
+    expect(correo.querySelectorAll('wbr').length).toBeGreaterThan(0)
+  })
+
+  it('266: en escritorio, el administrador tiene dos columnas y el colaborador una sola (sin media pantalla vacía)', () => {
+    const { unmount } = render(<ProfilePage />)
+    const grillaAdmin = screen.getByRole('heading', { level: 2, name: 'Administrador' }).closest('.grid') as HTMLElement
+    expect(grillaAdmin).toHaveClass('md:grid-cols-2')
+    unmount()
+
+    mockUser = { id: 'u-colab', role: 'COLLABORATOR', email: 'colab.panaderia@seed.example.test' }
+    render(<ProfilePage />)
+    const grillaColaborador = screen.getByRole('heading', { level: 2, name: 'Colaborador' }).closest('.grid') as HTMLElement
+    expect(grillaColaborador).not.toHaveClass('md:grid-cols-2')
   })
 })

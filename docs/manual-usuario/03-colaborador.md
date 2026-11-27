@@ -20,7 +20,7 @@ MargenX implementa un blindaje de doble capa:
 |---|:---:|:---:|
 | **Landing pública (`/`)** | Redirige al Dashboard | Redirige al Dashboard |
 | **Dashboard (`/dashboard`)** | Métricas consolidadas, KPIs de riesgo e histograma | Solo catálogo monitoreado con precios de venta al público (solo productos a la venta) |
-| **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo Producto*, borradores incluidos | Solo nombres y precios de venta finales cobrados al público, de los productos a la venta |
+| **Catálogo (`/productos`)** | Acceso total, costos, márgenes y botón *Nuevo producto*, borradores incluidos | Solo nombres y precios de venta finales cobrados al público, de los productos a la venta |
 | **Ficha Técnica (`/productos/:id`)** | Ficha completa, desglose de recetas, cantidades y simulador | Ficha de lectura: nombre, precio de venta y lista conceptual de insumos (sin cantidades ni costos) |
 | **Alta de producto (`/productos/nuevo`)** | Constructor de recetas con simulador | **Bloqueado:** vuelve a `/productos` con aviso |
 | **Despensa (`/insumos`)** | Acceso total, costos unitarios, alta y edición | **Bloqueado:** vuelve a `/productos` con aviso |

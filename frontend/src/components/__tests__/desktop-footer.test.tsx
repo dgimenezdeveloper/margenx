@@ -18,7 +18,7 @@ function DesktopFooter() {
   )
 }
 
-describe('DesktopFooter: Soporte y Documentación (#363)', () => {
+describe('DesktopFooter: Soporte y documentación (#363)', () => {
   it('Escenario Gherkin "Documentación": el enlace lleva al manual de usuario en una pestaña nueva', () => {
     render(<DesktopFooter />)
 
@@ -47,12 +47,12 @@ describe('DesktopFooter: Soporte y Documentación (#363)', () => {
     expect(soporte.className).toContain('focus-visible:outline-2')
     await user.click(soporte)
 
-    const dialogo = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })
-    expect(within(dialogo).getByRole('link', { name: /Correo de Asistencia/ })).toHaveAttribute(
+    const dialogo = await screen.findByRole('dialog', { name: 'Soporte y documentación' })
+    expect(within(dialogo).getByRole('link', { name: /Correo de asistencia/ })).toHaveAttribute(
       'href',
       'mailto:soporte@margenx.tech',
     )
-    expect(within(dialogo).getByRole('link', { name: /Guía de Usuario/ })).toHaveAttribute('href', MANUAL_EN_MAIN)
+    expect(within(dialogo).getByRole('link', { name: /Guía de usuario/ })).toHaveAttribute('href', MANUAL_EN_MAIN)
     expect(dialogo).not.toHaveTextContent(/WhatsApp/i)
     expect(dialogo).not.toHaveTextContent(/\+54|\d{4}-\d{4}/)
     expect(dialogo.querySelector('a[href*="wa.me"]')).toBeNull()
@@ -63,7 +63,7 @@ describe('SupportDocsModal: guía de usuario (#363)', () => {
   it('la guía es un enlace activo al manual y ya no figura como no disponible', () => {
     render(<SupportDocsModal isOpen onClose={() => {}} />)
 
-    const guia = screen.getByRole('link', { name: /Guía de Usuario/ })
+    const guia = screen.getByRole('link', { name: /Guía de usuario/ })
     expect(guia).toHaveAttribute('href', MANUAL_EN_MAIN)
     expect(guia).toHaveAttribute('target', '_blank')
     expect(guia).toHaveAttribute('rel', 'noopener noreferrer')
@@ -80,7 +80,7 @@ describe('DesktopFooter: Política e Instalar (#429)', () => {
     expect(screen.getByRole('link', { name: 'Instalar' })).toHaveAttribute('href', '/instalar')
   })
 
-  it('usa el mismo orden que el pie móvil de Perfil: Política, Instalar, Soporte y Documentación', () => {
+  it('usa el mismo orden que el pie móvil de Perfil: Política, Instalar, Soporte y documentación', () => {
     render(<DesktopFooter />)
 
     const nombres = screen

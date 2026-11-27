@@ -350,7 +350,7 @@ export default function NewProductPage() {
 
       <form onSubmit={handleSubmit(handleSaveProduct)} noValidate>
         <div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl">
-          <Navbar title="Nuevo Producto" backHref="/productos" />
+          <Navbar title="Nuevo producto" backHref="/productos" />
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
             <div className="space-y-6 lg:col-span-7">
@@ -385,11 +385,11 @@ export default function NewProductPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="new-product-sale-price" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      Precio de Venta
+                      Precio de venta
                     </label>
                     <NumericInput
                       id="new-product-sale-price"
-                      aria-label="Precio de Venta"
+                      aria-label="Precio de venta"
                       value={watchedSalePrice}
                       onChange={(val) => {
                         setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
@@ -412,11 +412,11 @@ export default function NewProductPage() {
 
                   <div>
                     <label htmlFor="new-product-min-margin" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-                      Margen Mínimo (%)
+                      Margen mínimo (%)
                     </label>
                     <NumericInput
                       id="new-product-min-margin"
-                      aria-label="Margen Mínimo (%)"
+                      aria-label="Margen mínimo (%)"
                       value={watchedMinMargin}
                       onChange={(val) => setValue('minMarginPercent', val, { shouldValidate: true, shouldDirty: true })}
                       suffixSymbol="%"
@@ -440,7 +440,7 @@ export default function NewProductPage() {
                   <div className="flex items-center gap-2.5 rounded-2xl bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
                     <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <p className="leading-tight">
-                      <strong>Margen Inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
+                      <strong>Margen inicial:</strong> Se aplicó automáticamente tu margen global de{' '}
                       <strong>{formatPercent(defaultMinMarginPercent, { minDecimals: 0 })}</strong>. Podés ajustarlo
                       exclusivamente para este producto sin alterar el resto.
                     </p>
@@ -451,7 +451,7 @@ export default function NewProductPage() {
               <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <div>
-                    <h2 className="text-base font-bold text-gray-900 dark:text-white">2. Composición / Receta</h2>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">2. Composición / receta</h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Sumá insumos con cantidades dinámicas para costear la elaboración.
                     </p>
@@ -473,7 +473,7 @@ export default function NewProductPage() {
                       setQuickCreateInitialName(initialName)
                       setIsQuickCreateOpen(true)
                     }}
-                    label="Seleccionar Insumo de la Despensa"
+                    label="Seleccionar insumo de la despensa"
                     disabled={isLoadingSupplies}
                     emptyMessage="No se encontraron insumos con ese nombre."
                     labelClassName="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"
@@ -566,7 +566,7 @@ export default function NewProductPage() {
                     ) : (
                       <Plus className="size-4" />
                     )}
-                    Agregar Insumo a la Receta
+                    Agregar insumo a la receta
                   </button>
                 </div>
 
@@ -655,9 +655,9 @@ export default function NewProductPage() {
               <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900 space-y-6">
                 <div className="border-b border-gray-100 pb-4 dark:border-gray-800">
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    Simulador Financiero
+                    Simulador financiero
                   </p>
-                  <h3 className="text-xl font-black mt-1 text-gray-900 dark:text-white">Análisis de Rentabilidad</h3>
+                  <h3 className="text-xl font-black mt-1 text-gray-900 dark:text-white">Análisis de rentabilidad</h3>
                 </div>
 
                 <div>
@@ -703,17 +703,17 @@ export default function NewProductPage() {
 
                 <div className="space-y-2 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Costo Total de Elaboración:</span>
+                    <span className="text-gray-500 dark:text-gray-400">Costo total de elaboración:</span>
                     <strong className="font-extrabold text-gray-900 dark:text-white">{money(totalCost)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Precio de Venta al Público:</span>
+                    <span className="text-gray-500 dark:text-gray-400">Precio de venta al público:</span>
                     <strong className="font-extrabold text-gray-900 dark:text-white">
                       {money(Number(watchedSalePrice) || 0)}
                     </strong>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-                    <span className="text-gray-500 dark:text-gray-400">Ganancia Bruta en Pesos:</span>
+                    <span className="text-gray-500 dark:text-gray-400">Ganancia bruta en pesos:</span>
                     <strong
                       className={`font-black ${
                         marginAmount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'
@@ -725,7 +725,7 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes Rápidos de Precio</p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Ajustes rápidos de precio</p>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
@@ -779,7 +779,7 @@ export default function NewProductPage() {
                   )}
                 >
                   {isSubmitting && <LoaderCircle className="size-4 animate-spin" />}
-                  {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
+                  {isSubmitting ? 'Guardando...' : 'Guardar producto'}
                 </button>
               </div>
             </div>
@@ -824,7 +824,7 @@ export default function NewProductPage() {
               )}
             >
               {isSubmitting && <LoaderCircle className="size-3.5 mr-1.5 animate-spin" />}
-              {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
+              {isSubmitting ? 'Guardando...' : 'Guardar producto'}
             </button>
           </div>
         </footer>

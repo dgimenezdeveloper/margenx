@@ -150,7 +150,8 @@ export function CashShiftPanel({ shift, loadError, onRetry, onOpened, onConflict
                 {shift.openedBy ? ` · ${shift.openedBy}` : ''}
               </p>
               <p className="text-sm font-semibold">
-                {shift.salesCount} {shift.salesCount === 1 ? 'venta' : 'ventas'} · {formatMoney(shift.salesTotal)}
+                {/* Total del turno, de todos los que cobraron: el colaborador ve en la lista solo las suyas (#497). */}
+                {shift.salesCount} {shift.salesCount === 1 ? 'venta' : 'ventas'} en el turno · {formatMoney(shift.salesTotal)}
               </p>
             </div>
           </div>

@@ -29,7 +29,7 @@ export default function QuarantinePage() {
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-6 pb-28 md:pb-12">
-          <Navbar title="Cuarentena de Precios" backHref="/proveedores" />
+          <Navbar title="Cuarentena de precios" backHref="/proveedores" />
 
           <SuppliersTabs active="quarantine" quarantineCount={isLoading || error ? undefined : items.length} />
 
@@ -37,7 +37,7 @@ export default function QuarantinePage() {
             <div className="mb-6">
               <h1 className="text-2xl font-bold md:text-3xl flex items-center gap-2">
                 <ShieldAlert className="size-6 text-amber-500" />
-                Precios en Cuarentena
+                Precios en cuarentena
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Revisá y decidí qué hacer con los precios que MargenX retuvo porque cambiaron demasiado.

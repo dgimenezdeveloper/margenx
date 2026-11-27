@@ -18,8 +18,8 @@ test.describe('TC-PRODUCTOS-AVISO: avisos de crear y eliminar un producto (#432)
     await test.step('crea un producto sin receta y ve el aviso en la lista', async () => {
       await page.goto('/productos/nuevo')
       await page.getByLabel(/Nombre del producto/).fill(name)
-      await page.getByLabel('Precio de Venta').fill('4500')
-      await page.getByRole('button', { name: 'Guardar Producto' }).locator('visible=true').first().click()
+      await page.getByLabel('Precio de venta').fill('4500')
+      await page.getByRole('button', { name: 'Guardar producto' }).locator('visible=true').first().click()
 
       await expect(page).toHaveURL(/\/productos$/)
       await expect(page.getByRole('status').filter({ hasText: 'Producto guardado en estado Borrador (sin receta).' })).toBeVisible()
@@ -30,7 +30,7 @@ test.describe('TC-PRODUCTOS-AVISO: avisos de crear y eliminar un producto (#432)
       await productItem(page, name).first().click()
       await expect(page).toHaveURL(/\/productos\/[0-9a-f-]+$/)
 
-      await page.getByRole('button', { name: /Eliminar Producto/ }).click()
+      await page.getByRole('button', { name: /Eliminar producto/ }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Sí, eliminar' }).click()
 
       await expect(page).toHaveURL(/\/productos$/)

@@ -51,7 +51,7 @@ const SCREENS: Screen[] = [
         .or(page.getByRole('button', { name: /Pan flauta — 1 kg/i }))
       await product.click()
       await expect(page).toHaveURL(/\/productos\/(?!nuevo$)[^/]+$/)
-      await expect(page.getByRole('heading', { name: 'Composición / Receta' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Composición / receta' })).toBeVisible()
     },
   },
   {
@@ -90,7 +90,7 @@ const SCREENS: Screen[] = [
     slug: 'dashboard',
     open: async (page) => {
       await page.goto('/dashboard')
-      await expect(page.getByRole('heading', { name: 'Distribución de Salud Financiera' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Distribución de salud financiera' })).toBeVisible()
     },
   },
 ]

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/services/api'
 import { productService, type Product } from '@/services/productService'
@@ -129,7 +129,7 @@ describe('ProductsPage - paginación y búsqueda en la API (#350)', () => {
     renderPage()
 
     await screen.findByText('Mostrando 1–20 de 339 productos')
-    expect(screen.queryByText('Costo (Receta)')).toBeNull()
+    expect(screen.queryByText('Costo (receta)')).toBeNull()
     expect(screen.queryByText('Margen')).toBeNull()
   })
 
@@ -235,5 +235,36 @@ describe('ProductsPage - nombre accesible de las filas en escritorio (WCAG 2.5.3
     // Con aria-label, el nombre no incluía el costo, el precio ni el margen que se ven en la fila.
     expect(fila).not.toHaveAttribute('aria-label')
     expect(fila).toHaveAccessibleName(/^Ver detalle del producto Medialuna de manteca 1 .*950/)
+  })
+})
+
+describe('ProductsPage: contraste para el colaborador (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentUser.role = 'COLLABORATOR'
+    vi.mocked(productService.list).mockImplementation(async (_getToken, params) => {
+      const items = Array.from({ length: 3 }, (_, i) => producto(i))
+      return { items, meta: { total: 3, page: params.page, limit: params.limit, totalPages: 1 } }
+    })
+  })
+
+  afterEach(() => {
+    currentUser.role = 'ADMIN'
+  })
+
+  it('250: "Atención al público" usa gray-500 en claro (4,8:1) y no gray-400 (2,6:1)', async () => {
+    renderPage()
+
+    const rotulos = await screen.findAllByText('Atención al público')
+    for (const rotulo of rotulos) {
+      expect(rotulo).not.toHaveClass('text-gray-400')
+      expect(rotulo).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+  })
+
+  it('251: el subtítulo tiene su propio gris en oscuro (gray-400, 7,7:1; con gray-500 quedaba en 4,2:1)', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Catálogo de precios de venta al público.')).toHaveClass('text-gray-500', 'dark:text-gray-400')
   })
 })

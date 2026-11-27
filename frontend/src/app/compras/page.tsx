@@ -291,7 +291,8 @@ function IngredientImpactCard({ item, onConfirm }: { item: IngredientMarginImpac
     >
       <h3 className="text-base font-bold text-gray-900 dark:text-white">{item.ingredientName}</h3>
 
-      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+      {/* Las dos cajas del mismo alto aunque el texto de una ocupe más renglones (#497). */}
+      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-[1fr_auto_1fr] sm:items-stretch">
         <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800/60">
           <dt className="text-xs font-semibold text-gray-600 dark:text-gray-400">Hoy le comprás a</dt>
           <dd className="mt-0.5 font-semibold text-gray-900 dark:text-gray-100">
@@ -301,7 +302,7 @@ function IngredientImpactCard({ item, onConfirm }: { item: IngredientMarginImpac
             Costo actual {formatMoney(item.currentCost)} por {unit}
           </dd>
         </div>
-        <ArrowRight className="mx-auto hidden size-4 text-gray-400 sm:block" aria-hidden="true" />
+        <ArrowRight className="mx-auto hidden size-4 text-gray-400 sm:block sm:self-center" aria-hidden="true" />
         <div className="rounded-2xl bg-emerald-50 p-3 dark:bg-emerald-950/40">
           <dt className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Alternativa más barata</dt>
           <dd className="mt-0.5 font-semibold text-gray-900 dark:text-gray-100">{alternative.supplierName}</dd>

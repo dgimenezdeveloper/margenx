@@ -91,7 +91,8 @@ export default function CashShiftsPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold">
-                          {formatSaleDateTime(shift.openedAt)}
+                          {/* La fecha y la hora no se separan aunque la diferencia de la derecha les quite lugar (#497). */}
+                          <span className="whitespace-nowrap">{formatSaleDateTime(shift.openedAt)}</span>
                           <span
                             className={cn(
                               'ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold',

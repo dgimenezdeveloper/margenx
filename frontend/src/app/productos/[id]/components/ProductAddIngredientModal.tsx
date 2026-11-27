@@ -116,7 +116,7 @@ export function ProductAddIngredientModal({
             <div className="flex shrink-0 items-start justify-between pb-4">
               <div>
                 <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Despensa</p>
-                <DialogTitle className="mt-1 text-xl">Sumar Insumo a la Receta</DialogTitle>
+                <DialogTitle className="mt-1 text-xl">Sumar insumo a la receta</DialogTitle>
                 <DialogDescription className="sr-only">Elegí un insumo de la despensa y la cantidad que usa la receta.</DialogDescription>
               </div>
               <DialogClose aria-label="Cerrar sumar insumo" className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800"><X className="size-5" /></DialogClose>
@@ -131,7 +131,7 @@ export function ProductAddIngredientModal({
                 onOpenChange={setIsDropdownOpen}
                 onSelect={handleSelectSupply}
                 onOpenQuickCreate={(initialName) => { setQuickCreateInitialName(initialName); setIsQuickCreateOpen(true) }}
-                label="Seleccionar Insumo"
+                label="Seleccionar insumo"
                 disabled={isLoadingSupplies}
                 emptyMessage="No se encontraron insumos."
                 triggerRef={comboboxTriggerRef}

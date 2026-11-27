@@ -170,7 +170,7 @@ export function QuarantineList({ items, onShowToast }: QuarantineListProps) {
         <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
           <thead className="border-b border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-100">
             <tr>
-              <th className="px-4 py-3 font-bold">Insumo / Proveedor</th>
+              <th className="px-4 py-3 font-bold">Insumo / proveedor</th>
               <th className="px-4 py-3 font-bold">Actual</th>
               <th className="px-4 py-3 font-bold">Propuesto</th>
               <th className="px-4 py-3 font-bold">Variación</th>

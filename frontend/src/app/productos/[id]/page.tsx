@@ -234,15 +234,16 @@ export default function ProductDetailPage() {
     notify(`Insumo "${created.name}" creado y elegido.`, 'info')
   }
 
-  if (isLoading || isRoleLoading) return <main className="min-h-screen bg-gray-50 px-4 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl space-y-6"><div className="h-10 w-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" /><div className="h-64 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" /></div></main>
-  if (loadError || !product) return <main className="min-h-screen bg-gray-50 px-4 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md md:max-w-5xl lg:max-w-6xl"><Navbar title="Producto no encontrado" backHref="/productos" /><div className="mt-8"><EmptyState icon={<Package className="size-6" />} title="Ficha técnica inexistente" description={loadError || 'No pudimos encontrar los datos del producto solicitado.'} actionLabel="Volver al catálogo" onAction={() => navigate('/productos')} /></div></div><BottomNav /></main>
+  if (isLoading || isRoleLoading) return <main className="min-h-screen bg-gray-50 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md space-y-6 px-4 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12"><div className="h-10 w-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" /><div className="h-64 w-full animate-pulse rounded-3xl bg-gray-200 dark:bg-gray-800" /></div></main>
+  if (loadError || !product) return <main className="min-h-screen bg-gray-50 pt-5 dark:bg-gray-950"><div className="mx-auto max-w-md px-4 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12"><Navbar title="Producto no encontrado" backHref="/productos" /><div className="mt-8"><EmptyState icon={<Package className="size-6" />} title="Ficha técnica inexistente" description={loadError || 'No pudimos encontrar los datos del producto solicitado.'} actionLabel="Volver al catálogo" onAction={() => navigate('/productos')} /></div></div><BottomNav /></main>
 
   const simulatorProps = { cost, margin, targetMargin, hasRecipe, watchedSalePrice: watchedSalePrice as string | number, isSaving, activeStrategy, flashingKey, register, setValue, errors, onAdjustPriceFactor: adjustPriceFactor, onApplySuggestedMargin: applySuggestedMargin, onSave, setActiveStrategy }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 pb-[calc(13rem+env(safe-area-inset-bottom))] pt-5 text-gray-900 md:px-8 md:pb-16 lg:px-12 dark:bg-gray-950 dark:text-gray-100">
+    <main className="min-h-screen bg-gray-50 pb-[calc(13rem+env(safe-area-inset-bottom))] pt-5 text-gray-900 md:pb-16 dark:bg-gray-950 dark:text-gray-100">
       {toast && <ToastAlert key={toast.id} title={toast.title} type={toast.type} onClose={dismissToast} />}
-      <div className="mx-auto flex w-full max-w-md flex-col gap-6 md:max-w-5xl lg:max-w-6xl">
+      {/* El relleno lateral va dentro del contenedor, como en las demás pantallas: así la barra de arriba no se corre (#497). */}
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <Navbar title={product.name} backHref="/productos" />
         <ProductStatusBanner isCollaborator={isCollaborator} hasRecipe={hasRecipe} hasCriticalMargin={margin < -100} isHealthy={isHealthy} hasHealthyMargin={margin >= 100} targetMargin={targetMargin} margin={margin} />
         <form onSubmit={onSave} noValidate>
@@ -254,7 +255,7 @@ export default function ProductDetailPage() {
                 <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 dark:border-rose-900/30 dark:bg-rose-950/20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div><h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">Eliminar este producto</h3><p className="text-xs text-rose-700 dark:text-rose-400">Se borrará la ficha técnica y todas sus relaciones.</p></div>
-                    <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"><Trash2 className="size-4" /> Eliminar Producto</button>
+                    <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"><Trash2 className="size-4" /> Eliminar producto</button>
                   </div>
                 </section>
               )}

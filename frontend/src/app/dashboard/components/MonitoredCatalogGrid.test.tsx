@@ -214,3 +214,24 @@ describe('MonitoredCatalogGrid sin productos a la venta (#428)', () => {
     expect(screen.getByText('Aún no tenés productos registrados en el catálogo.')).toBeInTheDocument()
   })
 })
+
+describe('MonitoredCatalogGrid: contraste de "Atención al público" (#497)', () => {
+  it('250: en claro usa gray-500 (4,8:1) y no gray-400 (2,6:1); en oscuro, gray-400', () => {
+    render(
+      <MonitoredCatalogGrid
+        products={catalogo().slice(0, 2).map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))}
+        isLoading={false}
+        isCollaborator
+        selectedBucket={null}
+        onClearFilter={vi.fn()}
+      />
+    )
+
+    const rotulos = screen.getAllByText('Atención al público')
+    expect(rotulos.length).toBeGreaterThan(0)
+    for (const rotulo of rotulos) {
+      expect(rotulo).not.toHaveClass('text-gray-400')
+      expect(rotulo).toHaveClass('text-gray-500', 'dark:text-gray-400')
+    }
+  })
+})

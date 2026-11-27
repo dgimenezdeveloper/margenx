@@ -23,7 +23,7 @@ describe('QuickCreateIngredientModal (#357)', () => {
 
     expect(screen.getByLabelText('Nombre del insumo')).toHaveValue('Cacao amargo')
     await user.type(screen.getByLabelText(/Costo unitario/), '12000')
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
 
     await waitFor(() => expect(ingredientService.create).toHaveBeenCalled())
     expect(onCreated).toHaveBeenCalledWith(created)
@@ -35,7 +35,7 @@ describe('QuickCreateIngredientModal (#357)', () => {
     render(<QuickCreateIngredientModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />)
     await user.type(screen.getByLabelText('Nombre del insumo'), 'Harina 000')
     await user.type(screen.getByLabelText(/Costo unitario/), '750')
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
     expect(await screen.findByText('Ya existe un insumo con ese nombre.')).toBeInTheDocument()
   })
 })
