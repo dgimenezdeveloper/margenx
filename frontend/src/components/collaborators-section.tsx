@@ -343,9 +343,10 @@ export function CollaboratorsSection({ onNotify }: CollaboratorsSectionProps) {
                 {collaborators.map((member) => (
                   <li
                     key={member.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-gray-50 px-4 py-2 dark:bg-gray-800/50"
                   >
-                    <div className="min-w-0 flex-1">
+                    {/* Como en las invitaciones: si no entran juntos, el botón baja y el correo usa todo el ancho (#497). */}
+                    <div className="min-w-0 flex-1 basis-40">
                       <p className="text-sm font-semibold">
                         <EmailText email={member.email} />
                       </p>
