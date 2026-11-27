@@ -13,18 +13,23 @@ import {
   Eye,
   EyeOff,
   FileSpreadsheet,
+  FileText,
   Lock,
   Mail,
   Menu,
   Moon,
   Play,
+  Receipt,
   RefreshCw,
   Scale,
   ShieldCheck,
+  ShoppingCart,
+  Smartphone,
   Sparkles,
   Sun,
   Target,
   Truck,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react'
@@ -36,7 +41,7 @@ const benefits = [
   [
     Target,
     'Decisiones con rentabilidad real',
-    'Fijá tus precios de venta con base en el costo exacto de tus recetas (Medialunas, Pan flauta o Detergente), eliminando estimaciones al tanteo.',
+    'Conocé el costo exacto de tus recetas (Medialunas, Pan flauta o Detergente) y el margen que te deja cada precio, sin estimaciones al tanteo.',
   ],
   [
     RefreshCw,
@@ -64,14 +69,52 @@ const steps = [
   {
     number: '03',
     title: 'Monitoreá y ajustá en vivo',
-    desc: 'Reenviá las listas del distribuidor o cargá los costos nuevos: MargenX recalcula tus márgenes y te sugiere el precio de venta para cuidar tu ganancia.',
+    desc: 'Reenviá las listas del distribuidor o cargá los costos nuevos: MargenX recalcula tus márgenes y te muestra el precio que necesitás para llegar a tu margen objetivo. El precio final lo decidís vos.',
   },
 ]
+
+// Solo capacidades "Disponible" de docs/especificacion-funcional.md §11. Ventas va primero y destacada:
+// se prende en la Demo de producción con la v1.0.0 (decisión del 27/11) y es la puerta de entrada para el comercio (#493).
+const extras = [
+  [
+    Receipt,
+    'Ventas con ticket y caja por turno',
+    'Cobrá en el mostrador con un ticket no fiscal, cerrá la caja de cada turno y mirá la ganancia real de lo que vendiste. Es un módulo que se activa por comercio.',
+  ],
+  [
+    ShoppingCart,
+    'Antes de comprar, el impacto en tu margen',
+    'Si otro proveedor vende un insumo más barato, MargenX te muestra cuánto mejora el margen de cada producto que lo usa.',
+  ],
+  [
+    FileText,
+    'Reporte semanal por correo',
+    'Los lunes a las 8 te llega un PDF con el estado de tus márgenes, y lo descargás cuando quieras desde el panel.',
+  ],
+  [
+    UserPlus,
+    'Tu equipo, invitado por correo',
+    'Invitá a quien atiende con su correo: entra como colaborador y nunca ve tus costos.',
+  ],
+  [
+    Smartphone,
+    'Se instala en el celular',
+    'Funciona en el navegador y se instala en el celular como cualquier app, sin pasar por una tienda.',
+  ],
+] as const
 
 const faqs = [
   {
     q: '¿Qué diferencia a MargenX de un sistema de facturación o punto de venta?',
-    a: 'MargenX no emite facturas ni cobra. Se enfoca en tus costos: calcula cuánto te cuesta hacer cada producto y cuida tu ganancia cuando suben los insumos.',
+    a: 'MargenX no emite facturas fiscales. Se enfoca en tus costos: calcula cuánto te cuesta hacer cada producto y cuida tu ganancia cuando suben los insumos. Con el módulo de ventas, además cobrás con un ticket no fiscal y cerrás la caja de cada turno.',
+  },
+  {
+    q: '¿MargenX decide el precio de venta?',
+    a: 'No. MargenX te dice cuánto te cuesta cada producto y qué margen te deja cada precio. Te muestra el precio que necesitás para llegar a tu margen objetivo, pero el precio final lo decidís vos según la oferta y la demanda: la competencia, tus clientes y tu barrio.',
+  },
+  {
+    q: '¿Qué necesito para empezar?',
+    a: 'Un celular o una computadora con internet: MargenX funciona en el navegador y se puede instalar como app. Cargás tus insumos con su costo, tus recetas y tus proveedores, y las listas de precios que te mandan en Excel o CSV las reenviás por correo. Si tenés empleados, los invitás desde la app con su correo. El alta de tu comercio la hace el equipo de MargenX.',
   },
   {
     q: '¿Cómo se cargan las listas de precios de mis proveedores?',
@@ -163,17 +206,12 @@ export default function LandingPage() {
         {/* Botones Desktop */}
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
-          <Link
-            href="/login"
-            className="px-3.5 py-2 text-sm font-bold text-slate-700 transition hover:text-indigo-600 dark:text-slate-200 dark:hover:text-white"
-          >
-            Iniciar sesión
-          </Link>
+          {/* Un solo botón de entrada: "Probar demo" llevaba al mismo login, sin usuario de prueba (#493). */}
           <Link
             href="/login"
             className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700"
           >
-            Probar demo
+            Iniciar sesión
           </Link>
         </div>
 
@@ -216,7 +254,7 @@ export default function LandingPage() {
               onClick={() => setMenu(false)}
               className="flex w-full items-center justify-center rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md"
             >
-              Iniciar sesión / Probar demo
+              Iniciar sesión
             </Link>
           </div>
         </div>
@@ -243,7 +281,7 @@ export default function LandingPage() {
             </Link>
             <a
               href="#diferencial"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-950 cursor-pointer"
             >
               <Play className="size-4 fill-current text-indigo-600" /> Ver innovaciones
             </a>
@@ -482,10 +520,10 @@ export default function LandingPage() {
                   </div>
                   <hr className="border-slate-100 dark:border-slate-800" />
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
-                    <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                       <EyeOff className="size-3.5" /> Empleado (colaborador)
                     </span>
-                    <span className="text-[11px] text-slate-500">Solo precio al público ($13.500)</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Solo precio al público ($13.500)</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -515,7 +553,7 @@ export default function LandingPage() {
                   El mayorista vende por bulto cerrado; tus recetas pesan en gramos o mililitros:
                 </p>
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs dark:border-emerald-900/60 dark:bg-slate-900">
-                  <div className="flex items-center justify-between text-slate-500 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-500 text-[11px] dark:text-slate-400">
                     <span>Bulto del distribuidor:</span>
                     <strong className="text-slate-700 dark:text-slate-300">Bolsa de 25 kg a $18.000</strong>
                   </div>
@@ -576,6 +614,34 @@ export default function LandingPage() {
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {benefits.map(([Icon, title, text]) => (
               <article key={title} className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="mb-5 flex size-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  <Icon className="size-5" />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TAMBIÉN INCLUYE: lo nuevo de la v1.0.0 (#493) */}
+      <section
+        id="incluye"
+        aria-labelledby="incluye-titulo"
+        className="border-b border-slate-200 bg-slate-100/70 px-4 py-16 dark:border-slate-800 dark:bg-slate-900/30 sm:px-5 lg:px-8"
+      >
+        <div className="mx-auto max-w-6xl">
+          <h2 id="incluye-titulo" className="text-3xl font-black tracking-[-.04em] sm:text-4xl text-slate-900 dark:text-white">
+            También incluye
+          </h2>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {extras.map(([Icon, title, text], index) => (
+              // La primera (ventas) ocupa toda la fila: es la destacada y evita una tarjeta sola al final.
+              <article
+                key={title}
+                className={`rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 ${index === 0 ? 'sm:col-span-2 lg:col-span-4' : ''}`}
+              >
                 <div className="mb-5 flex size-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
                   <Icon className="size-5" />
                 </div>
@@ -663,14 +729,22 @@ export default function LandingPage() {
           <span className="text-indigo-600">decisiones con margen real.</span>
         </h2>
         <p className="mx-auto mt-4 max-w-md text-sm sm:text-base text-slate-600 dark:text-slate-400">
-          Dejá de operar a margen ciego. Probá la demo de MargenX con datos reales de comercios piloto.
+          Dejá de operar a margen ciego. Mirá cómo funciona con los datos reales de los comercios piloto.
         </p>
-        <Link
-          href="/login"
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-indigo-600/25 transition hover:bg-indigo-700 cursor-pointer"
-        >
-          Probar demo en vivo <ArrowRight className="size-5" />
-        </Link>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a
+            href="#como-funciona"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-indigo-600/25 transition hover:bg-indigo-700 cursor-pointer"
+          >
+            Ver cómo funciona <ArrowRight className="size-5" />
+          </a>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-7 py-4 text-base font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-950 cursor-pointer"
+          >
+            Iniciar sesión
+          </Link>
+        </div>
       </section>
 
       {/* FOOTER */}
