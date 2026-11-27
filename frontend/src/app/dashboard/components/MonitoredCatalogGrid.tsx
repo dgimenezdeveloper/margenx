@@ -14,6 +14,11 @@ import {
 } from '@/lib/healthBucket'
 
 const money = (val: number) => formatMoney(val)
+
+/**
+ * "Ver catálogo completo" (sin filtro) y "Restablecer" (con un filtro activo, que solo lo quita)
+ * usan siempre el color de enlace y nunca el de una alerta (#362, #498).
+ */
 const CATALOG_LINK_CLASSES = `inline-flex min-h-11 items-center rounded-md text-xs font-bold text-indigo-700 underline-offset-2 transition hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200 ${CANONICAL_FOCUS_CLASSES}`
 
 const BUCKET_TITLES: Record<ActiveHealthBucket, string> = {
@@ -32,12 +37,21 @@ interface MonitoredCatalogGridProps {
 }
 
 interface PagingState {
+  /** Columna del histograma para la que vale la página; al cambiar de columna se vuelve a la primera. */
   bucket: ActiveHealthBucket | null
   page: number
   limit: number
+  /** true después de "Cargar más" (mobile): se muestran las páginas acumuladas. */
   append: boolean
 }
 
+/**
+ * Grilla de productos monitoreados.
+ * Recibe el catálogo completo (todas las páginas de la API) porque `GET /api/products`
+ * no filtra por bucket, y lo muestra de a 20 con el paginador compartido.
+ * Maneja su propio ordenamiento (alfabético para colaboradores, por margen para admins)
+ * y su propio skeleton de carga.
+ */
 export function MonitoredCatalogGrid({
   products,
   isLoading,
@@ -49,39 +63,43 @@ export function MonitoredCatalogGrid({
     if (isCollaborator) {
       return [...products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
     }
+
     return [...products].sort((a, b) => {
       const aHasRecipe = a.ingredients.length > 0
       const bHasRecipe = b.ingredients.length > 0
+
       if (aHasRecipe && !bHasRecipe) return -1
       if (!aHasRecipe && bHasRecipe) return 1
       if (!aHasRecipe && !bHasRecipe) return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+
       const marginDiff = (a.marginPercent ?? 0) - (b.marginPercent ?? 0)
       if (marginDiff !== 0) return marginDiff
+
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
     })
   }, [products, isCollaborator])
 
   const displayedProducts = useMemo(() => {
     if (!selectedBucket || isCollaborator) return sortedProducts
+
+    // Misma regla que el servidor: la grilla muestra los mismos productos que cuenta la columna.
     return sortedProducts.filter((p) => classifyHealthBucket(p) === selectedBucket)
   }, [sortedProducts, selectedBucket, isCollaborator])
 
   const activeBucket = isCollaborator ? null : selectedBucket
-
   const [paging, setPaging] = useState<PagingState>({
     bucket: activeBucket,
     page: 1,
     limit: DEFAULT_PAGE_SIZE,
     append: false,
   })
-
   const current: PagingState =
     paging.bucket === activeBucket ? paging : { ...paging, bucket: activeBucket, page: 1, append: false }
 
   const total = displayedProducts.length
   const totalPages = Math.ceil(total / current.limit)
+  // Si el catálogo se achicó (por ejemplo, al reintentar), no se queda en una página vacía.
   const page = Math.min(current.page, Math.max(totalPages, 1))
-
   const pageProducts = current.append
     ? displayedProducts.slice(0, page * current.limit)
     : displayedProducts.slice((page - 1) * current.limit, page * current.limit)
@@ -107,6 +125,7 @@ export function MonitoredCatalogGrid({
             )}
           </h2>
         </div>
+
         <div className="shrink-0 text-right">
           {selectedBucket && !isCollaborator && (
             <button
@@ -114,6 +133,7 @@ export function MonitoredCatalogGrid({
               onClick={onClearFilter}
               className={`${CATALOG_LINK_CLASSES} cursor-pointer`}
             >
+              {/* El mismo texto en todos los tamaños: "Ver catálogo completo" es el enlace a /productos sin filtro (#498). */}
               Restablecer
             </button>
           )}
@@ -149,6 +169,7 @@ export function MonitoredCatalogGrid({
               </button>
             </>
           ) : isCollaborator ? (
+            // El colaborador solo recibe productos con receta y precio (#428).
             'Todavía no hay productos a la venta.'
           ) : (
             'Aún no tenés productos registrados en el catálogo.'
@@ -158,6 +179,7 @@ export function MonitoredCatalogGrid({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {pageProducts.map((product) => {
             const hasRecipe = product.ingredients.length > 0
+
             return (
               <Link
                 key={product.id}
@@ -178,6 +200,7 @@ export function MonitoredCatalogGrid({
                     />
                   )}
                 </div>
+
                 <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
                   {!isCollaborator && product.cost !== undefined ? (
                     <span>

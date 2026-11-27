@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
+
 import type { Product } from '@/services/productService'
 import type { ActiveHealthBucket } from '@/lib/healthBucket'
 import { MonitoredCatalogGrid } from './MonitoredCatalogGrid'
@@ -26,6 +27,10 @@ const NOMBRES = [
   'Pan lactal',
 ]
 
+/**
+ * Catálogo como el de la cuenta Demo del recorrido del 10/11: 339 productos.
+ * 12 a pérdida, 107 en riesgo, 130 en objetivo, 40 en superávit y 50 en borrador.
+ */
 function catalogo(): Product[] {
   const tramos: Array<{ n: number; margen: (i: number) => number; receta: boolean }> = [
     { n: 12, margen: (i) => -5 - i, receta: true },
@@ -80,9 +85,10 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(onClearFilter).toHaveBeenCalledTimes(1)
   })
 
-  it('sin filtro, el enlace al catálogo usa el mismo color de enlace que con filtro (#362)', () => {
+  it('Escenario Gherkin: sin filtro, el enlace al catálogo lleva a /productos y usa el mismo color de enlace que con filtro (#362, #498)', () => {
     renderGrilla()
     const enlace = screen.getByRole('link', { name: /ver catálogo completo/i })
+    expect(enlace).toHaveAttribute('href', '/productos')
     expect(enlace.className).toMatch(/text-indigo-700/)
   })
 
@@ -95,6 +101,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
 
   it('ordena de menor a mayor margen y deja los borradores al final', () => {
     renderGrilla()
+    // El primero es el de mayor pérdida (-16 %).
     expect(tarjetas()[0]).toHaveTextContent('012')
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
     expect(screen.getByText(/mostrando 21–40 de 339 productos/i)).toBeInTheDocument()
@@ -143,6 +150,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     const { rerender, onClearFilter } = renderGrilla('target')
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
     expect(screen.getByText(/mostrando 21–40 de 130 productos/i)).toBeInTheDocument()
+
     rerender(
       <MonitoredCatalogGrid
         products={catalogo()}
@@ -162,6 +170,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
     expect(screen.getByText(/página 4 de 4/i)).toBeInTheDocument()
+
     rerender(
       <MonitoredCatalogGrid
         products={catalogo().slice(0, 150)}
@@ -180,6 +189,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(screen.queryByRole('button', { name: 'Cargar más' })).toBeNull()
     expect(screen.getByText('Ver catálogo completo (5)')).toBeInTheDocument()
     unmount()
+
     renderGrilla(null, [])
     expect(screen.getByText(/aún no tenés productos/i)).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /paginación/i })).toBeNull()
@@ -201,16 +211,34 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(within(primera).queryByText(/costo/i)).toBeNull()
   })
 })
+describe('MonitoredCatalogGrid: enlace al catálogo del colaborador (#498)', () => {
+  it('Escenario Gherkin: como colaborador, aunque llegue una columna elegida, ve el enlace a /productos y no "Restablecer"', () => {
+    render(
+      <MonitoredCatalogGrid
+        products={catalogo().map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))}
+        isLoading={false}
+        isCollaborator
+        selectedBucket="risk"
+        onClearFilter={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('link', { name: /ver catálogo completo/i })).toHaveAttribute('href', '/productos')
+    expect(screen.queryByRole('button', { name: 'Restablecer' })).toBeNull()
+  })
+})
 
 describe('MonitoredCatalogGrid sin productos a la venta (#428)', () => {
   it('el colaborador ve "Todavía no hay productos a la venta", no un texto que le habla al dueño', () => {
     render(<MonitoredCatalogGrid products={[]} isLoading={false} isCollaborator selectedBucket={null} onClearFilter={vi.fn()} />)
+
     expect(screen.getByText('Todavía no hay productos a la venta.')).toBeInTheDocument()
     expect(screen.queryByText(/Aún no tenés productos/)).toBeNull()
   })
 
   it('el ADMIN sigue viendo que todavía no cargó productos', () => {
     render(<MonitoredCatalogGrid products={[]} isLoading={false} isCollaborator={false} selectedBucket={null} onClearFilter={vi.fn()} />)
+
     expect(screen.getByText('Aún no tenés productos registrados en el catálogo.')).toBeInTheDocument()
   })
 })
