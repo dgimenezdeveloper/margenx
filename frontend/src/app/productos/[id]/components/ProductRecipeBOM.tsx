@@ -27,9 +27,9 @@ export function ProductRecipeBOM({
 
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Composición / receta</h2>
-        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+        <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400">
           {items.length} {items.length === 1 ? 'ingrediente' : 'ingredientes'}
         </span>
       </div>
