@@ -134,7 +134,7 @@ export function MonitoredCatalogGrid({
               className={`${CATALOG_LINK_CLASSES} cursor-pointer`}
             >
               <span className="sm:hidden">Restablecer</span>
-              <span className="hidden sm:inline">Ver catálogo completo ({products.length})</span>
+              <span className="hidden sm:inline"> Restablecer ({products.length})</span>
             </button>
           )}
           {(!selectedBucket || isCollaborator) && (
