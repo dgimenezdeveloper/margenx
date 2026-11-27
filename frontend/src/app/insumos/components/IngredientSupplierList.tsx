@@ -42,7 +42,7 @@ export function IngredientSupplierList({
   const quarantinedCount = quarantinedConnections.length
   const hasDefaultQuarantined = quarantinedConnections.some((conn) => conn.isDefault)
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-6 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Truck className="size-4 text-indigo-600 dark:text-indigo-400" />
