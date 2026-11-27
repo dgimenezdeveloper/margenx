@@ -465,5 +465,56 @@ describe('SupplierPackagingModal', () => {
       expect(desplegable).toBeDisabled()
       expect(screen.queryByRole('button', { name: 'Nuevo proveedor' })).toBeNull()
     })
+
+    it('E3: limita Tamaño del bulto y Precio del bulto al largo máximo de 99.999.999,99 (13 caracteres)', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      expect(screen.getByLabelText(/Tamaño del bulto/i)).toHaveAttribute('maxlength', '13')
+      expect(screen.getByLabelText(/Precio del bulto/i)).toHaveAttribute('maxlength', '13')
+    })
+
+    it('E4: el selector de proveedor conserva fondo oscuro cuando está abierto en modo oscuro', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      const trigger = screen.getByRole('combobox', { name: 'Proveedor mayorista' })
+      expect(trigger.className).toContain('dark:data-[popup-open]:bg-gray-800')
+    })
+
+    it('C1: en el alta rápida de proveedor a 360 px, el campo puede achicarse (min-w-0) y los botones no se comprimen', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue(PROVEEDORES)
+      const user = userEvent.setup()
+      render(<SupplierPackagingModal isOpen onClose={vi.fn()} ingredient={mockIngredient} onSuccess={vi.fn()} />)
+      await esperarCarga()
+
+      await user.click(screen.getByRole('button', { name: 'Nuevo proveedor' }))
+
+      const input = screen.getByLabelText('Nombre del nuevo proveedor')
+      expect(input.className).toContain('min-w-0')
+      expect(screen.getByRole('button', { name: 'Guardar' }).className).toContain('shrink-0')
+      expect(screen.getByRole('button', { name: 'Cancelar alta de proveedor' }).className).toContain('shrink-0')
+    })
+
+    it('C2: a 360 px los botones del pie se apilan (flex-col-reverse) y Guardar tiene padding horizontal', async () => {
+      vi.mocked(supplierService.getAll).mockResolvedValue([buildSupplier('sup-1', 'Molino Olavarriense')])
+      render(
+        <SupplierPackagingModal
+          isOpen
+          onClose={vi.fn()}
+          ingredient={mockIngredient}
+          existingConnection={mockSupplierConnection}
+          onSuccess={vi.fn()}
+        />
+      )
+      await esperarCarga()
+
+      const submitBtn = screen.getByRole('button', { name: /Guardar presentación/i })
+      expect(submitBtn.parentElement?.className).toContain('flex-col-reverse')
+      expect(submitBtn.className).toContain('px-4')
+      expect(submitBtn.className).toContain('sm:flex-1')
+    })
   })
 })

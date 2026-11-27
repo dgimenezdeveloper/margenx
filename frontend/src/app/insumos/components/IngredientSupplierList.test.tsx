@@ -95,6 +95,20 @@ describe('IngredientSupplierList: indicador de cuarentena', () => {
     expect(screen.queryByText('Proveedores y presentaciones')).not.toBeInTheDocument()
     expect(screen.queryByText('En cuarentena')).not.toBeInTheDocument()
   })
+
+  it('E6: si la presentación en cuarentena no es la predeterminada, aclara que no afecta el costo del insumo', () => {
+    renderList(harina([molino, marjuanc]))
+
+    const notice = screen.getByRole('note')
+    expect(notice).toHaveTextContent('no es la presentación predeterminada')
+    expect(notice).toHaveTextContent('no afecta el costo del insumo')
+  })
+
+  it('E6: si la presentación predeterminada está en cuarentena, avisa que el costo no cambia hasta decidir', () => {
+    renderList(harina([{ ...molino, isQuarantined: true }, marjuanc]))
+
+    expect(screen.getByRole('note')).toHaveTextContent('El costo no cambia hasta que decidas.')
+  })
 })
 
 describe('IngredientSupplierList: presentaciones con nombres unificados y estrella (#434)', () => {
@@ -135,3 +149,11 @@ describe('IngredientSupplierList: presentaciones con nombres unificados y estrel
   })
 })
 
+describe('IngredientSupplierList - E1: un solo scroll (#499)', () => {
+  it('la lista de proveedores no define scroll interno ni altura máxima propia', () => {
+    renderList(harina([molino, marjuanc]))
+
+    const list = screen.getByRole('list')
+    expect(list.className).not.toMatch(/overflow-y-auto|overflow-auto|overflow-y-scroll|max-h-/)
+  })
+})

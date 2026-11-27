@@ -79,17 +79,17 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
         <DialogSheet className="z-70 flex flex-col max-h-[85vh]">
           <div className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 md:hidden dark:bg-gray-700" />
 
-          <div className="flex shrink-0 items-start justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
-            <div>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 pb-4 dark:border-gray-800">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Historial de Costos</p>
-              <DialogTitle className="mt-1 truncate max-w-62.5 sm:max-w-75">
+              <DialogTitle className="mt-1 wrap-break-word">
                 {ingredientName}
               </DialogTitle>
-              <DialogDescription className="sr-only">
+              <DialogDescription className="sr-only wrap-break-word">
                 Variaciones registradas en el costo unitario de {ingredientName}.
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {history.length > 1 && (
                 <button
                   type="button"

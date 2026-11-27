@@ -174,16 +174,7 @@ export function IngredientUpsertSheet({
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
-                {selected && (
-                  <IngredientSupplierList
-                    selected={selected}
-                    isCollaborator={isCollaborator}
-                    onOpenPackaging={onOpenPackaging}
-                    onEditConnection={onEditConnection}
-                    onMakeDefault={onMakeDefault}
-                    money={money}
-                  />
-                )}
+                
 
                 <div>
                   <label htmlFor="ingredient-name" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
@@ -287,6 +278,17 @@ export function IngredientUpsertSheet({
                   </div>
                 )}
 
+                {selected && (
+                  <IngredientSupplierList
+                    selected={selected}
+                    isCollaborator={isCollaborator}
+                    onOpenPackaging={onOpenPackaging}
+                    onEditConnection={onEditConnection}
+                    onMakeDefault={onMakeDefault}
+                    money={money}
+                  />
+                )}
+
                 {selected && showUsedProducts && (
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between">
@@ -328,7 +330,7 @@ export function IngredientUpsertSheet({
                       <>
                         <ul
                           aria-label="Productos que usan este insumo"
-                          className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1"
+                           className="grid grid-cols-1 gap-2"
                         >
                           {usedProducts.map((prod) => (
                             <li key={prod.id}>
