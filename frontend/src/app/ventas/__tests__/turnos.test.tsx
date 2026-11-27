@@ -315,3 +315,48 @@ describe('Historial de turnos (/ventas/turnos)', () => {
     expect(await screen.findByText('Todavía no hay turnos')).toBeInTheDocument()
   })
 })
+
+// Recorrida estética del 26/11 (#495): con md:max-w-3xl la barra de escritorio tapaba el botón de volver y el título.
+describe('Turno y cierre: ancho de escritorio (#495)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([
+    ['el detalle del turno', `/ventas/turnos/${SHIFT_ID}`, () => turnoCerrado()],
+    ['el cierre del turno', `/ventas/turnos/${SHIFT_ID}/cerrar`, () => turnoAbierto()],
+  ])('Escenario "El encabezado no queda tapado": %s usa el ancho de las demás pantallas', async (_nombre, ruta, turno) => {
+    vi.mocked(cashShiftService.getById).mockResolvedValue(turno())
+    const { container } = renderAt(ruta)
+    await waitFor(() => expect(cashShiftService.getById).toHaveBeenCalled())
+
+    const clases = (container.querySelector('main > div') as HTMLElement).className.split(/\s+/)
+    expect(clases).toEqual(expect.arrayContaining(['md:max-w-5xl', 'lg:max-w-6xl']))
+    expect(clases).not.toContain('md:max-w-3xl')
+  })
+})
+
+describe('Cierre del turno: formulario y panel fijo en escritorio (#495)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(cashShiftService.getById).mockResolvedValue(turnoAbierto())
+  })
+
+  it('el formulario de arqueo sigue angosto y alineado con su panel, y el panel no tapa el último medio de pago', async () => {
+    const { container } = renderAt(`/ventas/turnos/${SHIFT_ID}/cerrar`)
+    const efectivo = await screen.findByRole('group', { name: 'Efectivo' })
+
+    // El formulario queda en 3xl aunque la pantalla use el ancho de las demás, igual que el panel de abajo.
+    const formulario = efectivo.parentElement as HTMLElement
+    expect(formulario.className.split(/\s+/)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-3xl']))
+    const seccion = screen.getByRole('region', { name: 'Resultado del arqueo' })
+    const panel = seccion.firstElementChild as HTMLElement
+    expect(panel.className.split(/\s+/)).toContain('md:max-w-3xl')
+    // Mismo relleno lateral que el contenedor del formulario: con px-4, a 768 px el panel quedaba 16 px más ancho por lado ([RV496-M3]).
+    expect(seccion.className.split(/\s+/)).toContain('md:px-8')
+
+    const contenido = container.querySelector('main > div > div') as HTMLElement
+    expect(contenido.className.split(/\s+/)).toContain('md:pb-48')
+    expect(contenido.className.split(/\s+/)).not.toContain('md:pb-12')
+  })
+})
