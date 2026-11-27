@@ -26,7 +26,7 @@ function SavingHarness() {
   return (
     <>
       <Harness isDirty={isDirty} />
-      <button type="button" onClick={() => setIsDirty(false)}>Guardar Cambios</button>
+      <button type="button" onClick={() => setIsDirty(false)}>Guardar cambios</button>
     </>
   )
 }
@@ -89,7 +89,7 @@ describe('useUnsavedChangesWarning (#364)', () => {
     const { router } = renderWithDataRouter(<SavingHarness />, '/productos/prod-1')
     expect(beforeUnloadPrevented()).toBe(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar Cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(beforeUnloadPrevented()).toBe(false)
     await act(async () => {

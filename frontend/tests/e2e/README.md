@@ -26,7 +26,7 @@ Issue #68 (Base #67 / #47B). Scaffolding para que las suites E2E arranquen auten
 - **Proyecto `chromium-collaborator`:** el único que carga `collaborator.json` y el único que corre `rbac-security.spec.ts` (vía `testMatch`). Los proyectos `chromium`/`firefox`/`webkit` excluyen ese archivo explícitamente (`testIgnore`) para no correrlo dos veces con la sesión equivocada.
 - Acotado a un solo browser (Chromium): alcanza para auditar ocultamiento de datos y no justifica triplicar el tiempo de CI.
 
-### 1.2. Cuarentena de Precios (issue #310)
+### 1.2. Cuarentena de precios (issue #310)
 
 `quarantine-queue.spec.ts` no mockea el escenario de cuarentena: lo dispara de verdad a través del mismo webhook de ingesta que usa producción (`POST /api/webhooks/supplier-prices`), con un precio cuya variación supera el 50% sobre un `supplierCode` real del seed. Para eso necesita `INTERNAL_WEBHOOK_SECRET` (ver más abajo) — es el único spec de la suite que llama directamente a la API en vez de solo interactuar con la UI.
 

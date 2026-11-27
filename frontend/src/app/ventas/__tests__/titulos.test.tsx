@@ -17,6 +17,10 @@ vi.mock('@/components/navbar', () => ({
 }))
 vi.mock('@/components/bottom-nav', () => ({ BottomNav: () => null }))
 vi.mock('@/components/desktop-footer', () => ({ DesktopFooter: () => null }))
+// Ventas usa el rol para los textos del colaborador (#497): acá se prueba como administrador.
+vi.mock('@/hooks/useUserRole', () => ({
+  useUserRole: () => ({ role: 'ADMIN', isCollaborator: false, isAdmin: true, isLoading: false }),
+}))
 const getToken = vi.hoisted(() => () => Promise.resolve('token-cajera'))
 vi.mock('@/hooks/useTokenGetter', () => ({ useTokenGetter: () => getToken }))
 vi.mock('@/services/saleService', () => ({ saleService: { list: vi.fn() } }))

@@ -74,6 +74,14 @@ export function formatUnit(unit: string | null | undefined): string {
   return UNIT_LABELS[unit.trim().toLowerCase()] ?? unit
 }
 
+/**
+ * Une con un espacio no separable un número y la unidad que le sigue ("1 kg", "1/2 kg", "200 ml"),
+ * para que no queden en renglones distintos en las tarjetas angostas (#497).
+ */
+export function keepQuantityTogether(text: string): string {
+  return text.replace(/(\d)\s+(?=(?:kg|gr|g|l|lt|ml|cc|u|un)\b)/gi, '$1\u00A0')
+}
+
 /** "0,7 kg", "3 unidad". */
 export function formatQuantityWithUnit(value: Numeric, unit: string | null | undefined, maxDecimals = 3): string {
   return `${formatQuantity(value, maxDecimals)} ${formatUnit(unit)}`.trim()

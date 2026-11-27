@@ -17,7 +17,7 @@ export default function NotFoundPage() {
               icon={<Search className="size-6" />}
               title="Error 404"
               description="La página que estás buscando no existe o fue movida."
-              actionLabel="Volver al Dashboard"
+              actionLabel="Volver al inicio"
               onAction={() => navigate('/dashboard')}
             />
           </div>

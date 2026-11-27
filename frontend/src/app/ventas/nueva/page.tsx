@@ -12,7 +12,7 @@ import { ToastAlert } from '@/components/ToastAlert'
 import { useTokenGetter } from '@/hooks/useTokenGetter'
 import { useToast } from '@/hooks/useToast'
 import { CANONICAL_FOCUS_CLASSES, CANONICAL_INPUT_CLASSES } from '@/lib/accessibility'
-import { formatMoney } from '@/lib/format'
+import { formatMoney, keepQuantityTogether } from '@/lib/format'
 import { ABOVE_BOTTOM_NAV_CLASS } from '@/lib/mobile-layout'
 import {
   PAYMENT_METHOD_LABELS,
@@ -215,7 +215,7 @@ export default function NewSalePage() {
                     )}
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight">{product.name}</p>
+                      <p className="text-sm font-semibold leading-tight">{keepQuantityTogether(product.name)}</p>
                       <p className="mt-1 text-sm font-bold text-gray-700 dark:text-gray-200">{formatMoney(product.salePrice)}</p>
                     </div>
                     <div className="flex items-center justify-between gap-1">

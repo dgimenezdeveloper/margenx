@@ -539,7 +539,7 @@ export default function SuppliesPageContent() {
                 onClick={handleOpenNew}
                 className="hidden md:inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700"
               >
-                <Plus className="size-4" /> Nuevo Insumo
+                <Plus className="size-4" /> Nuevo insumo
               </button>
             </div>
           </section>
@@ -557,7 +557,7 @@ export default function SuppliesPageContent() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
                       <ShieldAlert className="size-5" />
-                      <span className="text-sm font-bold">Precios en Cuarentena ({quarantineCount})</span>
+                      <span className="text-sm font-bold">Precios en cuarentena ({quarantineCount})</span>
                     </div>
                     <button
                       type="button"
@@ -620,7 +620,7 @@ export default function SuppliesPageContent() {
                       onClick={handleOpenNew}
                       className="min-h-11 rounded-xl bg-indigo-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700"
                     >
-                      + Nuevo Insumo
+                      + Nuevo insumo
                     </button>
                   </div>
                 </div>

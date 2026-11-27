@@ -51,13 +51,13 @@ const HARINA: Ingredient = {
 
 const renderPage = () => renderWithDataRouter(<SuppliesPageContent />, '/insumos')
 
-/** Abre "Nuevo Insumo", carga Manteca por kg y tipea el costo como lo escribe el comercio. */
+/** Abre "Nuevo insumo", carga Manteca por kg y tipea el costo como lo escribe el comercio. */
 async function crearMantecaConCosto(costoTipeado: string) {
   const user = userEvent.setup()
   renderPage()
 
   // Hay un botón para desktop y otro para mobile: abren el mismo formulario.
-  const [nuevoInsumo] = await screen.findAllByRole('button', { name: /Nuevo Insumo/i })
+  const [nuevoInsumo] = await screen.findAllByRole('button', { name: /Nuevo insumo/i })
   await user.click(nuevoInsumo as HTMLElement)
   await user.type(screen.getByLabelText(/Nombre del insumo/i), 'Manteca La Serenísima')
   const costo = screen.getByLabelText(/Costo unitario/i)
@@ -86,7 +86,7 @@ describe('SuppliesPageContent - costo escrito en es-AR (#359, [RV377-B1])', () =
 
     expect(costo).toHaveValue(tipeado)
 
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
 
     await waitFor(() => expect(ingredientService.create).toHaveBeenCalledTimes(1))
     expect(vi.mocked(ingredientService.create).mock.calls[0]?.[1]).toEqual({
@@ -99,7 +99,7 @@ describe('SuppliesPageContent - costo escrito en es-AR (#359, [RV377-B1])', () =
   it('un costo mal escrito no se envía y avisa en español', async () => {
     const { user } = await crearMantecaConCosto('1.23.4')
 
-    await user.click(screen.getByRole('button', { name: 'Crear Insumo' }))
+    await user.click(screen.getByRole('button', { name: 'Crear insumo' }))
 
     expect(await screen.findByText('Escribí el costo con coma decimal, por ejemplo 1.234,56')).toBeInTheDocument()
     expect(ingredientService.create).not.toHaveBeenCalled()

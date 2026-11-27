@@ -127,7 +127,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     await screen.findByText('cajera.quimica@seed.example.test')
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')
 
-    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar enlace de la invitación de cajera.quimica@seed.example.test' }))
 
     expect(writeText).toHaveBeenCalledWith(ENLACE_CAJERA)
     expect(onNotify).toHaveBeenCalledWith('Enlace copiado: mandáselo a cajera.quimica@seed.example.test')
@@ -138,7 +138,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     await screen.findByText('cajera.quimica@seed.example.test')
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('NotAllowedError'))
 
-    await user.click(screen.getByRole('button', { name: 'Copiar el enlace de la invitación de cajera.quimica@seed.example.test' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar enlace de la invitación de cajera.quimica@seed.example.test' }))
 
     expect(await screen.findByRole('textbox', { name: 'Enlace de la invitación de cajera.quimica@seed.example.test' })).toHaveValue(ENLACE_CAJERA)
     expect(onNotify).not.toHaveBeenCalled()
@@ -149,7 +149,7 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     renderSection()
     await screen.findByText('cajera.quimica@seed.example.test')
 
-    expect(screen.queryByRole('button', { name: /Copiar el enlace/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Copiar enlace/ })).not.toBeInTheDocument()
   })
 
   it('valida el correo antes de llamar a la API', async () => {
@@ -237,5 +237,73 @@ describe('CollaboratorsSection (Perfil, solo ADMIN)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Dar de baja' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('No pudimos comunicarnos con el servicio de cuentas')
+  })
+})
+
+describe('CollaboratorsSection: recorrida del 26 y 27/11 (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    service.listUsers.mockResolvedValue([ADMIN, REPOSITOR])
+    service.listInvitations.mockResolvedValue([INVITACION_CAJERA])
+  })
+
+  it('255: el nombre accesible de "Copiar enlace" empieza con el texto visible (WCAG 2.5.3)', async () => {
+    renderSection()
+
+    const boton = await screen.findByRole('button', { name: /^Copiar enlace/ })
+    expect(boton).toHaveTextContent('Copiar enlace')
+    expect(boton).toHaveAccessibleName('Copiar enlace de la invitación de cajera.quimica@seed.example.test')
+  })
+
+  it('249: los correos no se parten a mitad de palabra: se cortan antes de "@" o de un punto, y nunca con break-all', async () => {
+    renderSection()
+
+    const pendientes = await screen.findByRole('list', { name: 'Invitaciones pendientes' })
+    const activos = screen.getByRole('list', { name: 'Colaboradores activos' })
+    for (const [lista, correo] of [
+      [pendientes, 'cajera.quimica@seed.example.test'],
+      [activos, 'colab.quimica@seed.example.test'],
+    ] as const) {
+      const parrafo = within(lista).getByText(correo).closest('p') as HTMLElement
+      expect(parrafo, correo).not.toHaveClass('break-all')
+      expect(parrafo, correo).toHaveTextContent(correo)
+      expect(parrafo.querySelectorAll('wbr').length, correo).toBeGreaterThan(0)
+    }
+  })
+
+  it('249: el aviso de la invitación sin mail y el diálogo de baja tampoco usan break-all', async () => {
+    service.invite.mockResolvedValue({
+      invitation: { id: 'inv_repartidor', email: 'repartidor.quimica@seed.example.test', createdAt: '2026-11-16T14:00:00.000Z', url: 'https://x.clerk.accounts.dev/v1/tickets/accept?ticket=t' },
+      emailSent: false,
+    })
+    const { user } = renderSection()
+    await screen.findByText('colab.quimica@seed.example.test')
+
+    await user.type(screen.getByLabelText('Correo del colaborador'), 'repartidor.quimica@seed.example.test')
+    await user.click(screen.getByRole('button', { name: 'Invitar' }))
+    const aviso = await screen.findByRole('status', { name: 'Aviso de invitación' })
+    expect(aviso.querySelector('.break-all')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Dar de baja a colab.quimica@seed.example.test' }))
+    const dialogo = await screen.findByRole('dialog')
+    expect(dialogo.querySelector('.break-all')).toBeNull()
+  })
+})
+
+describe('CollaboratorsSection: a 360 px el correo activo usa todo el ancho (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    service.listUsers.mockResolvedValue([ADMIN, REPOSITOR])
+    service.listInvitations.mockResolvedValue([])
+  })
+
+  it('249: si no entran juntos, "Dar de baja" baja de renglón, como en las invitaciones, en vez de partir el correo en cuatro', async () => {
+    renderSection()
+
+    const activos = await screen.findByRole('list', { name: 'Colaboradores activos' })
+    const fila = within(activos).getByRole('listitem')
+    expect(fila).toHaveClass('flex-wrap')
+    const correo = within(fila).getByText('colab.quimica@seed.example.test').closest('div') as HTMLElement
+    expect(correo).toHaveClass('min-w-0', 'flex-1', 'basis-40')
   })
 })

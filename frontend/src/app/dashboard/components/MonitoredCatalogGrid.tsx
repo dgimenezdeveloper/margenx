@@ -121,7 +121,7 @@ export function MonitoredCatalogGrid({
                 </span>
               </span>
             ) : (
-              <span>Catálogo Monitoreado</span>
+              <span>Catálogo monitoreado</span>
             )}
           </h2>
         </div>
@@ -207,7 +207,7 @@ export function MonitoredCatalogGrid({
                       Costo: <strong className="text-gray-700 dark:text-gray-300">{money(product.cost)}</strong>
                     </span>
                   ) : (
-                    <span className="text-[11px] font-medium text-gray-400">
+                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                       Atención al público
                     </span>
                   )}

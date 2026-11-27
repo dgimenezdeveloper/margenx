@@ -139,7 +139,7 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
   {
     nombre: 'Soporte y documentación',
     ui: <SupportDocsModal isOpen onClose={vi.fn()} />,
-    titulo: 'Soporte y Documentación',
+    titulo: 'Soporte y documentación',
   },
   {
     nombre: 'Historial de precios',
@@ -167,12 +167,12 @@ const casos: Array<{ nombre: string; ui: ReactElement; titulo: string | RegExp }
         onAdd={vi.fn().mockResolvedValue(undefined)}
       />
     ),
-    titulo: 'Sumar Insumo a la Receta',
+    titulo: 'Sumar insumo a la receta',
   },
   {
     nombre: 'Simulador de precio (mobile)',
     ui: <SimulatorSheetHarness />,
-    titulo: /Simulador de Precio/,
+    titulo: /Simulador de precio/,
   },
   {
     nombre: 'Nuevo insumo',

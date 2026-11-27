@@ -50,7 +50,7 @@ function SupportExample() {
       <DialogPortal>
         <DialogBackdrop />
         <DialogPopup>
-          <DialogTitle>Soporte y Documentación</DialogTitle>
+          <DialogTitle>Soporte y documentación</DialogTitle>
           <DialogDescription>Canales de contacto con el equipo de MargenX.</DialogDescription>
           <DialogClose aria-label="Cerrar">X</DialogClose>
         </DialogPopup>
@@ -87,7 +87,7 @@ function StackedExample() {
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup>
-            <DialogTitle>Historial de Costos</DialogTitle>
+            <DialogTitle>Historial de costos</DialogTitle>
             <DialogDescription>Variaciones del costo de Harina 000.</DialogDescription>
             <DialogClose>Cerrar historial</DialogClose>
           </DialogPopup>
@@ -158,7 +158,7 @@ describe('Dialog', () => {
     const trigger = screen.getByRole('button', { name: 'Soporte' })
 
     await user.click(trigger)
-    const dialog = await screen.findByRole('dialog', { name: 'Soporte y Documentación' })
+    const dialog = await screen.findByRole('dialog', { name: 'Soporte y documentación' })
     expect(dialog).toHaveAccessibleDescription('Canales de contacto con el equipo de MargenX.')
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
@@ -210,13 +210,13 @@ describe('Dialog', () => {
     await screen.findByRole('dialog', { name: 'Actualizar Costo' })
     const historyButton = screen.getByRole('button', { name: 'Ver historial de precios' })
     await user.click(historyButton)
-    const history = await screen.findByRole('dialog', { name: 'Historial de Costos' })
+    const history = await screen.findByRole('dialog', { name: 'Historial de costos' })
     await waitFor(() => expect(history).toContainElement(document.activeElement as HTMLElement))
 
     await user.keyboard('{Escape}')
 
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Historial de Costos' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Historial de costos' })).not.toBeInTheDocument()
     )
     expect(screen.getByRole('dialog', { name: 'Actualizar Costo' })).toBeInTheDocument()
     await waitFor(() => expect(historyButton).toHaveFocus())

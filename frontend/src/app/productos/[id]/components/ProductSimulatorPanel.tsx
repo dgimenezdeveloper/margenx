@@ -70,7 +70,7 @@ export function ProductSimulatorPanel({
       <div className={isMobile ? 'flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5' : 'space-y-5'}>
         <div>
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
-            Ajustes Rápidos de Precio
+            Ajustes rápidos de precio
           </label>
           <div className="grid grid-cols-3 gap-2">
             <button
@@ -121,11 +121,11 @@ export function ProductSimulatorPanel({
             htmlFor="simulator-sale-price"
             className="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2"
           >
-            Precio de Venta al Público ($)
+            Precio de venta al público ($)
           </label>
           <NumericInput
             id="simulator-sale-price"
-            aria-label="Precio de Venta al Público ($)"
+            aria-label="Precio de venta al público ($)"
             value={watchedSalePrice}
             onChange={(val) => {
               setValue('salePrice', val, { shouldValidate: true, shouldDirty: true })
@@ -186,7 +186,7 @@ export function ProductSimulatorPanel({
           )}
         >
           {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+          {isSaving ? 'Guardando...' : 'Guardar cambios'}
         </button>
       )}
     </div>

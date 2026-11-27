@@ -97,18 +97,18 @@ test.describe('TC-MRG-01: Recálculo de margen en tiempo real (issue #47)', () =
       // Espera a que termine de cargar el detalle (fetch de producto + insumos)
       // antes de contar la receta — si no, "count()" no espera nada y puede
       // leer el DOM a mitad de carga, dando 0 siempre.
-      await page.getByRole('heading', { name: 'Composición / Receta' }).waitFor()
+      await page.getByRole('heading', { name: 'Composición / receta' }).waitFor()
 
       const alreadyInRecipe = await page.getByText(INGREDIENT_NAME, { exact: true }).count()
       if (alreadyInRecipe === 0) {
-        await page.getByRole('button', { name: 'Agregar Insumo a la Receta' }).click()
-        const modal = page.getByRole('dialog', { name: 'Sumar Insumo a la Receta' })
-        await modal.getByLabel('Seleccionar Insumo').selectOption(INGREDIENT_ID)
+        await page.getByRole('button', { name: 'Agregar insumo a la receta' }).click()
+        const modal = page.getByRole('dialog', { name: 'Sumar insumo a la receta' })
+        await modal.getByLabel('Seleccionar insumo').selectOption(INGREDIENT_ID)
         await modal.getByRole('spinbutton').fill('1') // Cantidad utilizada
         await modal.getByRole('combobox').last().selectOption('kg') // Unidad
         await modal.getByRole('button', { name: 'Agregar' }).click()
         // Confirma el guardado esperando que el insumo aparezca en la lista
-        // de "Composición / Receta" del producto.
+        // de "Composición / receta" del producto.
         await expect(page.getByText(INGREDIENT_NAME, { exact: true })).toBeVisible()
       }
 

@@ -264,7 +264,7 @@ export default function LandingPage() {
       <section id="producto" className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-8 sm:px-5 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-24 lg:pt-14">
         <div>
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3.5 py-1.5 text-xs font-bold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300">
-            <Sparkles className="size-3.5" /> Casos Reales: Panadería Central & Química GyJ
+            <Sparkles className="size-3.5" /> Casos reales: Panadería Central & Química GyJ
           </div>
           <h1 className="max-w-xl text-4xl font-black leading-[1.02] tracking-tighter sm:text-6xl lg:text-7xl">
             Control de costos <span className="text-indigo-600">en tiempo real.</span>
@@ -307,7 +307,7 @@ export default function LandingPage() {
           <div className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Catálogo en Vivo</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Catálogo en vivo</p>
                 <p className="text-base font-black text-slate-900 dark:text-white">
                   {activePilot === 'panaderia' ? 'Panadería Central' : 'Química GyJ'}
                 </p>
@@ -361,7 +361,7 @@ export default function LandingPage() {
                 <div>
                   <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
                     {activePilot === 'panaderia'
-                      ? 'Medialunas de manteca (Docena)'
+                      ? 'Medialunas de manteca (docena)'
                       : 'Detergente (Magistral) — 1 L'}
                   </p>
                   <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300">
@@ -454,7 +454,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-              Valor Diferencial
+              Valor diferencial
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-.04em] sm:text-4xl text-slate-900 dark:text-white">
               Automatización pensada para el comercio de todos los días
@@ -579,7 +579,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-              Flujo de Trabajo
+              Flujo de trabajo
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-.04em] sm:text-4xl text-slate-900 dark:text-white">
               Cálculo financiero simple en 3 pasos
@@ -606,7 +606,7 @@ export default function LandingPage() {
       <section id="beneficios" className="border-y border-slate-200 bg-white px-4 py-16 dark:border-slate-800 dark:bg-slate-900/50 sm:px-5 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-            Control Financiero
+            Control financiero
           </p>
           <h2 className="mt-2 max-w-xl text-3xl font-black tracking-[-.04em] sm:text-4xl text-slate-900 dark:text-white">
             La claridad que tu comercio necesita para no licuar su margen.
@@ -658,7 +658,7 @@ export default function LandingPage() {
         <div className="rounded-3xl border bg-white border-slate-200 dark:border-slate-800 dark:bg-slate-900/40 p-6 sm:p-12 lg:flex lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              Validado con Comercios Reales
+              Validado con comercios reales
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-.04em]">
               Adaptado a la realidad del mostrador y el taller
@@ -688,7 +688,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-4xl">
           <div className="text-center">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-              Dudas Comunes
+              Dudas comunes
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-.04em] text-slate-900 dark:text-white">
               Preguntas frecuentes

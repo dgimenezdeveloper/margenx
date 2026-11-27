@@ -278,7 +278,7 @@ export function QuickCreateIngredientModal({
                 )}
               >
                 {isSubmitting && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-                {isSubmitting ? 'Guardando...' : 'Crear Insumo'}
+                {isSubmitting ? 'Guardando...' : 'Crear insumo'}
               </button>
             </div>
           </form>
