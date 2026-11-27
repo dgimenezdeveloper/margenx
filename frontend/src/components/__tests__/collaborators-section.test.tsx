@@ -289,3 +289,21 @@ describe('CollaboratorsSection: recorrida del 26 y 27/11 (#497)', () => {
     expect(dialogo.querySelector('.break-all')).toBeNull()
   })
 })
+
+describe('CollaboratorsSection: a 360 px el correo activo usa todo el ancho (#497)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    service.listUsers.mockResolvedValue([ADMIN, REPOSITOR])
+    service.listInvitations.mockResolvedValue([])
+  })
+
+  it('249: si no entran juntos, "Dar de baja" baja de renglón, como en las invitaciones, en vez de partir el correo en cuatro', async () => {
+    renderSection()
+
+    const activos = await screen.findByRole('list', { name: 'Colaboradores activos' })
+    const fila = within(activos).getByRole('listitem')
+    expect(fila).toHaveClass('flex-wrap')
+    const correo = within(fila).getByText('colab.quimica@seed.example.test').closest('div') as HTMLElement
+    expect(correo).toHaveClass('min-w-0', 'flex-1', 'basis-40')
+  })
+})
