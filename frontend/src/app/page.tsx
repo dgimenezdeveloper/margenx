@@ -19,6 +19,7 @@ import {
   Menu,
   Moon,
   Play,
+  Receipt,
   RefreshCw,
   Scale,
   ShieldCheck,
@@ -72,9 +73,14 @@ const steps = [
   },
 ]
 
-// Solo capacidades "Disponible" de docs/especificacion-funcional.md §11. El módulo de ventas no va:
-// hoy solo lo tiene la cuenta Demo de staging (#493).
+// Solo capacidades "Disponible" de docs/especificacion-funcional.md §11. Ventas va primero y destacada:
+// se prende en la Demo de producción con la v1.0.0 (decisión del 27/11) y es la puerta de entrada para el comercio (#493).
 const extras = [
+  [
+    Receipt,
+    'Ventas con ticket y caja por turno',
+    'Cobrá en el mostrador con un ticket no fiscal, cerrá la caja de cada turno y mirá la ganancia real de lo que vendiste. Es un módulo que se activa por comercio.',
+  ],
   [
     ShoppingCart,
     'Antes de comprar, el impacto en tu margen',
@@ -100,7 +106,7 @@ const extras = [
 const faqs = [
   {
     q: '¿Qué diferencia a MargenX de un sistema de facturación o punto de venta?',
-    a: 'MargenX no emite facturas fiscales. Se enfoca en tus costos: calcula cuánto te cuesta hacer cada producto y cuida tu ganancia cuando suben los insumos.',
+    a: 'MargenX no emite facturas fiscales. Se enfoca en tus costos: calcula cuánto te cuesta hacer cada producto y cuida tu ganancia cuando suben los insumos. Con el módulo de ventas, además cobrás con un ticket no fiscal y cerrás la caja de cada turno.',
   },
   {
     q: '¿MargenX decide el precio de venta?',
@@ -630,8 +636,12 @@ export default function LandingPage() {
             También incluye
           </h2>
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {extras.map(([Icon, title, text]) => (
-              <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+            {extras.map(([Icon, title, text], index) => (
+              // La primera (ventas) ocupa toda la fila: es la destacada y evita una tarjeta sola al final.
+              <article
+                key={title}
+                className={`rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 ${index === 0 ? 'sm:col-span-2 lg:col-span-4' : ''}`}
+              >
                 <div className="mb-5 flex size-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
                   <Icon className="size-5" />
                 </div>
