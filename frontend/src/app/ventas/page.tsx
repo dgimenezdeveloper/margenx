@@ -105,7 +105,9 @@ export default function SalesHistoryPage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-5 pb-28 md:pb-12">
-          <Navbar title="Ventas" titleMobileOnly />
+          {/* Pantalla principal del menú: la barra muestra el logo y el comercio, como el Panel, y el título
+              de la pantalla es el "Ventas" de abajo, sin repetirlo en el celular (#502). */}
+          <Navbar />
 
           <CashShiftPanel
             shift={shift}
@@ -116,7 +118,7 @@ export default function SalesHistoryPage() {
           />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-black md:text-2xl">Ventas</h2>
+            <h1 className="text-xl font-black md:text-2xl">Ventas</h1>
             <Link
               to="/ventas/nueva"
               className={cn(
