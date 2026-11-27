@@ -75,18 +75,20 @@ function tarjetas() {
 }
 
 describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
-  it('Escenario Gherkin: Link del filtro -> con "En objetivo" el enlace que quita el filtro usa el color de enlace, no el de alerta (#362)', () => {
+  it('Escenario Gherkin: Link del filtro -> con "En objetivo" el botón que quita el filtro dice "Restablecer", no "Ver catálogo completo", y usa el color de enlace (#362, #498)', () => {
     const { onClearFilter } = renderGrilla('target')
-    const quitarFiltro = screen.getByRole('button', { name: /ver catálogo completo/i })
+    const quitarFiltro = screen.getByRole('button', { name: 'Restablecer' })
     expect(quitarFiltro.className).toMatch(/text-indigo-700/)
     expect(quitarFiltro.className).not.toMatch(/rose|red|amber/)
+    expect(screen.queryByRole('button', { name: /ver catálogo completo/i })).toBeNull()
     fireEvent.click(quitarFiltro)
     expect(onClearFilter).toHaveBeenCalledTimes(1)
   })
 
-  it('sin filtro, el enlace al catálogo usa el mismo color de enlace que con filtro (#362)', () => {
+  it('Escenario Gherkin: sin filtro, el enlace al catálogo lleva a /productos y usa el mismo color de enlace que con filtro (#362, #498)', () => {
     renderGrilla()
     const enlace = screen.getByRole('link', { name: /ver catálogo completo/i })
+    expect(enlace).toHaveAttribute('href', '/productos')
     expect(enlace.className).toMatch(/text-indigo-700/)
   })
 
@@ -124,7 +126,7 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(screen.getByText(/Productos: En riesgo/i)).toBeInTheDocument()
     expect(screen.getByText('(107 de 339)')).toBeInTheDocument()
     expect(screen.getByText(/mostrando 1–20 de 107 productos/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /ver catálogo completo \(339\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restablecer' })).toBeInTheDocument()
     expect(screen.getAllByText('En riesgo').length).toBe(20)
   })
 
@@ -209,6 +211,23 @@ describe('MonitoredCatalogGrid sobre todo el catálogo (#351 / #358)', () => {
     expect(within(primera).queryByText(/costo/i)).toBeNull()
   })
 })
+describe('MonitoredCatalogGrid: enlace al catálogo del colaborador (#498)', () => {
+  it('Escenario Gherkin: como colaborador, aunque llegue una columna elegida, ve el enlace a /productos y no "Restablecer"', () => {
+    render(
+      <MonitoredCatalogGrid
+        products={catalogo().map(({ id, name, salePrice, ingredients }) => ({ id, name, salePrice, ingredients }))}
+        isLoading={false}
+        isCollaborator
+        selectedBucket="risk"
+        onClearFilter={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('link', { name: /ver catálogo completo/i })).toHaveAttribute('href', '/productos')
+    expect(screen.queryByRole('button', { name: 'Restablecer' })).toBeNull()
+  })
+})
+
 describe('MonitoredCatalogGrid sin productos a la venta (#428)', () => {
   it('el colaborador ve "Todavía no hay productos a la venta", no un texto que le habla al dueño', () => {
     render(<MonitoredCatalogGrid products={[]} isLoading={false} isCollaborator selectedBucket={null} onClearFilter={vi.fn()} />)
