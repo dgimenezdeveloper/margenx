@@ -53,4 +53,18 @@ describe('SuppliersTabs', () => {
     renderTabs({ active: 'suppliers' })
     expect(screen.getByRole('link', { name: 'Cuarentena' })).toBeInTheDocument()
   })
+
+  it('C6: a 360 px las pestañas reducen padding y gap y admiten encogerse (min-w-0) sin romper el contenedor', () => {
+    renderTabs({ active: 'suppliers', quarantineCount: 12 })
+
+    const suppliers = screen.getByRole('link', { name: 'Proveedores' })
+    const quarantine = screen.getByRole('link', { name: 'Cuarentena, 12 precios retenidos' })
+
+    for (const tab of [suppliers, quarantine]) {
+      expect(tab.className).toContain('min-w-0')
+      expect(tab.className).toContain('px-2.5')
+      expect(tab.className).toContain('sm:px-4')
+    }
+    expect(quarantine.querySelector('svg')?.getAttribute('class') ?? '').toContain('shrink-0')
+  })
 })

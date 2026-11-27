@@ -15,7 +15,7 @@ const QUARANTINE_HINT =
   'Precios de este proveedor retenidos porque cambiaron demasiado. Esperan que los apruebes o rechaces en Cuarentena.'
 
 // Columnas compartidas por el encabezado y cada fila desde `md`.
-const DESKTOP_GRID = 'md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_7rem_minmax(0,1.1fr)_auto] md:items-center md:gap-4'
+const DESKTOP_GRID = 'md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_7rem_minmax(0,1.1fr)_6rem] md:items-center md:gap-4'
 
 const pluralInsumos = (count: number) => `${count} ${count === 1 ? 'insumo' : 'insumos'}`
 
@@ -82,7 +82,7 @@ export function SuppliersList({ suppliers, onEdit, onDelete }: SuppliersListProp
         <span>Contacto</span>
         <span>Insumos</span>
         <span>Cuarentena</span>
-        <span className="sr-only">Acciones</span>
+        <span className="text-right">Acciones</span>
       </div>
 
       <ul aria-label="Proveedores" className="divide-y divide-gray-100 dark:divide-gray-800">

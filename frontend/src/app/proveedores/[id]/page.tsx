@@ -275,16 +275,16 @@ export default function SupplierDetailPage() {
                   )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5 dark:border-gray-800">
-                  <div className="rounded-2xl bg-indigo-50/70 p-3 text-center dark:bg-indigo-950/40">
+                <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-gray-100 pt-5 sm:grid-cols-3 sm:gap-3 dark:border-gray-800">
+                  <div className="min-w-0 rounded-2xl bg-indigo-50/70 p-3 text-center dark:bg-indigo-950/40">
                     <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">Presentaciones</p>
                     <p className="text-xl font-black text-indigo-950 dark:text-indigo-100">{catalogTotal ?? meta?.total ?? 0}</p>
                   </div>
-                  <div className="rounded-2xl bg-emerald-50/70 p-3 text-center dark:bg-emerald-950/40">
+                  <div className="min-w-0 rounded-2xl bg-emerald-50/70 p-3 text-center dark:bg-emerald-950/40">
                     <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Predeterminadas</p>
                     <p className="text-xl font-black text-emerald-950 dark:text-emerald-100">{stats.defaultCount}</p>
                   </div>
-                  <div className="rounded-2xl bg-amber-50/70 p-3 text-center dark:bg-amber-950/40">
+                  <div className="col-span-2 min-w-0 rounded-2xl bg-amber-50/70 p-3 text-center sm:col-span-1 dark:bg-amber-950/40">
                     <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300">En cuarentena</p>
                     <p className="text-xl font-black text-amber-950 dark:text-amber-100">{stats.quarantinedCount}</p>
                   </div>
