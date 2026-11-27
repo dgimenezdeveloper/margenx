@@ -20,7 +20,9 @@ export function ProductImpactList({ products }: { products: MarginImpactProduct[
     <ul className="divide-y divide-gray-100 dark:divide-gray-800">
       {products.map((product) => {
         // La mejora va aparte, con flecha y signo: el color del margen nuevo dice su estado, no si mejoró (#497).
-        const improvement = Number(product.projectedMarginPercent) - Number(product.currentMarginPercent)
+        // Se resta lo que se ve: los dos márgenes redondeados como en formatPercent, así "76,1 % → 77,5 %" da 1,4 pp ([RV504-M2]).
+        const shown = (value: string) => Number(Number(value).toFixed(1))
+        const improvement = Number((shown(product.projectedMarginPercent) - shown(product.currentMarginPercent)).toFixed(1))
         return (
           <li
             key={product.productId}
