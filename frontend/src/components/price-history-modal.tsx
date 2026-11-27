@@ -81,7 +81,7 @@ export function PriceHistoryModal({ isOpen, onClose, ingredientId, ingredientNam
 
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 pb-4 dark:border-gray-800">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Historial de Costos</p>
+              <p className="text-xs font-bold uppercase text-indigo-600 dark:text-indigo-400">Historial de costos</p>
               <DialogTitle className="mt-1 wrap-break-word">
                 {ingredientName}
               </DialogTitle>
