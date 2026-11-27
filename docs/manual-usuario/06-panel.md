@@ -36,7 +36,7 @@ Ejemplo: con 339 productos, 50 en borrador y columnas de 12, 107, 130 y 40, la s
 
 1. Tocá una columna del histograma (por ejemplo, **En riesgo**).
 2. La grilla de abajo muestra solo esos productos, buscando en todo el catálogo, y el título indica cuántos son sobre el total (`107 de 339`).
-3. Para volver a ver todo, tocá **Restablecer** (o **Ver catálogo completo** en la computadora), o tocá de nuevo la misma columna. Ese enlace se ve con el color de los enlaces, no en rojo: solo quita el filtro.
+3. Para volver a ver todo, tocá **Restablecer**, o tocá de nuevo la misma columna. Ese enlace se ve con el color de los enlaces, no en rojo: solo quita el filtro.
 
 Una columna sin productos aparece atenuada y no se puede tocar.
 
