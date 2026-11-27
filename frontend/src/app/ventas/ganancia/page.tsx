@@ -110,13 +110,11 @@ export default function RealProfitPage() {
     <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-5xl md:px-8 lg:max-w-6xl lg:px-12">
         <div className="flex flex-col gap-5 pb-28 md:pb-12">
+          {/* El título va solo en la barra (su encabezado de nivel 1); acá queda la explicación (#502). */}
           <Navbar title="Ganancia real" backHref="/dashboard" />
-          <div>
-            <h2 className="text-xl font-black md:text-2xl">Ganancia real</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Lo que vendiste menos lo que te costó cada producto el día de la venta. Sin las ventas anuladas.
-            </p>
-          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Lo que vendiste menos lo que te costó cada producto el día de la venta. Sin las ventas anuladas.
+          </p>
 
           <div role="group" aria-label="Período" className="inline-flex self-start rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
             {PERIODS.map(({ value, label }) => (
