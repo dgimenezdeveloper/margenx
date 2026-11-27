@@ -1,5 +1,5 @@
 // Observación O5 de la recorrida del 26/11 (#502): el nombre de la pantalla no se repite.
-// La barra real dibuja su título como encabezado de nivel 1; la simulada hace lo mismo para poder contarlo.
+// La barra real dibuja su título como encabezado de nivel 1 (lo fija components/__tests__/navbar-titulo.test.tsx); la simulada hace lo mismo para poder contarlo.
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
