@@ -57,10 +57,10 @@ Requisitos:
    git rev-parse -q --verify "refs/tags/v$ANTERIOR" >/dev/null || echo "ERROR: no existe la etiqueta v$ANTERIOR (revisar ANTERIOR)"
    git diff --name-only --diff-filter=A "v$ANTERIOR" origin/develop -- backend/prisma/migrations
    DIFF_MIGRACIONES="$(git diff "v$ANTERIOR" origin/develop -- backend/prisma/migrations)" \
-     && { printf '%s\n' "$DIFF_MIGRACIONES" | grep -nE '^\+.*(DROP|DELETE|TRUNCATE)' || echo "sin DROP/DELETE/TRUNCATE"; } \
+     && { printf '%s\n' "$DIFF_MIGRACIONES" | grep -nE '^\+\s*(DROP|DELETE|TRUNCATE)\b' || echo "sin DROP/DELETE/TRUNCATE"; } \
      || echo "ERROR: git diff falló; el resultado no vale"
    ```
-   Cada `DROP` se justifica en el comentario de la issue. Antes, `grep ... || echo` imprimía "sin DROP/DELETE/TRUNCATE" también cuando `git diff` fallaba (por ejemplo, con un `ANTERIOR` sin etiqueta): ahora el error se ve (aplicación de v0.6.0).
+   Cada `DROP` se justifica en el comentario de la issue. Antes, `grep ... || echo` imprimía "sin DROP/DELETE/TRUNCATE" también cuando `git diff` fallaba (por ejemplo, con un `ANTERIOR` sin etiqueta): ahora el error se ve (aplicación de v0.6.0). La búsqueda mira solo el comienzo de cada sentencia: con `.*`, las claves foráneas `ON DELETE CASCADE` de una tabla nueva daban falsos positivos.
    - **v0.6.0:** la única migración nueva era `20261030224224_case_insensitive_unique_names`: borra los índices únicos exactos de `Product` y `Supplier` y los reemplaza por índices únicos que no distinguen mayúsculas. No borra filas, pero falla si la base tiene nombres repetidos que solo difieren en mayúsculas (por eso el paso 3 del §2.2).
    - **v1.0.0:** cuatro migraciones, sin `DROP`, `DELETE` ni `TRUNCATE`: `20261111120000_unify_ingredient_unit_u` y `20261111180000_add_search_name_to_ingredient_and_product` normalizan datos con `UPDATE` (unidad `u` y texto de búsqueda); `20261122135422_add_sales_module_and_account_features` agrega las tablas del módulo de ventas; `20261127130811_add_unique_default_supplier_ingredient` deja una sola presentación predeterminada por insumo con `UPDATE` (desmarca las sobrantes, sin cambiar precios ni costos) y crea un índice único parcial.
 
