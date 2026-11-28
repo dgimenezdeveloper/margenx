@@ -4,6 +4,8 @@ Todos los cambios notables de este proyecto serán documentados en este archivo 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-28 (Sprints 6 y 7: compras, reporte semanal, ventas, invitaciones y cierre de la cursada)
+
 ### Added
 
 - **Frontend:** Menú del celular con **Más** y panel lateral (RC-22). A 360 px el ADMIN tenía 7 pestañas y se cortaban los rótulos ("Product…", "Provee…").
