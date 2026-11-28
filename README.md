@@ -10,6 +10,8 @@
 > Aplicación web multiempresa para comercios gastronómicos, manufactura artesanal y química. Calcula el margen de ganancia real por producto ante la variación de costos de materias primas, con recálculo en cascada, alertas automáticas vía n8n y aislamiento estricto multi-tenant.
 >
 > 🌐 **Navegación rápida / Quick Navigation:** [English Documentation](#-english-documentation) | [Documentación en Español](#-documentación-en-español)
+>
+> 🚀 **Versión / Release:** v1.0.0 (28/11/2026) · Producción: <https://margenx.tech> · Staging: <https://dev.margenx.tech> · API: <https://api.margenx.tech/api/docs> · Cambios: [CHANGELOG](CHANGELOG.md)
 
 ---
 
