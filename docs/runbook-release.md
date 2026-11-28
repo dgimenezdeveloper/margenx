@@ -1,7 +1,7 @@
 # Runbook — Publicar una versión en producción (release)
 
 **Proyecto:** MargenX (VPS: staging `dev.margenx.tech` y producción `margenx.tech`)
-**Última actualización:** 7 de noviembre de 2026 (primera aplicación: v0.6.0)
+**Última actualización:** 28 de noviembre de 2026 (aplicado en v0.6.0; correcciones de esa aplicación y preparación de v1.0.0)
 **Responsable:** DevOps
 
 Cómo pasar `develop` a `main` sin perder datos y con una vuelta atrás ensayada. Cada release sigue estos pasos en orden. Los resultados de cada paso se dejan como comentario en la issue del release, sin credenciales, IP de la VPS ni datos personales (el repositorio es público).
@@ -19,9 +19,9 @@ Reglas que gobiernan este runbook:
 En los comandos, `VERSION` es la versión nueva y `ANTERIOR` la última publicada:
 
 ```bash
-VERSION=0.6.0
-ANTERIOR=0.5.0
-SPRINT=5
+VERSION=1.0.0
+ANTERIOR=0.6.0
+SPRINT=7
 ```
 
 Requisitos:
@@ -46,17 +46,23 @@ Requisitos:
    git rev-parse origin/develop   # igual al headSha de "Continuous Integration (CI)" y de "CD Pipeline to VPS (Docker Hub)", los dos "success"
    curl -sS -o /dev/null -w '%{http_code}\n' https://api-dev.margenx.tech/api/health   # 200
    ```
-4. **Recomendación de QA sin defectos graves abiertos** en el reporte de calidad del sprint (`docs/qa/reporte-calidad-sprint<N>.md`).
-5. **Sin conflictos entre `main` y `develop`:**
+4. **Recomendación de QA sin defectos graves abiertos** en el reporte de calidad del sprint (`docs/qa/reporte-calidad-sprint<N>.md`). Para v1.0.0, el reporte de la regresión final: `docs/qa/reporte-calidad-final.md` §8.
+5. **`main` existe y no tiene conflictos con `develop`.** El 16/11/2026 `main` quedó borrada del remoto (el rol de administrador saltea el ruleset) y se recreó el 25/11 desde `v0.6.0` (`docs/politica-proteccion-main.md` §1.1). Sin `main`, el `merge-tree` falla con un error que se confunde con un conflicto:
    ```bash
+   git ls-remote --exit-code --heads origin main >/dev/null && echo "main existe" || echo "ERROR: no existe main en el remoto"
    git merge-tree --write-tree origin/main origin/develop >/dev/null && echo "sin conflictos"
    ```
 6. **Migraciones nuevas y qué hacen.** Listarlas y buscar sentencias que borren datos:
    ```bash
+   git rev-parse -q --verify "refs/tags/v$ANTERIOR" >/dev/null || echo "ERROR: no existe la etiqueta v$ANTERIOR (revisar ANTERIOR)"
    git diff --name-only --diff-filter=A "v$ANTERIOR" origin/develop -- backend/prisma/migrations
-   git diff "v$ANTERIOR" origin/develop -- backend/prisma/migrations | grep -nE '^\+.*(DROP|DELETE|TRUNCATE)' || echo "sin DROP/DELETE/TRUNCATE"
+   DIFF_MIGRACIONES="$(git diff "v$ANTERIOR" origin/develop -- backend/prisma/migrations)" \
+     && { printf '%s\n' "$DIFF_MIGRACIONES" | grep -nE '^\+.*(DROP|DELETE|TRUNCATE)' || echo "sin DROP/DELETE/TRUNCATE"; } \
+     || echo "ERROR: git diff falló; el resultado no vale"
    ```
-   Cada `DROP` se justifica en el comentario de la issue. En v0.6.0 la única migración nueva es `20261030224224_case_insensitive_unique_names`: borra los índices únicos exactos de `Product` y `Supplier` y los reemplaza por índices únicos que no distinguen mayúsculas. No borra filas, pero falla si la base tiene nombres repetidos que solo difieren en mayúsculas (por eso el paso 3 del §2.2).
+   Cada `DROP` se justifica en el comentario de la issue. Antes, `grep ... || echo` imprimía "sin DROP/DELETE/TRUNCATE" también cuando `git diff` fallaba (por ejemplo, con un `ANTERIOR` sin etiqueta): ahora el error se ve (aplicación de v0.6.0).
+   - **v0.6.0:** la única migración nueva era `20261030224224_case_insensitive_unique_names`: borra los índices únicos exactos de `Product` y `Supplier` y los reemplaza por índices únicos que no distinguen mayúsculas. No borra filas, pero falla si la base tiene nombres repetidos que solo difieren en mayúsculas (por eso el paso 3 del §2.2).
+   - **v1.0.0:** cuatro migraciones, sin `DROP`, `DELETE` ni `TRUNCATE`: `20261111120000_unify_ingredient_unit_u` y `20261111180000_add_search_name_to_ingredient_and_product` normalizan datos con `UPDATE` (unidad `u` y texto de búsqueda); `20261122135422_add_sales_module_and_account_features` agrega las tablas del módulo de ventas; `20261127130811_add_unique_default_supplier_ingredient` deja una sola presentación predeterminada por insumo con `UPDATE` (desmarca las sobrantes, sin cambiar precios ni costos) y crea un índice único parcial.
 
 ### 2.2. En la VPS
 
@@ -105,8 +111,10 @@ El paso 1 se corre desde la máquina local. Los pasos 2 a 5 van en **una misma s
    time docker exec -i margenx_postgres_prod sh -c 'pg_restore -U "$POSTGRES_USER" -d margenx_release_test --no-owner' < "$COPIA"
 
    # Migraciones con la imagen de develop. DATABASE_URL se arma dentro del contenedor y no se imprime.
+   # < /dev/null: `docker compose run` lee la entrada estándar; si estos pasos van por `ssh ... bash -s`,
+   # sin la redirección consume el resto del script (aplicación de v0.6.0).
    time docker compose run --rm --no-deps -T --entrypoint sh backend-dev -c \
-     'DATABASE_URL="${DATABASE_URL%/*}/margenx_release_test?schema=public" npx prisma migrate deploy'
+     'DATABASE_URL="${DATABASE_URL%/*}/margenx_release_test?schema=public" npx prisma migrate deploy' < /dev/null
 
    docker exec -i margenx_postgres_prod sh -c 'psql -U "$POSTGRES_USER" -d margenx_release_test -v ON_ERROR_STOP=1' <<'SQL'
    SELECT migration_name, finished_at FROM _prisma_migrations ORDER BY started_at DESC LIMIT 3;
