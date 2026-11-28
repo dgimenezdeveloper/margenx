@@ -61,6 +61,7 @@ export function Navbar({
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const displayedCompanyName = companyName || businessName
+  // Si el nombre no entra, se corta con "…": el title lo muestra completo al pasar el mouse (#505).
 
   // ariaLabel: nombre completo cuando el texto visible se acorta para que la barra entre en una línea.
   const navLinks: { label: string; ariaLabel?: string; href: string; icon: typeof Boxes }[] = [
@@ -112,7 +113,9 @@ export function Navbar({
                 {isLoading ? (
                   <div className="h-3 w-20 animate-pulse rounded bg-indigo-200 dark:bg-indigo-800" />
                 ) : (
-                  <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+                  <span className="truncate max-w-30 md:max-w-50" title={displayedCompanyName}>
+                    {displayedCompanyName}
+                  </span>
                 )}
               </span>
             )}
@@ -124,7 +127,9 @@ export function Navbar({
               {isLoading ? (
                 <div className="h-3 w-20 animate-pulse rounded bg-indigo-200 dark:bg-indigo-800" />
               ) : (
-                <span className="truncate max-w-30 md:max-w-50">{displayedCompanyName}</span>
+                <span className="truncate max-w-30 md:max-w-50" title={displayedCompanyName}>
+                  {displayedCompanyName}
+                </span>
               )}
             </span>
           )
